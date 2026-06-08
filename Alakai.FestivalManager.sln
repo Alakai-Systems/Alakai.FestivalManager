@@ -5,6 +5,8 @@ VisualStudioVersion = 17.14.37301.10 d17.14
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alakai.FestivalManager.Domain", "Alakai.FestivalManager.Domain\Alakai.FestivalManager.Domain.csproj", "{D42BD905-9192-4775-BBB6-3E3DC114839C}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alakai.FestivalManager.Application", "Alakai.FestivalManager.Application\Alakai.FestivalManager.Application.csproj", "{71E55363-697A-4789-940B-D81B2E32E645}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +17,10 @@ Global
 		{D42BD905-9192-4775-BBB6-3E3DC114839C}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D42BD905-9192-4775-BBB6-3E3DC114839C}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D42BD905-9192-4775-BBB6-3E3DC114839C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{71E55363-697A-4789-940B-D81B2E32E645}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{71E55363-697A-4789-940B-D81B2E32E645}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{71E55363-697A-4789-940B-D81B2E32E645}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{71E55363-697A-4789-940B-D81B2E32E645}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
