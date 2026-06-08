@@ -1,0 +1,15 @@
+services:
+  sqlserver:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: alakai-festivalmanager-sql
+    environment:
+      ACCEPT_EULA: "Y"
+      SA_PASSWORD: "Alakaisystems26!"
+    ports:
+      - "14333:1433"
+    volumes:
+      - alakai_sql_data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  alakai_sql_data:
