@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alakai.FestivalManager.Appl
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alakai.FestivalManager.Infrastructure", "Alakai.FestivalManager.Infrastructure\Alakai.FestivalManager.Infrastructure.csproj", "{D5BDDF5E-A967-4D54-986D-682E1FAF1830}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Alakai.FestivalManager.Api", "Alakai.FestivalManager.Api\Alakai.FestivalManager.Api.csproj", "{57173AEE-E5D6-4F04-B3BC-67EABCBFF724}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{D5BDDF5E-A967-4D54-986D-682E1FAF1830}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{D5BDDF5E-A967-4D54-986D-682E1FAF1830}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{D5BDDF5E-A967-4D54-986D-682E1FAF1830}.Release|Any CPU.Build.0 = Release|Any CPU
+		{57173AEE-E5D6-4F04-B3BC-67EABCBFF724}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{57173AEE-E5D6-4F04-B3BC-67EABCBFF724}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{57173AEE-E5D6-4F04-B3BC-67EABCBFF724}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{57173AEE-E5D6-4F04-B3BC-67EABCBFF724}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
