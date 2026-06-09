@@ -1,6 +1,7 @@
-﻿global using Alakai.FestivalManager.Application.Interfaces;
+﻿global using Alakai.FestivalManager.Application.Interfaces.Repositories;
 global using Alakai.FestivalManager.Domain.Entities;
 global using Alakai.FestivalManager.Infrastructure.Persistence;
+global using Alakai.FestivalManager.Infrastructure.Repositories;
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.EntityFrameworkCore.Metadata.Builders;
 global using Microsoft.EntityFrameworkCore.Migrations;

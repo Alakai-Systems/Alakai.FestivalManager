@@ -2,7 +2,7 @@
 
 namespace Alakai.FestivalManager.Infrastructure.Persistence;
 
-public class FestivalManagerDbContext : DbContext, IApplicationDbContext
+public class FestivalManagerDbContext : DbContext
 {
     public FestivalManagerDbContext(DbContextOptions<FestivalManagerDbContext> options)
         : base(options)

@@ -2,19 +2,28 @@
 
 public class CreateFestivalHandler
 {
-    private readonly IApplicationDbContext _context;
+    private readonly IFestivalRepository _festivalRepository;
 
-    public CreateFestivalHandler(
-        IApplicationDbContext context)
+    public CreateFestivalHandler(IFestivalRepository festivalRepository)
     {
-        _context = context;
+        _festivalRepository = festivalRepository;
     }
 
     public async Task<FestivalDto> HandleAsync(
         CreateFestivalCommand command,
         CancellationToken cancellationToken = default)
     {
-        Festival festival = new()
+        bool slugExists = await _festivalRepository.ExistsBySlugAsync(
+            command.Slug,
+            cancellationToken);
+
+        if (slugExists is true)
+        {
+            throw new InvalidOperationException(
+                $"A festival with slug '{command.Slug}' already exists.");
+        }
+
+        var festival = new Festival
         {
             Name = command.Name,
             Slug = command.Slug,
@@ -24,9 +33,9 @@ public class CreateFestivalHandler
             IsActive = true
         };
 
-        _context.Festivals.Add(festival);
+        await _festivalRepository.AddAsync(festival, cancellationToken);
 
-        await _context.SaveChangesAsync(cancellationToken);
+        await _festivalRepository.SaveChangesAsync(cancellationToken);
 
         return new FestivalDto
         {

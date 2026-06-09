@@ -8,8 +8,7 @@ public static class InfrastructureDependencyInjectionExtension
             options.UseSqlServer(
                 configuration.GetConnectionString("DefaultConnection")));
 
-        services.AddScoped<IApplicationDbContext>(
-            provider => provider.GetRequiredService<FestivalManagerDbContext>());
+        services.AddScoped<IFestivalRepository, FestivalRepository>();
 
         return services;
     }
