@@ -19,8 +19,4 @@
     <ProjectReference Include="..\Alakai.FestivalManager.Infrastructure\Alakai.FestivalManager.Infrastructure.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
 </Project>
