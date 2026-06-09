@@ -10,6 +10,11 @@ public static class ApplicationDependencyInjectionExtension
 
         services.AddValidatorsFromAssembly(typeof(ApplicationDependencyInjectionExtension).Assembly);
 
+        services.AddAutoMapper(cfg =>
+        {
+            cfg.AddMaps(typeof(ApplicationDependencyInjectionExtension).Assembly);
+        });
+
         return services;
     }
 }
