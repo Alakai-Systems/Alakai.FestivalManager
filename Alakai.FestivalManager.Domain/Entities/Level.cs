@@ -12,11 +12,11 @@ public class Level : BaseEntity
 
     // Pricing
 
-    public decimal EarlyBirdRate { get; set; }
+    public decimal EarlyBirdPrice { get; set; }
 
-    public decimal GroupRate { get; set; }
+    public decimal GroupPrice { get; set; }
 
-    public decimal RegularRate { get; set; }
+    public decimal RegularPrice { get; set; }
 
     // Capacities
     public int? LeaderCapacity { get; set; }
