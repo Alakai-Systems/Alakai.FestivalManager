@@ -1,2 +1,2 @@
-﻿global using Alakai.FestivalManager.Infrastructure.Persistence;
-global using Microsoft.EntityFrameworkCore;
+﻿global using Alakai.FestivalManager.Application.Extensions;
+global using Alakai.FestivalManager.Infrastructure.Extensions;

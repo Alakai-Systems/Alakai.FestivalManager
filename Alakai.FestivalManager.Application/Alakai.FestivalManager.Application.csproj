@@ -29,13 +29,13 @@
     <Folder Include="Features\Editions\Queries\" />
     <Folder Include="Features\Editions\Services\" />
     <Folder Include="Features\Editions\Validators\" />
-    <Folder Include="Features\Festivals\Services\" />
     <Folder Include="Mappings\" />
     <Folder Include="Features\Festivals\Queries\" />
-    <Folder Include="Features\Festivals\Validators\" />
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.16" />
   </ItemGroup>
 
