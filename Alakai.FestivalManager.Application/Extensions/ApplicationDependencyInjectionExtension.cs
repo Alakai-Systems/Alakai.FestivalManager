@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Festivals.Commands.DeleteFestival;
+﻿using Alakai.FestivalManager.Application.Features.Editions.Queries.GetEditionsByFestivalId;
 
 namespace Alakai.FestivalManager.Application.Extensions;
 
@@ -13,12 +13,22 @@ public static class ApplicationDependencyInjectionExtension
             cfg.AddMaps(typeof(ApplicationDependencyInjectionExtension).Assembly);
         });
 
+        //Festivals
         services.AddScoped<CreateFestivalHandler>();
         services.AddScoped<IFestivalService, FestivalService>();
         services.AddScoped<GetFestivalByIdHandler>();
         services.AddScoped<GetFestivalsHandler>();
         services.AddScoped<UpdateFestivalHandler>();
         services.AddScoped<DeleteFestivalHandler>();
+
+        //Editions
+        services.AddScoped<CreateEditionHandler>();
+        services.AddScoped<GetEditionByIdHandler>();
+        services.AddScoped<GetEditionsByFestivalIdHandler>();
+        services.AddScoped<GetEditionsHandler>();
+        services.AddScoped<UpdateEditionHandler>();
+        services.AddScoped<DeleteEditionHandler>();
+        services.AddScoped<IEditionService, EditionService>();
 
         return services;
     }

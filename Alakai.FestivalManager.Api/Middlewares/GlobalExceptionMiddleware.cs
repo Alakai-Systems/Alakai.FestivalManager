@@ -1,7 +1,4 @@
-﻿using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
-
-namespace Alakai.FestivalManager.Api.Middlewares;
+﻿namespace Alakai.FestivalManager.Api.Middlewares;
 
 public class GlobalExceptionMiddleware
 {

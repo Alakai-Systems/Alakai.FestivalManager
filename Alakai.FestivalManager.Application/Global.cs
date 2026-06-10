@@ -1,6 +1,17 @@
 ﻿global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
+global using Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
+global using Alakai.FestivalManager.Application.Features.Editions.Commands.DeleteEdition;
+global using Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
+global using Alakai.FestivalManager.Application.Features.Editions.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Editions.Queries.GetEditionById;
+global using Alakai.FestivalManager.Application.Features.Editions.Queries.GetEditions;
+global using Alakai.FestivalManager.Application.Features.Editions.Queries.GetEditionsByFestivalId;
+global using Alakai.FestivalManager.Application.Features.Editions.Services;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.CreateFestival;
+global using Alakai.FestivalManager.Application.Features.Festivals.Commands.DeleteFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.UpdateFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Requests;
@@ -14,3 +25,4 @@ global using AutoMapper;
 global using FluentValidation;
 global using FluentValidation.Results;
 global using Microsoft.Extensions.DependencyInjection;
+

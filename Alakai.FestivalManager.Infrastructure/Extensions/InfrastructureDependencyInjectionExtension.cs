@@ -9,6 +9,7 @@ public static class InfrastructureDependencyInjectionExtension
                 configuration.GetConnectionString("DefaultConnection")));
 
         services.AddScoped<IFestivalRepository, FestivalRepository>();
+        services.AddScoped<IEditionRepository, EditionRepository>();
 
         return services;
     }

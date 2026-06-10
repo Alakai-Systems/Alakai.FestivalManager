@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Common\Mapping\" />
     <Folder Include="Features\Levels\Commands\" />
     <Folder Include="Features\Levels\Contracts\DTOs\" />
     <Folder Include="Features\Levels\Contracts\Requests\" />
@@ -21,14 +22,6 @@
     <Folder Include="Features\PassTypes\Queries\" />
     <Folder Include="Features\PassTypes\Services\" />
     <Folder Include="Features\PassTypes\Validators\" />
-    <Folder Include="Features\Editions\Commands\" />
-    <Folder Include="Features\Editions\Contracts\DTOs\" />
-    <Folder Include="Features\Editions\Contracts\Requests\" />
-    <Folder Include="Features\Editions\Contracts\Responses\" />
-    <Folder Include="Features\Editions\Queries\" />
-    <Folder Include="Features\Editions\Services\" />
-    <Folder Include="Features\Editions\Validators\" />
-    <Folder Include="Mappings\" />
   </ItemGroup>
 
   <ItemGroup>
