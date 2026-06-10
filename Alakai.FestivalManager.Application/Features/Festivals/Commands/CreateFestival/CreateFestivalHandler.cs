@@ -13,14 +13,6 @@ public class CreateFestivalHandler
 
     public async Task<FestivalDto> HandleAsync(CreateFestivalCommand command, CancellationToken cancellationToken = default)
     {
-        bool slugExists = await _festivalRepository.ExistsBySlugAsync(command.Slug, cancellationToken);
-
-        if (slugExists is true)
-        {
-            throw new InvalidOperationException(
-                $"A festival with slug '{command.Slug}' already exists.");
-        }
-
         Festival festival = _mapper.Map<Festival>(command);
 
         await _festivalRepository.AddAsync(festival, cancellationToken);

@@ -1,4 +1,8 @@
-﻿namespace Alakai.FestivalManager.Api.Controllers;
+﻿using Alakai.FestivalManager.Application.Common.Responses;
+using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Responses;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
+
+namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/festivals")]
@@ -12,28 +16,26 @@ public class FestivalsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] CreateFestivalCommand command,
-        CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] CreateFestivalCommand command, CancellationToken cancellationToken)
     {
-        FestivalDto result = await _festivalService.CreateAsync(command, cancellationToken);
+        ApiResponse<CreateFestivalResponse> response = await _festivalService.CreateAsync(command, cancellationToken);
 
-        return CreatedAtAction(
-            nameof(Create),
-            new { id = result.Id },
-            result);
+        return CreatedAtAction(nameof(Create), response);
     }
 
     [HttpGet("{id:guid}")]
     public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
     {
-        FestivalDto? festival = await _festivalService.GetByIdAsync(id, cancellationToken);
+        ApiResponse<GetFestivalByIdResponse> response = await _festivalService.GetByIdAsync(id, cancellationToken);
 
-        if (festival is null)
-        {
-            return NotFound();
-        }
+        return Ok(response);
+    }
 
-        return Ok(festival);
+    [HttpGet]
+    public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+    {
+        ApiResponse<GetFestivalsResponse> response = await _festivalService.GetAllAsync(cancellationToken);
+
+        return Ok(response);
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Application.Common.Mappings;
+﻿using Alakai.FestivalManager.Domain.Entities;
+
+namespace Alakai.FestivalManager.Application.Common.Mappings;
 
 public class FestivalMappingProfile : Profile
 {
@@ -9,5 +11,7 @@ public class FestivalMappingProfile : Profile
         CreateMap<Festival, FestivalDto>();
 
         CreateMap<FestivalDto, CreateFestivalResponse>();
+
+        CreateMap<IReadOnlyList<FestivalDto>, IReadOnlyList<Festival>>();
     }
 }

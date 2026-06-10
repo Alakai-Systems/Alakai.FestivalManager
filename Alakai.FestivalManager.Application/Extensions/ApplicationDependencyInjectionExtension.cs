@@ -14,6 +14,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<CreateFestivalHandler>();
         services.AddScoped<IFestivalService, FestivalService>();
         services.AddScoped<GetFestivalByIdHandler>();
+        services.AddScoped<GetFestivalsHandler>();
 
         return services;
     }
