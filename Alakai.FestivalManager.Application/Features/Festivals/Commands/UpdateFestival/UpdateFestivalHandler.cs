@@ -21,7 +21,7 @@ public class UpdateFestivalHandler
                 $"Festival with id '{command.Id}' was not found.");
         }
 
-        festival = _mapper.Map<Festival>(command);
+        _mapper.Map(command, festival);
 
         festival.SetUpdated();
 
