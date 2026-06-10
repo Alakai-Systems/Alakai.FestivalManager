@@ -1,4 +1,5 @@
 ﻿using Alakai.FestivalManager.Application.Features.Editions.Queries.GetEditionsByFestivalId;
+using Alakai.FestivalManager.Application.Features.PassTypes.Services;
 
 namespace Alakai.FestivalManager.Application.Extensions;
 
@@ -29,6 +30,15 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateEditionHandler>();
         services.AddScoped<DeleteEditionHandler>();
         services.AddScoped<IEditionService, EditionService>();
+
+        //PassTypes
+        services.AddScoped<CreatePassTypeHandler>();
+        services.AddScoped<GetPassTypeByIdHandler>();
+        services.AddScoped<GetPassTypesHandler>();
+        services.AddScoped<GetPassTypesByEditionIdHandler>();
+        services.AddScoped<UpdatePassTypeHandler>();
+        services.AddScoped<DeletePassTypeHandler>();
+        services.AddScoped<IPassTypeService, PassTypeService>();
 
         return services;
     }

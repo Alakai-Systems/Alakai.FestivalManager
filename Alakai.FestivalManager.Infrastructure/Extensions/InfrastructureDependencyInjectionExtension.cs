@@ -10,6 +10,7 @@ public static class InfrastructureDependencyInjectionExtension
 
         services.AddScoped<IFestivalRepository, FestivalRepository>();
         services.AddScoped<IEditionRepository, EditionRepository>();
+        services.AddScoped<IPassTypeRepository, PassTypeRepository>();
 
         return services;
     }

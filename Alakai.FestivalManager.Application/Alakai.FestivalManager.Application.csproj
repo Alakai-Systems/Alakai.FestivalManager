@@ -15,13 +15,6 @@
     <Folder Include="Features\Levels\Queries\" />
     <Folder Include="Features\Levels\Services\" />
     <Folder Include="Features\Levels\Validators\" />
-    <Folder Include="Features\PassTypes\Commands\" />
-    <Folder Include="Features\PassTypes\Contracts\DTOs\" />
-    <Folder Include="Features\PassTypes\Contracts\Requests\" />
-    <Folder Include="Features\PassTypes\Contracts\Responses\" />
-    <Folder Include="Features\PassTypes\Queries\" />
-    <Folder Include="Features\PassTypes\Services\" />
-    <Folder Include="Features\PassTypes\Validators\" />
   </ItemGroup>
 
   <ItemGroup>
