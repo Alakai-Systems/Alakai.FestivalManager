@@ -48,4 +48,12 @@ public class FestivalsController : ControllerBase
 
         return Ok(response);
     }
+
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
+    {
+        ApiResponse<DeleteFestivalResponse> response = await _festivalService.DeleteAsync(id, cancellationToken);
+
+        return Ok(response);
+    }
 }

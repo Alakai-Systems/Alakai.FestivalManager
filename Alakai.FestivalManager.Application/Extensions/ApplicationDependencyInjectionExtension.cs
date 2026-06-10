@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+﻿using Alakai.FestivalManager.Application.Features.Festivals.Commands.DeleteFestival;
+
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -16,6 +18,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<GetFestivalByIdHandler>();
         services.AddScoped<GetFestivalsHandler>();
         services.AddScoped<UpdateFestivalHandler>();
+        services.AddScoped<DeleteFestivalHandler>();
 
         return services;
     }

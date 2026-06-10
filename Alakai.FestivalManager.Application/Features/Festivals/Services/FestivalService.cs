@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
+﻿using Alakai.FestivalManager.Application.Features.Festivals.Commands.DeleteFestival;
+
+namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
 
 public class FestivalService : IFestivalService
 {
@@ -6,6 +8,7 @@ public class FestivalService : IFestivalService
     private readonly GetFestivalByIdHandler _getFestivalByIdHandler;
     private readonly GetFestivalsHandler _getFestivalsHandler;
     private readonly UpdateFestivalHandler _updateFestivalHandler;
+    private readonly DeleteFestivalHandler _deleteFestivalHandler;
     private readonly IValidator<CreateFestivalCommand> _createFestivalValidator;
     private readonly IValidator<UpdateFestivalCommand> _updateFestivalValidator;
 
@@ -14,7 +17,8 @@ public class FestivalService : IFestivalService
         GetFestivalByIdHandler getFestivalByIdHandler,
         GetFestivalsHandler getFestivalsHandler,
         UpdateFestivalHandler updateFestivalHandler,
-        IValidator<CreateFestivalCommand> createFestivalValidator,
+        DeleteFestivalHandler deleteFestivalHandler,
+    IValidator<CreateFestivalCommand> createFestivalValidator,
         IValidator<UpdateFestivalCommand> updateFestivalValidator)
     {
         _createFestivalHandler = createFestivalHandler;
@@ -23,6 +27,7 @@ public class FestivalService : IFestivalService
         _getFestivalsHandler = getFestivalsHandler;
         _updateFestivalHandler = updateFestivalHandler;
         _updateFestivalValidator = updateFestivalValidator;
+        _deleteFestivalHandler = deleteFestivalHandler;
     }
 
     public async Task<ApiResponse<CreateFestivalResponse>> CreateAsync(CreateFestivalCommand command, CancellationToken cancellationToken = default)
@@ -124,6 +129,25 @@ public class FestivalService : IFestivalService
             Data = new UpdateFestivalResponse
             {
                 Festival = festivalDto
+            },
+            Errors = []
+        };
+    }
+
+    public async Task<ApiResponse<DeleteFestivalResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        DeleteFestivalCommand command = new(id);
+
+        Guid deletedId = await _deleteFestivalHandler.HandleAsync(command, cancellationToken);
+
+        return new ApiResponse<DeleteFestivalResponse>
+        {
+            Success = true,
+            Message = "Festival deleted successfully.",
+            Data = new DeleteFestivalResponse
+            {
+                Id = deletedId,
+                Deleted = true
             },
             Errors = []
         };
