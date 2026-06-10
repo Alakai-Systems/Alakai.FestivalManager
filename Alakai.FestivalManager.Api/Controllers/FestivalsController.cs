@@ -1,23 +1,22 @@
-﻿using Alakai.FestivalManager.Application.Common.Responses;
-using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Responses;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
-
-namespace Alakai.FestivalManager.Api.Controllers;
+﻿namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/festivals")]
 public class FestivalsController : ControllerBase
 {
     private readonly IFestivalService _festivalService;
+    private readonly IMapper _mapper;
 
-    public FestivalsController(IFestivalService festivalService)
+    public FestivalsController(IFestivalService festivalService, IMapper mapper)
     {
         _festivalService = festivalService;
+        _mapper = mapper;
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] CreateFestivalCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> Create([FromBody] CreateFestivalRequest request, CancellationToken cancellationToken)
     {
+        CreateFestivalCommand command = _mapper.Map<CreateFestivalCommand>(request);
         ApiResponse<CreateFestivalResponse> response = await _festivalService.CreateAsync(command, cancellationToken);
 
         return CreatedAtAction(nameof(Create), response);
@@ -35,6 +34,17 @@ public class FestivalsController : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         ApiResponse<GetFestivalsResponse> response = await _festivalService.GetAllAsync(cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] UpdateFestivalRequest request, CancellationToken cancellationToken)
+    {
+        UpdateFestivalCommand? command = _mapper.Map<UpdateFestivalCommand>(request);
+        command.Id = id;
+
+        ApiResponse<UpdateFestivalResponse> response = await _festivalService.UpdateAsync(command, cancellationToken);
 
         return Ok(response);
     }

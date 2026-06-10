@@ -7,4 +7,5 @@ public interface IFestivalService
     Task<ApiResponse<CreateFestivalResponse>> CreateAsync(CreateFestivalCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<GetFestivalByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApiResponse<GetFestivalsResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<UpdateFestivalResponse>> UpdateAsync(UpdateFestivalCommand command, CancellationToken cancellationToken = default);
 }

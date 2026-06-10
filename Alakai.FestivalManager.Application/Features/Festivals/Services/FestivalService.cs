@@ -1,25 +1,28 @@
-﻿using Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Interfaces.Repositories;
-
-namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
 
 public class FestivalService : IFestivalService
 {
     private readonly CreateFestivalHandler _createFestivalHandler;
     private readonly GetFestivalByIdHandler _getFestivalByIdHandler;
     private readonly GetFestivalsHandler _getFestivalsHandler;
+    private readonly UpdateFestivalHandler _updateFestivalHandler;
     private readonly IValidator<CreateFestivalCommand> _createFestivalValidator;
+    private readonly IValidator<UpdateFestivalCommand> _updateFestivalValidator;
 
     public FestivalService(
         CreateFestivalHandler createFestivalHandler,
         GetFestivalByIdHandler getFestivalByIdHandler,
         GetFestivalsHandler getFestivalsHandler,
-        IValidator<CreateFestivalCommand> createFestivalValidator)
+        UpdateFestivalHandler updateFestivalHandler,
+        IValidator<CreateFestivalCommand> createFestivalValidator,
+        IValidator<UpdateFestivalCommand> updateFestivalValidator)
     {
         _createFestivalHandler = createFestivalHandler;
         _createFestivalValidator = createFestivalValidator;
         _getFestivalByIdHandler = getFestivalByIdHandler;
         _getFestivalsHandler = getFestivalsHandler;
+        _updateFestivalHandler = updateFestivalHandler;
+        _updateFestivalValidator = updateFestivalValidator;
     }
 
     public async Task<ApiResponse<CreateFestivalResponse>> CreateAsync(CreateFestivalCommand command, CancellationToken cancellationToken = default)
@@ -101,5 +104,28 @@ public class FestivalService : IFestivalService
         };
 
         return response;
+    }
+
+    public async Task<ApiResponse<UpdateFestivalResponse>> UpdateAsync(UpdateFestivalCommand command, CancellationToken cancellationToken = default)
+    {
+        ValidationResult? validationResult = await _updateFestivalValidator.ValidateAsync(command, cancellationToken);
+
+        if (validationResult.IsValid is false)
+        {
+            throw new ValidationException(validationResult.Errors);
+        }
+
+        FestivalDto festivalDto = await _updateFestivalHandler.HandleAsync(command, cancellationToken);
+
+        return new ApiResponse<UpdateFestivalResponse>
+        {
+            Success = true,
+            Message = "Festival updated successfully.",
+            Data = new UpdateFestivalResponse
+            {
+                Festival = festivalDto
+            },
+            Errors = []
+        };
     }
 }

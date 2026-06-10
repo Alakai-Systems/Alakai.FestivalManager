@@ -1,17 +1,22 @@
-﻿using Alakai.FestivalManager.Domain.Entities;
-
+﻿
 namespace Alakai.FestivalManager.Application.Common.Mappings;
 
 public class FestivalMappingProfile : Profile
 {
     public FestivalMappingProfile()
     {
-        CreateMap<CreateFestivalCommand, Festival>();
-
+        //Generics y Gets
         CreateMap<Festival, FestivalDto>();
+        CreateMap<IReadOnlyList<FestivalDto>, IReadOnlyList<Festival>>();
 
+        //Create Festival
+        CreateMap<CreateFestivalCommand, Festival>();
+        CreateMap<CreateFestivalRequest, CreateFestivalCommand>();
         CreateMap<FestivalDto, CreateFestivalResponse>();
 
-        CreateMap<IReadOnlyList<FestivalDto>, IReadOnlyList<Festival>>();
+        //Update Festival
+        CreateMap<UpdateFestivalRequest, UpdateFestivalCommand>();
+        CreateMap<UpdateFestivalCommand, Festival>();
+        CreateMap<FestivalDto, UpdateFestivalResponse>();
     }
 }
