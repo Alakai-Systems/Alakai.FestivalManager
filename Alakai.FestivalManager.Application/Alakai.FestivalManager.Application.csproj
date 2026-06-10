@@ -29,7 +29,6 @@
     <Folder Include="Features\Editions\Services\" />
     <Folder Include="Features\Editions\Validators\" />
     <Folder Include="Mappings\" />
-    <Folder Include="Features\Festivals\Queries\" />
   </ItemGroup>
 
   <ItemGroup>

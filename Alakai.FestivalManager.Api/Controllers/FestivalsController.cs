@@ -1,7 +1,7 @@
 ﻿namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/festivals")]
 public class FestivalsController : ControllerBase
 {
     private readonly IFestivalService _festivalService;
@@ -22,5 +22,18 @@ public class FestivalsController : ControllerBase
             nameof(Create),
             new { id = result.Id },
             result);
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+    {
+        FestivalDto? festival = await _festivalService.GetByIdAsync(id, cancellationToken);
+
+        if (festival is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(festival);
     }
 }
