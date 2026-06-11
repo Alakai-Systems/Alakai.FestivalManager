@@ -8,13 +8,6 @@
 
   <ItemGroup>
     <Folder Include="Common\Mapping\" />
-    <Folder Include="Features\Levels\Commands\" />
-    <Folder Include="Features\Levels\Contracts\DTOs\" />
-    <Folder Include="Features\Levels\Contracts\Requests\" />
-    <Folder Include="Features\Levels\Contracts\Responses\" />
-    <Folder Include="Features\Levels\Queries\" />
-    <Folder Include="Features\Levels\Services\" />
-    <Folder Include="Features\Levels\Validators\" />
   </ItemGroup>
 
   <ItemGroup>
