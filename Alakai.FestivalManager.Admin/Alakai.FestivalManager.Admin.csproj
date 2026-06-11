@@ -10,4 +10,8 @@
     <ProjectReference Include="..\Alakai.FestivalManager.Api\Alakai.FestivalManager.Api.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="9.5.0" />
+  </ItemGroup>
+
 </Project>

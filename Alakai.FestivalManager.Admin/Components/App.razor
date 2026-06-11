@@ -5,14 +5,28 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+
+    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    <link rel="stylesheet" href="assets/css/plugins.css">
+    <link rel="stylesheet" href="assets/css/remixicon.css">
+    <link rel="stylesheet" href="assets/css/tailwind.css">
+    <link rel="stylesheet" href="assets/css/style.css">
+    <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
+
     <link rel="stylesheet" href="@Assets["app.css"]" />
-    <link rel="stylesheet" href="@Assets["Alakai.FestivalManager.Admin.styles.css"]" />
+
     <ImportMap />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
 <body>
     <Routes @rendermode="InteractiveServer" />
+    <script src="assets/js/pages/alpine-persist.min.js"></script>
+    <script src="assets/js/pages/alpine-collaspe.min.js"></script>
+    <script src="assets/js/main.js"></script>
+    <script src="assets/js/pages/alpine.min.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
 

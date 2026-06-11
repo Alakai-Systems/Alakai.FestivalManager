@@ -1,9 +1,21 @@
 ﻿@inherits LayoutComponentBase
+@inject IJSRuntime JsRuntime
 
-@Body
+<div class="bg-[#f9fbfd] dark:bg-dark">
+    <div class="bg-black min-h-[220px] sm:min-h-[250px] bg-bottom fixed hidden w-full -z-50 detached-img" style="background-image: url('assets/images/bg-main.png');"></div>
 
-<div id="blazor-error-ui" data-nosnippet>
-    An unhandled error has occurred.
-    <a href="." class="reload">Reload</a>
-    <span class="dismiss">🗙</span>
+    <div x-cloak class="fixed inset-0 bg-black/60 dark:bg-dark/90 z-[999] lg:hidden" :class="{'hidden' : !$store.app.sidebar}" x-on:click="$store.app.toggleSidebar()"></div>
+
+    <div class="flex mx-auto main-container">
+        <Sidebar />
+
+        <div class="flex-1 main-content">
+            <Topbar />
+
+            <div class="h-[calc(100vh-60px)] relative overflow-y-auto overflow-x-hidden p-4 space-y-4 detached-content">
+                @Body
+                <Footer />
+            </div>
+        </div>
+    </div>
 </div>
