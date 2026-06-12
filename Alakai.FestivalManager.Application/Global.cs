@@ -29,7 +29,6 @@ global using Alakai.FestivalManager.Application.Features.Levels.Queries.GetLevel
 global using Alakai.FestivalManager.Application.Features.Levels.Queries.GetLevels;
 global using Alakai.FestivalManager.Application.Features.Levels.Queries.GetLevelsByPassTypeId;
 global using Alakai.FestivalManager.Application.Features.Levels.Services;
-global using Alakai.FestivalManager.Application.Features.Levels.Validators;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.CreatePassType;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.DeletePassType;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.UpdatePassType;

@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Festivals.Commands.DeleteFestival;
-
-namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
 
 public class FestivalService : IFestivalService
 {
@@ -41,12 +39,6 @@ public class FestivalService : IFestivalService
 
         FestivalDto festivalDto = await _createFestivalHandler.HandleAsync(command, cancellationToken);
 
-        if (String.Equals(festivalDto.Slug, command.Slug))
-        {
-            throw new BusinessRuleException(
-                $"A festival with slug '{command.Slug}' already exists.");
-        }
-
         ApiResponse<CreateFestivalResponse> response = new()
         {
             Success = true,
@@ -63,7 +55,7 @@ public class FestivalService : IFestivalService
 
     public async Task<ApiResponse<GetFestivalByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        GetFestivalByIdQuery query = new (id);
+        GetFestivalByIdQuery query = new(id);
 
         FestivalDto? festivalDto = await _getFestivalByIdHandler.HandleAsync(query, cancellationToken);
 
@@ -88,7 +80,7 @@ public class FestivalService : IFestivalService
 
     public async Task<ApiResponse<GetFestivalsResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        GetFestivalsQuery query = new ();
+        GetFestivalsQuery query = new();
 
         IReadOnlyList<FestivalDto> festivalDtos = await _getFestivalsHandler.HandleAsync(query, cancellationToken);
 

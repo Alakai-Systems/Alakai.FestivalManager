@@ -15,22 +15,18 @@
 
                 <li class="menu nav-item">
                     <NavLink href="/" Match="NavLinkMatch.All" class="text-black nav-link group">
-                        <div class="flex items-center gap-3">
-                            <span class="flex items-center justify-center w-5 h-5">
-                                <i class="ri-dashboard-fill text-lg leading-none"></i>
-                            </span>
-                            <span>Dashboard</span>
+                        <div class="flex items-center">
+                            <i class="ri-dashboard-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Dashboard</span>
                         </div>
                     </NavLink>
                 </li>
 
                 <li class="menu nav-item">
                     <a href="javascript:;" class="items-center justify-between text-black nav-link group" x-bind:class="{ 'active': activeMenu === 'configuration' }" x-on:click="activeMenu === 'configuration' ? activeMenu = null : activeMenu = 'configuration'">
-                        <div class="flex items-center gap-3">
-                            <span class="flex items-center justify-center w-5 h-5">
-                                <i class="ri-settings-3-fill text-lg leading-none"></i>
-                            </span>
-                            <span>Configuration</span>
+                        <div class="flex items-center">
+                            <i class="ri-settings-3-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Configuration</span>
                         </div>
                         <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'configuration' }"></i>
                     </a>
@@ -45,11 +41,9 @@
 
                 <li class="menu nav-item">
                     <a href="javascript:;" class="items-center justify-between text-black nav-link group" x-bind:class="{ 'active': activeMenu === 'operations' }" x-on:click="activeMenu === 'operations' ? activeMenu = null : activeMenu = 'operations'">
-                        <div class="flex items-center gap-3">
-                            <span class="flex items-center justify-center w-5 h-5">
-                                <i class="ri-apps-2-fill text-lg leading-none"></i>
-                            </span>
-                            <span>Operations</span>
+                        <div class="flex items-center">
+                            <i class="ri-apps-2-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Operations</span>
                         </div>
                         <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'operations' }"></i>
                     </a>
@@ -66,11 +60,9 @@
 
                 <li class="menu nav-item">
                     <NavLink href="/settings" class="text-black nav-link group">
-                        <div class="flex items-center gap-3">
-                            <span class="flex items-center justify-center w-5 h-5">
-                                <i class="ri-equalizer-fill text-lg leading-none"></i>
-                            </span>
-                            <span>Settings</span>
+                        <div class="flex items-center">
+                            <i class="ri-equalizer-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Settings</span>
                         </div>
                     </NavLink>
                 </li>

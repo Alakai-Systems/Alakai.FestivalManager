@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Common.Responses;
-
-namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Services;
 
 public interface IFestivalService
 {

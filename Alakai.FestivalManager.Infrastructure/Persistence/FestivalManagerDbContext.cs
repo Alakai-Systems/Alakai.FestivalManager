@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Interfaces;
-
-namespace Alakai.FestivalManager.Infrastructure.Persistence;
+﻿namespace Alakai.FestivalManager.Infrastructure.Persistence;
 
 public class FestivalManagerDbContext : DbContext
 {

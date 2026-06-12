@@ -7,11 +7,19 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Alakai.FestivalManager.Api\Alakai.FestivalManager.Api.csproj" />
+    <PackageReference Include="MudBlazor" Version="9.5.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="MudBlazor" Version="9.5.0" />
+    <Folder Include="Contracts\Editions\DTOs\" />
+    <Folder Include="Contracts\Editions\Requests\" />
+    <Folder Include="Contracts\Editions\Responses\" />
+    <Folder Include="Contracts\Levels\DTOs\" />
+    <Folder Include="Contracts\Levels\Requests\" />
+    <Folder Include="Contracts\Levels\Responses\" />
+    <Folder Include="Contracts\PassTypes\DTOs\" />
+    <Folder Include="Contracts\PassTypes\Requests\" />
+    <Folder Include="Contracts\PassTypes\Responses\" />
   </ItemGroup>
 
 </Project>

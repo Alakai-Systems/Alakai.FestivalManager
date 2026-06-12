@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Editions.Contracts.Responses;
-
-namespace Alakai.FestivalManager.Application.Features.Editions.Mapping;
+﻿namespace Alakai.FestivalManager.Application.Features.Editions.Mapping;
 
 public class EditionMappingProfile : Profile
 {

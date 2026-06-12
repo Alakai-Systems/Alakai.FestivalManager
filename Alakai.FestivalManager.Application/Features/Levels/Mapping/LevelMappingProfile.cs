@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Levels.Contracts.Responses;
-
-namespace Alakai.FestivalManager.Application.Features.Levels.Mappings;
+﻿namespace Alakai.FestivalManager.Application.Features.Levels.Mappings;
 
 public class LevelMappingProfile : Profile
 {

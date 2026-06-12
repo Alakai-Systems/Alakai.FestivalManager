@@ -1,7 +1,578 @@
 ﻿@page "/festivals"
+@using Alakai.FestivalManager.Admin.Contracts.Festivals
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.Requests
+@using Alakai.FestivalManager.Admin.Services.Api
+@inject FestivalApiClient FestivalApiClient
 
-<PageTitle>Festivals</PageTitle>
+<PageHeader Title="Configuration" pTitle="Festivals"></PageHeader>
 
-<h1 class="text-2xl font-semibold text-black dark:text-white">Festivals</h1>
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="grid grid-cols-1 gap-4">
+        <div class="card">
+            <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-black capitalize dark:text-white">Festivals</h2>
+                    <p class="text-sm text-black/50 dark:text-white/40">Manage festival configuration.</p>
+                </div>
 
-<p class="mt-2 text-black/60">Festival management will be available here.</p>
+                <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                    <div class="relative w-full md:w-72">
+                        <input class="form-input" placeholder="Search festivals..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+                    </div>
+
+                    <select class="form-select w-full md:w-44" @bind="statusFilter" @bind:after="ResetPage">
+                        <option value="All">All statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+
+                    <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                        <option value="5">5 rows</option>
+                        <option value="10">10 rows</option>
+                        <option value="25">25 rows</option>
+                        <option value="50">50 rows</option>
+                    </select>
+
+                    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                        New Festival
+                    </button>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">
+                    @successMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">
+                    @errorMessage
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <p class="text-sm text-black/50 dark:text-white/40">Loading festivals...</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full table-hover">
+                        <thead class="bg-gray-50 dark:bg-dark">
+                            <tr class="text-left">
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>
+                                        Name
+                                        @SortIcon("Name")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Slug")'>
+                                        Slug
+                                        @SortIcon("Slug")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Website")'>
+                                        Website
+                                        @SortIcon("Website")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>
+                                        Status
+                                        @SortIcon("Status")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (PagedFestivals.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No festivals found.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (FestivalDto festival in PagedFestivals)
+                                {
+                                    <tr class="border-b border-black/10 dark:border-darkborder">
+                                        <td class="px-4 py-3">@festival.Name</td>
+                                        <td class="px-4 py-3">@festival.Slug</td>
+                                        <td class="px-4 py-3">
+                                            @if (!string.IsNullOrWhiteSpace(festival.Website))
+                                            {
+                                                <a href="@festival.Website" target="_blank" class="text-purple hover:underline">@festival.Website</a>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            @if (festival.IsActive)
+                                            {
+                                                <span class="inline-block rounded text-xs px-2 py-1 bg-success/10 text-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger">Inactive</span>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center justify-end gap-3">
+                                                <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(festival)">
+                                                    <i class="ri-pencil-line text-lg"></i>
+                                                </button>
+                                                <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(festival)">
+                                                    <i class="ri-delete-bin-line text-lg"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @ShowingFrom to @ShowingTo of @FilteredFestivals.Count festivals
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (showCreateModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">New Festival</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
+                        <i class="ri-close-line text-2xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                    {
+                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                    }
+
+                    <input class="form-input" placeholder="Name" @bind="createRequest.Name" />
+                    <input class="form-input" placeholder="Slug" @bind="createRequest.Slug" />
+                    <input class="form-input" placeholder="Website" @bind="createRequest.Website" />
+                    <input class="form-input" placeholder="Logo URL" @bind="createRequest.LogoUrl" />
+                    <textarea class="form-input" placeholder="Description" rows="3" @bind="createRequest.Description"></textarea>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="CreateFestivalAsync">
+                        @(isSaving ? "Creating..." : "Create")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showEditModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Festival</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
+                        <i class="ri-close-line text-2xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                    {
+                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                    }
+
+                    <input class="form-input" placeholder="Name" @bind="updateRequest.Name" />
+                    <input class="form-input" placeholder="Slug" @bind="updateRequest.Slug" />
+                    <input class="form-input" placeholder="Website" @bind="updateRequest.Website" />
+                    <input class="form-input" placeholder="Logo URL" @bind="updateRequest.LogoUrl" />
+                    <textarea class="form-input" placeholder="Description" rows="3" @bind="updateRequest.Description"></textarea>
+
+                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                        <input type="checkbox" @bind="updateRequest.IsActive" />
+                        Active
+                    </label>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="UpdateFestivalAsync">
+                        @(isSaving ? "Saving..." : "Save")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showDeleteModal && selectedFestival is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Festival</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete @selectedFestival.Name?</p>
+
+                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                    {
+                        <div class="p-3 mt-4 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                    }
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteFestivalAsync">
+                        @(isSaving ? "Deleting..." : "Delete")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<FestivalDto> allFestivals = [];
+    private FestivalDto? selectedFestival;
+    private CreateFestivalRequest createRequest = new();
+    private UpdateFestivalRequest updateRequest = new();
+
+    private string searchText = string.Empty;
+    private string statusFilter = "All";
+    private int pageSize = 5;
+    private int currentPage = 1;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool showCreateModal;
+    private bool showEditModal;
+    private bool showDeleteModal;
+
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+
+    private string sortColumn = "Name";
+    private bool sortAscending = true;
+
+    private IReadOnlyList<FestivalDto> FilteredFestivals
+    {
+        get
+        {
+            IEnumerable<FestivalDto> query = allFestivals;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(f =>
+                    f.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    f.Slug.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(f.Website) && f.Website.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            query = statusFilter switch
+            {
+                "Active" => query.Where(f => f.IsActive),
+                "Inactive" => query.Where(f => !f.IsActive),
+                _ => query
+            };
+
+            query = sortColumn switch
+            {
+                "Name" => sortAscending ? query.OrderBy(f => f.Name) : query.OrderByDescending(f => f.Name),
+                "Slug" => sortAscending ? query.OrderBy(f => f.Slug) : query.OrderByDescending(f => f.Slug),
+                "Website" => sortAscending ? query.OrderBy(f => f.Website) : query.OrderByDescending(f => f.Website),
+                "Status" => sortAscending ? query.OrderBy(f => f.IsActive) : query.OrderByDescending(f => f.IsActive),
+                _ => query
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private IReadOnlyList<FestivalDto> PagedFestivals => FilteredFestivals.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredFestivals.Count / pageSize));
+
+    private int ShowingFrom => FilteredFestivals.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+
+    private int ShowingTo => Math.Min(currentPage * pageSize, FilteredFestivals.Count);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFestivalsAsync();
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+
+        ResetPage();
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs text-black/30\"></i>");
+        }
+
+        string icon = sortAscending ? "ri-arrow-up-line" : "ri-arrow-down-line";
+        return new MarkupString($"<i class=\"{icon} text-xs text-purple\"></i>");
+    }
+
+    private async Task ClearMessagesAfterDelayAsync()
+    {
+        await Task.Delay(3500);
+        successMessage = null;
+        errorMessage = null;
+        modalErrorMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task LoadFestivalsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            allFestivals = await FestivalApiClient.GetAllAsync();
+            NormalizePage();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+        NormalizePage();
+    }
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        createRequest = new CreateFestivalRequest();
+        modalErrorMessage = null;
+        showCreateModal = true;
+    }
+
+    private void OpenEditModal(FestivalDto festival)
+    {
+        selectedFestival = festival;
+        modalErrorMessage = null;
+        updateRequest = new UpdateFestivalRequest
+        {
+            Name = festival.Name,
+            Slug = festival.Slug,
+            Description = festival.Description,
+            Website = festival.Website,
+            LogoUrl = festival.LogoUrl,
+            IsActive = festival.IsActive
+        };
+        showEditModal = true;
+    }
+
+    private void OpenDeleteModal(FestivalDto festival)
+    {
+        selectedFestival = festival;
+        modalErrorMessage = null;
+        showDeleteModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showCreateModal = false;
+        showEditModal = false;
+        showDeleteModal = false;
+        selectedFestival = null;
+        modalErrorMessage = null;
+    }
+
+    private async Task CreateFestivalAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            await FestivalApiClient.CreateAsync(createRequest);
+
+            CloseModals();
+            successMessage = "Festival created successfully.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadFestivalsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task UpdateFestivalAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        if (selectedFestival is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            await FestivalApiClient.UpdateAsync(selectedFestival.Id, updateRequest);
+            CloseModals();
+            successMessage = "Festival updated successfully.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadFestivalsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task DeleteFestivalAsync()
+    {
+        if (isSaving)
+        {
+            return;
+        }
+
+        if (selectedFestival is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            await FestivalApiClient.DeleteAsync(selectedFestival.Id);
+            CloseModals();
+            successMessage = "Festival deleted successfully.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadFestivalsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string BuildErrorMessage(ApiClientException exception)
+    {
+        if (exception.Errors.Count == 0)
+        {
+            return exception.Message;
+        }
+
+        return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+}

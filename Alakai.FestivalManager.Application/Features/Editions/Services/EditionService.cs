@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Editions.Queries.GetEditionsByFestivalId;
-
-namespace Alakai.FestivalManager.Application.Features.Editions.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Editions.Services;
 
 public class EditionService : IEditionService
 {
@@ -13,8 +11,8 @@ public class EditionService : IEditionService
     private readonly IValidator<CreateEditionCommand> _createEditionValidator;
     private readonly IValidator<UpdateEditionCommand> _updateEditionValidator;
 
-    public EditionService(CreateEditionHandler createEditionHandler, GetEditionByIdHandler getEditionByIdHandler, GetEditionsByFestivalIdHandler getEditionsByFestivalIdHandler, 
-        GetEditionsHandler getEditionsHandler, UpdateEditionHandler updateEditionHandler, DeleteEditionHandler deleteEditionHandler, 
+    public EditionService(CreateEditionHandler createEditionHandler, GetEditionByIdHandler getEditionByIdHandler, GetEditionsByFestivalIdHandler getEditionsByFestivalIdHandler,
+        GetEditionsHandler getEditionsHandler, UpdateEditionHandler updateEditionHandler, DeleteEditionHandler deleteEditionHandler,
         IValidator<CreateEditionCommand> createEditionValidator, IValidator<UpdateEditionCommand> updateEditionValidator)
     {
         _createEditionHandler = createEditionHandler;
