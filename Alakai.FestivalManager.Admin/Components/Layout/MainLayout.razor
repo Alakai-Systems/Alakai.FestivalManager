@@ -4,7 +4,7 @@
 <div class="bg-[#f9fbfd] dark:bg-dark">
     <div class="bg-black min-h-[220px] sm:min-h-[250px] bg-bottom fixed hidden w-full -z-50 detached-img" style="background-image: url('assets/images/bg-main.png');"></div>
 
-    <div x-cloak class="fixed inset-0 bg-black/60 dark:bg-dark/90 z-[999] lg:hidden" :class="{'hidden' : !$store.app.sidebar}" x-on:click="$store.app.toggleSidebar()"></div>
+    <div x-cloak class="fixed inset-0 bg-black/60 dark:bg-dark/90 z-[999] lg:hidden" x-bind:class="{ 'hidden': !$store.app.sidebar }" x-on:click="$store.app.toggleSidebar()"></div>
 
     <div class="flex mx-auto main-container">
         <Sidebar />
@@ -19,3 +19,4 @@
         </div>
     </div>
 </div>
+

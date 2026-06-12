@@ -1,10 +1,13 @@
 ﻿<!DOCTYPE html>
-<html lang="en">
+<html lang="en" x-data="{ direction: $store.app.direction }" x-bind:dir="$store.app.direction" class="group/item" x-bind:data-mode="$store.app.mode" x-bind:data-sidebar="$store.app.sidebarMode">
 
 <head>
     <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
+
+    <title>Alakai Festival Manager</title>
 
     <link rel="shortcut icon" href="assets/images/favicon.ico">
     <link rel="stylesheet" href="assets/css/plugins.css">
@@ -12,20 +15,68 @@
     <link rel="stylesheet" href="assets/css/tailwind.css">
     <link rel="stylesheet" href="assets/css/style.css">
     <link rel="stylesheet" href="assets/css/site.css">
+    <link rel="stylesheet" href="assets/libs/tippy.js/tippy.css">
+    <link rel="stylesheet" href="assets/libs/tippy.js/border.css">
+    <link rel="stylesheet" href="assets/libs/fancybox/css/jquery.fancybox.css">
+    <link rel="stylesheet" href="assets/libs/magnific-popup/magnific-popup.css">
     <link rel="stylesheet" href="_content/MudBlazor/MudBlazor.min.css" />
-
-    <link rel="stylesheet" href="@Assets["app.css"]" />
 
     <ImportMap />
     <HeadOutlet @rendermode="InteractiveServer" />
 </head>
 
-<body>
+<body x-data="main"
+      x-init="$store.app.hasCreative = window.location.href.includes('/creative'); $store.app.hasdetached = window.location.href.includes('/detached')"
+      x-bind:class="[ $store.app.sidebar ? 'toggle-sidebar' : '', $store.app.fullscreen ? 'full' : '', $store.app.hasCreative ? 'detached ' : '', $store.app.hasdetached ? 'detached detached-simple ' : '', $store.app.layout ]"
+      class="relative overflow-x-hidden text-sm antialiased font-normal text-black font-cerebri dark:text-white vertical">
+
     <Routes @rendermode="InteractiveServer" />
-    <script src="assets/js/pages/alpine-persist.min.js"></script>
+
     <script src="assets/js/pages/alpine-collaspe.min.js"></script>
+    <script src="assets/js/pages/alpine-persist.min.js"></script>
+    <script src="assets/js/pages/alpine.min.js" defer></script>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="assets/libs/tippy.js/popper.min.js"></script>
+    <script src="assets/libs/tippy.js/tippy-bundle.umd.min.js"></script>
+    <script src="assets/js/pages/tooltips.init.js"></script>
+
+    <script>
+        window.toggleFullScreen = function () {
+            if (document.fullscreenElement) {
+                document.exitFullscreen();
+            } else {
+                document.documentElement.requestFullscreen();
+            }
+        };
+
+        window.toggleSidebar = function () {
+            document.body.classList.toggle('toggle-sidebar');
+        };
+
+        window.removeToggleSidebarClass = function () {
+            document.body.classList.remove('toggle-sidebar');
+        };
+
+        window.changeDirection = function (direction) {
+            document.documentElement.setAttribute('dir', direction);
+        };
+
+        window.setBodyClass = function (className) {
+            document.body.classList.remove('light', 'dark');
+            document.body.classList.add(className);
+        };
+
+        window.addClickListener = function (dotNetObject) {
+            document.body.addEventListener("click", function () {
+                dotNetObject.invokeMethodAsync("HandleClickEvent");
+            });
+        };
+    </script>
+
+    <script src="assets/js/pages/index.global.min.js"></script>
     <script src="assets/js/main.js"></script>
-    <script src="assets/js/pages/alpine.min.js"></script>
+    <script src="assets/js/pages/form-editor.js"></script>
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>
 </body>
