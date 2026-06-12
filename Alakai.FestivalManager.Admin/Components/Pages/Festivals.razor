@@ -347,10 +347,10 @@
     {
         if (sortColumn != column)
         {
-            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs text-black/30\"></i>");
+            return new MarkupString("<i class=\"ri-arrow-up-down-fill text-xs text-black/30\"></i>");
         }
 
-        string icon = sortAscending ? "ri-arrow-up-line" : "ri-arrow-down-line";
+        string icon = sortAscending ? "ri-arrow-up-fill" : "ri-arrow-down-fill";
         return new MarkupString($"<i class=\"{icon} text-xs text-purple\"></i>");
     }
 
