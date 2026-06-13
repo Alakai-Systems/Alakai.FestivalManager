@@ -2,5 +2,12 @@
 global using Alakai.FestivalManager.Admin.Contracts.Festivals;
 global using Alakai.FestivalManager.Admin.Contracts.Festivals.Requests;
 global using Alakai.FestivalManager.Admin.Contracts.Festivals.Responses;
+global using Alakai.FestivalManager.Admin.Contracts.Levels.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Levels.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.Levels.Responses;
+global using Alakai.FestivalManager.Admin.Contracts.PassTypes.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.PassTypes.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.PassTypes.Responses;
 global using Alakai.FestivalManager.Admin.Services.Api;
 global using MudBlazor.Services;
+global using System.Text.Json;

@@ -1,7 +1,748 @@
 ﻿@page "/levels"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Levels
+@using Alakai.FestivalManager.Admin.Contracts.Levels.Requests
+@using Alakai.FestivalManager.Admin.Contracts.Levels.Responses
+@using Alakai.FestivalManager.Admin.Contracts.PassTypes
+@using Alakai.FestivalManager.Admin.Contracts.Editions
+@using Alakai.FestivalManager.Admin.Services.Api
+@inject LevelApiClient LevelApiClient
+@inject PassTypeApiClient PassTypeApiClient
+@inject EditionApiClient EditionApiClient
 
-<PageTitle>Levels</PageTitle>
+<PageHeader Title="Configuration" pTitle="Levels"></PageHeader>
 
-<h1 class="text-2xl font-semibold text-black dark:text-white">Levels</h1>
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="grid grid-cols-1 gap-4">
+        <div class="card">
+            <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                    <h2 class="text-base font-semibold text-black capitalize dark:text-white">Levels</h2>
+                    <p class="text-sm text-black/50 dark:text-white/40">Manage level configuration.</p>
+                </div>
 
-<p class="mt-2 text-black/60">Level management will be available here.</p>
+                <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                    <div class="relative w-full md:w-72">
+                        <input class="form-input" placeholder="Search levels..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+                    </div>
+
+                    <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
+                        <option value="@Guid.Empty">All editions</option>
+                        @foreach (EditionDto ed in editions)
+                        {
+                            <option value="@ed.Id">@($"{ed.Year} - {ed.Name}")</option>
+                        }
+                    </select>
+
+                    <select class="form-select w-full md:w-44" @bind="passTypeFilter" @bind:after="ResetPage">
+                        <option value="@Guid.Empty">All pass types</option>
+                        @foreach (PassTypeDto pt in passTypes)
+                        {
+                            <option value="@pt.Id">@pt.Name</option>
+                        }
+                    </select>
+
+                    <select class="form-select w-full md:w-32" @bind="statusFilter" @bind:after="ResetPage">
+                        <option value="All">All statuses</option>
+                        <option value="Active">Active</option>
+                        <option value="Inactive">Inactive</option>
+                    </select>
+
+                    <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                        <option value="5">5 rows</option>
+                        <option value="10">10 rows</option>
+                        <option value="25">25 rows</option>
+                        <option value="50">50 rows</option>
+                    </select>
+
+                    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                        New Level
+                    </button>
+                </div>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">
+                    @successMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">
+                    @errorMessage
+                </div>
+            }
+
+            @if (isLoading)
+            {
+                <p class="text-sm text-black/50 dark:text-white/40">Loading levels...</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto">
+                    <table class="w-full table-hover">
+                        <thead class="bg-gray-50 dark:bg-dark">
+                            <tr class="text-left">
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>
+                                        Name
+                                        @SortIcon("Name")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("PassType")'>
+                                        Pass Type
+                                        @SortIcon("PassType")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold">Early</th>
+                                <th class="px-4 py-3 font-semibold">Group</th>
+                                <th class="px-4 py-3 font-semibold">Regular</th>
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("SortOrder")'>
+                                        Sort
+                                        @SortIcon("SortOrder")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold">
+                                    <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>
+                                        Status
+                                        @SortIcon("Status")
+                                    </button>
+                                </th>
+                                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (PagedLevels.Count == 0)
+                            {
+                                <tr>
+                                    <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No levels found.</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                @foreach (LevelDto level in PagedLevels)
+                                {
+                                    <tr class="border-b border-black/10 dark:border-darkborder">
+                                        <td class="px-4 py-3">@level.Name</td>
+                                        <td class="px-4 py-3">@GetPassTypeName(level.PassTypeId)</td>
+                                        <td class="px-4 py-3">@level.EarlyBirdPrice.ToString("0.00")</td>
+                                        <td class="px-4 py-3">@level.GroupPrice.ToString("0.00")</td>
+                                        <td class="px-4 py-3">@level.RegularPrice.ToString("0.00")</td>
+                                        <td class="px-4 py-3">@level.SortOrder</td>
+                                        <td class="px-4 py-3">
+                                            @if (level.IsActive)
+                                            {
+                                                <span class="inline-block rounded text-xs px-2 py-1 bg-success/10 text-success">Active</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger">Inactive</span>
+                                            }
+                                        </td>
+                                        <td class="px-4 py-3">
+                                            <div class="flex items-center justify-end gap-3">
+                                                <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(level)">
+                                                    <i class="ri-pencil-line text-lg"></i>
+                                                </button>
+                                                <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(level)">
+                                                    <i class="ri-delete-bin-line text-lg"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @ShowingFrom to @ShowingTo of @FilteredLevels.Count levels
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+</div>
+
+@if (showCreateModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <!-- Create modal container: replace the existing 'relative w-full max-w-xl ...' div with this -->
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 720px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">New Level</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
+                        <i class="ri-close-line text-2xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-5">
+                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                    {
+                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                    }
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Pass Type</label>
+                            <select class="form-select" @bind="createRequest.PassTypeId">
+                                <option value="@Guid.Empty">Select pass type</option>
+                                @foreach (PassTypeDto pt in passTypes)
+                                {
+                                    <option value="@pt.Id">@pt.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                            <input class="form-input" placeholder="Name" @bind="createRequest.Name" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Description</label>
+                            <textarea class="form-input" placeholder="Description" rows="2" @bind="createRequest.Description"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Early bird price</label>
+                            <input class="form-input" placeholder="Early bird price" type="number" step="0.01" @bind="createRequest.EarlyBirdPrice" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Group price</label>
+                            <input class="form-input" placeholder="Group price" type="number" step="0.01" @bind="createRequest.GroupPrice" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Regular price</label>
+                            <input class="form-input" placeholder="Regular price" type="number" step="0.01" @bind="createRequest.RegularPrice" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Leader capacity</label>
+                            <input class="form-input" placeholder="Leader capacity" type="number" @bind="createRequest.LeaderCapacity" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Follower capacity</label>
+                            <input class="form-input" placeholder="Follower capacity" type="number" @bind="createRequest.FollowerCapacity" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Max leader difference</label>
+                            <input class="form-input" placeholder="Max leader difference" type="number" @bind="createRequest.MaxLeaderDifference" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Max follower difference</label>
+                            <input class="form-input" placeholder="Max follower difference" type="number" @bind="createRequest.MaxFollowerDifference" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Individual capacity</label>
+                            <input class="form-input" placeholder="Individual capacity" type="number" @bind="createRequest.IndividualCapacity" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Sort order</label>
+                            <input class="form-input" placeholder="Sort order" type="number" @bind="createRequest.SortOrder" />
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="CreateLevelAsync">
+                        @(isSaving ? "Creating..." : "Create")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+ @if (showEditModal)
+{
+<div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+<div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <!-- Edit modal container: replace the existing 'relative w-full max-w-xl ...' div with this -->
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 720px);">
+        <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+            <h3 class="text-lg font-semibold text-black dark:text-white">Edit Level</h3>
+            <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
+                <i class="ri-close-line text-2xl"></i>
+            </button>
+        </div>
+
+        <div class="p-5">
+            @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+            {
+                <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+            }
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Pass Type</label>
+                    <select class="form-select" @bind="updateRequest.PassTypeId">
+                        <option value="@Guid.Empty">Select pass type</option>
+                        @foreach (PassTypeDto pt in passTypes)
+                        {
+                            <option value="@pt.Id">@pt.Name</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                    <input class="form-input" placeholder="Name" @bind="updateRequest.Name" />
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="block text-sm text-black/60 dark:text-white/60">Description</label>
+                    <textarea class="form-input" placeholder="Description" rows="2" @bind="updateRequest.Description"></textarea>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Early bird price</label>
+                    <input class="form-input" placeholder="Early bird price" type="number" step="0.01" @bind="updateRequest.EarlyBirdPrice" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Group price</label>
+                    <input class="form-input" placeholder="Group price" type="number" step="0.01" @bind="updateRequest.GroupPrice" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Regular price</label>
+                    <input class="form-input" placeholder="Regular price" type="number" step="0.01" @bind="updateRequest.RegularPrice" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Leader capacity</label>
+                    <input class="form-input" placeholder="Leader capacity" type="number" @bind="updateRequest.LeaderCapacity" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Follower capacity</label>
+                    <input class="form-input" placeholder="Follower capacity" type="number" @bind="updateRequest.FollowerCapacity" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Max leader difference</label>
+                    <input class="form-input" placeholder="Max leader difference" type="number" @bind="updateRequest.MaxLeaderDifference" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Max follower difference</label>
+                    <input class="form-input" placeholder="Max follower difference" type="number" @bind="updateRequest.MaxFollowerDifference" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Individual capacity</label>
+                    <input class="form-input" placeholder="Individual capacity" type="number" @bind="updateRequest.IndividualCapacity" />
+                </div>
+
+                <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Sort order</label>
+                    <input class="form-input" placeholder="Sort order" type="number" @bind="updateRequest.SortOrder" />
+                </div>
+
+                <div class="md:col-span-2">
+                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                        <input type="checkbox" @bind="updateRequest.IsActive" />
+                        Active
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+            <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+            <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="UpdateLevelAsync">
+                @(isSaving ? "Saving..." : "Save")
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+}
+
+@if (showDeleteModal && selectedLevel is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Level</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@selectedLevel.Name</strong>?</p>
+
+                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                    {
+                        <div class="p-3 mt-4 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                    }
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteLevelAsync">
+                        @(isSaving ? "Deleting..." : "Delete")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private IReadOnlyList<LevelDto> allLevels = [];
+    private List<PassTypeDto> passTypes = new();
+    private List<EditionDto> editions = new();
+    private bool showDeleteModal;
+    private LevelDto? selectedLevel;
+    private CreateLevelRequest createRequest = new();
+    private UpdateLevelRequest updateRequest = new();
+
+    private string searchText = string.Empty;
+    private Guid? editionFilter;
+    private Guid? passTypeFilter;
+    private string statusFilter = "All";
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool showCreateModal;
+    private bool showEditModal;
+
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+
+    private string sortColumn = "Name";
+    private bool sortAscending = true;
+
+    private IReadOnlyList<LevelDto> FilteredLevels
+    {
+        get
+        {
+            IEnumerable<LevelDto> query = allLevels;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(l =>
+                    l.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (!string.IsNullOrWhiteSpace(l.Description) && l.Description.Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (passTypeFilter is not null && passTypeFilter != Guid.Empty)
+            {
+                query = query.Where(l => l.PassTypeId == passTypeFilter);
+            }
+
+            if (editionFilter is not null && editionFilter != Guid.Empty)
+            {
+                query = query.Where(l => passTypes.Any(pt => pt.Id == l.PassTypeId && pt.EditionId == editionFilter));
+            }
+
+            query = statusFilter switch
+            {
+                "Active" => query.Where(l => l.IsActive),
+                "Inactive" => query.Where(l => !l.IsActive),
+                _ => query
+            };
+
+            query = sortColumn switch
+            {
+                "Name" => sortAscending ? query.OrderBy(l => l.Name) : query.OrderByDescending(l => l.Name),
+                // Sort by pass type name via lookup in passTypes list
+                "PassType" => sortAscending
+                    ? query.OrderBy(l => passTypes.FirstOrDefault(pt => pt.Id == l.PassTypeId)?.Name ?? string.Empty)
+                    : query.OrderByDescending(l => passTypes.FirstOrDefault(pt => pt.Id == l.PassTypeId)?.Name ?? string.Empty),
+                "SortOrder" => sortAscending ? query.OrderBy(l => l.SortOrder) : query.OrderByDescending(l => l.SortOrder),
+                "Status" => sortAscending ? query.OrderBy(l => l.IsActive) : query.OrderByDescending(l => l.IsActive),
+                _ => query
+            };
+
+            return query.ToList();
+        }
+    }
+
+
+    private IReadOnlyList<LevelDto> PagedLevels => FilteredLevels.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredLevels.Count / pageSize));
+    private int ShowingFrom => FilteredLevels.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int ShowingTo => Math.Min(currentPage * pageSize, FilteredLevels.Count);
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPassTypesAsync();
+        await LoadEditionsAsync();
+        await LoadLevelsAsync();
+    }
+
+    private async Task LoadPassTypesAsync()
+    {
+        try
+        {
+            passTypes = (await PassTypeApiClient.GetAllAsync()).ToList();
+        }
+        catch
+        {
+            passTypes = new List<PassTypeDto>();
+        }
+    }
+
+    private async Task LoadEditionsAsync()
+    {
+        try
+        {
+            // use injected instance (EditionApiClient) rather than the type name
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+        }
+        catch
+        {
+            editions = new List<EditionDto>();
+        }
+    }
+
+    private async Task LoadLevelsAsync()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = null;
+            allLevels = await LevelApiClient.GetAllAsync();
+            NormalizePage();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+        NormalizePage();
+    }
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void PreviousPage() { if (currentPage > 1) currentPage--; }
+    private void NextPage() { if (currentPage < TotalPages) currentPage++; }
+
+    private void OpenCreateModal()
+    {
+        modalErrorMessage = null;
+        createRequest = new CreateLevelRequest
+        {
+            PassTypeId = Guid.Empty,
+            Name = string.Empty,
+            Description = string.Empty,
+            EarlyBirdPrice = 0m,
+            GroupPrice = 0m,
+            RegularPrice = 0m,
+            LeaderCapacity = null,
+            FollowerCapacity = null,
+            IndividualCapacity = null,
+            MaxLeaderDifference = null,
+            MaxFollowerDifference = null,
+            SortOrder = 0
+        };
+        showCreateModal = true;
+    }
+
+    private void OpenEditModal(LevelDto level)
+    {
+        selectedLevel = level;
+        modalErrorMessage = null;
+        updateRequest = new UpdateLevelRequest
+        {
+            PassTypeId = level.PassTypeId,
+            Name = level.Name,
+            Description = level.Description,
+            EarlyBirdPrice = level.EarlyBirdPrice,
+            GroupPrice = level.GroupPrice,
+            RegularPrice = level.RegularPrice,
+            LeaderCapacity = level.LeaderCapacity,
+            FollowerCapacity = level.FollowerCapacity,
+            IndividualCapacity = level.IndividualCapacity,
+            MaxLeaderDifference = level.MaxLeaderDifference,
+            MaxFollowerDifference = level.MaxFollowerDifference,
+            SortOrder = level.SortOrder,
+            IsActive = level.IsActive
+        };
+        showEditModal = true;
+    }
+
+    private void OpenDeleteModal(LevelDto level)
+    {
+        selectedLevel = level;
+        modalErrorMessage = null;
+        showDeleteModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showCreateModal = false;
+        showDeleteModal = false;
+        showEditModal = false;
+        modalErrorMessage = null;
+        isSaving = false;
+    }
+
+    private async Task CreateLevelAsync()
+    {
+        if (isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+            await LevelApiClient.CreateAsync(createRequest);
+            CloseModals();
+            successMessage = "Level created successfully.";
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadLevelsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task UpdateLevelAsync()
+    {
+        if (isSaving || selectedLevel is null) return;
+
+        try
+        {
+            isSaving = true;
+            await LevelApiClient.UpdateAsync(selectedLevel.Id, updateRequest);
+            CloseModals();
+            successMessage = "Level updated successfully.";
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadLevelsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+
+    private bool ConfirmDelete(string name) => true;
+
+    private async Task DeleteLevelAsync()
+    {
+        if (isSaving || selectedLevel is null) return;
+
+        try
+        {
+            isSaving = true;
+            await LevelApiClient.DeleteAsync(selectedLevel.Id);
+            CloseModals();
+            successMessage = "Level deleted successfully.";
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadLevelsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private string GetPassTypeName(Guid passTypeId)
+    {
+        PassTypeDto? pt = passTypes.FirstOrDefault(p => p.Id == passTypeId);
+        return pt is null ? passTypeId.ToString() : pt.Name;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column) sortAscending = !sortAscending;
+        else { sortColumn = column; sortAscending = true; }
+        ResetPage();
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column) return new MarkupString("<i class=\"ri-arrow-up-down-fill text-xs text-black/30\"></i>");
+        string icon = sortAscending ? "ri-arrow-up-fill" : "ri-arrow-down-fill";
+        return new MarkupString($"<i class=\"{icon} text-xs text-purple\"></i>");
+    }
+
+    private async Task ClearMessagesAfterDelayAsync()
+    {
+        await Task.Delay(3500);
+        successMessage = null;
+        errorMessage = null;
+        modalErrorMessage = null;
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private static string BuildErrorMessage(ApiClientException exception)
+    {
+        if (exception.Errors.Count == 0) return exception.Message;
+        return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+}

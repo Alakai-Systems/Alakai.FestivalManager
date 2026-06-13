@@ -208,10 +208,19 @@
                         <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
                     }
 
+                    <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
                     <input class="form-input" placeholder="Name" @bind="updateRequest.Name" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Slug</label>
                     <input class="form-input" placeholder="Slug" @bind="updateRequest.Slug" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Website</label>
                     <input class="form-input" placeholder="Website" @bind="updateRequest.Website" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Logo URL</label>
                     <input class="form-input" placeholder="Logo URL" @bind="updateRequest.LogoUrl" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Description</label>
                     <textarea class="form-input" placeholder="Description" rows="3" @bind="updateRequest.Description"></textarea>
 
                     <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
