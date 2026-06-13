@@ -198,10 +198,21 @@
 
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Edition</label>
+                            <select class="form-select" @bind="modalSelectedEdition" @bind:after="OnModalEditionChanged">
+                                <option value="@Guid.Empty">Select edition</option>
+                                @foreach (EditionDto ed in editions)
+                                {
+                                    <option value="@ed.Id">@($"{ed.Year} - {ed.Name}")</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
                             <label class="block text-sm text-black/60 dark:text-white/60">Pass Type</label>
                             <select class="form-select" @bind="createRequest.PassTypeId">
                                 <option value="@Guid.Empty">Select pass type</option>
-                                @foreach (PassTypeDto pt in passTypes)
+                                @foreach (PassTypeDto pt in passTypesForModal)
                                 {
                                     <option value="@pt.Id">@pt.Name</option>
                                 }
@@ -297,10 +308,21 @@
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
+                    <label class="block text-sm text-black/60 dark:text-white/60">Edition</label>
+                    <select class="form-select" @bind="modalSelectedEdition" @bind:after="OnModalEditionChanged">
+                        <option value="@Guid.Empty">Select edition</option>
+                        @foreach (EditionDto ed in editions)
+                        {
+                            <option value="@ed.Id">@($"{ed.Year} - {ed.Name}")</option>
+                        }
+                    </select>
+                </div>
+
+                <div>
                     <label class="block text-sm text-black/60 dark:text-white/60">Pass Type</label>
                     <select class="form-select" @bind="updateRequest.PassTypeId">
                         <option value="@Guid.Empty">Select pass type</option>
-                        @foreach (PassTypeDto pt in passTypes)
+                        @foreach (PassTypeDto pt in passTypesForModal)
                         {
                             <option value="@pt.Id">@pt.Name</option>
                         }
@@ -416,6 +438,8 @@
     private LevelDto? selectedLevel;
     private CreateLevelRequest createRequest = new();
     private UpdateLevelRequest updateRequest = new();
+    private Guid modalSelectedEdition = Guid.Empty;
+    private List<PassTypeDto> passTypesForModal = new();
 
     private string searchText = string.Empty;
     private Guid? editionFilter;
@@ -566,9 +590,39 @@
     private void PreviousPage() { if (currentPage > 1) currentPage--; }
     private void NextPage() { if (currentPage < TotalPages) currentPage++; }
 
+    private void OnModalEditionChanged()
+    {
+        if (modalSelectedEdition == Guid.Empty)
+        {
+            passTypesForModal = new List<PassTypeDto>();
+        }
+        else
+        {
+            passTypesForModal = passTypes.Where(pt => pt.EditionId == modalSelectedEdition).ToList();
+        }
+
+        // Reset selection for create/update when necessary
+        if (showCreateModal)
+        {
+            createRequest.PassTypeId = passTypesForModal.FirstOrDefault()?.Id ?? Guid.Empty;
+        }
+        else if (showEditModal)
+        {
+            if (!passTypesForModal.Any(pt => pt.Id == updateRequest.PassTypeId))
+            {
+                updateRequest.PassTypeId = Guid.Empty;
+            }
+        }
+    }
+
     private void OpenCreateModal()
     {
         modalErrorMessage = null;
+
+        // default modal edition to page filter (if any)
+        modalSelectedEdition = editionFilter ?? Guid.Empty;
+        OnModalEditionChanged();
+
         createRequest = new CreateLevelRequest
         {
             PassTypeId = Guid.Empty,
@@ -584,6 +638,7 @@
             MaxFollowerDifference = null,
             SortOrder = 0
         };
+
         showCreateModal = true;
     }
 
@@ -591,6 +646,11 @@
     {
         selectedLevel = level;
         modalErrorMessage = null;
+
+        // set modal edition based on level's pass type -> edition
+        modalSelectedEdition = passTypes.FirstOrDefault(pt => pt.Id == level.PassTypeId)?.EditionId ?? Guid.Empty;
+        OnModalEditionChanged();
+
         updateRequest = new UpdateLevelRequest
         {
             PassTypeId = level.PassTypeId,
@@ -607,6 +667,7 @@
             SortOrder = level.SortOrder,
             IsActive = level.IsActive
         };
+
         showEditModal = true;
     }
 
