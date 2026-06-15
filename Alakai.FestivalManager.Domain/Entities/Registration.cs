@@ -1,10 +1,10 @@
-using System;
-using Alakai.FestivalManager.Domain.Enums;
-
 namespace Alakai.FestivalManager.Domain.Entities;
 
 public class Registration : BaseEntity
 {
+    public Guid UserId { get; set; }
+    public User User { get; set; } = default!;
+
     public Guid EditionId { get; set; }
     public Edition Edition { get; set; } = default!;
 
@@ -40,8 +40,6 @@ public class Registration : BaseEntity
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }
 
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
     public DateTime? CancelledAt { get; set; }
 
     public bool IsActive { get; set; } = true;

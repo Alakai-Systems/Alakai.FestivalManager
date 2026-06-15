@@ -13,6 +13,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IPassTypeRepository, PassTypeRepository>();
         services.AddScoped<ILevelRepository, LevelRepository>();
         services.AddScoped<IRegistrationRepository, RegistrationRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
 
         return services;
     }

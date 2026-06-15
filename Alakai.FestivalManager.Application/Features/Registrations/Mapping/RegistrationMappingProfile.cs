@@ -9,7 +9,21 @@ public class RegistrationMappingProfile : Profile
         CreateMap<IReadOnlyList<RegistrationDto>, IReadOnlyList<Registration>>();
 
         //Create Registration
-        CreateMap<CreateRegistrationCommand, Registration>();
+        CreateMap<CreateRegistrationCommand, Registration>()
+            .ForMember(dest => dest.Id, opt => opt.Ignore())
+            .ForMember(dest => dest.UserId, opt => opt.Ignore())
+            .ForMember(dest => dest.User, opt => opt.Ignore())
+            .ForMember(dest => dest.Edition, opt => opt.Ignore())
+            .ForMember(dest => dest.PassType, opt => opt.Ignore())
+            .ForMember(dest => dest.Level, opt => opt.Ignore())
+            .ForMember(dest => dest.PartnerRegistration, opt => opt.Ignore())
+            .ForMember(dest => dest.Status, opt => opt.Ignore())
+            .ForMember(dest => dest.PaymentStatus, opt => opt.Ignore())
+            .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
+            .ForMember(dest => dest.CancelledAt, opt => opt.Ignore())
+            .ForMember(dest => dest.IsActive, opt => opt.Ignore());
+
         CreateMap<CreateRegistrationRequest, CreateRegistrationCommand>();
         CreateMap<RegistrationDto, CreateRegistrationResponse>();
 

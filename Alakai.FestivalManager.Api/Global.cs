@@ -27,6 +27,10 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Commands.
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
+global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
+global using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
+global using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Users.Services;
 global using Alakai.FestivalManager.Infrastructure.Extensions;
 global using AutoMapper;
 global using FluentValidation;

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using AutoMapper;
-using Alakai.FestivalManager.Application.Interfaces;
 
 namespace Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
 

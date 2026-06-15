@@ -4,7 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Alakai.FestivalManager.Domain.Entities;
 
-namespace Alakai.FestivalManager.Application.Interfaces;
+namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
 
 public interface IRegistrationRepository
 {

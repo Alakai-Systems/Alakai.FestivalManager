@@ -1,3 +1,6 @@
+using Alakai.FestivalManager.Application.Interfaces.Repositories;
+using Alakai.FestivalManager.Domain.Entities;
+
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
 
 public class UpdateRegistrationHandler
@@ -66,34 +69,19 @@ public class UpdateRegistrationHandler
             }
         }
 
-        // Map fields
-        existing.EditionId = command.EditionId;
-        existing.PassTypeId = command.PassTypeId;
-        existing.LevelId = command.LevelId;
-        existing.FirstName = command.FirstName;
-        existing.LastName = command.LastName;
-        existing.Email = command.Email;
-        existing.Phone = command.Phone;
-        existing.Country = command.Country;
-        existing.City = command.City;
-        existing.DanceRole = command.DanceRole;
-        existing.PartnerEmail = command.PartnerEmail;
-        existing.PartnerRegistrationId = command.PartnerRegistrationId;
-        existing.Status = command.Status;
-        existing.PaymentStatus = command.PaymentStatus;
-        existing.BasePrice = command.BasePrice;
-        existing.DiscountAmount = command.DiscountAmount;
-        existing.FinalPrice = command.FinalPrice;
-        existing.DiscountCode = command.DiscountCode;
-        existing.PaymentReference = command.PaymentReference;
-        existing.PaidAt = command.PaidAt;
-        existing.Notes = command.Notes;
-        existing.InternalNotes = command.InternalNotes;
-        existing.CancelledAt = command.CancelledAt;
-        existing.IsActive = command.IsActive;
-        existing.UpdatedAt = DateTime.UtcNow;
+        if (command.PartnerRegistrationId.HasValue)
+        {
+            Registration? partnerRegistration = await _registrationRepository.GetByIdAsync(command.PartnerRegistrationId.Value, cancellationToken);
 
-        _registrationRepository.Update(existing);
+            if (partnerRegistration is null)
+            {
+                throw new NotFoundException($"Partner registration with id '{command.PartnerRegistrationId}' was not found.");
+            }
+        }
+
+        _mapper.Map(command, existing);
+
+        existing.SetUpdated();
         await _registrationRepository.SaveChangesAsync(cancellationToken);
 
         RegistrationDto dto = _mapper.Map<RegistrationDto>(existing);

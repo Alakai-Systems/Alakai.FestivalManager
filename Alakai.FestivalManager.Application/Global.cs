@@ -49,7 +49,7 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Queries.G
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrations;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
-global using Alakai.FestivalManager.Application.Interfaces;
+global using Alakai.FestivalManager.Application.Features.Users.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
 global using Alakai.FestivalManager.Domain.Entities;
 global using Alakai.FestivalManager.Domain.Enums;

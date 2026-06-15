@@ -1,4 +1,12 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+﻿using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
+using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
+using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
+using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserByEmail;
+using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserById;
+using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;
+using Alakai.FestivalManager.Application.Features.Users.Services;
+
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -54,6 +62,16 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateRegistrationHandler>();
         services.AddScoped<DeleteRegistrationHandler>();
         services.AddScoped<IRegistrationService, RegistrationService>();
+
+        // Users
+        //Users
+        services.AddScoped<CreateUserHandler>();
+        services.AddScoped<GetUserByIdHandler>();
+        services.AddScoped<GetUsersHandler>();
+        services.AddScoped<GetUserByEmailHandler>();
+        services.AddScoped<UpdateUserHandler>();
+        services.AddScoped<DeleteUserHandler>();
+        services.AddScoped<IUserService, UserService>();
 
         return services;
     }
