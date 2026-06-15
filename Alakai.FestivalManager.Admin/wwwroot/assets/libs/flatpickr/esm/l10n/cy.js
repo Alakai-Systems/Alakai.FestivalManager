@@ -71,7 +71,7 @@ export var Welsh = {
             return "eg";
         if (nth >= 21 && nth <= 39)
             return "ain";
-        return "";
+        return ";
     },
     time_24hr: true,
 };

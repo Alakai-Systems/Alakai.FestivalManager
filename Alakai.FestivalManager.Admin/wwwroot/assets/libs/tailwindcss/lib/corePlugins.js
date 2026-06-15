@@ -235,10 +235,10 @@ let variantPlugins = {
                 ]
         };
         for (let [name, fn] of Object.entries(variants)){
-            matchVariant(name, (value = "", extra)=>{
+            matchVariant(name, (value = ", extra)=>{
                 let result = (0, _dataTypes.normalize)(typeof value === "function" ? value(extra) : value);
                 if (!result.includes("&")) result = "&" + result;
-                let [a, b] = fn("", extra);
+                let [a, b] = fn(", extra);
                 let start = null;
                 let end = null;
                 let quotes = 0;
@@ -440,7 +440,7 @@ let variantPlugins = {
     },
     supportsVariants: ({ matchVariant , theme  })=>{
         var _theme;
-        matchVariant("supports", (value = "")=>{
+        matchVariant("supports", (value = ")=>{
             let check = (0, _dataTypes.normalize)(value);
             let isRaw = /^\w*\s*\(/.test(check);
             // Chrome has a bug where `(condition1)or(condition2)` is not valid
@@ -3929,7 +3929,7 @@ let corePlugins = {
         matchUtilities({
             blur: (value)=>{
                 return {
-                    "--tw-blur": value.trim() === "" ? " " : `blur(${value})`,
+                    "--tw-blur": value.trim() === " ? " " : `blur(${value})`,
                     "@defaults filter": {},
                     filter: cssFilterValue
                 };
@@ -4069,7 +4069,7 @@ let corePlugins = {
         matchUtilities({
             "backdrop-blur": (value)=>{
                 return {
-                    "--tw-backdrop-blur": value.trim() === "" ? " " : `blur(${value})`,
+                    "--tw-backdrop-blur": value.trim() === " ? " " : `blur(${value})`,
                     "@defaults backdrop-filter": {},
                     "-webkit-backdrop-filter": cssBackdropFilterValue,
                     "backdrop-filter": cssBackdropFilterValue

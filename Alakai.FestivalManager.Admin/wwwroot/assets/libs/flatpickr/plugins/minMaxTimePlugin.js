@@ -228,15 +228,15 @@
               return config.formatDate(dateObj, frmt, locale);
           }
           return frmt
-              .split("")
+              .split(")
               .map(function (c, i, arr) {
               return formats[c] && arr[i - 1] !== "\\"
                   ? formats[c](dateObj, locale, config)
                   : c !== "\\"
                       ? c
-                      : "";
+                      : ";
           })
-              .join("");
+              .join(");
       };
   };
   /**

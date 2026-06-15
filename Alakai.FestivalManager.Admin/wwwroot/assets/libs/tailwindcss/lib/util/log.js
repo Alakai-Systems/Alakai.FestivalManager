@@ -27,7 +27,7 @@ function log(type, messages, key) {
     if (typeof process !== "undefined" && process.env.JEST_WORKER_ID) return;
     if (key && alreadyShown.has(key)) return;
     if (key) alreadyShown.add(key);
-    console.warn("");
+    console.warn(");
     messages.forEach((message)=>console.warn(type, "-", message));
 }
 function dim(input) {

@@ -30,7 +30,7 @@
     function rangePlugin(config) {
         if (config === void 0) { config = {}; }
         return function (fp) {
-            var dateFormat = "", secondInput, _secondInputFocused, _prevDates;
+            var dateFormat = ", secondInput, _secondInputFocused, _prevDates;
             var createSecondInput = function () {
                 if (config.input) {
                     secondInput =
@@ -55,7 +55,7 @@
                     if (parsedDate)
                         fp.selectedDates.push(parsedDate);
                 }
-                secondInput.setAttribute("data-fp-omit", "");
+                secondInput.setAttribute("data-fp-omit", ");
                 if (fp.config.clickOpens) {
                     fp._bind(secondInput, ["focus", "click"], function () {
                         if (fp.selectedDates[1]) {
@@ -129,7 +129,7 @@
                         setTimeout(function () {
                             if (fp.selectedDates.length)
                                 return;
-                            secondInput.value = "";
+                            secondInput.value = ";
                             _prevDates = [];
                         }, 10);
                     }
@@ -167,7 +167,7 @@
                         fp.setDate(newDates, false);
                         _prevDates = __spreadArrays(newDates);
                     }
-                    _a = fp.selectedDates.map(function (d) { return fp.formatDate(d, dateFormat); }), _b = _a[0], fp._input.value = _b === void 0 ? "" : _b, _c = _a[1], secondInput.value = _c === void 0 ? "" : _c;
+                    _a = fp.selectedDates.map(function (d) { return fp.formatDate(d, dateFormat); }), _b = _a[0], fp._input.value = _b === void 0 ? " : _b, _c = _a[1], secondInput.value = _c === void 0 ? " : _c;
                 },
             };
             return plugin;

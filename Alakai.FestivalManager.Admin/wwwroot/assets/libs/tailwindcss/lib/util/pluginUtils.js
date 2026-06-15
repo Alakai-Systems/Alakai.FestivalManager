@@ -256,7 +256,7 @@ function* getMatchingTypes(types, rawModifier, options, tailwindConfig) {
         modifier = rawModifier;
         utilityModifier = undefined;
     }
-    if (utilityModifier !== undefined && modifier === "") {
+    if (utilityModifier !== undefined && modifier === ") {
         modifier = "DEFAULT";
     }
     // Check the full value first

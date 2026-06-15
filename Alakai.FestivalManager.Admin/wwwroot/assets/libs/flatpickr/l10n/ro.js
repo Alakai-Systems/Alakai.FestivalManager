@@ -55,7 +55,7 @@
       firstDayOfWeek: 1,
       time_24hr: true,
       ordinal: function () {
-          return "";
+          return ";
       },
   };
   fp.l10ns.ro = Romanian;

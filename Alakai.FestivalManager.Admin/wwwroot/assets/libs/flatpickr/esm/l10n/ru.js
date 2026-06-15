@@ -48,7 +48,7 @@ export var Russian = {
     },
     firstDayOfWeek: 1,
     ordinal: function () {
-        return "";
+        return ";
     },
     rangeSeparator: " — ",
     weekAbbreviation: "Нед.",

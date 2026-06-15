@@ -36,7 +36,7 @@ function _interop_require_default(obj) {
 function indentRecursive(node, indent = 0) {
     node.each && node.each((child, i)=>{
         if (!child.raws.before || !child.raws.before.trim() || child.raws.before.includes("\n")) {
-            child.raws.before = `\n${node.type !== "rule" && i > 0 ? "\n" : ""}${"  ".repeat(indent)}`;
+            child.raws.before = `\n${node.type !== "rule" && i > 0 ? "\n" : "}${"  ".repeat(indent)}`;
         }
         child.raws.after = `\n${"  ".repeat(indent)}`;
         indentRecursive(child, indent + 1);
@@ -45,7 +45,7 @@ function indentRecursive(node, indent = 0) {
 function formatNodes(root) {
     indentRecursive(root);
     if (root.first) {
-        root.first.raws.before = "";
+        root.first.raws.before = ";
     }
 }
 async function readFileWithRetries(path, tries = 5) {
@@ -65,7 +65,7 @@ async function readFileWithRetries(path, tries = 5) {
 }
 function drainStdin() {
     return new Promise((resolve, reject)=>{
-        let result = "";
+        let result = ";
         process.stdin.on("data", (chunk)=>{
             result += chunk;
         });

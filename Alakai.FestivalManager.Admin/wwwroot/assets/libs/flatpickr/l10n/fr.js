@@ -55,7 +55,7 @@
       },
       ordinal: function (nth) {
           if (nth > 1)
-              return "";
+              return ";
           return "er";
       },
       rangeSeparator: " au ",

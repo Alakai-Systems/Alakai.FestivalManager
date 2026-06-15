@@ -1086,8 +1086,8 @@ var SimpleBar = (function () {
             this.placeholderEl = this.findChild(this.wrapperEl, classNamesToQuery(this.classNames.placeholder));
             this.heightAutoObserverWrapperEl = this.el.querySelector(classNamesToQuery(this.classNames.heightAutoObserverWrapperEl));
             this.heightAutoObserverEl = this.el.querySelector(classNamesToQuery(this.classNames.heightAutoObserverEl));
-            this.axis.x.track.el = this.findChild(this.el, "".concat(classNamesToQuery(this.classNames.track)).concat(classNamesToQuery(this.classNames.horizontal)));
-            this.axis.y.track.el = this.findChild(this.el, "".concat(classNamesToQuery(this.classNames.track)).concat(classNamesToQuery(this.classNames.vertical)));
+            this.axis.x.track.el = this.findChild(this.el, ".concat(classNamesToQuery(this.classNames.track)).concat(classNamesToQuery(this.classNames.horizontal)));
+            this.axis.y.track.el = this.findChild(this.el, ".concat(classNamesToQuery(this.classNames.track)).concat(classNamesToQuery(this.classNames.vertical)));
             this.axis.x.scrollbar.el =
                 ((_a = this.axis.x.track.el) === null || _a === void 0 ? void 0 : _a.querySelector(classNamesToQuery(this.classNames.scrollbar))) || null;
             this.axis.y.scrollbar.el =
@@ -1156,16 +1156,16 @@ var SimpleBar = (function () {
             var contentWrapperElOffsetWidth = this.contentWrapperEl.offsetWidth;
             var elOverflowX = this.elStyles.overflowX;
             var elOverflowY = this.elStyles.overflowY;
-            this.contentEl.style.padding = "".concat(this.elStyles.paddingTop, " ").concat(this.elStyles.paddingRight, " ").concat(this.elStyles.paddingBottom, " ").concat(this.elStyles.paddingLeft);
+            this.contentEl.style.padding = ".concat(this.elStyles.paddingTop, " ").concat(this.elStyles.paddingRight, " ").concat(this.elStyles.paddingBottom, " ").concat(this.elStyles.paddingLeft);
             this.wrapperEl.style.margin = "-".concat(this.elStyles.paddingTop, " -").concat(this.elStyles.paddingRight, " -").concat(this.elStyles.paddingBottom, " -").concat(this.elStyles.paddingLeft);
             var contentElScrollHeight = this.contentEl.scrollHeight;
             var contentElScrollWidth = this.contentEl.scrollWidth;
             this.contentWrapperEl.style.height = isHeightAuto ? 'auto' : '100%';
             // Determine placeholder size
             this.placeholderEl.style.width = isWidthAuto
-                ? "".concat(contentElOffsetWidth || contentElScrollWidth, "px")
+                ? ".concat(contentElOffsetWidth || contentElScrollWidth, "px")
                 : 'auto';
-            this.placeholderEl.style.height = "".concat(contentElScrollHeight, "px");
+            this.placeholderEl.style.height = ".concat(contentElScrollHeight, "px");
             var contentWrapperElOffsetHeight = this.contentWrapperEl.offsetHeight;
             this.axis.x.isOverflowing =
                 contentElOffsetWidth !== 0 && contentElScrollWidth > contentElOffsetWidth;
@@ -1198,9 +1198,9 @@ var SimpleBar = (function () {
             this.axis.x.scrollbar.size = this.getScrollbarSize('x');
             this.axis.y.scrollbar.size = this.getScrollbarSize('y');
             if (this.axis.x.scrollbar.el)
-                this.axis.x.scrollbar.el.style.width = "".concat(this.axis.x.scrollbar.size, "px");
+                this.axis.x.scrollbar.el.style.width = ".concat(this.axis.x.scrollbar.size, "px");
             if (this.axis.y.scrollbar.el)
-                this.axis.y.scrollbar.el.style.height = "".concat(this.axis.y.scrollbar.size, "px");
+                this.axis.y.scrollbar.el.style.height = ".concat(this.axis.y.scrollbar.size, "px");
             this.positionScrollbar('x');
             this.positionScrollbar('y');
             this.toggleTrackVisibility('x');
@@ -1271,12 +1271,12 @@ var SimpleBar = (function () {
             if (this.axis[axis].isOverflowing || this.axis[axis].forceVisible) {
                 track.style.visibility = 'visible';
                 this.contentWrapperEl.style[this.axis[axis].overflowAttr] = 'scroll';
-                this.el.classList.add("".concat(this.classNames.scrollable, "-").concat(axis));
+                this.el.classList.add(".concat(this.classNames.scrollable, "-").concat(axis));
             }
             else {
                 track.style.visibility = 'hidden';
                 this.contentWrapperEl.style[this.axis[axis].overflowAttr] = 'hidden';
-                this.el.classList.remove("".concat(this.classNames.scrollable, "-").concat(axis));
+                this.el.classList.remove(".concat(this.classNames.scrollable, "-").concat(axis));
             }
             // Even if forceVisible is enabled, scrollbar itself should be hidden
             if (this.axis[axis].isOverflowing) {

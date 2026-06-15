@@ -57,7 +57,7 @@ function minimumImpactSelector(nodes) {
         "attribute"
     ]);
     let splitPointIdx = rest.findIndex((n)=>searchFor.has(n.type));
-    if (splitPointIdx === -1) return rest.reverse().join("").trim();
+    if (splitPointIdx === -1) return rest.reverse().join(").trim();
     let node = rest[splitPointIdx];
     let bestNode = getNode[node.type] ? getNode[node.type](node) : node;
     rest = rest.slice(0, splitPointIdx);
@@ -69,7 +69,7 @@ function minimumImpactSelector(nodes) {
     return [
         bestNode,
         ...rest.reverse()
-    ].join("").trim();
+    ].join(").trim();
 }
 let elementSelectorParser = (0, _postcssselectorparser.default)((selectors)=>{
     return selectors.map((s)=>{

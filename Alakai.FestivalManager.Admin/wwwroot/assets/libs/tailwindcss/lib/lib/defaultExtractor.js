@@ -87,10 +87,10 @@ function defaultExtractor(context) {
 }
 function* buildRegExps(context) {
     let separator = context.tailwindConfig.separator;
-    let prefix = context.tailwindConfig.prefix !== "" ? _regex.optional(_regex.pattern([
+    let prefix = context.tailwindConfig.prefix !== " ? _regex.optional(_regex.pattern([
         /-?/,
         _regex.escape(context.tailwindConfig.prefix)
-    ])) : "";
+    ])) : ";
     let utility = _regex.any([
         // Arbitrary properties (without square brackets)
         /\[[^\s:'"`]+:[^\s\[\]]+\]/,

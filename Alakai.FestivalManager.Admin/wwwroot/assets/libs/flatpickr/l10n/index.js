@@ -250,7 +250,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "Тыд.",
@@ -553,7 +553,7 @@
         },
         firstDayOfWeek: 6,
         ordinal: function () {
-            return "";
+            return ";
         },
     };
     fp$8.l10ns.ckb = Kurdish;
@@ -696,7 +696,7 @@
             if (nth >= 21 && nth <= 39)
                 return "ain";
             // Inconclusive.
-            return "";
+            return ";
         },
         time_24hr: true,
     };
@@ -1122,7 +1122,7 @@
         },
         firstDayOfWeek: 6,
         ordinal: function () {
-            return "";
+            return ";
         },
     };
     fp$g.l10ns.fa = Persian;
@@ -1298,7 +1298,7 @@
         },
         ordinal: function (nth) {
             if (nth > 1)
-                return "";
+                return ";
             return "er";
         },
         rangeSeparator: " au ",
@@ -1360,7 +1360,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         weekAbbreviation: "Εβδ",
         rangeSeparator: " έως ",
@@ -1638,7 +1638,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "ՇԲՏ",
@@ -1696,7 +1696,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         time_24hr: true,
         rangeSeparator: " - ",
@@ -1932,7 +1932,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "კვ.",
@@ -2051,7 +2051,7 @@
             ],
         },
         ordinal: function () {
-            return "";
+            return ";
         },
         firstDayOfWeek: 1,
         rangeSeparator: " ដល់ ",
@@ -2114,7 +2114,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "Апта",
@@ -2387,7 +2387,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
     };
     fp$C.l10ns;
@@ -2442,7 +2442,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         time_24hr: true,
     };
@@ -2853,7 +2853,7 @@
         firstDayOfWeek: 1,
         time_24hr: true,
         ordinal: function () {
-            return "";
+            return ";
         },
     };
     fp$K.l10ns.ro = Romanian;
@@ -2909,7 +2909,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "Нед.",
@@ -3320,7 +3320,7 @@
         toggleTitle: "คลิกเพื่อเปลี่ยน",
         time_24hr: true,
         ordinal: function () {
-            return "";
+            return ";
         },
     };
     fp$S.l10ns.th = Thai;
@@ -3492,7 +3492,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "Ҳафта",
@@ -3555,7 +3555,7 @@
         },
         firstDayOfWeek: 1,
         ordinal: function () {
-            return "";
+            return ";
         },
         rangeSeparator: " — ",
         weekAbbreviation: "Hafta",

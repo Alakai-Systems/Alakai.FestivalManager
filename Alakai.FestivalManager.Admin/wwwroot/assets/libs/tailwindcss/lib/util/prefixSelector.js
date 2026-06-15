@@ -26,7 +26,7 @@ function _interop_require_default(obj) {
     };
 }
 function _default(prefix, selector, prependNegative = false) {
-    if (prefix === "") {
+    if (prefix === ") {
         return selector;
     }
     /** @type {import('postcss-selector-parser').Root} */ let ast = typeof selector === "string" ? (0, _postcssselectorparser.default)().astSync(selector) : selector;

@@ -48,7 +48,7 @@ export var Armenian = {
     },
     firstDayOfWeek: 1,
     ordinal: function () {
-        return "";
+        return ";
     },
     rangeSeparator: " — ",
     weekAbbreviation: "ՇԲՏ",

@@ -213,6 +213,123 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.ToTable("PassTypes", (string)null);
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("BasePrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("City")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("Country")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int?>("DanceRole")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("DiscountCode")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<decimal>("FinalPrice")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("InternalNotes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid?>("LevelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(2000)
+                        .HasColumnType("nvarchar(2000)");
+
+                    b.Property<DateTime?>("PaidAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("PartnerEmail")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<Guid?>("PartnerRegistrationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("PassTypeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("PaymentStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Phone")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.HasIndex("Email");
+
+                    b.HasIndex("LevelId");
+
+                    b.HasIndex("PartnerEmail");
+
+                    b.HasIndex("PartnerRegistrationId");
+
+                    b.HasIndex("PassTypeId");
+
+                    b.HasIndex("PaymentStatus");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("EditionId", "Email");
+
+                    b.ToTable("Registrations", (string)null);
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Edition", b =>
                 {
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Festival", "Festival")
@@ -244,6 +361,39 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Edition");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Level", "Level")
+                        .WithMany()
+                        .HasForeignKey("LevelId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Registration", "PartnerRegistration")
+                        .WithMany()
+                        .HasForeignKey("PartnerRegistrationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.PassType", "PassType")
+                        .WithMany()
+                        .HasForeignKey("PassTypeId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Edition");
+
+                    b.Navigation("Level");
+
+                    b.Navigation("PartnerRegistration");
+
+                    b.Navigation("PassType");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Edition", b =>

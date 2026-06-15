@@ -1,20 +1,20 @@
 ﻿<!-- Start Sidebar -->
 <nav class="sidebar lg:z-[9] z-[10]">
-    <div class="h-full bg-white dark:bg-darklight group-data-[sidebar=dark]/item:bg-darklight group-data-[sidebar=brand]/item:bg-sky-950">
+    <div class="h-screen min-h-screen bg-[#111111] dark:bg-[#111111]">
         <div class="p-4">
             <NavLink href="/" class="w-full main-logo">
-                <span class="block mx-auto text-xl font-bold tracking-wide text-center text-black dark:text-white group-data-[sidebar=brand]/item:text-white">ALAKAI</span>
+                <span class="block mx-auto text-xl font-bold tracking-wide text-center text-black">ALAKAI</span>
             </NavLink>
         </div>
 
-        <div class="h-[calc(100vh-60px)] overflow-y-auto overflow-x-hidden px-5 pb-4 space-y-6 detached-menu">
-            <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'configuration' }">
+        <div class="h-[calc(100vh-72px)] overflow-y-auto overflow-x-hidden px-5 pb-4 space-y-6 detached-menu">
+            <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'eventSetup' }">
                 <li class="menu-title">
-                    <span class="text-xs text-black/40 dark:text-white/30">Menu</span>
+                    <span class="text-xs text-black/40 dark:text-black/30">Menu</span>
                 </li>
 
                 <li class="menu nav-item">
-                    <NavLink href="/" Match="NavLinkMatch.All" class="text-black nav-link group">
+                    <NavLink href="/" Match="NavLinkMatch.All" class="text-black/80 nav-link group hover:text-black">
                         <div class="flex items-center">
                             <i class="ri-dashboard-fill"></i>
                             <span class="ltr:pl-1.5 rtl:pr-1.5">Dashboard</span>
@@ -23,24 +23,25 @@
                 </li>
 
                 <li class="menu nav-item">
-                    <a href="javascript:;" class="items-center justify-between text-black nav-link group" x-bind:class="{ 'active': activeMenu === 'configuration' }" x-on:click="activeMenu === 'configuration' ? activeMenu = null : activeMenu = 'configuration'">
+                    <a href="javascript:;" class="items-center justify-between text-black/80 nav-link group hover:text-black" x-bind:class="{ 'active': activeMenu === 'eventSetup' }" x-on:click="activeMenu === 'eventSetup' ? activeMenu = null : activeMenu = 'eventSetup'">
                         <div class="flex items-center">
-                            <i class="ri-settings-3-fill"></i>
-                            <span class="ltr:pl-1.5 rtl:pr-1.5">Configuration</span>
+                            <i class="ri-calendar-event-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Event Setup</span>
                         </div>
-                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'configuration' }"></i>
+                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'eventSetup' }"></i>
                     </a>
 
-                    <ul x-show="activeMenu === 'configuration'" x-collapse class="flex flex-col gap-1 text-black sub-menu dark:text-white/60 group-data-[sidebar=dark]/item:text-white/60 group-data-[sidebar=brand]/item:text-sky-200/50">
-                        <li><NavLink href="/festivals">Festivals</NavLink></li>
-                        <li><NavLink href="/editions">Editions</NavLink></li>
-                        <li><NavLink href="/pass-types">Pass Types</NavLink></li>
-                        <li><NavLink href="/levels">Levels</NavLink></li>
+                    <ul x-show="activeMenu === 'eventSetup'" x-collapse class="flex flex-col gap-1 sub-menu text-black/55">
+                        <li><NavLink href="/festivals" class="text-black/80 nav-link group hover:text-black">Festivals</NavLink></li>
+                        <li><NavLink href="/editions" class="text-black/80 nav-link group hover:text-black">Editions</NavLink></li>
+                        <li><NavLink href="/pass-types" class="text-black/80 nav-link group hover:text-black">Pass Types</NavLink></li>
+                        <li><NavLink href="/levels" class="text-black/80 nav-link group hover:text-black">Levels</NavLink></li>
+                        <li><NavLink href="/competitions" class="text-black/80 nav-link group hover:text-black">Competitions</NavLink></li>
                     </ul>
                 </li>
 
                 <li class="menu nav-item">
-                    <a href="javascript:;" class="items-center justify-between text-black nav-link group" x-bind:class="{ 'active': activeMenu === 'operations' }" x-on:click="activeMenu === 'operations' ? activeMenu = null : activeMenu = 'operations'">
+                    <a href="javascript:;" class="items-center justify-between text-black/80 nav-link group hover:text-black" x-bind:class="{ 'active': activeMenu === 'operations' }" x-on:click="activeMenu === 'operations' ? activeMenu = null : activeMenu = 'operations'">
                         <div class="flex items-center">
                             <i class="ri-apps-2-fill"></i>
                             <span class="ltr:pl-1.5 rtl:pr-1.5">Operations</span>
@@ -48,23 +49,57 @@
                         <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'operations' }"></i>
                     </a>
 
-                    <ul x-show="activeMenu === 'operations'" x-collapse class="flex flex-col gap-1 text-black sub-menu dark:text-white/60 group-data-[sidebar=dark]/item:text-white/60 group-data-[sidebar=brand]/item:text-sky-200/50">
-                        <li><NavLink href="/registrations">Registrations</NavLink></li>
-                        <li><NavLink href="/users">Users</NavLink></li>
-                        <li><NavLink href="/purchases">Purchases</NavLink></li>
-                        <li><NavLink href="/competitions">Competitions</NavLink></li>
-                        <li><NavLink href="/invoices">Invoices</NavLink></li>
-                        <li><NavLink href="/emails">Emails</NavLink></li>
+                    <ul x-show="activeMenu === 'operations'" x-collapse class="flex flex-col gap-1 sub-menu text-black/55">
+                        <li><NavLink href="/registrations" class="text-black/80 nav-link group hover:text-black">Registrations</NavLink></li>
+                        <li><NavLink href="/users" class="text-black/80 nav-link group hover:text-black">Users</NavLink></li>
+                        <li><NavLink href="/competition-entries" class="text-black/80 nav-link group hover:text-black">Competition Entries</NavLink></li>
+                        <li><NavLink href="/invoices" class="text-black/80 nav-link group hover:text-black">Invoices</NavLink></li>
                     </ul>
                 </li>
 
                 <li class="menu nav-item">
-                    <NavLink href="/settings" class="text-black nav-link group">
+                    <a href="javascript:;" class="items-center justify-between text-black/80 nav-link group hover:text-black" x-bind:class="{ 'active': activeMenu === 'communications' }" x-on:click="activeMenu === 'communications' ? activeMenu = null : activeMenu = 'communications'">
+                        <div class="flex items-center">
+                            <i class="ri-mail-send-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Communications</span>
+                        </div>
+                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'communications' }"></i>
+                    </a>
+
+                    <ul x-show="activeMenu === 'communications'" x-collapse class="flex flex-col gap-1 sub-menu text-black/55">
+                        <li><NavLink href="/email-templates" class="text-black/80 nav-link group hover:text-black">Email Templates</NavLink></li>
+                        <li><NavLink href="/email-logs" class="text-black/80 nav-link group hover:text-black">Email Logs</NavLink></li>
+                    </ul>
+                </li>
+
+                <li class="menu nav-item">
+                    <a href="javascript:;" class="items-center justify-between text-black/80 nav-link group hover:text-black" x-bind:class="{ 'active': activeMenu === 'userPortal' }" x-on:click="activeMenu === 'userPortal' ? activeMenu = null : activeMenu = 'userPortal'">
+                        <div class="flex items-center">
+                            <i class="ri-window-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">User Portal</span>
+                        </div>
+                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'userPortal' }"></i>
+                    </a>
+
+                    <ul x-show="activeMenu === 'userPortal'" x-collapse class="flex flex-col gap-1 sub-menu text-black/55">
+                        <li><NavLink href="/portal-pages" class="text-black/80 nav-link group hover:text-black">Portal Pages</NavLink></li>
+                        <li><NavLink href="/portal-settings" class="text-black/80 nav-link group hover:text-black">Portal Settings</NavLink></li>
+                    </ul>
+                </li>
+
+                <li class="menu nav-item">
+                    <a href="javascript:;" class="items-center justify-between text-black/80 nav-link group hover:text-black" x-bind:class="{ 'active': activeMenu === 'system' }" x-on:click="activeMenu === 'system' ? activeMenu = null : activeMenu = 'system'">
                         <div class="flex items-center">
                             <i class="ri-equalizer-fill"></i>
-                            <span class="ltr:pl-1.5 rtl:pr-1.5">Settings</span>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">System</span>
                         </div>
-                    </NavLink>
+                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'system' }"></i>
+                    </a>
+
+                    <ul x-show="activeMenu === 'system'" x-collapse class="flex flex-col gap-1 sub-menu text-black/55">
+                        <li><NavLink href="/settings" class="text-black/80 nav-link group hover:text-black">General Settings</NavLink></li>
+                        <li><NavLink href="/billing-settings" class="text-black/80 nav-link group hover:text-black">Billing Settings</NavLink></li>
+                    </ul>
                 </li>
             </ul>
         </div>

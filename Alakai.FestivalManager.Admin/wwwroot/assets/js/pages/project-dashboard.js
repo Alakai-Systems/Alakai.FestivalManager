@@ -37,7 +37,7 @@ window.projectDashBoard = function () {
             y: {
                 title: {
                     formatter: (() => {
-                        return "";
+                        return ";
                     }),
                 },
             },
@@ -85,7 +85,7 @@ window.projectDashBoard = function () {
             y: {
                 title: {
                     formatter: (() => {
-                        return "";
+                        return ";
                     }),
                 },
             },
@@ -133,7 +133,7 @@ window.projectDashBoard = function () {
             y: {
                 title: {
                     formatter: (() => {
-                        return "";
+                        return ";
                     }),
                 },
             },

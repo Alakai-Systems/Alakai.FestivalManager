@@ -52,7 +52,7 @@ export var Thai = {
     toggleTitle: "คลิกเพื่อเปลี่ยน",
     time_24hr: true,
     ordinal: function () {
-        return "";
+        return ";
     },
 };
 fp.l10ns.th = Thai;

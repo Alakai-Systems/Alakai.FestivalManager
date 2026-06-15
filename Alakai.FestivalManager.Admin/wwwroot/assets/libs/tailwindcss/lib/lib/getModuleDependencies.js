@@ -31,7 +31,7 @@ let jsExtensions = [
 // a.js
 //   b // .js or .ts
 let jsResolutionOrder = [
-    "",
+    ",
     ".js",
     ".cjs",
     ".mjs",
@@ -42,7 +42,7 @@ let jsResolutionOrder = [
     ".tsx"
 ];
 let tsResolutionOrder = [
-    "",
+    ",
     ".ts",
     ".cts",
     ".mts",

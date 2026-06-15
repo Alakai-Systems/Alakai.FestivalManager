@@ -36,7 +36,7 @@ var options = {
         y: {
             title: {
                 formatter: (() => {
-                    return "";
+                    return ";
                 }),
             },
         },
@@ -84,7 +84,7 @@ var options = {
         y: {
             title: {
                 formatter: (() => {
-                    return "";
+                    return ";
                 }),
             },
         },
@@ -132,7 +132,7 @@ var options = {
         y: {
             title: {
                 formatter: (() => {
-                    return "";
+                    return ";
                 }),
             },
         },
@@ -180,7 +180,7 @@ var options = {
         y: {
             title: {
                 formatter: (() => {
-                    return "";
+                    return ";
                 }),
             },
         },

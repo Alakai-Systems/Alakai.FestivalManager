@@ -78,7 +78,7 @@
           if (nth >= 21 && nth <= 39)
               return "ain";
           // Inconclusive.
-          return "";
+          return ";
       },
       time_24hr: true,
   };

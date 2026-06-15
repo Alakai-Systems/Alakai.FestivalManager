@@ -34,7 +34,7 @@ function collapseAdjacentRules() {
             var _node_property, _currentRule_property;
             if (node.type === "atrule" && node.name === "font-face") {
                 currentRule = node;
-            } else if (properties.every((property)=>((_node_property = node[property]) !== null && _node_property !== void 0 ? _node_property : "").replace(/\s+/g, " ") === ((_currentRule_property = currentRule[property]) !== null && _currentRule_property !== void 0 ? _currentRule_property : "").replace(/\s+/g, " "))) {
+            } else if (properties.every((property)=>((_node_property = node[property]) !== null && _node_property !== void 0 ? _node_property : ").replace(/\s+/g, " ") === ((_currentRule_property = currentRule[property]) !== null && _currentRule_property !== void 0 ? _currentRule_property : ").replace(/\s+/g, " "))) {
                 // An AtRule may not have children (for example if we encounter duplicate @import url(…) rules)
                 if (node.nodes) {
                     currentRule.append(node.nodes);

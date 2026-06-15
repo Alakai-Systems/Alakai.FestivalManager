@@ -186,10 +186,10 @@ function normalizeConfig(config) {
             "Update `prefix` in your configuration to be a string to eliminate this warning.",
             "https://tailwindcss.com/docs/upgrade-guide#prefix-cannot-be-a-function"
         ]);
-        config.prefix = "";
+        config.prefix = ";
     } else {
         var _config_prefix;
-        config.prefix = (_config_prefix = config.prefix) !== null && _config_prefix !== void 0 ? _config_prefix : "";
+        config.prefix = (_config_prefix = config.prefix) !== null && _config_prefix !== void 0 ? _config_prefix : ";
     }
     // Normalize the `content`
     config.content = {

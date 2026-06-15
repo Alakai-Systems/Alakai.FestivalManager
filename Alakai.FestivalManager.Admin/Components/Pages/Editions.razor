@@ -28,7 +28,7 @@
                     </div>
 
                     <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="ResetPage">
-                        <option value="">All festivals</option>
+                        <option value=""All festivals</option>
                         @foreach (FestivalDto festival in festivals)
                         {
                             <option value="@festival.Id">@($"{festival.Name}")</option>

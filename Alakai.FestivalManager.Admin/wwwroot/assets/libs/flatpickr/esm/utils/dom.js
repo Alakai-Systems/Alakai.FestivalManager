@@ -5,8 +5,8 @@ export function toggleClass(elem, className, bool) {
 }
 export function createElement(tag, className, content) {
     var e = window.document.createElement(tag);
-    className = className || "";
-    content = content || "";
+    className = className || ";
+    content = content || ";
     e.className = className;
     if (content !== undefined)
         e.textContent = content;

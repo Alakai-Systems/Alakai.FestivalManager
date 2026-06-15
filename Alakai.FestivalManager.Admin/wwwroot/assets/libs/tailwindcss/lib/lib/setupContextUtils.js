@@ -133,7 +133,7 @@ function parseVariantFormatString(input) {
     // Because the selector could look like this
     // @media { &[data-name="foo bar"] }
     // This is why we do not skip whitespace
-    let current = "";
+    let current = ";
     let depth = 0;
     for(let idx = 0; idx < input.length; idx++){
         let char = input[idx];
@@ -144,14 +144,14 @@ function parseVariantFormatString(input) {
             // Nested rule: start
             ++depth;
             parts.push(current.trim());
-            current = "";
+            current = ";
         } else if (char === "}") {
             // Nested rule: end
             if (--depth < 0) {
                 throw new Error(`Your { and } are unbalanced.`);
             }
             parts.push(current.trim());
-            current = "";
+            current = ";
         } else {
             // Normal character
             current += char;
@@ -160,7 +160,7 @@ function parseVariantFormatString(input) {
     if (current.length > 0) {
         parts.push(current.trim());
     }
-    parts = parts.filter((part)=>part !== "");
+    parts = parts.filter((part)=>part !== ");
     return parts;
 }
 function insertInto(list, value, { before =[]  } = {}) {
@@ -271,7 +271,7 @@ function isValidVariantFormatString(format) {
     return format.startsWith("@") || format.includes("&");
 }
 function parseVariant(variant) {
-    variant = variant.replace(/\n+/g, "").replace(/\s{1,}/g, " ").trim();
+    variant = variant.replace(/\n+/g, ").replace(/\s{1,}/g, " ").trim();
     let fns = parseVariantFormatString(variant).map((str)=>{
         if (!str.startsWith("@")) {
             return ({ format  })=>format(str);
@@ -281,7 +281,7 @@ function parseVariant(variant) {
         return ({ wrap  })=>{
             return wrap(_postcss.default.atRule({
                 name,
-                params: (_params_trim = params === null || params === void 0 ? void 0 : params.trim()) !== null && _params_trim !== void 0 ? _params_trim : ""
+                params: (_params_trim = params === null || params === void 0 ? void 0 : params.trim()) !== null && _params_trim !== void 0 ? _params_trim : "
             }));
         };
     }).reverse();
@@ -451,7 +451,7 @@ function parseVariant(variant) {
                         if (isOnlyPlugin) {
                             _log.default.warn([
                                 `Unnecessary typehint \`${coercedType}\` in \`${identifier}-${modifier}\`.`,
-                                `You can safely update it to \`${identifier}-${modifier.replace(coercedType + ":", "")}\`.`
+                                `You can safely update it to \`${identifier}-${modifier.replace(coercedType + ":", ")}\`.`
                             ]);
                         } else {
                             return [];
@@ -517,7 +517,7 @@ function parseVariant(variant) {
                         if (isOnlyPlugin) {
                             _log.default.warn([
                                 `Unnecessary typehint \`${coercedType}\` in \`${identifier}-${modifier}\`.`,
-                                `You can safely update it to \`${identifier}-${modifier.replace(coercedType + ":", "")}\`.`
+                                `You can safely update it to \`${identifier}-${modifier.replace(coercedType + ":", ")}\`.`
                             ]);
                         } else {
                             return [];
@@ -624,7 +624,7 @@ function parseVariant(variant) {
                 }
                 var // (JetBrains) plugins.
                 _args_value;
-                return variantFn((args === null || args === void 0 ? void 0 : args.value) === _sharedState.NONE ? options.values.DEFAULT : (_args_value = args === null || args === void 0 ? void 0 : args.value) !== null && _args_value !== void 0 ? _args_value : typeof args === "string" ? args : "", modifiersEnabled ? {
+                return variantFn((args === null || args === void 0 ? void 0 : args.value) === _sharedState.NONE ? options.values.DEFAULT : (_args_value = args === null || args === void 0 ? void 0 : args.value) !== null && _args_value !== void 0 ? _args_value : typeof args === "string" ? args : ", modifiersEnabled ? {
                     modifier: args === null || args === void 0 ? void 0 : args.modifier,
                     container
                 } : {
@@ -654,8 +654,8 @@ function trackModified(files, fileModifiedMap) {
         var _fs_statSync;
         if (!file) continue;
         let parsed = _url.default.parse(file);
-        let pathname = parsed.hash ? parsed.href.replace(parsed.hash, "") : parsed.href;
-        pathname = parsed.search ? pathname.replace(parsed.search, "") : pathname;
+        let pathname = parsed.hash ? parsed.href.replace(parsed.hash, ") : parsed.href;
+        pathname = parsed.search ? pathname.replace(parsed.search, ") : pathname;
         let newModified = (_fs_statSync = _fs.default.statSync(decodeURIComponent(pathname), {
             throwIfNoEntry: false
         })) === null || _fs_statSync === void 0 ? void 0 : _fs_statSync.mtimeMs;
@@ -1150,7 +1150,7 @@ function registerPlugins(plugins, context) {
                         candidate,
                         context
                     };
-                    let result = formatStrings.map((formats)=>(0, _formatVariantSelector.finalizeSelector)(`.${candidate}`, (0, _formatVariantSelector.formatVariantSelector)(formats, opts), opts).replace(`.${candidate}`, "&").replace("{ & }", "").trim());
+                    let result = formatStrings.map((formats)=>(0, _formatVariantSelector.finalizeSelector)(`.${candidate}`, (0, _formatVariantSelector.formatVariantSelector)(formats, opts), opts).replace(`.${candidate}`, "&").replace("{ & }", ").trim());
                     if (manualFormatStrings.length > 0) {
                         result.push((0, _formatVariantSelector.formatVariantSelector)(manualFormatStrings, opts).toString().replace(`.${candidate}`, "&"));
                     }

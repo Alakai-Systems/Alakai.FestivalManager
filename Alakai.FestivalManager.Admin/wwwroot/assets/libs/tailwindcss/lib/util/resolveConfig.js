@@ -238,7 +238,7 @@ function resolveConfig(configs) {
     let allConfigs = [
         ...extractPluginConfigs(configs),
         {
-            prefix: "",
+            prefix: ",
             important: false,
             separator: ":"
         }

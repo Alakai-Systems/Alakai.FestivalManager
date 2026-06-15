@@ -224,8 +224,8 @@
     }
     function createElement(tag, className, content) {
         var e = window.document.createElement(tag);
-        className = className || "";
-        content = content || "";
+        className = className || ";
+        content = content || ";
         e.className = className;
         if (content !== undefined)
             e.textContent = content;
@@ -340,13 +340,13 @@
         },
     };
     var tokenRegex = {
-        D: "",
-        F: "",
+        D: ",
+        F: ",
         G: "(\\d\\d|\\d)",
         H: "(\\d\\d|\\d)",
         J: "(\\d\\d|\\d)\\w+",
-        K: "",
-        M: "",
+        K: ",
+        M: ",
         S: "(\\d\\d|\\d)",
         U: "(.+)",
         W: "(\\d\\d|\\d)",
@@ -356,7 +356,7 @@
         h: "(\\d\\d|\\d)",
         i: "(\\d\\d|\\d)",
         j: "(\\d\\d|\\d)",
-        l: "",
+        l: ",
         m: "(\\d\\d|\\d)",
         n: "(\\d\\d|\\d)",
         s: "(\\d\\d|\\d)",
@@ -436,15 +436,15 @@
                 return config.formatDate(dateObj, frmt, locale);
             }
             return frmt
-                .split("")
+                .split(")
                 .map(function (c, i, arr) {
                 return formats[c] && arr[i - 1] !== "\\"
                     ? formats[c](dateObj, locale, config)
                     : c !== "\\"
                         ? c
-                        : "";
+                        : ";
             })
-                .join("");
+                .join(");
         };
     };
     var createDateParser = function (_a) {
@@ -480,7 +480,7 @@
                 }
                 else {
                     var matched = void 0, ops = [];
-                    for (var i = 0, matchIndex = 0, regexStr = ""; i < format.length; i++) {
+                    for (var i = 0, matchIndex = 0, regexStr = "; i < format.length; i++) {
                         var token_1 = format[i];
                         var isBackSlash = token_1 === "\\";
                         var escaped = format[i - 1] === "\\" || isBackSlash;
@@ -1211,7 +1211,7 @@
                     month > self.config.maxDate.getMonth());
             };
             self.monthsDropdownContainer.tabIndex = -1;
-            self.monthsDropdownContainer.innerHTML = "";
+            self.monthsDropdownContainer.innerHTML = ";
             for (var i = 0; i < 12; i++) {
                 if (!shouldBuildMonth(i))
                     continue;
@@ -1434,11 +1434,11 @@
         function clear(triggerChangeEvent, toInitial) {
             if (triggerChangeEvent === void 0) { triggerChangeEvent = true; }
             if (toInitial === void 0) { toInitial = true; }
-            self.input.value = "";
+            self.input.value = ";
             if (self.altInput !== undefined)
-                self.altInput.value = "";
+                self.altInput.value = ";
             if (self.mobileInput !== undefined)
-                self.mobileInput.value = "";
+                self.mobileInput.value = ";
             self.selectedDates = [];
             self.latestSelectedDateObj = undefined;
             if (toInitial === true) {
@@ -1570,7 +1570,7 @@
                     if (self.timeContainer !== undefined &&
                         self.minuteElement !== undefined &&
                         self.hourElement !== undefined &&
-                        self.input.value !== "" &&
+                        self.input.value !== " &&
                         self.input.value !== undefined) {
                         updateTime();
                     }
@@ -1979,8 +1979,8 @@
                 var defaultDateFormat = flatpickr.defaultConfig.dateFormat || defaults.dateFormat;
                 formats.dateFormat =
                     userConfig.noCalendar || timeMode
-                        ? "H:i" + (userConfig.enableSeconds ? ":S" : "")
-                        : defaultDateFormat + " H:i" + (userConfig.enableSeconds ? ":S" : "");
+                        ? "H:i" + (userConfig.enableSeconds ? ":S" : ")
+                        : defaultDateFormat + " H:i" + (userConfig.enableSeconds ? ":S" : ");
             }
             if (userConfig.altInput &&
                 (userConfig.enableTime || timeMode) &&
@@ -1989,7 +1989,7 @@
                 formats.altFormat =
                     userConfig.noCalendar || timeMode
                         ? "h:i" + (userConfig.enableSeconds ? ":S K" : " K")
-                        : defaultAltFormat + (" h:i" + (userConfig.enableSeconds ? ":S" : "") + " K");
+                        : defaultAltFormat + (" h:i" + (userConfig.enableSeconds ? ":S" : ") + " K");
             }
             Object.defineProperty(self.config, "minDate", {
                 get: function () { return self.config._minDate; },
@@ -2510,7 +2510,7 @@
                 var selectedDate = self.selectedDates[i];
                 if (selectedDate instanceof Date &&
                     compareDates(selectedDate, date) === 0)
-                    return "" + i;
+                    return " + i;
             }
             return false;
         }
@@ -2570,7 +2570,7 @@
                 self.mobileInput.value =
                     self.latestSelectedDateObj !== undefined
                         ? self.formatDate(self.latestSelectedDateObj, self.mobileFormatStr)
-                        : "";
+                        : ";
             }
             self.input.value = getDateStr(self.config.dateFormat);
             if (self.altInput !== undefined) {

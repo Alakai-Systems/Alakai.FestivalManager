@@ -62,7 +62,7 @@
       },
       firstDayOfWeek: 6,
       ordinal: function () {
-          return "";
+          return ";
       },
   };
   fp.l10ns.ckb = Kurdish;

@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+﻿using Alakai.FestivalManager.Application.Features.Registrations.Services;
+
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -45,6 +47,15 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateLevelHandler>();
         services.AddScoped<DeleteLevelHandler>();
         services.AddScoped<ILevelService, LevelService>();
+
+        //Registrations
+        services.AddScoped<CreateRegistrationHandler>();
+        services.AddScoped<GetRegistrationByIdHandler>();
+        services.AddScoped<GetRegistrationsHandler>();
+        services.AddScoped<GetRegistrationsByEditionIdHandler>();
+        services.AddScoped<UpdateRegistrationHandler>();
+        services.AddScoped<DeleteRegistrationHandler>();
+        services.AddScoped<IRegistrationService, RegistrationService>();
 
         return services;
     }
