@@ -4,8 +4,18 @@ public class RegistrationMappingProfile : Profile
 {
     public RegistrationMappingProfile()
     {
-        CreateMap<CreateRegistrationCommand, Registration>();
-        CreateMap<UpdateRegistrationCommand, Registration>();
+        //Generics y Gets
         CreateMap<Registration, RegistrationDto>();
+        CreateMap<IReadOnlyList<RegistrationDto>, IReadOnlyList<Registration>>();
+
+        //Create Registration
+        CreateMap<CreateRegistrationCommand, Registration>();
+        CreateMap<CreateRegistrationRequest, CreateRegistrationCommand>();
+        CreateMap<RegistrationDto, CreateRegistrationResponse>();
+
+        //Update Registration
+        CreateMap<UpdateRegistrationCommand, Registration>();
+        CreateMap<UpdateRegistrationRequest, UpdateRegistrationCommand>();
+        CreateMap<RegistrationDto, UpdateRegistrationResponse>();
     }
 }

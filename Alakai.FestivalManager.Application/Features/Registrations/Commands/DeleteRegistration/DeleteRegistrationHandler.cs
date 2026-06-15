@@ -1,7 +1,3 @@
-using System.Threading;
-using System.Threading.Tasks;
-using Alakai.FestivalManager.Application.Interfaces;
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 
 public class DeleteRegistrationHandler

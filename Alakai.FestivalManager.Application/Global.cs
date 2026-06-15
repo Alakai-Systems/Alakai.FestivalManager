@@ -43,13 +43,16 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Commands.
 global using Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 global using Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationById;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrations;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
+global using Alakai.FestivalManager.Application.Features.Registrations.Services;
 global using Alakai.FestivalManager.Application.Interfaces;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
 global using Alakai.FestivalManager.Domain.Entities;
+global using Alakai.FestivalManager.Domain.Enums;
 global using AutoMapper;
 global using FluentValidation;
 global using FluentValidation.Results;

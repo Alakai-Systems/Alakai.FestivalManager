@@ -1,12 +1,3 @@
-using System;
-using System.Threading;
-using System.Threading.Tasks;
-using AutoMapper;
-using Alakai.FestivalManager.Application.Interfaces;
-using Alakai.FestivalManager.Domain.Entities;
-using Alakai.FestivalManager.Domain.Enums;
-using Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
 
 public class UpdateRegistrationHandler

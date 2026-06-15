@@ -1,5 +1,3 @@
-
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Services;
 
 public interface IRegistrationService

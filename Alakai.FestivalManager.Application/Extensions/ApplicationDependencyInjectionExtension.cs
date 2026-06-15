@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Registrations.Services;
-
-namespace Alakai.FestivalManager.Application.Extensions;
+﻿namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {

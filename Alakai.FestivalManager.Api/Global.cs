@@ -22,6 +22,11 @@ global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.Upda
 global using Alakai.FestivalManager.Application.Features.PassTypes.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Services;
+global using Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
+global using Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
+global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Registrations.Services;
 global using Alakai.FestivalManager.Infrastructure.Extensions;
 global using AutoMapper;
 global using FluentValidation;

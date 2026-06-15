@@ -1,11 +1,3 @@
-
-using Alakai.FestivalManager.Application.Features.Registrations.Services;
-using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
-using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
-
-
 namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
@@ -13,35 +5,18 @@ namespace Alakai.FestivalManager.Api.Controllers;
 public class RegistrationsController : ControllerBase
 {
     private readonly IRegistrationService _registrationService;
+    private readonly IMapper _mapper;
 
-    public RegistrationsController(IRegistrationService registrationService)
+    public RegistrationsController(IRegistrationService registrationService, IMapper mapper)
     {
         _registrationService = registrationService;
+        _mapper = mapper;
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)
     {
-        CreateRegistrationCommand command = new()
-        {
-            EditionId = request.EditionId,
-            PassTypeId = request.PassTypeId,
-            LevelId = request.LevelId,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Email = request.Email,
-            Phone = request.Phone,
-            Country = request.Country,
-            City = request.City,
-            DanceRole = request.DanceRole,
-            PartnerEmail = request.PartnerEmail,
-            BasePrice = request.BasePrice,
-            DiscountAmount = request.DiscountAmount,
-            FinalPrice = request.FinalPrice,
-            DiscountCode = request.DiscountCode,
-            Notes = request.Notes,
-            InternalNotes = request.InternalNotes
-        };
+        CreateRegistrationCommand command = _mapper.Map<CreateRegistrationCommand>(request);
 
         ApiResponse<CreateRegistrationResponse> response = await _registrationService.CreateAsync(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Data!.Registration.Id }, response);
@@ -71,34 +46,8 @@ public class RegistrationsController : ControllerBase
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> Update(Guid id, [FromBody] UpdateRegistrationRequest request, CancellationToken cancellationToken)
     {
-        UpdateRegistrationCommand command = new()
-        {
-            Id = id,
-            EditionId = request.EditionId,
-            PassTypeId = request.PassTypeId,
-            LevelId = request.LevelId,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Email = request.Email,
-            Phone = request.Phone,
-            Country = request.Country,
-            City = request.City,
-            DanceRole = request.DanceRole,
-            PartnerEmail = request.PartnerEmail,
-            PartnerRegistrationId = request.PartnerRegistrationId,
-            Status = request.Status,
-            PaymentStatus = request.PaymentStatus,
-            BasePrice = request.BasePrice,
-            DiscountAmount = request.DiscountAmount,
-            FinalPrice = request.FinalPrice,
-            DiscountCode = request.DiscountCode,
-            PaymentReference = request.PaymentReference,
-            PaidAt = request.PaidAt,
-            Notes = request.Notes,
-            InternalNotes = request.InternalNotes,
-            CancelledAt = request.CancelledAt,
-            IsActive = request.IsActive
-        };
+
+        UpdateRegistrationCommand command = _mapper.Map<UpdateRegistrationCommand>(request);
 
         ApiResponse<UpdateRegistrationResponse> response = await _registrationService.UpdateAsync(id, command, cancellationToken);
         return Ok(response);
