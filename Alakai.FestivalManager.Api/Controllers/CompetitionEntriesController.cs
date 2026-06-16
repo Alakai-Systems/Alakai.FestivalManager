@@ -1,3 +1,6 @@
+using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Requests;
+using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Responses;
+
 namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
@@ -5,10 +8,12 @@ namespace Alakai.FestivalManager.Api.Controllers;
 public class CompetitionEntriesController : ControllerBase
 {
     private readonly ICompetitionEntryService _competitionEntryService;
+    private readonly IMapper _mapper;
 
-    public CompetitionEntriesController(ICompetitionEntryService competitionEntryService)
+    public CompetitionEntriesController(ICompetitionEntryService competitionEntryService, IMapper mapper)
     {
         _competitionEntryService = competitionEntryService;
+        _mapper = mapper;
     }
 
     [HttpGet]
@@ -40,15 +45,17 @@ public class CompetitionEntriesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ApiResponse<CreateCompetitionEntryResponse>>> Create([FromBody] CreateCompetitionEntryCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<CreateCompetitionEntryResponse>>> Create([FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
     {
+        CreateCompetitionEntryCommand command = _mapper.Map<CreateCompetitionEntryCommand>(request);
         ApiResponse<CreateCompetitionEntryResponse> response = await _competitionEntryService.CreateAsync(command, cancellationToken);
         return Ok(response);
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<UpdateCompetitionEntryResponse>>> Update(Guid id, [FromBody] UpdateCompetitionEntryCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<UpdateCompetitionEntryResponse>>> Update(Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
     {
+        UpdateCompetitionEntryCommand command = _mapper.Map<UpdateCompetitionEntryCommand>(request);
         ApiResponse<UpdateCompetitionEntryResponse> response = await _competitionEntryService.UpdateAsync(id, command, cancellationToken);
         return Ok(response);
     }

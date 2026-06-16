@@ -7,7 +7,6 @@ public class UpdateCompetitionCommand
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CompetitionFormat Format { get; set; }
-    public MixAndMtachLevel? MixAndMatchLevel { get; set; }
     public int? MaxParticipants { get; set; }
     public bool RequiresPartner { get; set; }
     public bool RequiresRole { get; set; }
@@ -15,5 +14,7 @@ public class UpdateCompetitionCommand
     public DateTime? RegistrationOpenAt { get; set; }
     public DateTime? RegistrationCloseAt { get; set; }
     public int SortOrder { get; set; }
+    public IReadOnlyList<UpdateCompetitionCapacityCommand> Capacities { get; set; } = [];
     public bool IsActive { get; set; }
 }
+

@@ -7,7 +7,6 @@ public class UpdateCompetitionEntryCommandValidator : AbstractValidator<UpdateCo
         RuleFor(e => e.Id).NotEmpty();
         RuleFor(e => e.CompetitionId).NotEmpty();
         RuleFor(e => e.RegistrationId).NotEmpty();
-        RuleFor(e => e.Format).NotEmpty();
         RuleFor(e => e.DanceRole).NotEmpty();
         RuleFor(e => e.Notes).MaximumLength(2000);
         RuleFor(e => e.InternalNotes).MaximumLength(2000);

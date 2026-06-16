@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
+namespace Alakai.FestivalManager.Application.Contracts.Repositories;
 
 public interface ICompetitionRepository
 {

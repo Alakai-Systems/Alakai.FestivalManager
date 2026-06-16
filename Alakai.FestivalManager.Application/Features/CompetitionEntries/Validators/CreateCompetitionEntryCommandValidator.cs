@@ -6,9 +6,8 @@ public class CreateCompetitionEntryCommandValidator : AbstractValidator<CreateCo
     {
         RuleFor(e => e.CompetitionId).NotEmpty();
         RuleFor(e => e.RegistrationId).NotEmpty();
-        RuleFor(e => e.Format).NotEmpty();
-        RuleFor(e => e.MixAndMatchLevel).NotEmpty();
         RuleFor(e => e.DanceRole).NotEmpty();
+        RuleFor(e => e.CompetitionCapacityId).NotEmpty();
         RuleFor(e => e.Notes).MaximumLength(2000);
         RuleFor(e => e.InternalNotes).MaximumLength(2000);
     }

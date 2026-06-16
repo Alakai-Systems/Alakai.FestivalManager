@@ -16,6 +16,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<ICompetitionRepository, CompetitionRepository>();
         services.AddScoped<ICompetitionEntryRepository, CompetitionEntryRepository>();
+        services.AddScoped<ICompetitionCapacityRepository, CompetitionCapacityRepository>();
 
         return services;
     }

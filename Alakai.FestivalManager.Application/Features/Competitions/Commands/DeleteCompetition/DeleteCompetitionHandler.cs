@@ -1,3 +1,6 @@
+using Alakai.FestivalManager.Application.Interfaces.Repositories;
+using Alakai.FestivalManager.Domain.Entities;
+
 namespace Alakai.FestivalManager.Application.Features.Competitions.Commands.DeleteCompetition;
 
 public class DeleteCompetitionHandler
@@ -20,7 +23,7 @@ public class DeleteCompetitionHandler
 
         competition.IsActive = false;
 
-        _competitionRepository.Update(competition);
+        _competitionRepository.Delete(competition);
         await _competitionRepository.SaveChangesAsync(cancellationToken);
     }
 }

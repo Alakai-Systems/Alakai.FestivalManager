@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.DTOs;
+using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Responses;
 using Alakai.FestivalManager.Application.Features.Editions.Validators;
 
 namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Services;

@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Responses;
+namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Responses;
 
 public class DeleteCompetitionEntryResponse
 {

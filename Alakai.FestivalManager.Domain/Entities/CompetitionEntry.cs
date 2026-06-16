@@ -11,11 +11,13 @@ public class CompetitionEntry : BaseEntity
     public Guid? PartnerRegistrationId { get; set; }
     public Registration? PartnerRegistration { get; set; }
 
+    public Guid CompetitionCapacityId { get; set; }
+    public CompetitionCapacity CompetitionCapacity { get; set; } = default!;
+
     public DanceRole? DanceRole { get; set; }
+    public MixAndMatchLevel? MixAndMatchLevel { get; set; }
 
-    public CompetitionFormat Format { get; set; }
-    public MixAndMtachLevel? MixAndMatchLevel { get; set; }
-
+    public string? TeamName { get; set; }
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }
 

@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Application.Features.Competitions.Contracts.DTOs;
+
 namespace Alakai.FestivalManager.Application.Features.Competitions.Queries.GetCompetitionById;
 
 public class GetCompetitionByIdHandler

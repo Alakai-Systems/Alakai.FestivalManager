@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Responses;
+
 namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Services;
 
 public interface ICompetitionEntryService

@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    [Migration("20260616111213_AddCompetitionsAndCompetitionEntries")]
-    partial class AddCompetitionsAndCompetitionEntries
+    [Migration("20260616183441_AddCompetitionCapacityToCompetitionEntries")]
+    partial class AddCompetitionCapacityToCompetitionEntries
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -46,12 +46,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
-
-                    b.Property<int?>("MaxParticipants")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("MixAndMatchLevel")
-                        .HasColumnType("int");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -89,6 +83,47 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.ToTable("Competitions", (string)null);
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.CompetitionCapacity", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("CompetitionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("DanceRole")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MixAndMatchLevel")
+                        .HasColumnType("int");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CompetitionId");
+
+                    b.HasIndex("CompetitionId", "MixAndMatchLevel", "DanceRole")
+                        .IsUnique()
+                        .HasFilter("[MixAndMatchLevel] IS NOT NULL");
+
+                    b.ToTable("CompetitionCapacities", (string)null);
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.CompetitionEntry", b =>
                 {
                     b.Property<Guid>("Id")
@@ -98,6 +133,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<DateTime?>("CancelledAt")
                         .HasColumnType("datetime2");
 
+                    b.Property<Guid>("CompetitionCapacityId")
+                        .HasColumnType("uniqueidentifier");
+
                     b.Property<Guid>("CompetitionId")
                         .HasColumnType("uniqueidentifier");
 
@@ -105,9 +143,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int?>("DanceRole")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Format")
                         .HasColumnType("int");
 
                     b.Property<string>("InternalNotes")
@@ -133,10 +168,16 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("int");
 
+                    b.Property<string>("TeamName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CompetitionCapacityId");
 
                     b.HasIndex("CompetitionId");
 
@@ -146,7 +187,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.HasIndex("Status");
 
-                    b.HasIndex("CompetitionId", "RegistrationId")
+                    b.HasIndex("CompetitionId", "RegistrationId", "CompetitionCapacityId")
                         .IsUnique();
 
                     b.ToTable("CompetitionEntries", (string)null);
@@ -530,8 +571,25 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("Edition");
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.CompetitionCapacity", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Competition", "Competition")
+                        .WithMany("Capacities")
+                        .HasForeignKey("CompetitionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Competition");
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.CompetitionEntry", b =>
                 {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.CompetitionCapacity", "CompetitionCapacity")
+                        .WithMany()
+                        .HasForeignKey("CompetitionCapacityId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Competition", "Competition")
                         .WithMany("Entries")
                         .HasForeignKey("CompetitionId")
@@ -550,6 +608,8 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Competition");
+
+                    b.Navigation("CompetitionCapacity");
 
                     b.Navigation("PartnerRegistration");
 
@@ -632,6 +692,8 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Competition", b =>
                 {
+                    b.Navigation("Capacities");
+
                     b.Navigation("Entries");
                 });
 

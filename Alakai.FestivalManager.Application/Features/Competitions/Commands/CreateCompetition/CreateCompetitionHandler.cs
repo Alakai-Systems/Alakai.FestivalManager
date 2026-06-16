@@ -3,14 +3,16 @@ namespace Alakai.FestivalManager.Application.Features.Competitions.Commands.Crea
 public class CreateCompetitionHandler
 {
     private readonly ICompetitionRepository _competitionRepository;
+    private readonly ICompetitionCapacityRepository _competitionCapacityRepository;
     private readonly IEditionRepository _editionRepository;
     private readonly IMapper _mapper;
 
-    public CreateCompetitionHandler(ICompetitionRepository competitionRepository, IEditionRepository editionRepository, IMapper mapper)
+    public CreateCompetitionHandler(ICompetitionRepository competitionRepository, IEditionRepository editionRepository, IMapper mapper, ICompetitionCapacityRepository competitionCapacityRepository)
     {
         _competitionRepository = competitionRepository;
         _editionRepository = editionRepository;
         _mapper = mapper;
+        _competitionCapacityRepository = competitionCapacityRepository;
     }
 
     public async Task<CompetitionDto> HandleAsync(CreateCompetitionCommand command, CancellationToken cancellationToken = default)
@@ -34,6 +36,21 @@ public class CreateCompetitionHandler
 
         await _competitionRepository.AddAsync(competition, cancellationToken);
         await _competitionRepository.SaveChangesAsync(cancellationToken);
+
+        List<CompetitionCapacity> capacities = command.Capacities
+            .Select(capacityCommand => new CompetitionCapacity
+            {
+                CompetitionId = competition.Id,
+                MixAndMatchLevel = capacityCommand.MixAndMatchLevel,
+                DanceRole = capacityCommand.DanceRole,
+                Capacity = capacityCommand.Capacity,
+                SortOrder = capacityCommand.SortOrder,
+                IsActive = true
+            })
+            .ToList();
+
+        await _competitionCapacityRepository.AddRangeAsync(capacities, cancellationToken);
+        await _competitionCapacityRepository.SaveChangesAsync(cancellationToken);
 
         CompetitionDto dto = _mapper.Map<CompetitionDto>(competition);
 

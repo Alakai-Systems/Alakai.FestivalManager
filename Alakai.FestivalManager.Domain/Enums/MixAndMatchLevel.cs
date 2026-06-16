@@ -1,6 +1,6 @@
 namespace Alakai.FestivalManager.Domain.Enums;
 
-public enum MixAndMtachLevel
+public enum MixAndMatchLevel
 {
     Open = 1,
     Advanced = 2

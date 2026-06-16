@@ -1,3 +1,6 @@
+using Alakai.FestivalManager.Application.Features.Competitions.Contracts.DTOs;
+using Alakai.FestivalManager.Application.Features.Competitions.Contracts.Responses;
+
 namespace Alakai.FestivalManager.Application.Features.Competitions.Services;
 
 public class CompetitionService : ICompetitionService

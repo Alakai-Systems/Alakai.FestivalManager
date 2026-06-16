@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
 
 public class CompetitionConfiguration : IEntityTypeConfiguration<Competition>
 {
@@ -36,6 +36,11 @@ public class CompetitionConfiguration : IEntityTypeConfiguration<Competition>
 
         builder.Property(c => c.IsActive)
             .IsRequired();
+
+        builder.Property(c => c.CreatedAt)
+            .IsRequired();
+
+        builder.Property(c => c.UpdatedAt);
 
         builder.HasIndex(c => c.EditionId);
 

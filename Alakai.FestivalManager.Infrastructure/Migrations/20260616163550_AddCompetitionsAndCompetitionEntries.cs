@@ -20,8 +20,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     Name = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
                     Format = table.Column<int>(type: "int", nullable: false),
-                    MixAndMatchLevel = table.Column<int>(type: "int", nullable: true),
-                    MaxParticipants = table.Column<int>(type: "int", nullable: true),
                     RequiresPartner = table.Column<bool>(type: "bit", nullable: false),
                     RequiresRole = table.Column<bool>(type: "bit", nullable: false),
                     Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
@@ -44,6 +42,31 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CompetitionCapacities",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    CompetitionId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
+                    MixAndMatchLevel = table.Column<int>(type: "int", nullable: true),
+                    DanceRole = table.Column<int>(type: "int", nullable: false),
+                    Capacity = table.Column<int>(type: "int", nullable: false),
+                    SortOrder = table.Column<int>(type: "int", nullable: false),
+                    IsActive = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CompetitionCapacities", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_CompetitionCapacities_Competitions_CompetitionId",
+                        column: x => x.CompetitionId,
+                        principalTable: "Competitions",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "CompetitionEntries",
                 columns: table => new
                 {
@@ -52,8 +75,8 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     RegistrationId = table.Column<Guid>(type: "uniqueidentifier", nullable: false),
                     PartnerRegistrationId = table.Column<Guid>(type: "uniqueidentifier", nullable: true),
                     DanceRole = table.Column<int>(type: "int", nullable: true),
-                    Format = table.Column<int>(type: "int", nullable: false),
                     MixAndMatchLevel = table.Column<int>(type: "int", nullable: true),
+                    TeamName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: true),
                     Notes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     InternalNotes = table.Column<string>(type: "nvarchar(2000)", maxLength: 2000, nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),
@@ -84,6 +107,18 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                 });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CompetitionCapacities_CompetitionId",
+                table: "CompetitionCapacities",
+                column: "CompetitionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CompetitionCapacities_CompetitionId_MixAndMatchLevel_DanceRole",
+                table: "CompetitionCapacities",
+                columns: new[] { "CompetitionId", "MixAndMatchLevel", "DanceRole" },
+                unique: true,
+                filter: "[MixAndMatchLevel] IS NOT NULL");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CompetitionEntries_CompetitionId",
@@ -126,6 +161,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
+            migrationBuilder.DropTable(
+                name: "CompetitionCapacities");
+
             migrationBuilder.DropTable(
                 name: "CompetitionEntries");
 

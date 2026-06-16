@@ -22,7 +22,7 @@ public class DeleteCompetitionEntryHandler
         entry.Status = CompetitionEntryStatus.Cancelled;
         entry.CancelledAt = DateTime.UtcNow;
 
-        _competitionEntryRepository.Update(entry);
+        _competitionEntryRepository.Delete(entry);
         await _competitionEntryRepository.SaveChangesAsync(cancellationToken);
     }
 }

@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
+namespace Alakai.FestivalManager.Application.Contracts.Repositories;
 
 public interface ICompetitionEntryRepository
 {
@@ -7,6 +7,7 @@ public interface ICompetitionEntryRepository
     Task<IReadOnlyList<CompetitionEntry>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CompetitionEntry>> GetByCompetitionIdAsync(Guid competitionId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CompetitionEntry>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
+    Task<int> CountActiveByCompetitionLevelAndRoleAsync(Guid competitionId, MixAndMatchLevel? mixAndMatchLevel, DanceRole danceRole, CancellationToken cancellationToken = default);
     Task<bool> ExistsByCompetitionAndRegistrationAsync(Guid competitionId, Guid registrationId, CancellationToken cancellationToken = default);
     void Update(CompetitionEntry entry);
     void Delete(CompetitionEntry entry);

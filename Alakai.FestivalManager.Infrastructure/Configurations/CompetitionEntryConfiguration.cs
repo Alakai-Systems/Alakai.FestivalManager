@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
 
 public class CompetitionEntryConfiguration : IEntityTypeConfiguration<CompetitionEntry>
 {
@@ -14,6 +14,16 @@ public class CompetitionEntryConfiguration : IEntityTypeConfiguration<Competitio
         builder.Property(e => e.RegistrationId)
             .IsRequired();
 
+        builder.Property(e => e.CompetitionCapacityId)
+            .IsRequired();
+
+        builder.Property(e => e.DanceRole);
+
+        builder.Property(e => e.MixAndMatchLevel);
+
+        builder.Property(e => e.TeamName)
+            .HasMaxLength(150);
+
         builder.Property(e => e.Notes)
             .HasMaxLength(2000);
 
@@ -28,6 +38,11 @@ public class CompetitionEntryConfiguration : IEntityTypeConfiguration<Competitio
         builder.Property(e => e.IsActive)
             .IsRequired();
 
+        builder.Property(e => e.CreatedAt)
+            .IsRequired();
+
+        builder.Property(e => e.UpdatedAt);
+
         builder.HasIndex(e => e.CompetitionId);
 
         builder.HasIndex(e => e.RegistrationId);
@@ -36,7 +51,7 @@ public class CompetitionEntryConfiguration : IEntityTypeConfiguration<Competitio
 
         builder.HasIndex(e => e.Status);
 
-        builder.HasIndex(e => new { e.CompetitionId, e.RegistrationId })
+        builder.HasIndex(e => new { e.CompetitionId, e.RegistrationId, e.CompetitionCapacityId })
             .IsUnique();
 
         builder.HasOne(e => e.Competition)
@@ -47,6 +62,11 @@ public class CompetitionEntryConfiguration : IEntityTypeConfiguration<Competitio
         builder.HasOne(e => e.Registration)
             .WithMany()
             .HasForeignKey(e => e.RegistrationId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(e => e.CompetitionCapacity)
+            .WithMany()
+            .HasForeignKey(e => e.CompetitionCapacityId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(e => e.PartnerRegistration)

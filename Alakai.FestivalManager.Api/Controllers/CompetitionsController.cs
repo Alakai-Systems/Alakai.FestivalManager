@@ -1,3 +1,6 @@
+using Alakai.FestivalManager.Application.Features.Competitions.Contracts.Requests;
+using Alakai.FestivalManager.Application.Features.Competitions.Contracts.Responses;
+
 namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
@@ -5,10 +8,12 @@ namespace Alakai.FestivalManager.Api.Controllers;
 public class CompetitionsController : ControllerBase
 {
     private readonly ICompetitionService _competitionService;
+    private readonly IMapper _mapper;
 
-    public CompetitionsController(ICompetitionService competitionService)
+    public CompetitionsController(ICompetitionService competitionService, IMapper mapper)
     {
         _competitionService = competitionService;
+        _mapper = mapper;
     }
 
     [HttpGet]
@@ -33,15 +38,17 @@ public class CompetitionsController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ApiResponse<CreateCompetitionResponse>>> Create([FromBody] CreateCompetitionCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<CreateCompetitionResponse>>> Create([FromBody] CreateCompetitionRequest request, CancellationToken cancellationToken)
     {
+        CreateCompetitionCommand command = _mapper.Map<CreateCompetitionCommand>(request);
         ApiResponse<CreateCompetitionResponse> response = await _competitionService.CreateAsync(command, cancellationToken);
         return Ok(response);
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<UpdateCompetitionResponse>>> Update(Guid id, [FromBody] UpdateCompetitionCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<UpdateCompetitionResponse>>> Update(Guid id, [FromBody] UpdateCompetitionRequest request, CancellationToken cancellationToken)
     {
+        UpdateCompetitionCommand command = _mapper.Map<UpdateCompetitionCommand>(request);
         ApiResponse<UpdateCompetitionResponse> response = await _competitionService.UpdateAsync(id, command, cancellationToken);
         return Ok(response);
     }

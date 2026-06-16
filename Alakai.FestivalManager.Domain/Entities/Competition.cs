@@ -9,9 +9,6 @@ public class Competition : BaseEntity
     public string? Description { get; set; }
 
     public CompetitionFormat Format { get; set; }
-    public MixAndMtachLevel? MixAndMatchLevel { get; set; }
-
-    public int? MaxParticipants { get; set; }
 
     public bool RequiresPartner { get; set; }
     public bool RequiresRole { get; set; }
@@ -25,5 +22,6 @@ public class Competition : BaseEntity
 
     public bool IsActive { get; set; } = true;
 
+    public ICollection<CompetitionCapacity> Capacities { get; set; } = [];
     public ICollection<CompetitionEntry> Entries { get; set; } = [];
 }

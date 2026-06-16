@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Competitions.DTOs;
+namespace Alakai.FestivalManager.Application.Features.Competitions.Contracts.DTOs;
 
 public class CompetitionDto
 {
@@ -7,8 +7,7 @@ public class CompetitionDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CompetitionFormat Format { get; set; }
-    public MixAndMtachLevel? MixAndMatchLevel { get; set; }
-    public int? MaxParticipants { get; set; }
+    public IReadOnlyList<CompetitionCapacityDto> Capacities { get; set; } = [];
     public bool RequiresPartner { get; set; }
     public bool RequiresRole { get; set; }
     public decimal Price { get; set; }
@@ -19,3 +18,4 @@ public class CompetitionDto
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
+
