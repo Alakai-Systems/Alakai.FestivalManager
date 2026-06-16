@@ -14,6 +14,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<ILevelRepository, LevelRepository>();
         services.AddScoped<IRegistrationRepository, RegistrationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<ICompetitionRepository, CompetitionRepository>();
+        services.AddScoped<ICompetitionEntryRepository, CompetitionEntryRepository>();
 
         return services;
     }

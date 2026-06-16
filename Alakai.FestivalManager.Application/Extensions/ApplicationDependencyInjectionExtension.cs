@@ -1,12 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
-using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
-using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
-using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserByEmail;
-using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserById;
-using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;
-using Alakai.FestivalManager.Application.Features.Users.Services;
-
-namespace Alakai.FestivalManager.Application.Extensions;
+﻿namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -63,7 +55,6 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<DeleteRegistrationHandler>();
         services.AddScoped<IRegistrationService, RegistrationService>();
 
-        // Users
         //Users
         services.AddScoped<CreateUserHandler>();
         services.AddScoped<GetUserByIdHandler>();
@@ -72,6 +63,25 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateUserHandler>();
         services.AddScoped<DeleteUserHandler>();
         services.AddScoped<IUserService, UserService>();
+
+        //Competitions
+        services.AddScoped<CreateCompetitionHandler>();
+        services.AddScoped<GetCompetitionByIdHandler>();
+        services.AddScoped<GetCompetitionsHandler>();
+        services.AddScoped<GetCompetitionsByEditionIdHandler>();
+        services.AddScoped<UpdateCompetitionHandler>();
+        services.AddScoped<DeleteCompetitionHandler>();
+        services.AddScoped<ICompetitionService, CompetitionService>();
+
+        //CompetitionEntries
+        services.AddScoped<CreateCompetitionEntryHandler>();
+        services.AddScoped<GetCompetitionEntryByIdHandler>();
+        services.AddScoped<GetCompetitionEntriesHandler>();
+        services.AddScoped<GetCompetitionEntriesByCompetitionIdHandler>();
+        services.AddScoped<GetCompetitionEntriesByRegistrationIdHandler>();
+        services.AddScoped<UpdateCompetitionEntryHandler>();
+        services.AddScoped<DeleteCompetitionEntryHandler>();
+        services.AddScoped<ICompetitionEntryService, CompetitionEntryService>();
 
         return services;
     }

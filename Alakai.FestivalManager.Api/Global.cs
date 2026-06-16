@@ -2,6 +2,14 @@
 global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Extensions;
+global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
+global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
+global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Responses;
+global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Services;
+global using Alakai.FestivalManager.Application.Features.Competitions.Commands.CreateCompetition;
+global using Alakai.FestivalManager.Application.Features.Competitions.Commands.UpdateCompetition;
+global using Alakai.FestivalManager.Application.Features.Competitions.Responses;
+global using Alakai.FestivalManager.Application.Features.Competitions.Services;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;

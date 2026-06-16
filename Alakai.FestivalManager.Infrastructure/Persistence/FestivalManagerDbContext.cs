@@ -12,6 +12,8 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<PassType> PassTypes => Set<PassType>();
     public DbSet<Level> Levels => Set<Level>();
     public DbSet<Registration> Registrations => Set<Registration>();
+    public DbSet<Competition> Competitions => Set<Competition>();
+    public DbSet<CompetitionEntry> CompetitionEntries => Set<CompetitionEntry>();
     public DbSet<User> Users => Set<User>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -22,3 +24,4 @@ public class FestivalManagerDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 }
+
