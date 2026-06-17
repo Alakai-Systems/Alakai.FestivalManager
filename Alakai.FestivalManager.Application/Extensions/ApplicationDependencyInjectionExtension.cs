@@ -1,4 +1,12 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+﻿using Alakai.FestivalManager.Application.Features.EmailLogs.Commands.DeleteEmailLog;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogById;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogs;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByEditionId;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByRegistrationId;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByUserId;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Services;
+
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -82,6 +90,26 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateCompetitionEntryHandler>();
         services.AddScoped<DeleteCompetitionEntryHandler>();
         services.AddScoped<ICompetitionEntryService, CompetitionEntryService>();
+
+        //EmailTemplates
+        services.AddScoped<CreateEmailTemplateHandler>();
+        services.AddScoped<GetEmailTemplateByIdHandler>();
+        services.AddScoped<GetEmailTemplatesHandler>();
+        services.AddScoped<GetEmailTemplatesByEditionIdHandler>();
+        services.AddScoped<UpdateEmailTemplateHandler>();
+        services.AddScoped<DeleteEmailTemplateHandler>();
+        services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+
+        //EmailLogs
+        services.AddScoped<CreateEmailLogHandler>();
+        services.AddScoped<GetEmailLogByIdHandler>();
+        services.AddScoped<GetEmailLogsHandler>();
+        services.AddScoped<GetEmailLogsByEditionIdHandler>();
+        services.AddScoped<GetEmailLogsByRegistrationIdHandler>();
+        services.AddScoped<GetEmailLogsByUserIdHandler>();
+        services.AddScoped<UpdateEmailLogHandler>();
+        services.AddScoped<DeleteEmailLogHandler>();
+        services.AddScoped<IEmailLogService, EmailLogService>();
 
         return services;
     }

@@ -1,0 +1,23 @@
+EmailLogs backend generated.
+
+Manual steps still required:
+
+1. Register DI in ApplicationDependencyInjectionExtension:
+   services.AddScoped<CreateEmailLogHandler>();
+   services.AddScoped<GetEmailLogByIdHandler>();
+   services.AddScoped<GetEmailLogsHandler>();
+   services.AddScoped<GetEmailLogsByEditionIdHandler>();
+   services.AddScoped<GetEmailLogsByRegistrationIdHandler>();
+   services.AddScoped<GetEmailLogsByUserIdHandler>();
+   services.AddScoped<UpdateEmailLogHandler>();
+   services.AddScoped<DeleteEmailLogHandler>();
+   services.AddScoped<IEmailLogService, EmailLogService>();
+
+2. Register DI in InfrastructureDependencyInjectionExtension:
+   services.AddScoped<IEmailLogRepository, EmailLogRepository>();
+
+3. Add migration:
+   dotnet ef migrations add AddEmailLogs -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api
+
+4. Update database:
+   dotnet ef database update -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api

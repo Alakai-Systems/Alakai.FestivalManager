@@ -16,6 +16,8 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<CompetitionEntry> CompetitionEntries => Set<CompetitionEntry>();
     public DbSet<CompetitionCapacity> CompetitionCapacities => Set<CompetitionCapacity>();
     public DbSet<User> Users => Set<User>();
+    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
+    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -25,5 +27,7 @@ public class FestivalManagerDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 }
+
+
 
 

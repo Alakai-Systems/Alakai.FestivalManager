@@ -17,6 +17,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<ICompetitionRepository, CompetitionRepository>();
         services.AddScoped<ICompetitionEntryRepository, CompetitionEntryRepository>();
         services.AddScoped<ICompetitionCapacityRepository, CompetitionCapacityRepository>();
+        services.AddScoped<IEmailTemplateRepository, EmailTemplateRepository>();
+        services.AddScoped<IEmailLogRepository, EmailLogRepository>();
 
         return services;
     }

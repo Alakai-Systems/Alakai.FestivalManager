@@ -1,4 +1,4 @@
-﻿global using Alakai.FestivalManager.Api.Middlewares;
+global using Alakai.FestivalManager.Api.Middlewares;
 global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Extensions;
@@ -15,6 +15,16 @@ global using Alakai.FestivalManager.Application.Features.Editions.Commands.Updat
 global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Editions.Services;
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Commands.CreateEmailLog;
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Commands.UpdateEmailLog;
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Services;
+global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.CreateEmailTemplate;
+global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.UpdateEmailTemplate;
+global using Alakai.FestivalManager.Application.Features.EmailTemplates.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.EmailTemplates.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.EmailTemplates.Services;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.CreateFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.UpdateFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Requests;

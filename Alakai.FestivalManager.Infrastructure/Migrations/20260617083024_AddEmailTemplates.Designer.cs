@@ -4,6 +4,7 @@ using Alakai.FestivalManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    partial class FestivalManagerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260617083024_AddEmailTemplates")]
+    partial class AddEmailTemplates
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -234,86 +237,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("Editions", (string)null);
-                });
-
-            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.EmailLog", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("BodyHtml")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<string>("BodyText")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("EditionId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("EmailTemplateId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ErrorMessage")
-                        .HasMaxLength(2000)
-                        .HasColumnType("nvarchar(2000)");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
-
-                    b.Property<string>("RecipientEmail")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("RecipientName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<Guid?>("RegistrationId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("SentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Subject")
-                        .IsRequired()
-                        .HasMaxLength(300)
-                        .HasColumnType("nvarchar(300)");
-
-                    b.Property<int>("TemplateKey")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("EditionId");
-
-                    b.HasIndex("EmailTemplateId");
-
-                    b.HasIndex("RecipientEmail");
-
-                    b.HasIndex("RegistrationId");
-
-                    b.HasIndex("Status");
-
-                    b.HasIndex("TemplateKey");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("EmailLogs", (string)null);
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.EmailTemplate", b =>
@@ -754,37 +677,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Festival");
-                });
-
-            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.EmailLog", b =>
-                {
-                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
-                        .WithMany()
-                        .HasForeignKey("EditionId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Alakai.FestivalManager.Domain.Entities.EmailTemplate", "EmailTemplate")
-                        .WithMany()
-                        .HasForeignKey("EmailTemplateId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Registration", "Registration")
-                        .WithMany()
-                        .HasForeignKey("RegistrationId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.HasOne("Alakai.FestivalManager.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
-                    b.Navigation("Edition");
-
-                    b.Navigation("EmailTemplate");
-
-                    b.Navigation("Registration");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.EmailTemplate", b =>
