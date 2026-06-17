@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
+﻿namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
@@ -28,6 +28,17 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.City)
             .HasMaxLength(100);
+
+        builder.Property(u => u.PasswordHash)
+            .HasMaxLength(500);
+
+        builder.Property(u => u.PasswordSalt)
+            .HasMaxLength(500);
+
+        builder.Property(u => u.LastLoginAt);
+
+        builder.Property(u => u.MustChangePassword)
+            .IsRequired();
 
         builder.Property(u => u.CreatedAt)
             .IsRequired();

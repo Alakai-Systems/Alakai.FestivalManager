@@ -190,6 +190,72 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.ToTable("CompetitionEntries", (string)null);
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.DiscountCode", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int?>("ActivationThreshold")
+                        .HasColumnType("int");
+
+                    b.Property<int>("ActivationType")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("CurrentUses")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<int>("DiscountType")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("DiscountValue")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("EndsAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<int?>("MaxUses")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("StartsAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.HasIndex("EditionId", "Code")
+                        .IsUnique();
+
+                    b.ToTable("DiscountCodes", (string)null);
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Edition", b =>
                 {
                     b.Property<Guid>("Id")
@@ -542,7 +608,24 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<decimal>("DiscountAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<string>("DiscountCode")
+                    b.Property<Guid?>("DiscountCodeId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("DiscountCodeId1")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("DiscountCodeValue")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("DiscountStatus")
+                        .HasColumnType("int");
+
+                    b.Property<string>("DocumentCountry")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("DocumentNumber")
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -616,6 +699,10 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DiscountCodeId");
+
+                    b.HasIndex("DiscountCodeId1");
+
                     b.HasIndex("EditionId");
 
                     b.HasIndex("Email");
@@ -669,10 +756,25 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<DateTime?>("LastLoginAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("MustChangePassword")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("PasswordSalt")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
 
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
@@ -743,6 +845,17 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("PartnerRegistration");
 
                     b.Navigation("Registration");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.DiscountCode", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Edition");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Edition", b =>
@@ -821,6 +934,15 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>
                 {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.DiscountCode", "DiscountCode")
+                        .WithMany()
+                        .HasForeignKey("DiscountCodeId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.DiscountCode", null)
+                        .WithMany("Registrations")
+                        .HasForeignKey("DiscountCodeId1");
+
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
                         .WithMany()
                         .HasForeignKey("EditionId")
@@ -849,6 +971,8 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("DiscountCode");
+
                     b.Navigation("Edition");
 
                     b.Navigation("Level");
@@ -865,6 +989,11 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("Capacities");
 
                     b.Navigation("Entries");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.DiscountCode", b =>
+                {
+                    b.Navigation("Registrations");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Edition", b =>

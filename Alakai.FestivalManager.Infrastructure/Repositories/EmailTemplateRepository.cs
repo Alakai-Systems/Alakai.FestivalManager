@@ -53,6 +53,18 @@ public class EmailTemplateRepository : IEmailTemplateRepository
             .AnyAsync(e => e.EditionId == editionId && e.TemplateKey == templateKey && (!excludeId.HasValue || e.Id != excludeId.Value), cancellationToken);
     }
 
+    public async Task<EmailTemplate?> GetByKeyAsync(EmailTemplateKey templateKey, Guid? editionId, CancellationToken cancellationToken = default)
+    {
+        EmailTemplate? editionTemplate = await _context.EmailTemplates.FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == editionId && t.IsActive, cancellationToken);
+
+        if (editionTemplate is not null)
+        {
+            return editionTemplate;
+        }
+
+        return await _context.EmailTemplates.FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == null && t.IsActive, cancellationToken);
+    }
+
     public void Update(EmailTemplate emailTemplate)
     {
         _context.EmailTemplates.Update(emailTemplate);
@@ -68,3 +80,4 @@ public class EmailTemplateRepository : IEmailTemplateRepository
         return await _context.SaveChangesAsync(cancellationToken);
     }
 }
+

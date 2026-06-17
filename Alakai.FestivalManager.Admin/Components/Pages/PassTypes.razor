@@ -1,5 +1,6 @@
 @page "/pass-types"
 @using System
+@using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes.Requests
@@ -587,9 +588,19 @@
 
     private string GetEditionName(Guid? editionId)
     {
-        if (editionId is null || editionId == Guid.Empty) return string.Empty;
-        var ed = editions.FirstOrDefault(e => e.Id == editionId);
-        return ed is null ? editionId.ToString() : $"{ed.Year} - {ed.Name}";
+        if (editionId is null || editionId == Guid.Empty) 
+        {
+            return string.Empty;
+        }
+
+        EditionDto? ed = editions.FirstOrDefault(e => e.Id == editionId);
+
+        if(ed is null)
+        {
+            return editionId.ToString() ?? string.Empty;
+        }
+
+        return $"{ed.Year} - {ed.Name}";
     }
 
     private void SortBy(string column)

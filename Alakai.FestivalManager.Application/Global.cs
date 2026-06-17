@@ -21,6 +21,16 @@ global using Alakai.FestivalManager.Application.Features.Competitions.Queries.Ge
 global using Alakai.FestivalManager.Application.Features.Competitions.Queries.GetCompetitions;
 global using Alakai.FestivalManager.Application.Features.Competitions.Queries.GetCompetitionsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Competitions.Services;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodes;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.DeleteEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
@@ -42,6 +52,7 @@ global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEm
 global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByEditionId;
 global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByRegistrationId;
 global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByUserId;
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Services;
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.CreateEmailTemplate;
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.DeleteEmailTemplate;
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.UpdateEmailTemplate;
@@ -100,10 +111,12 @@ global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserBy
 global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;
 global using Alakai.FestivalManager.Application.Features.Users.Services;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
+global using Alakai.FestivalManager.Application.Services.Emailing;
 global using Alakai.FestivalManager.Domain.Entities;
 global using Alakai.FestivalManager.Domain.Enums;
 global using AutoMapper;
 global using FluentValidation;
 global using FluentValidation.Results;
 global using Microsoft.Extensions.DependencyInjection;
+global using System.Text;
 

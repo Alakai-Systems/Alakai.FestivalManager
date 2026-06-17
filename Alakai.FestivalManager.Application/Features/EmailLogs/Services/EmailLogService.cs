@@ -13,7 +13,10 @@ public class EmailLogService : IEmailLogService
     private readonly IValidator<CreateEmailLogCommand> _createEmailLogValidator;
     private readonly IValidator<UpdateEmailLogCommand> _updateEmailLogValidator;
 
-    public EmailLogService(CreateEmailLogHandler createEmailLogHandler, GetEmailLogByIdHandler getEmailLogByIdHandler, GetEmailLogsHandler getEmailLogsHandler, GetEmailLogsByEditionIdHandler getEmailLogsByEditionIdHandler, GetEmailLogsByRegistrationIdHandler getEmailLogsByRegistrationIdHandler, GetEmailLogsByUserIdHandler getEmailLogsByUserIdHandler, UpdateEmailLogHandler updateEmailLogHandler, DeleteEmailLogHandler deleteEmailLogHandler, IValidator<CreateEmailLogCommand> createEmailLogValidator, IValidator<UpdateEmailLogCommand> updateEmailLogValidator)
+    public EmailLogService(CreateEmailLogHandler createEmailLogHandler, GetEmailLogByIdHandler getEmailLogByIdHandler, GetEmailLogsHandler getEmailLogsHandler, 
+        GetEmailLogsByEditionIdHandler getEmailLogsByEditionIdHandler, GetEmailLogsByRegistrationIdHandler getEmailLogsByRegistrationIdHandler, 
+        GetEmailLogsByUserIdHandler getEmailLogsByUserIdHandler, UpdateEmailLogHandler updateEmailLogHandler, DeleteEmailLogHandler deleteEmailLogHandler, 
+        IValidator<CreateEmailLogCommand> createEmailLogValidator, IValidator<UpdateEmailLogCommand> updateEmailLogValidator)
     {
         _createEmailLogHandler = createEmailLogHandler;
         _getEmailLogByIdHandler = getEmailLogByIdHandler;

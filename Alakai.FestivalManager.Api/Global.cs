@@ -10,6 +10,11 @@ global using Alakai.FestivalManager.Application.Features.Competitions.Commands.C
 global using Alakai.FestivalManager.Application.Features.Competitions.Commands.UpdateCompetition;
 global using Alakai.FestivalManager.Application.Features.Competitions.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Competitions.Services;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;

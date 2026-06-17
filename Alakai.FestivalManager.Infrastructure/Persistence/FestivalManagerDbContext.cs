@@ -18,6 +18,7 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
+    public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -27,6 +28,7 @@ public class FestivalManagerDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 }
+
 
 
 

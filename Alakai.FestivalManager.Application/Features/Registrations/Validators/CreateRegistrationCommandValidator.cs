@@ -1,6 +1,3 @@
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
-using FluentValidation;
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Validators;
 
 public class CreateRegistrationCommandValidator : AbstractValidator<CreateRegistrationCommand>
@@ -15,11 +12,15 @@ public class CreateRegistrationCommandValidator : AbstractValidator<CreateRegist
         RuleFor(x => x.Phone).MaximumLength(50);
         RuleFor(x => x.Country).MaximumLength(100);
         RuleFor(x => x.City).MaximumLength(100);
+        RuleFor(r => r.Password)
+            .NotEmpty()
+            .MinimumLength(8)
+            .MaximumLength(100);
+        RuleFor(r => r.DocumentNumber)
+            .MaximumLength(100);
+        RuleFor(r => r.DocumentCountry)
+            .MaximumLength(100);
         RuleFor(x => x.PartnerEmail).EmailAddress().When(x => !string.IsNullOrWhiteSpace(x.PartnerEmail));
-        RuleFor(x => x.BasePrice).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.DiscountAmount).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.FinalPrice).GreaterThanOrEqualTo(0);
-        RuleFor(x => x.DiscountCode).MaximumLength(100);
         RuleFor(x => x.Notes).MaximumLength(2000);
         RuleFor(x => x.InternalNotes).MaximumLength(2000);
     }

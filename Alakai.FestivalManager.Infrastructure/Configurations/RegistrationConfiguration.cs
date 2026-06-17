@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
+﻿namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
 public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
 {
@@ -37,6 +37,12 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.Property(r => r.City)
             .HasMaxLength(100);
 
+        builder.Property(r => r.DocumentNumber)
+            .HasMaxLength(100);
+
+        builder.Property(r => r.DocumentCountry)
+            .HasMaxLength(100);
+
         builder.Property(r => r.DanceRole);
 
         builder.Property(r => r.PartnerEmail)
@@ -50,6 +56,19 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.Property(r => r.PaymentStatus)
             .IsRequired();
 
+        builder.Property(r => r.DiscountStatus)
+            .IsRequired();
+
+        builder.HasIndex(r => r.DiscountCodeId);
+
+        builder.Property(r => r.DiscountCodeValue)
+            .HasMaxLength(100);
+
+        builder.HasOne(r => r.DiscountCode)
+            .WithMany()
+            .HasForeignKey(r => r.DiscountCodeId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.Property(r => r.BasePrice)
             .IsRequired()
             .HasColumnType("decimal(18,2)");
@@ -61,9 +80,6 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.Property(r => r.FinalPrice)
             .IsRequired()
             .HasColumnType("decimal(18,2)");
-
-        builder.Property(r => r.DiscountCode)
-            .HasMaxLength(100);
 
         builder.Property(r => r.PaymentReference)
             .HasMaxLength(200);

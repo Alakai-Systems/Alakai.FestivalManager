@@ -1,16 +1,16 @@
-using Alakai.FestivalManager.Application.Contracts.Repositories;
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 
 public class DeleteRegistrationHandler
 {
     private readonly IRegistrationRepository _registrationRepository;
     private readonly ICompetitionEntryRepository _competitionEntryRepository;
+    private readonly IEmailLogRepository _emailLogRepository;
 
-    public DeleteRegistrationHandler(IRegistrationRepository registrationRepository, ICompetitionEntryRepository competitionEntryRepository)
+    public DeleteRegistrationHandler(IRegistrationRepository registrationRepository, ICompetitionEntryRepository competitionEntryRepository, IEmailLogRepository emailLogRepository)
     {
         _registrationRepository = registrationRepository;
         _competitionEntryRepository = competitionEntryRepository;
+        _emailLogRepository = emailLogRepository;
     }
 
     public async Task<Guid> HandleAsync(DeleteRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -27,6 +27,13 @@ public class DeleteRegistrationHandler
         foreach (CompetitionEntry competitionEntry in competitionEntries)
         {
             _competitionEntryRepository.Delete(competitionEntry);
+        }
+
+        IReadOnlyList<EmailLog> emailLogs = await _emailLogRepository.GetByRegistrationIdAsync(command.Id, cancellationToken);
+
+        foreach (EmailLog emailLog in emailLogs)
+        {
+            _emailLogRepository.Delete(emailLog);
         }
 
         _registrationRepository.Delete(existing);

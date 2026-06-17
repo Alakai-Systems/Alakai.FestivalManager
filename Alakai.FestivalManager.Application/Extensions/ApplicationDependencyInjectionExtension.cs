@@ -1,11 +1,16 @@
-﻿using Alakai.FestivalManager.Application.Features.EmailLogs.Commands.DeleteEmailLog;
+﻿using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
+using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
+using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
+using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;
+using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodes;
+using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;
+using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
+using Alakai.FestivalManager.Application.Features.EmailLogs.Commands.DeleteEmailLog;
 using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogById;
 using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogs;
 using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByEditionId;
 using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByRegistrationId;
 using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByUserId;
-using Alakai.FestivalManager.Application.Features.EmailLogs.Services;
-
 namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
@@ -110,6 +115,20 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateEmailLogHandler>();
         services.AddScoped<DeleteEmailLogHandler>();
         services.AddScoped<IEmailLogService, EmailLogService>();
+
+        //Email Rendering
+        services.AddScoped<IEmailTemplateRendererService, EmailTemplateRendererService>();
+        services.AddScoped<IEmailNotificationService, EmailNotificationService>();
+
+        //DiscountCodes
+        services.AddScoped<CreateDiscountCodeHandler>();
+        services.AddScoped<GetDiscountCodeByIdHandler>();
+        services.AddScoped<GetDiscountCodesHandler>();
+        services.AddScoped<GetDiscountCodesByEditionIdHandler>();
+        services.AddScoped<UpdateDiscountCodeHandler>();
+        services.AddScoped<DeleteDiscountCodeHandler>();
+        services.AddScoped<IDiscountCalculationService, DiscountCalculationService>();
+        services.AddScoped<IDiscountCodeService, DiscountCodeService>();
 
         return services;
     }

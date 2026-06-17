@@ -6,166 +6,301 @@ $ErrorActionPreference = "Stop"
 
 function New-FileIfNotExists {
     param([string]$Path, [string]$Content)
+
     $directory = Split-Path $Path -Parent
-    if (-not (Test-Path $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-    if (-not (Test-Path $Path)) { Set-Content -Path $Path -Value $Content -Encoding UTF8; Write-Host "Created: $Path" }
-    else { Write-Host "Skipped existing: $Path" }
+
+    if (-not (Test-Path $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    if (-not (Test-Path $Path)) {
+        Set-Content -Path $Path -Value $Content -Encoding UTF8
+        Write-Host "Created: $Path"
+    }
+    else {
+        Write-Host "Skipped existing: $Path"
+    }
+}
+
+function Add-LineIfMissing {
+    param([string]$Path, [string]$Line)
+
+    if (-not (Test-Path $Path)) {
+        Write-Host "Skipped global using. File not found: $Path"
+        return
+    }
+
+    $content = Get-Content -Path $Path -Raw
+
+    if (-not $content.Contains($Line)) {
+        Add-Content -Path $Path -Value $Line -Encoding UTF8
+        Write-Host "Added global using: $Line"
+    }
+    else {
+        Write-Host "Global using already present: $Line"
+    }
 }
 
 function Insert-AfterIfMissing {
     param([string]$Path, [string]$SearchText, [string]$InsertText, [string]$AnchorText)
-    if (-not (Test-Path $Path)) { Write-Host "Skipped insert. File not found: $Path"; return }
+
+    if (-not (Test-Path $Path)) {
+        Write-Host "Skipped insert. File not found: $Path"
+        return
+    }
+
     $content = Get-Content -Path $Path -Raw
-    if ($content.Contains($SearchText)) { Write-Host "Already present: $SearchText"; return }
-    if ($content.Contains($AnchorText)) { $content = $content.Replace($AnchorText, "$AnchorText`r`n$InsertText"); Set-Content -Path $Path -Value $content -Encoding UTF8; Write-Host "Patched: $Path" }
-    else { Write-Host "Skipped insert. Anchor not found in: $Path" }
+
+    if ($content.Contains($SearchText)) {
+        Write-Host "Already present: $SearchText"
+        return
+    }
+
+    if ($content.Contains($AnchorText)) {
+        $content = $content.Replace($AnchorText, "$AnchorText`r`n$InsertText")
+        Set-Content -Path $Path -Value $content -Encoding UTF8
+        Write-Host "Patched: $Path"
+    }
+    else {
+        Write-Host "Skipped insert. Anchor not found in: $Path"
+    }
 }
 
 $root = Resolve-Path $SolutionRoot
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\EmailLogStatus.cs" @'
+# ============================================================
+# GLOBAL USINGS
+# ============================================================
+
+Add-LineIfMissing "$root\Alakai.FestivalManager.Domain\GlobalUsings.cs" "global using Alakai.FestivalManager.Domain.Enums;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodes;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.DTOs;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;"
+Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;"
+
+# ============================================================
+# DOMAIN ENUMS
+# ============================================================
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\DiscountType.cs" @'
 namespace Alakai.FestivalManager.Domain.Enums;
 
-public enum EmailLogStatus
+public enum DiscountType
 {
-    Pending = 1,
-    Sent = 2,
-    Failed = 3,
-    Skipped = 4
+    FixedAmount = 1,
+    Percentage = 2
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Entities\EmailLog.cs" @'
+New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\DiscountActivationType.cs" @'
+namespace Alakai.FestivalManager.Domain.Enums;
+
+public enum DiscountActivationType
+{
+    Immediate = 1,
+    AfterThreshold = 2
+}
+'@
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\DiscountApplicationStatus.cs" @'
+namespace Alakai.FestivalManager.Domain.Enums;
+
+public enum DiscountApplicationStatus
+{
+    None = 1,
+    PendingThreshold = 2,
+    Applied = 3,
+    RefundPending = 4,
+    Refunded = 5
+}
+'@
+
+# ============================================================
+# DOMAIN ENTITY
+# ============================================================
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Entities\DiscountCode.cs" @'
 namespace Alakai.FestivalManager.Domain.Entities;
 
-public class EmailLog : BaseEntity
+public class DiscountCode : BaseEntity
 {
-    public Guid? EditionId { get; set; }
-    public Edition? Edition { get; set; }
+    public Guid EditionId { get; set; }
+    public Edition Edition { get; set; } = default!;
 
-    public Guid? EmailTemplateId { get; set; }
-    public EmailTemplate? EmailTemplate { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
 
-    public Guid? RegistrationId { get; set; }
-    public Registration? Registration { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
 
-    public Guid? UserId { get; set; }
-    public User? User { get; set; }
+    public DiscountActivationType ActivationType { get; set; }
+    public int? ActivationThreshold { get; set; }
 
-    public EmailTemplateKey TemplateKey { get; set; }
-    public string RecipientEmail { get; set; } = string.Empty;
-    public string? RecipientName { get; set; }
-    public string Subject { get; set; } = string.Empty;
-    public string BodyHtml { get; set; } = string.Empty;
-    public string? BodyText { get; set; }
-    public EmailLogStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-    public DateTime? SentAt { get; set; }
+    public int? MaxUses { get; set; }
+    public int CurrentUses { get; set; }
+
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
+
     public bool IsActive { get; set; } = true;
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Infrastructure\Configurations\EmailLogConfiguration.cs" @'
+# ============================================================
+# INFRASTRUCTURE CONFIGURATION
+# ============================================================
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Infrastructure\Configurations\DiscountCodeConfiguration.cs" @'
 namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
-public class EmailLogConfiguration : IEntityTypeConfiguration<EmailLog>
+public class DiscountCodeConfiguration : IEntityTypeConfiguration<DiscountCode>
 {
-    public void Configure(EntityTypeBuilder<EmailLog> builder)
+    public void Configure(EntityTypeBuilder<DiscountCode> builder)
     {
-        builder.ToTable("EmailLogs");
-        builder.HasKey(e => e.Id);
-        builder.Property(e => e.TemplateKey).IsRequired();
-        builder.Property(e => e.RecipientEmail).IsRequired().HasMaxLength(200);
-        builder.Property(e => e.RecipientName).HasMaxLength(200);
-        builder.Property(e => e.Subject).IsRequired().HasMaxLength(300);
-        builder.Property(e => e.BodyHtml).IsRequired();
-        builder.Property(e => e.BodyText);
-        builder.Property(e => e.Status).IsRequired();
-        builder.Property(e => e.ErrorMessage).HasMaxLength(2000);
-        builder.Property(e => e.SentAt);
-        builder.Property(e => e.IsActive).IsRequired();
-        builder.HasIndex(e => e.EditionId);
-        builder.HasIndex(e => e.EmailTemplateId);
-        builder.HasIndex(e => e.RegistrationId);
-        builder.HasIndex(e => e.UserId);
-        builder.HasIndex(e => e.TemplateKey);
-        builder.HasIndex(e => e.Status);
-        builder.HasIndex(e => e.RecipientEmail);
-        builder.HasOne(e => e.Edition).WithMany().HasForeignKey(e => e.EditionId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(e => e.EmailTemplate).WithMany().HasForeignKey(e => e.EmailTemplateId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(e => e.Registration).WithMany().HasForeignKey(e => e.RegistrationId).OnDelete(DeleteBehavior.Restrict);
-        builder.HasOne(e => e.User).WithMany().HasForeignKey(e => e.UserId).OnDelete(DeleteBehavior.Restrict);
+        builder.ToTable("DiscountCodes");
+
+        builder.HasKey(d => d.Id);
+
+        builder.Property(d => d.EditionId)
+            .IsRequired();
+
+        builder.Property(d => d.Code)
+            .IsRequired()
+            .HasMaxLength(50);
+
+        builder.Property(d => d.Name)
+            .IsRequired()
+            .HasMaxLength(150);
+
+        builder.Property(d => d.Description)
+            .HasMaxLength(1000);
+
+        builder.Property(d => d.DiscountType)
+            .IsRequired();
+
+        builder.Property(d => d.DiscountValue)
+            .IsRequired()
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(d => d.ActivationType)
+            .IsRequired();
+
+        builder.Property(d => d.ActivationThreshold);
+
+        builder.Property(d => d.MaxUses);
+
+        builder.Property(d => d.CurrentUses)
+            .IsRequired();
+
+        builder.Property(d => d.StartsAt);
+
+        builder.Property(d => d.EndsAt);
+
+        builder.Property(d => d.IsActive)
+            .IsRequired();
+
+        builder.HasIndex(d => d.EditionId);
+
+        builder.HasIndex(d => new { d.EditionId, d.Code })
+            .IsUnique();
+
+        builder.HasOne(d => d.Edition)
+            .WithMany()
+            .HasForeignKey(d => d.EditionId)
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Contracts\Repositories\IEmailLogRepository.cs" @'
+# ============================================================
+# APPLICATION REPOSITORY INTERFACE
+# ============================================================
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Contracts\Repositories\IDiscountCodeRepository.cs" @'
 namespace Alakai.FestivalManager.Application.Contracts.Repositories;
 
-public interface IEmailLogRepository
+public interface IDiscountCodeRepository
 {
-    Task AddAsync(EmailLog emailLog, CancellationToken cancellationToken = default);
-    Task<EmailLog?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<EmailLog>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<EmailLog>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<EmailLog>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<EmailLog>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
-    void Update(EmailLog emailLog);
-    void Delete(EmailLog emailLog);
+    Task AddAsync(DiscountCode discountCode, CancellationToken cancellationToken = default);
+    Task<DiscountCode?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<DiscountCode?> GetByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DiscountCode>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<DiscountCode>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<bool> ExistsByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default);
+    void Update(DiscountCode discountCode);
+    void Delete(DiscountCode discountCode);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Infrastructure\Repositories\EmailLogRepository.cs" @'
+# ============================================================
+# INFRASTRUCTURE REPOSITORY
+# ============================================================
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Infrastructure\Repositories\DiscountCodeRepository.cs" @'
 namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
-public class EmailLogRepository : IEmailLogRepository
+public class DiscountCodeRepository : IDiscountCodeRepository
 {
     private readonly FestivalManagerDbContext _context;
 
-    public EmailLogRepository(FestivalManagerDbContext context)
+    public DiscountCodeRepository(FestivalManagerDbContext context)
     {
         _context = context;
     }
 
-    public async Task AddAsync(EmailLog emailLog, CancellationToken cancellationToken = default)
+    public async Task AddAsync(DiscountCode discountCode, CancellationToken cancellationToken = default)
     {
-        await _context.EmailLogs.AddAsync(emailLog, cancellationToken);
+        await _context.DiscountCodes.AddAsync(discountCode, cancellationToken);
     }
 
-    public async Task<EmailLog?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<DiscountCode?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.EmailLogs.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        return await _context.DiscountCodes.FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<EmailLog>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<DiscountCode?> GetByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default)
     {
-        return await _context.EmailLogs.OrderByDescending(e => e.CreatedAt).ToListAsync(cancellationToken);
+        string normalizedCode = code.Trim().ToUpperInvariant();
+        return await _context.DiscountCodes.FirstOrDefaultAsync(d => d.EditionId == editionId && d.Code == normalizedCode, cancellationToken);
     }
 
-    public async Task<IReadOnlyList<EmailLog>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DiscountCode>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.EmailLogs.Where(e => e.EditionId == editionId).OrderByDescending(e => e.CreatedAt).ToListAsync(cancellationToken);
+        return await _context.DiscountCodes.OrderBy(d => d.Code).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<EmailLog>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DiscountCode>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
-        return await _context.EmailLogs.Where(e => e.RegistrationId == registrationId).OrderByDescending(e => e.CreatedAt).ToListAsync(cancellationToken);
+        return await _context.DiscountCodes.Where(d => d.EditionId == editionId).OrderBy(d => d.Code).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<EmailLog>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default)
     {
-        return await _context.EmailLogs.Where(e => e.UserId == userId).OrderByDescending(e => e.CreatedAt).ToListAsync(cancellationToken);
+        string normalizedCode = code.Trim().ToUpperInvariant();
+        return await _context.DiscountCodes.AnyAsync(d => d.EditionId == editionId && d.Code == normalizedCode, cancellationToken);
     }
 
-    public void Update(EmailLog emailLog)
+    public void Update(DiscountCode discountCode)
     {
-        _context.EmailLogs.Update(emailLog);
+        _context.DiscountCodes.Update(discountCode);
     }
 
-    public void Delete(EmailLog emailLog)
+    public void Delete(DiscountCode discountCode)
     {
-        _context.EmailLogs.Remove(emailLog);
+        _context.DiscountCodes.Remove(discountCode);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
@@ -175,708 +310,731 @@ public class EmailLogRepository : IEmailLogRepository
 }
 '@
 
-# Contracts
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\DTOs\EmailLogDto.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.DTOs;
+# ============================================================
+# FEATURE FILES
+# ============================================================
 
-public class EmailLogDto
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\DTOs\DiscountCodeDto.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.DTOs;
+
+public class DiscountCodeDto
 {
     public Guid Id { get; set; }
-    public Guid? EditionId { get; set; }
-    public Guid? EmailTemplateId { get; set; }
-    public Guid? RegistrationId { get; set; }
-    public Guid? UserId { get; set; }
-    public EmailTemplateKey TemplateKey { get; set; }
-    public string RecipientEmail { get; set; } = string.Empty;
-    public string? RecipientName { get; set; }
-    public string Subject { get; set; } = string.Empty;
-    public string BodyHtml { get; set; } = string.Empty;
-    public string? BodyText { get; set; }
-    public EmailLogStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-    public DateTime? SentAt { get; set; }
+    public Guid EditionId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
+    public DiscountActivationType ActivationType { get; set; }
+    public int? ActivationThreshold { get; set; }
+    public int? MaxUses { get; set; }
+    public int CurrentUses { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
     public bool IsActive { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Requests\CreateEmailLogRequest.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Requests;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Requests\CreateDiscountCodeRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;
 
-public class CreateEmailLogRequest
+public class CreateDiscountCodeRequest
 {
-    public Guid? EditionId { get; set; }
-    public Guid? EmailTemplateId { get; set; }
-    public Guid? RegistrationId { get; set; }
-    public Guid? UserId { get; set; }
-    public EmailTemplateKey TemplateKey { get; set; }
-    public string RecipientEmail { get; set; } = string.Empty;
-    public string? RecipientName { get; set; }
-    public string Subject { get; set; } = string.Empty;
-    public string BodyHtml { get; set; } = string.Empty;
-    public string? BodyText { get; set; }
-    public EmailLogStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-    public DateTime? SentAt { get; set; }
+    public Guid EditionId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
+    public DiscountActivationType ActivationType { get; set; }
+    public int? ActivationThreshold { get; set; }
+    public int? MaxUses { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Requests\UpdateEmailLogRequest.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Requests;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Requests\UpdateDiscountCodeRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;
 
-public class UpdateEmailLogRequest
+public class UpdateDiscountCodeRequest
 {
-    public Guid? EditionId { get; set; }
-    public Guid? EmailTemplateId { get; set; }
-    public Guid? RegistrationId { get; set; }
-    public Guid? UserId { get; set; }
-    public EmailTemplateKey TemplateKey { get; set; }
-    public string RecipientEmail { get; set; } = string.Empty;
-    public string? RecipientName { get; set; }
-    public string Subject { get; set; } = string.Empty;
-    public string BodyHtml { get; set; } = string.Empty;
-    public string? BodyText { get; set; }
-    public EmailLogStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-    public DateTime? SentAt { get; set; }
+    public Guid EditionId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
+    public DiscountActivationType ActivationType { get; set; }
+    public int? ActivationThreshold { get; set; }
+    public int? MaxUses { get; set; }
+    public int CurrentUses { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
     public bool IsActive { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\CreateEmailLogResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\CreateDiscountCode\CreateDiscountCodeCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
 
-public class CreateEmailLogResponse
+public class CreateDiscountCodeCommand
 {
-    public EmailLogDto EmailLog { get; set; } = default!;
+    public Guid EditionId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
+    public DiscountActivationType ActivationType { get; set; }
+    public int? ActivationThreshold { get; set; }
+    public int? MaxUses { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\UpdateEmailLogResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\UpdateDiscountCode\UpdateDiscountCodeCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
 
-public class UpdateEmailLogResponse
+public class UpdateDiscountCodeCommand
 {
-    public EmailLogDto EmailLog { get; set; } = default!;
+    public Guid Id { get; set; }
+    public Guid EditionId { get; set; }
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public DiscountType DiscountType { get; set; }
+    public decimal DiscountValue { get; set; }
+    public DiscountActivationType ActivationType { get; set; }
+    public int? ActivationThreshold { get; set; }
+    public int? MaxUses { get; set; }
+    public int CurrentUses { get; set; }
+    public DateTime? StartsAt { get; set; }
+    public DateTime? EndsAt { get; set; }
+    public bool IsActive { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\DeleteEmailLogResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\DeleteDiscountCode\DeleteDiscountCodeCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
 
-public class DeleteEmailLogResponse
+public class DeleteDiscountCodeCommand
+{
+    public Guid Id { get; set; }
+}
+'@
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodeById\GetDiscountCodeByIdQuery.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;
+
+public class GetDiscountCodeByIdQuery
+{
+    public Guid Id { get; set; }
+}
+'@
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodesByEditionId\GetDiscountCodesByEditionIdQuery.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;
+
+public class GetDiscountCodesByEditionIdQuery
+{
+    public Guid EditionId { get; set; }
+}
+'@
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\CreateDiscountCodeResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
+
+public class CreateDiscountCodeResponse
+{
+    public DiscountCodeDto DiscountCode { get; set; } = default!;
+}
+'@
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\UpdateDiscountCodeResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
+
+public class UpdateDiscountCodeResponse
+{
+    public DiscountCodeDto DiscountCode { get; set; } = default!;
+}
+'@
+
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\DeleteDiscountCodeResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
+
+public class DeleteDiscountCodeResponse
 {
     public Guid Id { get; set; }
     public bool Deleted { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\GetEmailLogByIdResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\GetDiscountCodeByIdResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
 
-public class GetEmailLogByIdResponse
+public class GetDiscountCodeByIdResponse
 {
-    public EmailLogDto EmailLog { get; set; } = default!;
+    public DiscountCodeDto DiscountCode { get; set; } = default!;
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\GetEmailLogsResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\GetDiscountCodesResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
 
-public class GetEmailLogsResponse
+public class GetDiscountCodesResponse
 {
-    public IReadOnlyList<EmailLogDto> EmailLogs { get; set; } = [];
+    public IReadOnlyList<DiscountCodeDto> DiscountCodes { get; set; } = [];
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\GetEmailLogsByEditionIdResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\GetDiscountCodesByEditionIdResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
 
-public class GetEmailLogsByEditionIdResponse
+public class GetDiscountCodesByEditionIdResponse
 {
-    public IReadOnlyList<EmailLogDto> EmailLogs { get; set; } = [];
+    public IReadOnlyList<DiscountCodeDto> DiscountCodes { get; set; } = [];
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\GetEmailLogsByRegistrationIdResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Mappings\DiscountCodeMappingProfile.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Mappings;
 
-public class GetEmailLogsByRegistrationIdResponse
+public class DiscountCodeMappingProfile : Profile
 {
-    public IReadOnlyList<EmailLogDto> EmailLogs { get; set; } = [];
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Contracts\Responses\GetEmailLogsByUserIdResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.Responses;
-
-public class GetEmailLogsByUserIdResponse
-{
-    public IReadOnlyList<EmailLogDto> EmailLogs { get; set; } = [];
-}
-'@
-
-# Commands
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Commands\CreateEmailLog\CreateEmailLogCommand.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Commands.CreateEmailLog;
-
-public class CreateEmailLogCommand
-{
-    public Guid? EditionId { get; set; }
-    public Guid? EmailTemplateId { get; set; }
-    public Guid? RegistrationId { get; set; }
-    public Guid? UserId { get; set; }
-    public EmailTemplateKey TemplateKey { get; set; }
-    public string RecipientEmail { get; set; } = string.Empty;
-    public string? RecipientName { get; set; }
-    public string Subject { get; set; } = string.Empty;
-    public string BodyHtml { get; set; } = string.Empty;
-    public string? BodyText { get; set; }
-    public EmailLogStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-    public DateTime? SentAt { get; set; }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Commands\UpdateEmailLog\UpdateEmailLogCommand.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Commands.UpdateEmailLog;
-
-public class UpdateEmailLogCommand
-{
-    public Guid Id { get; set; }
-    public Guid? EditionId { get; set; }
-    public Guid? EmailTemplateId { get; set; }
-    public Guid? RegistrationId { get; set; }
-    public Guid? UserId { get; set; }
-    public EmailTemplateKey TemplateKey { get; set; }
-    public string RecipientEmail { get; set; } = string.Empty;
-    public string? RecipientName { get; set; }
-    public string Subject { get; set; } = string.Empty;
-    public string BodyHtml { get; set; } = string.Empty;
-    public string? BodyText { get; set; }
-    public EmailLogStatus Status { get; set; }
-    public string? ErrorMessage { get; set; }
-    public DateTime? SentAt { get; set; }
-    public bool IsActive { get; set; }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Commands\DeleteEmailLog\DeleteEmailLogCommand.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Commands.DeleteEmailLog;
-
-public class DeleteEmailLogCommand
-{
-    public Guid Id { get; set; }
-}
-'@
-
-# Queries
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogById\GetEmailLogByIdQuery.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogById;
-
-public class GetEmailLogByIdQuery
-{
-    public Guid Id { get; set; }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogsByEditionId\GetEmailLogsByEditionIdQuery.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByEditionId;
-
-public class GetEmailLogsByEditionIdQuery
-{
-    public Guid EditionId { get; set; }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogsByRegistrationId\GetEmailLogsByRegistrationIdQuery.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByRegistrationId;
-
-public class GetEmailLogsByRegistrationIdQuery
-{
-    public Guid RegistrationId { get; set; }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogsByUserId\GetEmailLogsByUserIdQuery.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByUserId;
-
-public class GetEmailLogsByUserIdQuery
-{
-    public Guid UserId { get; set; }
-}
-'@
-
-# Mapping
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Mappings\EmailLogMappingProfile.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Mappings;
-
-public class EmailLogMappingProfile : Profile
-{
-    public EmailLogMappingProfile()
+    public DiscountCodeMappingProfile()
     {
-        CreateMap<EmailLog, EmailLogDto>();
-        CreateMap<CreateEmailLogRequest, CreateEmailLogCommand>();
-        CreateMap<UpdateEmailLogRequest, UpdateEmailLogCommand>();
+        CreateMap<DiscountCode, DiscountCodeDto>();
 
-        CreateMap<CreateEmailLogCommand, EmailLog>()
+        CreateMap<CreateDiscountCodeRequest, CreateDiscountCodeCommand>();
+        CreateMap<UpdateDiscountCodeRequest, UpdateDiscountCodeCommand>();
+
+        CreateMap<CreateDiscountCodeCommand, DiscountCode>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
             .ForMember(dest => dest.Edition, opt => opt.Ignore())
-            .ForMember(dest => dest.EmailTemplate, opt => opt.Ignore())
-            .ForMember(dest => dest.Registration, opt => opt.Ignore())
-            .ForMember(dest => dest.User, opt => opt.Ignore())
+            .ForMember(dest => dest.CurrentUses, opt => opt.Ignore())
             .ForMember(dest => dest.IsActive, opt => opt.Ignore());
 
-        CreateMap<UpdateEmailLogCommand, EmailLog>()
+        CreateMap<UpdateDiscountCodeCommand, DiscountCode>()
             .ForMember(dest => dest.Id, opt => opt.Ignore())
-            .ForMember(dest => dest.Edition, opt => opt.Ignore())
-            .ForMember(dest => dest.EmailTemplate, opt => opt.Ignore())
-            .ForMember(dest => dest.Registration, opt => opt.Ignore())
-            .ForMember(dest => dest.User, opt => opt.Ignore());
+            .ForMember(dest => dest.Edition, opt => opt.Ignore());
     }
 }
 '@
 
-# Validators
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Validators\CreateEmailLogCommandValidator.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Validators;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Validators\CreateDiscountCodeCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Validators;
 
-public class CreateEmailLogCommandValidator : AbstractValidator<CreateEmailLogCommand>
+public class CreateDiscountCodeCommandValidator : AbstractValidator<CreateDiscountCodeCommand>
 {
-    public CreateEmailLogCommandValidator()
+    public CreateDiscountCodeCommandValidator()
     {
-        RuleFor(e => e.TemplateKey).IsInEnum();
-        RuleFor(e => e.RecipientEmail).NotEmpty().EmailAddress().MaximumLength(200);
-        RuleFor(e => e.RecipientName).MaximumLength(200);
-        RuleFor(e => e.Subject).NotEmpty().MaximumLength(300);
-        RuleFor(e => e.BodyHtml).NotEmpty();
-        RuleFor(e => e.Status).IsInEnum();
-        RuleFor(e => e.ErrorMessage).MaximumLength(2000);
+        RuleFor(d => d.EditionId).NotEmpty();
+        RuleFor(d => d.Code).NotEmpty().MaximumLength(50);
+        RuleFor(d => d.Name).NotEmpty().MaximumLength(150);
+        RuleFor(d => d.Description).MaximumLength(1000);
+        RuleFor(d => d.DiscountType).IsInEnum();
+        RuleFor(d => d.DiscountValue).GreaterThan(0);
+        RuleFor(d => d.ActivationType).IsInEnum();
+        RuleFor(d => d.ActivationThreshold).GreaterThan(0).When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
+        RuleFor(d => d.ActivationThreshold).Null().When(d => d.ActivationType == DiscountActivationType.Immediate);
+        RuleFor(d => d.MaxUses).GreaterThan(0).When(d => d.MaxUses.HasValue);
+        RuleFor(d => d.EndsAt).GreaterThan(d => d.StartsAt).When(d => d.StartsAt.HasValue && d.EndsAt.HasValue);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Validators\UpdateEmailLogCommandValidator.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Validators;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Validators\UpdateDiscountCodeCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Validators;
 
-public class UpdateEmailLogCommandValidator : AbstractValidator<UpdateEmailLogCommand>
+public class UpdateDiscountCodeCommandValidator : AbstractValidator<UpdateDiscountCodeCommand>
 {
-    public UpdateEmailLogCommandValidator()
+    public UpdateDiscountCodeCommandValidator()
     {
-        RuleFor(e => e.Id).NotEmpty();
-        RuleFor(e => e.TemplateKey).IsInEnum();
-        RuleFor(e => e.RecipientEmail).NotEmpty().EmailAddress().MaximumLength(200);
-        RuleFor(e => e.RecipientName).MaximumLength(200);
-        RuleFor(e => e.Subject).NotEmpty().MaximumLength(300);
-        RuleFor(e => e.BodyHtml).NotEmpty();
-        RuleFor(e => e.Status).IsInEnum();
-        RuleFor(e => e.ErrorMessage).MaximumLength(2000);
+        RuleFor(d => d.Id).NotEmpty();
+        RuleFor(d => d.EditionId).NotEmpty();
+        RuleFor(d => d.Code).NotEmpty().MaximumLength(50);
+        RuleFor(d => d.Name).NotEmpty().MaximumLength(150);
+        RuleFor(d => d.Description).MaximumLength(1000);
+        RuleFor(d => d.DiscountType).IsInEnum();
+        RuleFor(d => d.DiscountValue).GreaterThan(0);
+        RuleFor(d => d.ActivationType).IsInEnum();
+        RuleFor(d => d.ActivationThreshold).GreaterThan(0).When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
+        RuleFor(d => d.ActivationThreshold).Null().When(d => d.ActivationType == DiscountActivationType.Immediate);
+        RuleFor(d => d.MaxUses).GreaterThan(0).When(d => d.MaxUses.HasValue);
+        RuleFor(d => d.CurrentUses).GreaterThanOrEqualTo(0);
+        RuleFor(d => d.EndsAt).GreaterThan(d => d.StartsAt).When(d => d.StartsAt.HasValue && d.EndsAt.HasValue);
     }
 }
 '@
 
-# Handlers
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Commands\CreateEmailLog\CreateEmailLogHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Commands.CreateEmailLog;
+# Handlers/services/controller are in a secondary block to keep the script concise enough for editing.
+# They are generated below.
 
-public class CreateEmailLogHandler
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\CreateDiscountCode\CreateDiscountCodeHandler.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
+
+public class CreateDiscountCodeHandler
 {
-    private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
+    private readonly IEditionRepository _editionRepository;
     private readonly IMapper _mapper;
 
-    public CreateEmailLogHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
+    public CreateDiscountCodeHandler(IDiscountCodeRepository discountCodeRepository, IEditionRepository editionRepository, IMapper mapper)
     {
-        _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
+        _editionRepository = editionRepository;
         _mapper = mapper;
     }
 
-    public async Task<EmailLogDto> HandleAsync(CreateEmailLogCommand command, CancellationToken cancellationToken = default)
+    public async Task<DiscountCodeDto> HandleAsync(CreateDiscountCodeCommand command, CancellationToken cancellationToken = default)
     {
-        EmailLog emailLog = _mapper.Map<EmailLog>(command);
-        emailLog.IsActive = true;
-        await _emailLogRepository.AddAsync(emailLog, cancellationToken);
-        await _emailLogRepository.SaveChangesAsync(cancellationToken);
-        EmailLogDto dto = _mapper.Map<EmailLogDto>(emailLog);
+        Edition? edition = await _editionRepository.GetByIdAsync(command.EditionId, cancellationToken);
+
+        if (edition is null)
+        {
+            throw new NotFoundException($"Edition with id '{command.EditionId}' was not found.");
+        }
+
+        string normalizedCode = command.Code.Trim().ToUpperInvariant();
+
+        bool exists = await _discountCodeRepository.ExistsByEditionAndCodeAsync(command.EditionId, normalizedCode, cancellationToken);
+
+        if (exists)
+        {
+            throw new BusinessRuleException($"Discount code '{normalizedCode}' already exists for this edition.");
+        }
+
+        command.Code = normalizedCode;
+
+        DiscountCode discountCode = _mapper.Map<DiscountCode>(command);
+        discountCode.CurrentUses = 0;
+        discountCode.IsActive = true;
+
+        await _discountCodeRepository.AddAsync(discountCode, cancellationToken);
+        await _discountCodeRepository.SaveChangesAsync(cancellationToken);
+
+        DiscountCodeDto dto = _mapper.Map<DiscountCodeDto>(discountCode);
+
         return dto;
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Commands\UpdateEmailLog\UpdateEmailLogHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Commands.UpdateEmailLog;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\UpdateDiscountCode\UpdateDiscountCodeHandler.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
 
-public class UpdateEmailLogHandler
+public class UpdateDiscountCodeHandler
 {
-    private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
+    private readonly IEditionRepository _editionRepository;
     private readonly IMapper _mapper;
 
-    public UpdateEmailLogHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
+    public UpdateDiscountCodeHandler(IDiscountCodeRepository discountCodeRepository, IEditionRepository editionRepository, IMapper mapper)
     {
-        _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
+        _editionRepository = editionRepository;
         _mapper = mapper;
     }
 
-    public async Task<EmailLogDto> HandleAsync(UpdateEmailLogCommand command, CancellationToken cancellationToken = default)
+    public async Task<DiscountCodeDto> HandleAsync(UpdateDiscountCodeCommand command, CancellationToken cancellationToken = default)
     {
-        EmailLog? emailLog = await _emailLogRepository.GetByIdAsync(command.Id, cancellationToken);
-        if (emailLog is null) { throw new NotFoundException($"Email log with id '{command.Id}' was not found."); }
-        _mapper.Map(command, emailLog);
-        emailLog.SetUpdated();
-        await _emailLogRepository.SaveChangesAsync(cancellationToken);
-        EmailLogDto dto = _mapper.Map<EmailLogDto>(emailLog);
+        DiscountCode? discountCode = await _discountCodeRepository.GetByIdAsync(command.Id, cancellationToken);
+
+        if (discountCode is null)
+        {
+            throw new NotFoundException($"Discount code with id '{command.Id}' was not found.");
+        }
+
+        Edition? edition = await _editionRepository.GetByIdAsync(command.EditionId, cancellationToken);
+
+        if (edition is null)
+        {
+            throw new NotFoundException($"Edition with id '{command.EditionId}' was not found.");
+        }
+
+        string normalizedCode = command.Code.Trim().ToUpperInvariant();
+
+        DiscountCode? existing = await _discountCodeRepository.GetByEditionAndCodeAsync(command.EditionId, normalizedCode, cancellationToken);
+
+        if (existing is not null && existing.Id != command.Id)
+        {
+            throw new BusinessRuleException($"Discount code '{normalizedCode}' already exists for this edition.");
+        }
+
+        command.Code = normalizedCode;
+
+        _mapper.Map(command, discountCode);
+        discountCode.SetUpdated();
+
+        await _discountCodeRepository.SaveChangesAsync(cancellationToken);
+
+        DiscountCodeDto dto = _mapper.Map<DiscountCodeDto>(discountCode);
+
         return dto;
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Commands\DeleteEmailLog\DeleteEmailLogHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Commands.DeleteEmailLog;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\DeleteDiscountCode\DeleteDiscountCodeHandler.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
 
-public class DeleteEmailLogHandler
+public class DeleteDiscountCodeHandler
 {
-    private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
 
-    public DeleteEmailLogHandler(IEmailLogRepository emailLogRepository)
+    public DeleteDiscountCodeHandler(IDiscountCodeRepository discountCodeRepository)
     {
-        _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
     }
 
-    public async Task HandleAsync(DeleteEmailLogCommand command, CancellationToken cancellationToken = default)
+    public async Task HandleAsync(DeleteDiscountCodeCommand command, CancellationToken cancellationToken = default)
     {
-        EmailLog? emailLog = await _emailLogRepository.GetByIdAsync(command.Id, cancellationToken);
-        if (emailLog is null) { throw new NotFoundException($"Email log with id '{command.Id}' was not found."); }
-        emailLog.IsActive = false;
-        emailLog.SetUpdated();
-        await _emailLogRepository.SaveChangesAsync(cancellationToken);
+        DiscountCode? discountCode = await _discountCodeRepository.GetByIdAsync(command.Id, cancellationToken);
+
+        if (discountCode is null)
+        {
+            throw new NotFoundException($"Discount code with id '{command.Id}' was not found.");
+        }
+
+        _discountCodeRepository.Delete(discountCode);
+        await _discountCodeRepository.SaveChangesAsync(cancellationToken);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogById\GetEmailLogByIdHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogById;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodeById\GetDiscountCodeByIdHandler.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;
 
-public class GetEmailLogByIdHandler
+public class GetDiscountCodeByIdHandler
 {
-    private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
     private readonly IMapper _mapper;
 
-    public GetEmailLogByIdHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
+    public GetDiscountCodeByIdHandler(IDiscountCodeRepository discountCodeRepository, IMapper mapper)
     {
-        _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
         _mapper = mapper;
     }
 
-    public async Task<EmailLogDto> HandleAsync(GetEmailLogByIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<DiscountCodeDto> HandleAsync(GetDiscountCodeByIdQuery query, CancellationToken cancellationToken = default)
     {
-        EmailLog? emailLog = await _emailLogRepository.GetByIdAsync(query.Id, cancellationToken);
-        if (emailLog is null) { throw new NotFoundException($"Email log with id '{query.Id}' was not found."); }
-        return _mapper.Map<EmailLogDto>(emailLog);
+        DiscountCode? discountCode = await _discountCodeRepository.GetByIdAsync(query.Id, cancellationToken);
+
+        if (discountCode is null)
+        {
+            throw new NotFoundException($"Discount code with id '{query.Id}' was not found.");
+        }
+
+        return _mapper.Map<DiscountCodeDto>(discountCode);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogs\GetEmailLogsHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogs;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodes\GetDiscountCodesHandler.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodes;
 
-public class GetEmailLogsHandler
+public class GetDiscountCodesHandler
 {
-    private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
     private readonly IMapper _mapper;
 
-    public GetEmailLogsHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
+    public GetDiscountCodesHandler(IDiscountCodeRepository discountCodeRepository, IMapper mapper)
     {
-        _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
         _mapper = mapper;
     }
 
-    public async Task<IReadOnlyList<EmailLogDto>> HandleAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DiscountCodeDto>> HandleAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<EmailLog> emailLogs = await _emailLogRepository.GetAllAsync(cancellationToken);
-        return _mapper.Map<IReadOnlyList<EmailLogDto>>(emailLogs);
+        IReadOnlyList<DiscountCode> discountCodes = await _discountCodeRepository.GetAllAsync(cancellationToken);
+        return _mapper.Map<IReadOnlyList<DiscountCodeDto>>(discountCodes);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogsByEditionId\GetEmailLogsByEditionIdHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByEditionId;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodesByEditionId\GetDiscountCodesByEditionIdHandler.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;
 
-public class GetEmailLogsByEditionIdHandler
+public class GetDiscountCodesByEditionIdHandler
 {
-    private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
     private readonly IMapper _mapper;
 
-    public GetEmailLogsByEditionIdHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
+    public GetDiscountCodesByEditionIdHandler(IDiscountCodeRepository discountCodeRepository, IMapper mapper)
     {
-        _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
         _mapper = mapper;
     }
 
-    public async Task<IReadOnlyList<EmailLogDto>> HandleAsync(GetEmailLogsByEditionIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<DiscountCodeDto>> HandleAsync(GetDiscountCodesByEditionIdQuery query, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<EmailLog> emailLogs = await _emailLogRepository.GetByEditionIdAsync(query.EditionId, cancellationToken);
-        return _mapper.Map<IReadOnlyList<EmailLogDto>>(emailLogs);
+        IReadOnlyList<DiscountCode> discountCodes = await _discountCodeRepository.GetByEditionIdAsync(query.EditionId, cancellationToken);
+        return _mapper.Map<IReadOnlyList<DiscountCodeDto>>(discountCodes);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogsByRegistrationId\GetEmailLogsByRegistrationIdHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByRegistrationId;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Services\IDiscountCodeService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
 
-public class GetEmailLogsByRegistrationIdHandler
+public interface IDiscountCodeService
 {
-    private readonly IEmailLogRepository _emailLogRepository;
-    private readonly IMapper _mapper;
-
-    public GetEmailLogsByRegistrationIdHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
-    {
-        _emailLogRepository = emailLogRepository;
-        _mapper = mapper;
-    }
-
-    public async Task<IReadOnlyList<EmailLogDto>> HandleAsync(GetEmailLogsByRegistrationIdQuery query, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<EmailLog> emailLogs = await _emailLogRepository.GetByRegistrationIdAsync(query.RegistrationId, cancellationToken);
-        return _mapper.Map<IReadOnlyList<EmailLogDto>>(emailLogs);
-    }
+    Task<ApiResponse<CreateDiscountCodeResponse>> CreateAsync(CreateDiscountCodeCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetDiscountCodeByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetDiscountCodesResponse>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetDiscountCodesByEditionIdResponse>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<UpdateDiscountCodeResponse>> UpdateAsync(Guid id, UpdateDiscountCodeCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<DeleteDiscountCodeResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Queries\GetEmailLogsByUserId\GetEmailLogsByUserIdHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByUserId;
+New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Services\DiscountCodeService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
 
-public class GetEmailLogsByUserIdHandler
+public class DiscountCodeService : IDiscountCodeService
 {
-    private readonly IEmailLogRepository _emailLogRepository;
-    private readonly IMapper _mapper;
+    private readonly CreateDiscountCodeHandler _createDiscountCodeHandler;
+    private readonly GetDiscountCodeByIdHandler _getDiscountCodeByIdHandler;
+    private readonly GetDiscountCodesHandler _getDiscountCodesHandler;
+    private readonly GetDiscountCodesByEditionIdHandler _getDiscountCodesByEditionIdHandler;
+    private readonly UpdateDiscountCodeHandler _updateDiscountCodeHandler;
+    private readonly DeleteDiscountCodeHandler _deleteDiscountCodeHandler;
+    private readonly IValidator<CreateDiscountCodeCommand> _createDiscountCodeValidator;
+    private readonly IValidator<UpdateDiscountCodeCommand> _updateDiscountCodeValidator;
 
-    public GetEmailLogsByUserIdHandler(IEmailLogRepository emailLogRepository, IMapper mapper)
+    public DiscountCodeService(CreateDiscountCodeHandler createDiscountCodeHandler, GetDiscountCodeByIdHandler getDiscountCodeByIdHandler, GetDiscountCodesHandler getDiscountCodesHandler, GetDiscountCodesByEditionIdHandler getDiscountCodesByEditionIdHandler, UpdateDiscountCodeHandler updateDiscountCodeHandler, DeleteDiscountCodeHandler deleteDiscountCodeHandler, IValidator<CreateDiscountCodeCommand> createDiscountCodeValidator, IValidator<UpdateDiscountCodeCommand> updateDiscountCodeValidator)
     {
-        _emailLogRepository = emailLogRepository;
-        _mapper = mapper;
+        _createDiscountCodeHandler = createDiscountCodeHandler;
+        _getDiscountCodeByIdHandler = getDiscountCodeByIdHandler;
+        _getDiscountCodesHandler = getDiscountCodesHandler;
+        _getDiscountCodesByEditionIdHandler = getDiscountCodesByEditionIdHandler;
+        _updateDiscountCodeHandler = updateDiscountCodeHandler;
+        _deleteDiscountCodeHandler = deleteDiscountCodeHandler;
+        _createDiscountCodeValidator = createDiscountCodeValidator;
+        _updateDiscountCodeValidator = updateDiscountCodeValidator;
     }
 
-    public async Task<IReadOnlyList<EmailLogDto>> HandleAsync(GetEmailLogsByUserIdQuery query, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<CreateDiscountCodeResponse>> CreateAsync(CreateDiscountCodeCommand command, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<EmailLog> emailLogs = await _emailLogRepository.GetByUserIdAsync(query.UserId, cancellationToken);
-        return _mapper.Map<IReadOnlyList<EmailLogDto>>(emailLogs);
-    }
-}
-'@
+        ValidationResult validationResult = await _createDiscountCodeValidator.ValidateAsync(command, cancellationToken);
 
-# Services
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Services\IEmailLogService.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Services;
+        if (!validationResult.IsValid)
+        {
+            return ApiResponse<CreateDiscountCodeResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+        }
 
-public interface IEmailLogService
-{
-    Task<ApiResponse<CreateEmailLogResponse>> CreateAsync(CreateEmailLogCommand command, CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetEmailLogByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetEmailLogsResponse>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetEmailLogsByEditionIdResponse>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetEmailLogsByRegistrationIdResponse>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetEmailLogsByUserIdResponse>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default);
-    Task<ApiResponse<UpdateEmailLogResponse>> UpdateAsync(Guid id, UpdateEmailLogCommand command, CancellationToken cancellationToken = default);
-    Task<ApiResponse<DeleteEmailLogResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
-}
-'@
+        DiscountCodeDto discountCodeDto = await _createDiscountCodeHandler.HandleAsync(command, cancellationToken);
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\EmailLogs\Services\EmailLogService.cs" @'
-namespace Alakai.FestivalManager.Application.Features.EmailLogs.Services;
+        ApiResponse<CreateDiscountCodeResponse> response = new()
+        {
+            Success = true,
+            Data = new CreateDiscountCodeResponse { DiscountCode = discountCodeDto },
+            Errors = [],
+            Message = $"{discountCodeDto.Code} is correctly registered"
+        };
 
-public class EmailLogService : IEmailLogService
-{
-    private readonly CreateEmailLogHandler _createEmailLogHandler;
-    private readonly GetEmailLogByIdHandler _getEmailLogByIdHandler;
-    private readonly GetEmailLogsHandler _getEmailLogsHandler;
-    private readonly GetEmailLogsByEditionIdHandler _getEmailLogsByEditionIdHandler;
-    private readonly GetEmailLogsByRegistrationIdHandler _getEmailLogsByRegistrationIdHandler;
-    private readonly GetEmailLogsByUserIdHandler _getEmailLogsByUserIdHandler;
-    private readonly UpdateEmailLogHandler _updateEmailLogHandler;
-    private readonly DeleteEmailLogHandler _deleteEmailLogHandler;
-    private readonly IValidator<CreateEmailLogCommand> _createEmailLogValidator;
-    private readonly IValidator<UpdateEmailLogCommand> _updateEmailLogValidator;
-
-    public EmailLogService(CreateEmailLogHandler createEmailLogHandler, GetEmailLogByIdHandler getEmailLogByIdHandler, GetEmailLogsHandler getEmailLogsHandler, GetEmailLogsByEditionIdHandler getEmailLogsByEditionIdHandler, GetEmailLogsByRegistrationIdHandler getEmailLogsByRegistrationIdHandler, GetEmailLogsByUserIdHandler getEmailLogsByUserIdHandler, UpdateEmailLogHandler updateEmailLogHandler, DeleteEmailLogHandler deleteEmailLogHandler, IValidator<CreateEmailLogCommand> createEmailLogValidator, IValidator<UpdateEmailLogCommand> updateEmailLogValidator)
-    {
-        _createEmailLogHandler = createEmailLogHandler;
-        _getEmailLogByIdHandler = getEmailLogByIdHandler;
-        _getEmailLogsHandler = getEmailLogsHandler;
-        _getEmailLogsByEditionIdHandler = getEmailLogsByEditionIdHandler;
-        _getEmailLogsByRegistrationIdHandler = getEmailLogsByRegistrationIdHandler;
-        _getEmailLogsByUserIdHandler = getEmailLogsByUserIdHandler;
-        _updateEmailLogHandler = updateEmailLogHandler;
-        _deleteEmailLogHandler = deleteEmailLogHandler;
-        _createEmailLogValidator = createEmailLogValidator;
-        _updateEmailLogValidator = updateEmailLogValidator;
-    }
-
-    public async Task<ApiResponse<CreateEmailLogResponse>> CreateAsync(CreateEmailLogCommand command, CancellationToken cancellationToken = default)
-    {
-        ValidationResult validationResult = await _createEmailLogValidator.ValidateAsync(command, cancellationToken);
-        if (!validationResult.IsValid) { return ApiResponse<CreateEmailLogResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed"); }
-        EmailLogDto emailLogDto = await _createEmailLogHandler.HandleAsync(command, cancellationToken);
-        ApiResponse<CreateEmailLogResponse> response = new() { Success = true, Data = new CreateEmailLogResponse { EmailLog = emailLogDto }, Errors = [], Message = "Email log created successfully" };
         return response;
     }
 
-    public async Task<ApiResponse<GetEmailLogByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetDiscountCodeByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        EmailLogDto emailLogDto = await _getEmailLogByIdHandler.HandleAsync(new GetEmailLogByIdQuery { Id = id }, cancellationToken);
-        ApiResponse<GetEmailLogByIdResponse> response = new() { Success = true, Data = new GetEmailLogByIdResponse { EmailLog = emailLogDto }, Errors = [], Message = "Email log retrieved successfully" };
+        DiscountCodeDto discountCodeDto = await _getDiscountCodeByIdHandler.HandleAsync(new GetDiscountCodeByIdQuery { Id = id }, cancellationToken);
+
+        ApiResponse<GetDiscountCodeByIdResponse> response = new()
+        {
+            Success = true,
+            Data = new GetDiscountCodeByIdResponse { DiscountCode = discountCodeDto },
+            Errors = [],
+            Message = $"{discountCodeDto.Code} retrieved successfully"
+        };
+
         return response;
     }
 
-    public async Task<ApiResponse<GetEmailLogsResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetDiscountCodesResponse>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<EmailLogDto> emailLogs = await _getEmailLogsHandler.HandleAsync(cancellationToken);
-        ApiResponse<GetEmailLogsResponse> response = new() { Success = true, Data = new GetEmailLogsResponse { EmailLogs = emailLogs }, Errors = [], Message = $"There are {emailLogs.Count} email logs registered" };
+        IReadOnlyList<DiscountCodeDto> discountCodes = await _getDiscountCodesHandler.HandleAsync(cancellationToken);
+
+        ApiResponse<GetDiscountCodesResponse> response = new()
+        {
+            Success = true,
+            Data = new GetDiscountCodesResponse { DiscountCodes = discountCodes },
+            Errors = [],
+            Message = $"There are {discountCodes.Count} discount codes registered"
+        };
+
         return response;
     }
 
-    public async Task<ApiResponse<GetEmailLogsByEditionIdResponse>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetDiscountCodesByEditionIdResponse>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
-        IReadOnlyList<EmailLogDto> emailLogs = await _getEmailLogsByEditionIdHandler.HandleAsync(new GetEmailLogsByEditionIdQuery { EditionId = editionId }, cancellationToken);
-        ApiResponse<GetEmailLogsByEditionIdResponse> response = new() { Success = true, Data = new GetEmailLogsByEditionIdResponse { EmailLogs = emailLogs }, Errors = [], Message = $"There are {emailLogs.Count} email logs for this edition" };
+        IReadOnlyList<DiscountCodeDto> discountCodes = await _getDiscountCodesByEditionIdHandler.HandleAsync(new GetDiscountCodesByEditionIdQuery { EditionId = editionId }, cancellationToken);
+
+        ApiResponse<GetDiscountCodesByEditionIdResponse> response = new()
+        {
+            Success = true,
+            Data = new GetDiscountCodesByEditionIdResponse { DiscountCodes = discountCodes },
+            Errors = [],
+            Message = $"There are {discountCodes.Count} discount codes for this edition"
+        };
+
         return response;
     }
 
-    public async Task<ApiResponse<GetEmailLogsByRegistrationIdResponse>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<EmailLogDto> emailLogs = await _getEmailLogsByRegistrationIdHandler.HandleAsync(new GetEmailLogsByRegistrationIdQuery { RegistrationId = registrationId }, cancellationToken);
-        ApiResponse<GetEmailLogsByRegistrationIdResponse> response = new() { Success = true, Data = new GetEmailLogsByRegistrationIdResponse { EmailLogs = emailLogs }, Errors = [], Message = $"There are {emailLogs.Count} email logs for this registration" };
-        return response;
-    }
-
-    public async Task<ApiResponse<GetEmailLogsByUserIdResponse>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<EmailLogDto> emailLogs = await _getEmailLogsByUserIdHandler.HandleAsync(new GetEmailLogsByUserIdQuery { UserId = userId }, cancellationToken);
-        ApiResponse<GetEmailLogsByUserIdResponse> response = new() { Success = true, Data = new GetEmailLogsByUserIdResponse { EmailLogs = emailLogs }, Errors = [], Message = $"There are {emailLogs.Count} email logs for this user" };
-        return response;
-    }
-
-    public async Task<ApiResponse<UpdateEmailLogResponse>> UpdateAsync(Guid id, UpdateEmailLogCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<UpdateDiscountCodeResponse>> UpdateAsync(Guid id, UpdateDiscountCodeCommand command, CancellationToken cancellationToken = default)
     {
         command.Id = id;
-        ValidationResult validationResult = await _updateEmailLogValidator.ValidateAsync(command, cancellationToken);
-        if (!validationResult.IsValid) { return ApiResponse<UpdateEmailLogResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed"); }
-        EmailLogDto emailLogDto = await _updateEmailLogHandler.HandleAsync(command, cancellationToken);
-        ApiResponse<UpdateEmailLogResponse> response = new() { Success = true, Data = new UpdateEmailLogResponse { EmailLog = emailLogDto }, Errors = [], Message = "Email log updated successfully" };
+
+        ValidationResult validationResult = await _updateDiscountCodeValidator.ValidateAsync(command, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return ApiResponse<UpdateDiscountCodeResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+        }
+
+        DiscountCodeDto discountCodeDto = await _updateDiscountCodeHandler.HandleAsync(command, cancellationToken);
+
+        ApiResponse<UpdateDiscountCodeResponse> response = new()
+        {
+            Success = true,
+            Data = new UpdateDiscountCodeResponse { DiscountCode = discountCodeDto },
+            Errors = [],
+            Message = $"{discountCodeDto.Code} updated successfully"
+        };
+
         return response;
     }
 
-    public async Task<ApiResponse<DeleteEmailLogResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<DeleteDiscountCodeResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        await _deleteEmailLogHandler.HandleAsync(new DeleteEmailLogCommand { Id = id }, cancellationToken);
-        ApiResponse<DeleteEmailLogResponse> response = new() { Success = true, Data = new DeleteEmailLogResponse { Id = id, Deleted = true }, Errors = [], Message = "Email log deleted successfully" };
+        await _deleteDiscountCodeHandler.HandleAsync(new DeleteDiscountCodeCommand { Id = id }, cancellationToken);
+
+        ApiResponse<DeleteDiscountCodeResponse> response = new()
+        {
+            Success = true,
+            Data = new DeleteDiscountCodeResponse { Id = id, Deleted = true },
+            Errors = [],
+            Message = "Discount code deleted successfully"
+        };
+
         return response;
     }
 }
 '@
 
-# Controller
-New-FileIfNotExists "$root\Alakai.FestivalManager.Api\Controllers\EmailLogsController.cs" @'
+New-FileIfNotExists "$root\Alakai.FestivalManager.Api\Controllers\DiscountCodesController.cs" @'
 namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
-[Route("api/email-logs")]
-public class EmailLogsController : ControllerBase
+[Route("api/discount-codes")]
+public class DiscountCodesController : ControllerBase
 {
-    private readonly IEmailLogService _emailLogService;
+    private readonly IDiscountCodeService _discountCodeService;
     private readonly IMapper _mapper;
 
-    public EmailLogsController(IEmailLogService emailLogService, IMapper mapper)
+    public DiscountCodesController(IDiscountCodeService discountCodeService, IMapper mapper)
     {
-        _emailLogService = emailLogService;
+        _discountCodeService = discountCodeService;
         _mapper = mapper;
     }
 
     [HttpGet]
-    public async Task<ActionResult<ApiResponse<GetEmailLogsResponse>>> GetAll(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetDiscountCodesResponse>>> GetAll(CancellationToken cancellationToken)
     {
-        ApiResponse<GetEmailLogsResponse> response = await _emailLogService.GetAllAsync(cancellationToken);
+        ApiResponse<GetDiscountCodesResponse> response = await _discountCodeService.GetAllAsync(cancellationToken);
         return Ok(response);
     }
 
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<GetEmailLogByIdResponse>>> GetById(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetDiscountCodeByIdResponse>>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        ApiResponse<GetEmailLogByIdResponse> response = await _emailLogService.GetByIdAsync(id, cancellationToken);
+        ApiResponse<GetDiscountCodeByIdResponse> response = await _discountCodeService.GetByIdAsync(id, cancellationToken);
         return Ok(response);
     }
 
     [HttpGet("by-edition/{editionId:guid}")]
-    public async Task<ActionResult<ApiResponse<GetEmailLogsByEditionIdResponse>>> GetByEditionId(Guid editionId, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetDiscountCodesByEditionIdResponse>>> GetByEditionId(Guid editionId, CancellationToken cancellationToken)
     {
-        ApiResponse<GetEmailLogsByEditionIdResponse> response = await _emailLogService.GetByEditionIdAsync(editionId, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpGet("by-registration/{registrationId:guid}")]
-    public async Task<ActionResult<ApiResponse<GetEmailLogsByRegistrationIdResponse>>> GetByRegistrationId(Guid registrationId, CancellationToken cancellationToken)
-    {
-        ApiResponse<GetEmailLogsByRegistrationIdResponse> response = await _emailLogService.GetByRegistrationIdAsync(registrationId, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpGet("by-user/{userId:guid}")]
-    public async Task<ActionResult<ApiResponse<GetEmailLogsByUserIdResponse>>> GetByUserId(Guid userId, CancellationToken cancellationToken)
-    {
-        ApiResponse<GetEmailLogsByUserIdResponse> response = await _emailLogService.GetByUserIdAsync(userId, cancellationToken);
+        ApiResponse<GetDiscountCodesByEditionIdResponse> response = await _discountCodeService.GetByEditionIdAsync(editionId, cancellationToken);
         return Ok(response);
     }
 
     [HttpPost]
-    public async Task<ActionResult<ApiResponse<CreateEmailLogResponse>>> Create([FromBody] CreateEmailLogRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<CreateDiscountCodeResponse>>> Create([FromBody] CreateDiscountCodeRequest request, CancellationToken cancellationToken)
     {
-        CreateEmailLogCommand command = _mapper.Map<CreateEmailLogCommand>(request);
-        ApiResponse<CreateEmailLogResponse> response = await _emailLogService.CreateAsync(command, cancellationToken);
+        CreateDiscountCodeCommand command = _mapper.Map<CreateDiscountCodeCommand>(request);
+        ApiResponse<CreateDiscountCodeResponse> response = await _discountCodeService.CreateAsync(command, cancellationToken);
         return Ok(response);
     }
 
     [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<UpdateEmailLogResponse>>> Update(Guid id, [FromBody] UpdateEmailLogRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<UpdateDiscountCodeResponse>>> Update(Guid id, [FromBody] UpdateDiscountCodeRequest request, CancellationToken cancellationToken)
     {
-        UpdateEmailLogCommand command = _mapper.Map<UpdateEmailLogCommand>(request);
-        ApiResponse<UpdateEmailLogResponse> response = await _emailLogService.UpdateAsync(id, command, cancellationToken);
+        UpdateDiscountCodeCommand command = _mapper.Map<UpdateDiscountCodeCommand>(request);
+        ApiResponse<UpdateDiscountCodeResponse> response = await _discountCodeService.UpdateAsync(id, command, cancellationToken);
         return Ok(response);
     }
 
     [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<DeleteEmailLogResponse>>> Delete(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<DeleteDiscountCodeResponse>>> Delete(Guid id, CancellationToken cancellationToken)
     {
-        ApiResponse<DeleteEmailLogResponse> response = await _emailLogService.DeleteAsync(id, cancellationToken);
+        ApiResponse<DeleteDiscountCodeResponse> response = await _discountCodeService.DeleteAsync(id, cancellationToken);
         return Ok(response);
     }
 }
 '@
 
 $dbContextPath = "$root\Alakai.FestivalManager.Infrastructure\Persistence\FestivalManagerDbContext.cs"
-Insert-AfterIfMissing $dbContextPath "public DbSet<EmailLog> EmailLogs" "    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();" "    public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();"
+Insert-AfterIfMissing $dbContextPath "public DbSet<DiscountCode> DiscountCodes" "    public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();" "    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();"
 
-New-FileIfNotExists "$root\NEXT_STEPS_EMAIL_LOGS.txt" @'
-EmailLogs backend generated.
+New-FileIfNotExists "$root\NEXT_STEPS_DISCOUNT_CODES.txt" @'
+DiscountCodes backend generated.
 
 Manual steps still required:
 
-1. Register DI in ApplicationDependencyInjectionExtension:
-   services.AddScoped<CreateEmailLogHandler>();
-   services.AddScoped<GetEmailLogByIdHandler>();
-   services.AddScoped<GetEmailLogsHandler>();
-   services.AddScoped<GetEmailLogsByEditionIdHandler>();
-   services.AddScoped<GetEmailLogsByRegistrationIdHandler>();
-   services.AddScoped<GetEmailLogsByUserIdHandler>();
-   services.AddScoped<UpdateEmailLogHandler>();
-   services.AddScoped<DeleteEmailLogHandler>();
-   services.AddScoped<IEmailLogService, EmailLogService>();
+1. Add DI in ApplicationDependencyInjectionExtension:
+   services.AddScoped<CreateDiscountCodeHandler>();
+   services.AddScoped<GetDiscountCodeByIdHandler>();
+   services.AddScoped<GetDiscountCodesHandler>();
+   services.AddScoped<GetDiscountCodesByEditionIdHandler>();
+   services.AddScoped<UpdateDiscountCodeHandler>();
+   services.AddScoped<DeleteDiscountCodeHandler>();
+   services.AddScoped<IDiscountCodeService, DiscountCodeService>();
 
-2. Register DI in InfrastructureDependencyInjectionExtension:
-   services.AddScoped<IEmailLogRepository, EmailLogRepository>();
+2. Add DI in InfrastructureDependencyInjectionExtension:
+   services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
 
-3. Add migration:
-   dotnet ef migrations add AddEmailLogs -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api
+3. Add these properties manually to Registration entity:
+   public Guid? DiscountCodeId { get; set; }
+   public DiscountCode? DiscountCode { get; set; }
+   public string? DiscountCodeValue { get; set; }
+   public DiscountApplicationStatus DiscountStatus { get; set; }
 
-4. Update database:
+4. Add these properties manually to RegistrationConfiguration:
+   builder.Property(r => r.DiscountCodeValue).HasMaxLength(100);
+   builder.Property(r => r.DiscountStatus).IsRequired();
+   builder.HasIndex(r => r.DiscountCodeId);
+   builder.HasOne(r => r.DiscountCode).WithMany().HasForeignKey(r => r.DiscountCodeId).OnDelete(DeleteBehavior.Restrict);
+
+5. Add to Registration DTO/Request/Command as needed:
+   Guid? DiscountCodeId
+   string? DiscountCodeValue
+   DiscountApplicationStatus DiscountStatus
+
+6. Migration:
+   dotnet ef migrations add AddDiscountCodes -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api
+
+7. Update database:
    dotnet ef database update -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api
+
+Next phase:
+- Add discount calculation service.
+- Integrate it into CreateRegistrationHandler.
 '@
 
 Write-Host ""
-Write-Host "EmailLogs backend generated. Only DI and migrations remain manual."
+Write-Host "DiscountCodes backend generated."
+Write-Host "Only DI, Registration manual fields, and migrations remain."

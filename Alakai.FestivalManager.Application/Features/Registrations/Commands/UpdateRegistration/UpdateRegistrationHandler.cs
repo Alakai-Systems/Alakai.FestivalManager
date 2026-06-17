@@ -9,19 +9,23 @@ public class UpdateRegistrationHandler
     private readonly IEditionRepository _editionRepository;
     private readonly IPassTypeRepository _passTypeRepository;
     private readonly ILevelRepository _levelRepository;
+    private readonly IDiscountCalculationService _discountCalculationService;
     private readonly IMapper _mapper;
 
-    public UpdateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IMapper mapper)
+    public UpdateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
+        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IMapper mapper, IDiscountCalculationService discountCalculationService)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
-        _passTypeRepository= passTypeRepository;
+        _passTypeRepository = passTypeRepository;
         _levelRepository = levelRepository;
         _mapper = mapper;
+        _discountCalculationService = discountCalculationService;
     }
 
     public async Task<RegistrationDto> HandleAsync(UpdateRegistrationCommand command, CancellationToken cancellationToken = default)
     {
+        Level? level = new Level();
         Registration? existing = await _registrationRepository.GetByIdAsync(command.Id, cancellationToken);
 
         if (existing is null)
@@ -45,7 +49,7 @@ public class UpdateRegistrationHandler
 
         if (command.LevelId.HasValue)
         {
-            Level? level = await _levelRepository.GetByIdAsync(command.LevelId.Value, cancellationToken);
+            level = await _levelRepository.GetByIdAsync(command.LevelId.Value, cancellationToken);
 
             if (level is null)
             {
@@ -79,7 +83,19 @@ public class UpdateRegistrationHandler
             }
         }
 
+        decimal basePrice = level.RegularPrice;
+
+        DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue,
+            cancellationToken);
+
         _mapper.Map(command, existing);
+
+        existing.BasePrice = basePrice;
+        existing.DiscountAmount = discount.DiscountAmount;
+        existing.FinalPrice = discount.FinalPrice;
+        existing.DiscountCodeId = discount.DiscountCodeId;
+        existing.DiscountCodeValue = discount.DiscountCodeValue;
+        existing.DiscountStatus = discount.DiscountStatus;
 
         existing.SetUpdated();
         await _registrationRepository.SaveChangesAsync(cancellationToken);

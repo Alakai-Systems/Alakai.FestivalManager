@@ -21,7 +21,6 @@ public class CreateUserHandler
         }
 
         User user = _mapper.Map<User>(command);
-        user.Id = Guid.NewGuid();
         user.Email = command.Email.Trim().ToLower();
         user.IsActive = true;
 

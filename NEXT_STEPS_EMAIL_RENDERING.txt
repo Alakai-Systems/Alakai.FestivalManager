@@ -1,0 +1,28 @@
+Email rendering services generated.
+
+Manual steps:
+
+1. In ApplicationDependencyInjectionExtension:
+   services.AddScoped<IEmailTemplateRendererService, EmailTemplateRendererService>();
+   services.AddScoped<IEmailNotificationService, EmailNotificationService>();
+
+2. In CreateRegistrationHandler constructor, add:
+   IEmailNotificationService emailNotificationService
+
+3. Inside constructor:
+   _emailNotificationService = emailNotificationService;
+
+4. After registration has been saved and has Id:
+   await _emailNotificationService.CreateRegistrationEmailLogAsync(
+       EmailTemplateKey.RegistrationCreated,
+       registration,
+       user,
+       edition,
+       passType,
+       cancellationToken);
+
+5. For admin-triggered emails later, reuse:
+   CreateRegistrationEmailLogAsync(EmailTemplateKey.WaitingPartner, ...)
+   CreateRegistrationEmailLogAsync(EmailTemplateKey.PaymentConfirmed, ...)
+   CreateRegistrationEmailLogAsync(EmailTemplateKey.PaymentFailed, ...)
+   CreateRegistrationEmailLogAsync(EmailTemplateKey.RegistrationCancelled, ...)

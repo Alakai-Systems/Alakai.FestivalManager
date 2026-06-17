@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Domain.Entities;
+
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 
 public class CreateRegistrationHandler
@@ -7,10 +9,14 @@ public class CreateRegistrationHandler
     private readonly IPassTypeRepository _passTypeRepository;
     private readonly ILevelRepository _levelRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IDiscountCalculationService _discountCalculationService;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
     private readonly IMapper _mapper;
 
     public CreateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
-        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper)
+        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper, 
+        IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService, IDiscountCodeRepository discountCodeRepository)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
@@ -18,10 +24,14 @@ public class CreateRegistrationHandler
         _levelRepository = levelRepository;
         _userRepository = userRepository;
         _mapper = mapper;
+        _emailNotificationService = emailNotificationService;
+        _discountCalculationService = discountCalculationService;
+        _discountCodeRepository = discountCodeRepository;
     }
 
     public async Task<RegistrationDto> HandleAsync(CreateRegistrationCommand command, CancellationToken cancellationToken = default)
     {
+        Level level = new();
         Edition? edition = await _editionRepository.GetByIdAsync(command.EditionId, cancellationToken);
 
         if (edition is null)
@@ -38,7 +48,7 @@ public class CreateRegistrationHandler
 
         if (command.LevelId.HasValue)
         {
-            Level? level = await _levelRepository.GetByIdAsync(command.LevelId.Value, cancellationToken);
+            level = await _levelRepository.GetByIdAsync(command.LevelId.Value, cancellationToken) ?? new Level();
 
             if (level is null)
             {
@@ -76,17 +86,46 @@ public class CreateRegistrationHandler
             await _userRepository.AddAsync(user, cancellationToken);
         }
 
+        decimal basePrice = level.RegularPrice;
+
+        DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue,
+        cancellationToken);
+
         Registration registration = _mapper.Map<Registration>(command);
         registration.UserId = user.Id;
         registration.Status = RegistrationStatus.PendingPayment;
         registration.PaymentStatus = PaymentStatus.Unpaid;
         registration.IsActive = true;
+        registration.BasePrice = basePrice;
+        registration.DiscountAmount = discount.DiscountAmount;
+        registration.FinalPrice = discount.FinalPrice;
+        registration.DiscountCodeId = discount.DiscountCodeId;
+        registration.DiscountCodeValue = discount.DiscountCodeValue;
+        registration.DiscountStatus = discount.DiscountStatus;
+
+        if (discount.DiscountCodeId.HasValue)
+        {
+            DiscountCode? code = await _discountCodeRepository.GetByIdAsync(discount.DiscountCodeId.Value, cancellationToken);
+
+            if (code is not null)
+            {
+                code.CurrentUses++;
+
+                await _discountCodeRepository.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         await _registrationRepository.AddAsync(registration, cancellationToken);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        await _emailNotificationService.CreateEmailLogAsync(
+            EmailTemplateKey.RegistrationCreated,
+            registration.Id,
+            cancellationToken);
 
         RegistrationDto dto = _mapper.Map<RegistrationDto>(registration);
 
         return dto;
     }
 }
+
