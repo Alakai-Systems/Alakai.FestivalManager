@@ -8,10 +8,9 @@ public class User : BaseEntity
     public string? Phone { get; set; }
     public string? Country { get; set; }
     public string? City { get; set; }
-    public bool IsActive { get; set; }
-    public ICollection<Registration> Registrations { get; set; } = [];
     public string PasswordHash { get; set; } = string.Empty;
-    public string? PasswordSalt { get; set; }
     public DateTime? LastLoginAt { get; set; }
     public bool MustChangePassword { get; set; }
+    public bool IsActive { get; set; }
+    public ICollection<Registration> Registrations { get; set; } = [];
 }

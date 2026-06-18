@@ -32,9 +32,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.PasswordHash)
             .HasMaxLength(500);
 
-        builder.Property(u => u.PasswordSalt)
-            .HasMaxLength(500);
-
         builder.Property(u => u.LastLoginAt);
 
         builder.Property(u => u.MustChangePassword)

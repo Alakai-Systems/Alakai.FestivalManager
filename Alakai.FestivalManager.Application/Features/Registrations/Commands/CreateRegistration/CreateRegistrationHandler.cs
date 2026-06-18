@@ -1,3 +1,4 @@
+using Alakai.FestivalManager.Application.Services.Security;
 using Alakai.FestivalManager.Domain.Entities;
 
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
@@ -12,11 +13,13 @@ public class CreateRegistrationHandler
     private readonly IEmailNotificationService _emailNotificationService;
     private readonly IDiscountCalculationService _discountCalculationService;
     private readonly IDiscountCodeRepository _discountCodeRepository;
+    private readonly IPasswordHasherService _passwordHasherService;
     private readonly IMapper _mapper;
 
     public CreateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
         IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper, 
-        IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService, IDiscountCodeRepository discountCodeRepository)
+        IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService, 
+        IDiscountCodeRepository discountCodeRepository, IPasswordHasherService passwordHasherService)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
@@ -27,6 +30,7 @@ public class CreateRegistrationHandler
         _emailNotificationService = emailNotificationService;
         _discountCalculationService = discountCalculationService;
         _discountCodeRepository = discountCodeRepository;
+        _passwordHasherService = passwordHasherService;
     }
 
     public async Task<RegistrationDto> HandleAsync(CreateRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -80,8 +84,12 @@ public class CreateRegistrationHandler
                 Phone = command.Phone,
                 Country = command.Country,
                 City = command.City,
+                PasswordHash = string.Empty,
+                MustChangePassword = false,
                 IsActive = true
             };
+
+            user.PasswordHash = _passwordHasherService.HashPassword(user, command.Password);
 
             await _userRepository.AddAsync(user, cancellationToken);
         }
