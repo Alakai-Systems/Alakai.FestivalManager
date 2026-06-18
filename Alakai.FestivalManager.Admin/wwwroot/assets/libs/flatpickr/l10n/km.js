@@ -53,7 +53,7 @@
           ],
       },
       ordinal: function () {
-          return ";
+          return "";
       },
       firstDayOfWeek: 1,
       rangeSeparator: " ដល់ ",

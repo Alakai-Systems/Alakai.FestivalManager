@@ -67,7 +67,7 @@ class Offsets {
             parallelIndex: 0n,
             index: this.offsets[layer]++,
             propertyOffset: 0n,
-            property: ",
+            property: "",
             options: []
         };
     }

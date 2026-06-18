@@ -15,7 +15,7 @@ function negateValue(value) {
     }
     // Flip sign of numbers
     if (/^[+-]?(\d+|\d*\.\d+)(e[+-]?\d+)?(%|\w+)?$/.test(value)) {
-        return value.replace(/^[+-]?/, (sign)=>sign === "-" ? " : "-");
+        return value.replace(/^[+-]?/, (sign)=>sign === "-" ? "" : "-");
     }
     // What functions we support negating numeric values for
     // var() isn't inherently a numeric function but we support it anyway

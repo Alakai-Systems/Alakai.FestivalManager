@@ -9062,7 +9062,7 @@
         });
 
         // remove the invalid empty namespace declarations
-        result = result.replace(/xmlns:NS\d+="/g, '');
+        result = result.replace(/xmlns:NS\d+=""/g, '');
         // remove these broken namespaces from attributes
         result = result.replace(/NS\d+:(\w+:\w+=")/g, '$1');
         return result;
@@ -14044,7 +14044,7 @@
           w.globals.dom.elLegendWrap.classList.add("apexcharts-align-".concat(w.config.legend.horizontalAlign));
           w.globals.dom.elLegendWrap.classList.add('apx-legend-position-' + w.config.legend.position);
           elLegend.classList.add('apexcharts-legend-series');
-          elLegend.style.margin = ".concat(w.config.legend.itemMargin.vertical, "px ").concat(w.config.legend.itemMargin.horizontal, "px");
+          elLegend.style.margin = "".concat(w.config.legend.itemMargin.vertical, "px ").concat(w.config.legend.itemMargin.horizontal, "px");
           w.globals.dom.elLegendWrap.style.width = w.config.legend.width ? w.config.legend.width + 'px' : '';
           w.globals.dom.elLegendWrap.style.height = w.config.legend.height ? w.config.legend.height + 'px' : '';
           Graphics.setAttrs(elLegend, {
@@ -14693,7 +14693,7 @@
           this.slDraggableRect = this.selectionRect.draggable().on('dragmove', this.selectionDragging.bind(this, 'dragging'));
         }
         this.preselectedSelection();
-        this.hoverArea = w.globals.dom.baseEl.querySelector(".concat(w.globals.chartClass, " .apexcharts-svg"));
+        this.hoverArea = w.globals.dom.baseEl.querySelector("".concat(w.globals.chartClass, " .apexcharts-svg"));
         this.hoverArea.classList.add('apexcharts-zoomable');
         this.eventList.forEach(function (event) {
           _this2.hoverArea.addEventListener(event, me.svgMouseEvents.bind(me, xyRatios), {
@@ -19060,7 +19060,7 @@
         var graphics = new Graphics(this.ctx);
         if (!lineFill) {
           // if user provided a function in colors, we need to eval here
-          // Note: the position of this function logic (ex. stroke: { colors: [",function(){}] }) i.e array index 1 depicts the realIndex/seriesIndex.
+          // Note: the position of this function logic (ex. stroke: { colors: ["",function(){}] }) i.e array index 1 depicts the realIndex/seriesIndex.
           var fetchColor = function fetchColor(i) {
             var exp = w.config.stroke.colors;
             var c;
@@ -21872,7 +21872,7 @@
             });
             if (startAngle !== 0) {
               elText.attr({
-                'transform-origin': ".concat(x, " ").concat(y),
+                'transform-origin': "".concat(x, " ").concat(y),
                 transform: "rotate(".concat(startAngle, " 0 0)")
               });
             }
@@ -25574,11 +25574,11 @@
         var elPath = null;
         var parent = ".apexcharts-series[data\\:realIndex='".concat(seriesIndex, "']");
         if (w.globals.axisCharts) {
-          elPath = w.globals.dom.Paper.select(".concat(parent, " path[j='").concat(dataPointIndex, "'], ").concat(parent, " circle[j='").concat(dataPointIndex, "'], ").concat(parent, " rect[j='").concat(dataPointIndex, "']")).members[0];
+          elPath = w.globals.dom.Paper.select("".concat(parent, " path[j='").concat(dataPointIndex, "'], ").concat(parent, " circle[j='").concat(dataPointIndex, "'], ").concat(parent, " rect[j='").concat(dataPointIndex, "']")).members[0];
         } else {
           // dataPointIndex will be undefined here, hence using seriesIndex
           if (typeof dataPointIndex === 'undefined') {
-            elPath = w.globals.dom.Paper.select(".concat(parent, " path[j='").concat(seriesIndex, "']")).members[0];
+            elPath = w.globals.dom.Paper.select("".concat(parent, " path[j='").concat(seriesIndex, "']")).members[0];
             if (w.config.chart.type === 'pie' || w.config.chart.type === 'polarArea' || w.config.chart.type === 'donut') {
               this.ctx.pie.pieClicked(seriesIndex);
             }

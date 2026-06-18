@@ -578,7 +578,7 @@ function FlatpickrInstance(element, instanceConfig) {
                 month > self.config.maxDate.getMonth());
         };
         self.monthsDropdownContainer.tabIndex = -1;
-        self.monthsDropdownContainer.innerHTML = ";
+        self.monthsDropdownContainer.innerHTML = "";
         for (var i = 0; i < 12; i++) {
             if (!shouldBuildMonth(i))
                 continue;
@@ -799,11 +799,11 @@ function FlatpickrInstance(element, instanceConfig) {
     function clear(triggerChangeEvent, toInitial) {
         if (triggerChangeEvent === void 0) { triggerChangeEvent = true; }
         if (toInitial === void 0) { toInitial = true; }
-        self.input.value = ";
+        self.input.value = "";
         if (self.altInput !== undefined)
-            self.altInput.value = ";
+            self.altInput.value = "";
         if (self.mobileInput !== undefined)
-            self.mobileInput.value = ";
+            self.mobileInput.value = "";
         self.selectedDates = [];
         self.latestSelectedDateObj = undefined;
         if (toInitial === true) {
@@ -932,7 +932,7 @@ function FlatpickrInstance(element, instanceConfig) {
                 if (self.timeContainer !== undefined &&
                     self.minuteElement !== undefined &&
                     self.hourElement !== undefined &&
-                    self.input.value !== " &&
+                    self.input.value !== "" &&
                     self.input.value !== undefined) {
                     updateTime();
                 }
@@ -1328,8 +1328,8 @@ function FlatpickrInstance(element, instanceConfig) {
             var defaultDateFormat = flatpickr.defaultConfig.dateFormat || defaultOptions.dateFormat;
             formats.dateFormat =
                 userConfig.noCalendar || timeMode
-                    ? "H:i" + (userConfig.enableSeconds ? ":S" : ")
-                    : defaultDateFormat + " H:i" + (userConfig.enableSeconds ? ":S" : ");
+                    ? "H:i" + (userConfig.enableSeconds ? ":S" : "")
+                    : defaultDateFormat + " H:i" + (userConfig.enableSeconds ? ":S" : "");
         }
         if (userConfig.altInput &&
             (userConfig.enableTime || timeMode) &&
@@ -1338,7 +1338,7 @@ function FlatpickrInstance(element, instanceConfig) {
             formats.altFormat =
                 userConfig.noCalendar || timeMode
                     ? "h:i" + (userConfig.enableSeconds ? ":S K" : " K")
-                    : defaultAltFormat + (" h:i" + (userConfig.enableSeconds ? ":S" : ") + " K");
+                    : defaultAltFormat + (" h:i" + (userConfig.enableSeconds ? ":S" : "") + " K");
         }
         Object.defineProperty(self.config, "minDate", {
             get: function () { return self.config._minDate; },
@@ -1850,7 +1850,7 @@ function FlatpickrInstance(element, instanceConfig) {
             var selectedDate = self.selectedDates[i];
             if (selectedDate instanceof Date &&
                 compareDates(selectedDate, date) === 0)
-                return " + i;
+                return "" + i;
         }
         return false;
     }
@@ -1907,7 +1907,7 @@ function FlatpickrInstance(element, instanceConfig) {
             self.mobileInput.value =
                 self.latestSelectedDateObj !== undefined
                     ? self.formatDate(self.latestSelectedDateObj, self.mobileFormatStr)
-                    : ";
+                    : "";
         }
         self.input.value = getDateStr(self.config.dateFormat);
         if (self.altInput !== undefined) {

@@ -36,7 +36,7 @@ function _interop_require_default(obj) {
 /** @typedef {import('postcss-selector-parser').Root} Root */ /** @typedef {import('postcss-selector-parser').Selector} Selector */ /** @typedef {import('postcss-selector-parser').Pseudo} Pseudo */ /** @typedef {import('postcss-selector-parser').Node} Node */ /** @typedef {{format: string, respectPrefix: boolean}[]} RawFormats */ /** @typedef {import('postcss-selector-parser').Root} ParsedFormats */ /** @typedef {RawFormats | ParsedFormats} AcceptedFormats */ let MERGE = ":merge";
 function formatVariantSelector(formats, { context , candidate  }) {
     var _context_tailwindConfig_prefix;
-    let prefix = (_context_tailwindConfig_prefix = context === null || context === void 0 ? void 0 : context.tailwindConfig.prefix) !== null && _context_tailwindConfig_prefix !== void 0 ? _context_tailwindConfig_prefix : ";
+    let prefix = (_context_tailwindConfig_prefix = context === null || context === void 0 ? void 0 : context.tailwindConfig.prefix) !== null && _context_tailwindConfig_prefix !== void 0 ? _context_tailwindConfig_prefix : "";
     // Parse the format selector into an AST
     let parsedFormats = formats.map((format)=>{
         let ast = (0, _postcssselectorparser.default)().astSync(format.format);

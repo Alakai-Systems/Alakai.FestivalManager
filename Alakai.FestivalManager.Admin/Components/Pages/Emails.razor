@@ -1,7 +1,337 @@
-﻿@page "/emails"
+@page "/emails"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@inject EmailTemplateApiClient EmailTemplateApiClient
+@inject EditionApiClient EditionApiClient
 
-<PageTitle>Emails</PageTitle>
+<PageHeader Title="Communication" pTitle="Email Templates"></PageHeader>
 
-<h1 class="text-2xl font-semibold text-black dark:text-white">Emails</h1>
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Email Templates</h2>
+                <p class="text-sm text-black/50 dark:text-white/40">Manage email templates and variables. Visual editor can be added later.</p>
+            </div>
 
-<p class="mt-2 text-black/60">Emails management will be available here.</p>
+            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                New Template
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading templates...</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Name</th>
+                            <th class="px-4 py-3 font-semibold">Key</th>
+                            <th class="px-4 py-3 font-semibold">Subject</th>
+                            <th class="px-4 py-3 font-semibold">Scope</th>
+                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (templates.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No email templates found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (EmailTemplateDto template in templates.OrderBy(t => t.TemplateKey).ThenBy(t => t.Name))
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">@template.Name</td>
+                                    <td class="px-4 py-3">@template.TemplateKey</td>
+                                    <td class="px-4 py-3">@template.Subject</td>
+                                    <td class="px-4 py-3">@(template.EditionId.HasValue ? "Edition" : "Global")</td>
+                                    <td class="px-4 py-3"><span class="@GetStatusClass(template.IsActive)">@(template.IsActive ? "Active" : "Inactive")</span></td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(template)"><i class="ri-pencil-line text-lg"></i></button>
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(template)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 900px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingTemplate is null ? "New Email Template" : "Edit Email Template")</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Edition</label>
+                            <select class="form-select" @bind="formModel.EditionId">
+                                <option value="">Global</option>
+                                @foreach (EditionDto edition in editions)
+                                {
+                                    <option value="@edition.Id">@edition.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Template Key</label>
+                            <select class="form-select" @bind="formModel.TemplateKey">
+                                @foreach (EmailTemplateKey key in Enum.GetValues<EmailTemplateKey>())
+                                {
+                                    <option value="@key">@key</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                            <InputText class="form-input" @bind-Value="formModel.Name" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Subject</label>
+                            <InputText class="form-input" @bind-Value="formModel.Subject" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Body HTML</label>
+                            <InputTextArea class="form-input font-mono" rows="8" @bind-Value="formModel.BodyHtml" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Body Text</label>
+                            <InputTextArea class="form-input" rows="4" @bind-Value="formModel.BodyText" />
+                        </div>
+
+                        <div class="md:col-span-2 text-xs text-black/50 dark:text-white/40">
+                            Variables: {{FestivalName}}, {{EditionName}}, {{FirstName}}, {{LastName}}, {{FullName}}, {{UserEmail}}, {{PortalUrl}}, {{PassTypeName}}, {{FinalPrice}}, {{PartnerEmail}}
+                        </div>
+
+                        <div class="flex items-center gap-4">
+                            <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsSystem" />System template</label>
+                            <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingTemplate is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-md mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Email Template</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingTemplate.Name?</p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-danger" @onclick="DeleteAsync">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EmailTemplateDto> templates = [];
+    private List<EditionDto> editions = [];
+    private EmailTemplateDto? editingTemplate;
+    private EmailTemplateDto? deletingTemplate;
+    private EmailTemplateFormModel formModel = new();
+    private bool isLoading = true;
+    private bool showModal;
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            templates = (await EmailTemplateApiClient.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingTemplate = null;
+        formModel = new EmailTemplateFormModel
+        {
+            TemplateKey = EmailTemplateKey.RegistrationCreated,
+            IsActive = true
+        };
+        showModal = true;
+    }
+
+    private void OpenEditModal(EmailTemplateDto template)
+    {
+        editingTemplate = template;
+        formModel = new EmailTemplateFormModel
+        {
+            EditionId = template.EditionId,
+            TemplateKey = template.TemplateKey,
+            Name = template.Name,
+            Subject = template.Subject,
+            BodyHtml = template.BodyHtml,
+            BodyText = template.BodyText,
+            IsSystem = template.IsSystem,
+            IsActive = template.IsActive
+        };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            if (editingTemplate is null)
+            {
+                CreateEmailTemplateRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    TemplateKey = formModel.TemplateKey,
+                    Name = formModel.Name,
+                    Subject = formModel.Subject,
+                    BodyHtml = formModel.BodyHtml,
+                    BodyText = formModel.BodyText,
+                    IsSystem = formModel.IsSystem
+                };
+
+                await EmailTemplateApiClient.CreateAsync(request);
+                successMessage = "Email template created successfully.";
+            }
+            else
+            {
+                UpdateEmailTemplateRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    TemplateKey = formModel.TemplateKey,
+                    Name = formModel.Name,
+                    Subject = formModel.Subject,
+                    BodyHtml = formModel.BodyHtml,
+                    BodyText = formModel.BodyText,
+                    IsSystem = formModel.IsSystem,
+                    IsActive = formModel.IsActive
+                };
+
+                await EmailTemplateApiClient.UpdateAsync(editingTemplate.Id, request);
+                successMessage = "Email template updated successfully.";
+            }
+
+            showModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void OpenDeleteModal(EmailTemplateDto template)
+    {
+        deletingTemplate = template;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deletingTemplate = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deletingTemplate is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await EmailTemplateApiClient.DeleteAsync(deletingTemplate.Id);
+            successMessage = "Email template deleted successfully.";
+            deletingTemplate = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+
+    private class EmailTemplateFormModel
+    {
+        public Guid? EditionId { get; set; }
+        public EmailTemplateKey TemplateKey { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string Subject { get; set; } = string.Empty;
+        public string BodyHtml { get; set; } = string.Empty;
+        public string? BodyText { get; set; }
+        public bool IsSystem { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

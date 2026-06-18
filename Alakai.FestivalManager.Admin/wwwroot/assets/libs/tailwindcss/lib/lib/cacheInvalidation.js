@@ -74,7 +74,7 @@ function _interop_require_wildcard(obj, nodeInterop) {
     try {
         return _crypto.default.createHash("md5").update(str, "utf-8").digest("binary");
     } catch (err) {
-        return ";
+        return "";
     }
 }
 function hasContentChanged(sourcePath, root) {

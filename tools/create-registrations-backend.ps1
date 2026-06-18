@@ -4,7 +4,7 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-function New-FileIfNotExists {
+function Write-File {
     param([string]$Path, [string]$Content)
 
     $directory = Split-Path $Path -Parent
@@ -13,16 +13,11 @@ function New-FileIfNotExists {
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
     }
 
-    if (-not (Test-Path $Path)) {
-        Set-Content -Path $Path -Value $Content -Encoding UTF8
-        Write-Host "Created: $Path"
-    }
-    else {
-        Write-Host "Skipped existing: $Path"
-    }
+    Set-Content -Path $Path -Value $Content -Encoding UTF8
+    Write-Host "Written: $Path"
 }
 
-function Add-LineIfMissing {
+function Add-GlobalUsing {
     param([string]$Path, [string]$Line)
 
     if (-not (Test-Path $Path)) {
@@ -32,1009 +27,696 @@ function Add-LineIfMissing {
 
     $content = Get-Content -Path $Path -Raw
 
-    if (-not $content.Contains($Line)) {
-        Add-Content -Path $Path -Value $Line -Encoding UTF8
-        Write-Host "Added global using: $Line"
-    }
-    else {
-        Write-Host "Global using already present: $Line"
-    }
-}
-
-function Insert-AfterIfMissing {
-    param([string]$Path, [string]$SearchText, [string]$InsertText, [string]$AnchorText)
-
-    if (-not (Test-Path $Path)) {
-        Write-Host "Skipped insert. File not found: $Path"
+    if ($content.Contains($Line)) {
+        Write-Host "Already present: $Line"
         return
     }
 
-    $content = Get-Content -Path $Path -Raw
-
-    if ($content.Contains($SearchText)) {
-        Write-Host "Already present: $SearchText"
-        return
-    }
-
-    if ($content.Contains($AnchorText)) {
-        $content = $content.Replace($AnchorText, "$AnchorText`r`n$InsertText")
-        Set-Content -Path $Path -Value $content -Encoding UTF8
-        Write-Host "Patched: $Path"
-    }
-    else {
-        Write-Host "Skipped insert. Anchor not found in: $Path"
-    }
+    Add-Content -Path $Path -Value $Line -Encoding UTF8
+    Write-Host "Added global using: $Line"
 }
 
 $root = Resolve-Path $SolutionRoot
+$adminRoot = Join-Path $root "Alakai.FestivalManager.Admin"
+$globalPath = Join-Path $adminRoot "Global.cs"
 
-# ============================================================
-# GLOBAL USINGS
-# ============================================================
-
-Add-LineIfMissing "$root\Alakai.FestivalManager.Domain\GlobalUsings.cs" "global using Alakai.FestivalManager.Domain.Enums;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodes;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.DTOs;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Application\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;"
-Add-LineIfMissing "$root\Alakai.FestivalManager.Api\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;"
-
-# ============================================================
-# DOMAIN ENUMS
-# ============================================================
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\DiscountType.cs" @'
-namespace Alakai.FestivalManager.Domain.Enums;
-
-public enum DiscountType
-{
-    FixedAmount = 1,
-    Percentage = 2
+if (-not (Test-Path $adminRoot)) {
+    throw "Admin project not found at $adminRoot"
 }
-'@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\DiscountActivationType.cs" @'
-namespace Alakai.FestivalManager.Domain.Enums;
+Add-GlobalUsing $globalPath "global using Alakai.FestivalManager.Admin.Contracts.Users.DTOs;"
+Add-GlobalUsing $globalPath "global using Alakai.FestivalManager.Admin.Contracts.Users.Requests;"
+Add-GlobalUsing $globalPath "global using Alakai.FestivalManager.Admin.Contracts.Users.Responses;"
 
-public enum DiscountActivationType
-{
-    Immediate = 1,
-    AfterThreshold = 2
-}
-'@
+Write-File "$adminRoot\Contracts\Users\DTOs\UserDto.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.DTOs;
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Enums\DiscountApplicationStatus.cs" @'
-namespace Alakai.FestivalManager.Domain.Enums;
-
-public enum DiscountApplicationStatus
-{
-    None = 1,
-    PendingThreshold = 2,
-    Applied = 3,
-    RefundPending = 4,
-    Refunded = 5
-}
-'@
-
-# ============================================================
-# DOMAIN ENTITY
-# ============================================================
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Domain\Entities\DiscountCode.cs" @'
-namespace Alakai.FestivalManager.Domain.Entities;
-
-public class DiscountCode : BaseEntity
-{
-    public Guid EditionId { get; set; }
-    public Edition Edition { get; set; } = default!;
-
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-
-    public DiscountType DiscountType { get; set; }
-    public decimal DiscountValue { get; set; }
-
-    public DiscountActivationType ActivationType { get; set; }
-    public int? ActivationThreshold { get; set; }
-
-    public int? MaxUses { get; set; }
-    public int CurrentUses { get; set; }
-
-    public DateTime? StartsAt { get; set; }
-    public DateTime? EndsAt { get; set; }
-
-    public bool IsActive { get; set; } = true;
-}
-'@
-
-# ============================================================
-# INFRASTRUCTURE CONFIGURATION
-# ============================================================
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Infrastructure\Configurations\DiscountCodeConfiguration.cs" @'
-namespace Alakai.FestivalManager.Infrastructure.Configurations;
-
-public class DiscountCodeConfiguration : IEntityTypeConfiguration<DiscountCode>
-{
-    public void Configure(EntityTypeBuilder<DiscountCode> builder)
-    {
-        builder.ToTable("DiscountCodes");
-
-        builder.HasKey(d => d.Id);
-
-        builder.Property(d => d.EditionId)
-            .IsRequired();
-
-        builder.Property(d => d.Code)
-            .IsRequired()
-            .HasMaxLength(50);
-
-        builder.Property(d => d.Name)
-            .IsRequired()
-            .HasMaxLength(150);
-
-        builder.Property(d => d.Description)
-            .HasMaxLength(1000);
-
-        builder.Property(d => d.DiscountType)
-            .IsRequired();
-
-        builder.Property(d => d.DiscountValue)
-            .IsRequired()
-            .HasColumnType("decimal(18,2)");
-
-        builder.Property(d => d.ActivationType)
-            .IsRequired();
-
-        builder.Property(d => d.ActivationThreshold);
-
-        builder.Property(d => d.MaxUses);
-
-        builder.Property(d => d.CurrentUses)
-            .IsRequired();
-
-        builder.Property(d => d.StartsAt);
-
-        builder.Property(d => d.EndsAt);
-
-        builder.Property(d => d.IsActive)
-            .IsRequired();
-
-        builder.HasIndex(d => d.EditionId);
-
-        builder.HasIndex(d => new { d.EditionId, d.Code })
-            .IsUnique();
-
-        builder.HasOne(d => d.Edition)
-            .WithMany()
-            .HasForeignKey(d => d.EditionId)
-            .OnDelete(DeleteBehavior.Restrict);
-    }
-}
-'@
-
-# ============================================================
-# APPLICATION REPOSITORY INTERFACE
-# ============================================================
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Contracts\Repositories\IDiscountCodeRepository.cs" @'
-namespace Alakai.FestivalManager.Application.Contracts.Repositories;
-
-public interface IDiscountCodeRepository
-{
-    Task AddAsync(DiscountCode discountCode, CancellationToken cancellationToken = default);
-    Task<DiscountCode?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<DiscountCode?> GetByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<DiscountCode>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<IReadOnlyList<DiscountCode>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
-    Task<bool> ExistsByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default);
-    void Update(DiscountCode discountCode);
-    void Delete(DiscountCode discountCode);
-    Task SaveChangesAsync(CancellationToken cancellationToken = default);
-}
-'@
-
-# ============================================================
-# INFRASTRUCTURE REPOSITORY
-# ============================================================
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Infrastructure\Repositories\DiscountCodeRepository.cs" @'
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
-
-public class DiscountCodeRepository : IDiscountCodeRepository
-{
-    private readonly FestivalManagerDbContext _context;
-
-    public DiscountCodeRepository(FestivalManagerDbContext context)
-    {
-        _context = context;
-    }
-
-    public async Task AddAsync(DiscountCode discountCode, CancellationToken cancellationToken = default)
-    {
-        await _context.DiscountCodes.AddAsync(discountCode, cancellationToken);
-    }
-
-    public async Task<DiscountCode?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        return await _context.DiscountCodes.FirstOrDefaultAsync(d => d.Id == id, cancellationToken);
-    }
-
-    public async Task<DiscountCode?> GetByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default)
-    {
-        string normalizedCode = code.Trim().ToUpperInvariant();
-        return await _context.DiscountCodes.FirstOrDefaultAsync(d => d.EditionId == editionId && d.Code == normalizedCode, cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<DiscountCode>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        return await _context.DiscountCodes.OrderBy(d => d.Code).ToListAsync(cancellationToken);
-    }
-
-    public async Task<IReadOnlyList<DiscountCode>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        return await _context.DiscountCodes.Where(d => d.EditionId == editionId).OrderBy(d => d.Code).ToListAsync(cancellationToken);
-    }
-
-    public async Task<bool> ExistsByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default)
-    {
-        string normalizedCode = code.Trim().ToUpperInvariant();
-        return await _context.DiscountCodes.AnyAsync(d => d.EditionId == editionId && d.Code == normalizedCode, cancellationToken);
-    }
-
-    public void Update(DiscountCode discountCode)
-    {
-        _context.DiscountCodes.Update(discountCode);
-    }
-
-    public void Delete(DiscountCode discountCode)
-    {
-        _context.DiscountCodes.Remove(discountCode);
-    }
-
-    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
-    {
-        await _context.SaveChangesAsync(cancellationToken);
-    }
-}
-'@
-
-# ============================================================
-# FEATURE FILES
-# ============================================================
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\DTOs\DiscountCodeDto.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.DTOs;
-
-public class DiscountCodeDto
+public class UserDto
 {
     public Guid Id { get; set; }
-    public Guid EditionId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DiscountType DiscountType { get; set; }
-    public decimal DiscountValue { get; set; }
-    public DiscountActivationType ActivationType { get; set; }
-    public int? ActivationThreshold { get; set; }
-    public int? MaxUses { get; set; }
-    public int CurrentUses { get; set; }
-    public DateTime? StartsAt { get; set; }
-    public DateTime? EndsAt { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string FullName => $"{FirstName} {LastName}";
+    public string Email { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string? Country { get; set; }
+    public string? City { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+    public DateTime? LastLoginAt { get; set; }
+    public bool MustChangePassword { get; set; }
     public bool IsActive { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Requests\CreateDiscountCodeRequest.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;
+Write-File "$adminRoot\Contracts\Users\Requests\CreateUserRequest.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Requests;
 
-public class CreateDiscountCodeRequest
+public class CreateUserRequest
 {
-    public Guid EditionId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DiscountType DiscountType { get; set; }
-    public decimal DiscountValue { get; set; }
-    public DiscountActivationType ActivationType { get; set; }
-    public int? ActivationThreshold { get; set; }
-    public int? MaxUses { get; set; }
-    public DateTime? StartsAt { get; set; }
-    public DateTime? EndsAt { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string? Country { get; set; }
+    public string? City { get; set; }
+    public string? Password { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Requests\UpdateDiscountCodeRequest.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Requests;
+Write-File "$adminRoot\Contracts\Users\Requests\UpdateUserRequest.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Requests;
 
-public class UpdateDiscountCodeRequest
+public class UpdateUserRequest
 {
-    public Guid EditionId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DiscountType DiscountType { get; set; }
-    public decimal DiscountValue { get; set; }
-    public DiscountActivationType ActivationType { get; set; }
-    public int? ActivationThreshold { get; set; }
-    public int? MaxUses { get; set; }
-    public int CurrentUses { get; set; }
-    public DateTime? StartsAt { get; set; }
-    public DateTime? EndsAt { get; set; }
+    public string FirstName { get; set; } = string.Empty;
+    public string LastName { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string? Phone { get; set; }
+    public string? Country { get; set; }
+    public string? City { get; set; }
+    public bool MustChangePassword { get; set; }
     public bool IsActive { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\CreateDiscountCode\CreateDiscountCodeCommand.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
+Write-File "$adminRoot\Contracts\Users\Responses\GetUsersResponse.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
 
-public class CreateDiscountCodeCommand
+public class GetUsersResponse
 {
-    public Guid EditionId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DiscountType DiscountType { get; set; }
-    public decimal DiscountValue { get; set; }
-    public DiscountActivationType ActivationType { get; set; }
-    public int? ActivationThreshold { get; set; }
-    public int? MaxUses { get; set; }
-    public DateTime? StartsAt { get; set; }
-    public DateTime? EndsAt { get; set; }
+    public IReadOnlyList<UserDto> Users { get; set; } = [];
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\UpdateDiscountCode\UpdateDiscountCodeCommand.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
+Write-File "$adminRoot\Contracts\Users\Responses\GetUserByIdResponse.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
 
-public class UpdateDiscountCodeCommand
+public class GetUserByIdResponse
 {
-    public Guid Id { get; set; }
-    public Guid EditionId { get; set; }
-    public string Code { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
-    public string? Description { get; set; }
-    public DiscountType DiscountType { get; set; }
-    public decimal DiscountValue { get; set; }
-    public DiscountActivationType ActivationType { get; set; }
-    public int? ActivationThreshold { get; set; }
-    public int? MaxUses { get; set; }
-    public int CurrentUses { get; set; }
-    public DateTime? StartsAt { get; set; }
-    public DateTime? EndsAt { get; set; }
-    public bool IsActive { get; set; }
+    public UserDto User { get; set; } = default!;
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\DeleteDiscountCode\DeleteDiscountCodeCommand.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
+Write-File "$adminRoot\Contracts\Users\Responses\CreateUserResponse.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
 
-public class DeleteDiscountCodeCommand
+public class CreateUserResponse
 {
-    public Guid Id { get; set; }
+    public UserDto User { get; set; } = default!;
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodeById\GetDiscountCodeByIdQuery.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;
+Write-File "$adminRoot\Contracts\Users\Responses\UpdateUserResponse.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
 
-public class GetDiscountCodeByIdQuery
+public class UpdateUserResponse
 {
-    public Guid Id { get; set; }
+    public UserDto User { get; set; } = default!;
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodesByEditionId\GetDiscountCodesByEditionIdQuery.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;
+Write-File "$adminRoot\Contracts\Users\Responses\DeleteUserResponse.cs" @'
+namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
 
-public class GetDiscountCodesByEditionIdQuery
-{
-    public Guid EditionId { get; set; }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\CreateDiscountCodeResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
-
-public class CreateDiscountCodeResponse
-{
-    public DiscountCodeDto DiscountCode { get; set; } = default!;
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\UpdateDiscountCodeResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
-
-public class UpdateDiscountCodeResponse
-{
-    public DiscountCodeDto DiscountCode { get; set; } = default!;
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\DeleteDiscountCodeResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
-
-public class DeleteDiscountCodeResponse
+public class DeleteUserResponse
 {
     public Guid Id { get; set; }
     public bool Deleted { get; set; }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\GetDiscountCodeByIdResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
+Write-File "$adminRoot\Services\Api\UserApiClient.cs" @'
+using System.Text.Json;
 
-public class GetDiscountCodeByIdResponse
+namespace Alakai.FestivalManager.Admin.Services.Api;
+
+public class UserApiClient
 {
-    public DiscountCodeDto DiscountCode { get; set; } = default!;
-}
-'@
+    private readonly HttpClient _httpClient;
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\GetDiscountCodesResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
-
-public class GetDiscountCodesResponse
-{
-    public IReadOnlyList<DiscountCodeDto> DiscountCodes { get; set; } = [];
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Contracts\Responses\GetDiscountCodesByEditionIdResponse.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Contracts.Responses;
-
-public class GetDiscountCodesByEditionIdResponse
-{
-    public IReadOnlyList<DiscountCodeDto> DiscountCodes { get; set; } = [];
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Mappings\DiscountCodeMappingProfile.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Mappings;
-
-public class DiscountCodeMappingProfile : Profile
-{
-    public DiscountCodeMappingProfile()
+    public UserApiClient(HttpClient httpClient)
     {
-        CreateMap<DiscountCode, DiscountCodeDto>();
-
-        CreateMap<CreateDiscountCodeRequest, CreateDiscountCodeCommand>();
-        CreateMap<UpdateDiscountCodeRequest, UpdateDiscountCodeCommand>();
-
-        CreateMap<CreateDiscountCodeCommand, DiscountCode>()
-            .ForMember(dest => dest.Id, opt => opt.Ignore())
-            .ForMember(dest => dest.Edition, opt => opt.Ignore())
-            .ForMember(dest => dest.CurrentUses, opt => opt.Ignore())
-            .ForMember(dest => dest.IsActive, opt => opt.Ignore());
-
-        CreateMap<UpdateDiscountCodeCommand, DiscountCode>()
-            .ForMember(dest => dest.Id, opt => opt.Ignore())
-            .ForMember(dest => dest.Edition, opt => opt.Ignore());
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Validators\CreateDiscountCodeCommandValidator.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Validators;
-
-public class CreateDiscountCodeCommandValidator : AbstractValidator<CreateDiscountCodeCommand>
-{
-    public CreateDiscountCodeCommandValidator()
-    {
-        RuleFor(d => d.EditionId).NotEmpty();
-        RuleFor(d => d.Code).NotEmpty().MaximumLength(50);
-        RuleFor(d => d.Name).NotEmpty().MaximumLength(150);
-        RuleFor(d => d.Description).MaximumLength(1000);
-        RuleFor(d => d.DiscountType).IsInEnum();
-        RuleFor(d => d.DiscountValue).GreaterThan(0);
-        RuleFor(d => d.ActivationType).IsInEnum();
-        RuleFor(d => d.ActivationThreshold).GreaterThan(0).When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
-        RuleFor(d => d.ActivationThreshold).Null().When(d => d.ActivationType == DiscountActivationType.Immediate);
-        RuleFor(d => d.MaxUses).GreaterThan(0).When(d => d.MaxUses.HasValue);
-        RuleFor(d => d.EndsAt).GreaterThan(d => d.StartsAt).When(d => d.StartsAt.HasValue && d.EndsAt.HasValue);
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Validators\UpdateDiscountCodeCommandValidator.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Validators;
-
-public class UpdateDiscountCodeCommandValidator : AbstractValidator<UpdateDiscountCodeCommand>
-{
-    public UpdateDiscountCodeCommandValidator()
-    {
-        RuleFor(d => d.Id).NotEmpty();
-        RuleFor(d => d.EditionId).NotEmpty();
-        RuleFor(d => d.Code).NotEmpty().MaximumLength(50);
-        RuleFor(d => d.Name).NotEmpty().MaximumLength(150);
-        RuleFor(d => d.Description).MaximumLength(1000);
-        RuleFor(d => d.DiscountType).IsInEnum();
-        RuleFor(d => d.DiscountValue).GreaterThan(0);
-        RuleFor(d => d.ActivationType).IsInEnum();
-        RuleFor(d => d.ActivationThreshold).GreaterThan(0).When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
-        RuleFor(d => d.ActivationThreshold).Null().When(d => d.ActivationType == DiscountActivationType.Immediate);
-        RuleFor(d => d.MaxUses).GreaterThan(0).When(d => d.MaxUses.HasValue);
-        RuleFor(d => d.CurrentUses).GreaterThanOrEqualTo(0);
-        RuleFor(d => d.EndsAt).GreaterThan(d => d.StartsAt).When(d => d.StartsAt.HasValue && d.EndsAt.HasValue);
-    }
-}
-'@
-
-# Handlers/services/controller are in a secondary block to keep the script concise enough for editing.
-# They are generated below.
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\CreateDiscountCode\CreateDiscountCodeHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
-
-public class CreateDiscountCodeHandler
-{
-    private readonly IDiscountCodeRepository _discountCodeRepository;
-    private readonly IEditionRepository _editionRepository;
-    private readonly IMapper _mapper;
-
-    public CreateDiscountCodeHandler(IDiscountCodeRepository discountCodeRepository, IEditionRepository editionRepository, IMapper mapper)
-    {
-        _discountCodeRepository = discountCodeRepository;
-        _editionRepository = editionRepository;
-        _mapper = mapper;
+        _httpClient = httpClient;
     }
 
-    public async Task<DiscountCodeDto> HandleAsync(CreateDiscountCodeCommand command, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<UserDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        Edition? edition = await _editionRepository.GetByIdAsync(command.EditionId, cancellationToken);
+        ApiResponse<GetUsersResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetUsersResponse>>("api/users", cancellationToken);
 
-        if (edition is null)
+        if (response?.Success is not true)
         {
-            throw new NotFoundException($"Edition with id '{command.EditionId}' was not found.");
+            throw new ApiClientException(response?.Message ?? "Could not load users.", response?.Errors);
         }
 
-        string normalizedCode = command.Code.Trim().ToUpperInvariant();
+        return response.Data?.Users ?? [];
+    }
 
-        bool exists = await _discountCodeRepository.ExistsByEditionAndCodeAsync(command.EditionId, normalizedCode, cancellationToken);
+    public async Task<UserDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        ApiResponse<GetUserByIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetUserByIdResponse>>($"api/users/{id}", cancellationToken);
 
-        if (exists)
+        if (response?.Success is not true || response.Data?.User is null)
         {
-            throw new BusinessRuleException($"Discount code '{normalizedCode}' already exists for this edition.");
+            throw new ApiClientException(response?.Message ?? "Could not load user.", response?.Errors);
         }
 
-        command.Code = normalizedCode;
+        return response.Data.User;
+    }
 
-        DiscountCode discountCode = _mapper.Map<DiscountCode>(command);
-        discountCode.CurrentUses = 0;
-        discountCode.IsActive = true;
+    public async Task CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/users", request, cancellationToken);
+        ApiResponse<CreateUserResponse>? response = await ReadResponseAsync<CreateUserResponse>(httpResponse, cancellationToken);
 
-        await _discountCodeRepository.AddAsync(discountCode, cancellationToken);
-        await _discountCodeRepository.SaveChangesAsync(cancellationToken);
+        EnsureSuccess(httpResponse, response);
+    }
 
-        DiscountCodeDto dto = _mapper.Map<DiscountCodeDto>(discountCode);
+    public async Task UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/users/{id}", request, cancellationToken);
+        ApiResponse<UpdateUserResponse>? response = await ReadResponseAsync<UpdateUserResponse>(httpResponse, cancellationToken);
 
-        return dto;
+        EnsureSuccess(httpResponse, response);
+    }
+
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/users/{id}", cancellationToken);
+        ApiResponse<DeleteUserResponse>? response = await ReadResponseAsync<DeleteUserResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+    }
+
+    private static async Task<ApiResponse<T>?> ReadResponseAsync<T>(HttpResponseMessage httpResponse, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await httpResponse.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken);
+        }
+        catch (JsonException)
+        {
+            string content = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
+            string message = string.IsNullOrWhiteSpace(content) ? $"Request failed with status code {(int)httpResponse.StatusCode}." : content;
+
+            throw new ApiClientException(message);
+        }
+    }
+
+    private static void EnsureSuccess<T>(HttpResponseMessage httpResponse, ApiResponse<T>? response)
+    {
+        if (httpResponse.IsSuccessStatusCode && response?.Success == true)
+        {
+            return;
+        }
+
+        string message = response?.Message ?? $"Request failed with status code {(int)httpResponse.StatusCode}.";
+        IReadOnlyList<string> errors = response?.Errors ?? [];
+
+        throw new ApiClientException(message, errors);
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\UpdateDiscountCode\UpdateDiscountCodeHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
+Write-File "$adminRoot\Components\Pages\Users.razor" @'
+@page "/users"
+@inject UserApiClient UserApiClient
 
-public class UpdateDiscountCodeHandler
-{
-    private readonly IDiscountCodeRepository _discountCodeRepository;
-    private readonly IEditionRepository _editionRepository;
-    private readonly IMapper _mapper;
+<PageHeader Title="Operations" pTitle="Users"></PageHeader>
 
-    public UpdateDiscountCodeHandler(IDiscountCodeRepository discountCodeRepository, IEditionRepository editionRepository, IMapper mapper)
-    {
-        _discountCodeRepository = discountCodeRepository;
-        _editionRepository = editionRepository;
-        _mapper = mapper;
-    }
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Users</h2>
+                <p class="text-sm text-black/50 dark:text-white/40">Manage users created from registrations and admin entries.</p>
+            </div>
 
-    public async Task<DiscountCodeDto> HandleAsync(UpdateDiscountCodeCommand command, CancellationToken cancellationToken = default)
-    {
-        DiscountCode? discountCode = await _discountCodeRepository.GetByIdAsync(command.Id, cancellationToken);
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-72" placeholder="Search users..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
-        if (discountCode is null)
+                <select class="form-select md:w-40" @bind="statusFilter" @bind:after="ResetPage">
+                    <option value="">All statuses</option>
+                    <option value="active">Active</option>
+                    <option value="inactive">Inactive</option>
+                    <option value="mustchange">Must change password</option>
+                </select>
+
+                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New User
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
         {
-            throw new NotFoundException($"Discount code with id '{command.Id}' was not found.");
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
         }
 
-        Edition? edition = await _editionRepository.GetByIdAsync(command.EditionId, cancellationToken);
-
-        if (edition is null)
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            throw new NotFoundException($"Edition with id '{command.EditionId}' was not found.");
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
         }
 
-        string normalizedCode = command.Code.Trim().ToUpperInvariant();
-
-        DiscountCode? existing = await _discountCodeRepository.GetByEditionAndCodeAsync(command.EditionId, normalizedCode, cancellationToken);
-
-        if (existing is not null && existing.Id != command.Id)
+        @if (isLoading)
         {
-            throw new BusinessRuleException($"Discount code '{normalizedCode}' already exists for this edition.");
+            <p class="text-sm text-black/50 dark:text-white/40">Loading users...</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Email")'>Email @SortIcon("Email")</button></th>
+                            <th class="px-4 py-3 font-semibold">Phone</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Country")'>Country @SortIcon("Country")</button></th>
+                            <th class="px-4 py-3 font-semibold">City</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("CreatedAt")'>Created @SortIcon("CreatedAt")</button></th>
+                            <th class="px-4 py-3 font-semibold">Login</th>
+                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (PagedUsers.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="9" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No users found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (UserDto user in PagedUsers)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium">@user.FullName</div>
+                                        @if (user.MustChangePassword)
+                                        {
+                                            <div class="text-xs text-warning">Must change password</div>
+                                        }
+                                    </td>
+                                    <td class="px-4 py-3">@user.Email</td>
+                                    <td class="px-4 py-3">@user.Phone</td>
+                                    <td class="px-4 py-3">@user.Country</td>
+                                    <td class="px-4 py-3">@user.City</td>
+                                    <td class="px-4 py-3">@FormatDate(user.CreatedAt)</td>
+                                    <td class="px-4 py-3">@FormatNullableDate(user.LastLoginAt)</td>
+                                    <td class="px-4 py-3"><span class="@GetStatusClass(user.IsActive)">@(user.IsActive ? "Active" : "Inactive")</span></td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(user)"><i class="ri-pencil-line text-lg"></i></button>
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(user)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex flex-col gap-3 mt-4 md:flex-row md:items-center md:justify-between">
+                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredUsers.Count users</p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="btn border" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="px-4 py-2 text-sm rounded bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="btn border" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 760px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingUser is null ? "New User" : "Edit User")</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <EditForm Model="formModel" OnValidSubmit="SaveAsync">
+                    <div class="p-5 space-y-4">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">First Name</label>
+                                <InputText class="form-input" @bind-Value="formModel.FirstName" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Last Name</label>
+                                <InputText class="form-input" @bind-Value="formModel.LastName" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Email</label>
+                                <InputText class="form-input" @bind-Value="formModel.Email" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Phone</label>
+                                <InputText class="form-input" @bind-Value="formModel.Phone" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Country</label>
+                                <InputText class="form-input" @bind-Value="formModel.Country" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">City</label>
+                                <InputText class="form-input" @bind-Value="formModel.City" />
+                            </div>
+
+                            @if (editingUser is null)
+                            {
+                                <div class="md:col-span-2">
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Initial Password</label>
+                                    <InputText class="form-input" type="password" @bind-Value="formModel.Password" />
+                                </div>
+                            }
+
+                            @if (editingUser is not null)
+                            {
+                                <div class="flex items-center gap-4 md:col-span-2">
+                                    <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.MustChangePassword" />Must change password</label>
+                                    <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
+                        <button type="submit" class="px-4 py-2 text-sm text-white rounded-md bg-purple">Save</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingUser is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-md mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete User</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingUser.FullName?</p>
+                    <p class="mt-2 text-sm text-danger">If this user has registrations, backend constraints may block the delete.</p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-danger" @onclick="DeleteAsync">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<UserDto> users = [];
+    private UserDto? editingUser;
+    private UserDto? deletingUser;
+    private UserFormModel formModel = new();
+    private string searchText = string.Empty;
+    private string statusFilter = string.Empty;
+    private string sortColumn = "Name";
+    private bool sortAscending = true;
+    private bool isLoading = true;
+    private bool showModal;
+    private string? successMessage;
+    private string? errorMessage;
+    private int currentPage = 1;
+    private int pageSize = 10;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            users = (await UserApiClient.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<UserDto> FilteredUsers
+    {
+        get
+        {
+            IEnumerable<UserDto> query = users;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(u => u.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase) || u.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (statusFilter == "active")
+            {
+                query = query.Where(u => u.IsActive);
+            }
+            else if (statusFilter == "inactive")
+            {
+                query = query.Where(u => !u.IsActive);
+            }
+            else if (statusFilter == "mustchange")
+            {
+                query = query.Where(u => u.MustChangePassword);
+            }
+
+            query = sortColumn switch
+            {
+                "Email" => sortAscending ? query.OrderBy(u => u.Email) : query.OrderByDescending(u => u.Email),
+                "Country" => sortAscending ? query.OrderBy(u => u.Country) : query.OrderByDescending(u => u.Country),
+                "CreatedAt" => sortAscending ? query.OrderBy(u => u.CreatedAt) : query.OrderByDescending(u => u.CreatedAt),
+                _ => sortAscending ? query.OrderBy(u => u.FullName) : query.OrderByDescending(u => u.FullName)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private List<UserDto> PagedUsers => FilteredUsers.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredUsers.Count / (double)pageSize));
+    private int StartRow => FilteredUsers.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredUsers.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
         }
 
-        command.Code = normalizedCode;
-
-        _mapper.Map(command, discountCode);
-        discountCode.SetUpdated();
-
-        await _discountCodeRepository.SaveChangesAsync(cancellationToken);
-
-        DiscountCodeDto dto = _mapper.Map<DiscountCodeDto>(discountCode);
-
-        return dto;
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Commands\DeleteDiscountCode\DeleteDiscountCodeHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
-
-public class DeleteDiscountCodeHandler
-{
-    private readonly IDiscountCodeRepository _discountCodeRepository;
-
-    public DeleteDiscountCodeHandler(IDiscountCodeRepository discountCodeRepository)
-    {
-        _discountCodeRepository = discountCodeRepository;
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
     }
 
-    public async Task HandleAsync(DeleteDiscountCodeCommand command, CancellationToken cancellationToken = default)
+    private void PreviousPage()
     {
-        DiscountCode? discountCode = await _discountCodeRepository.GetByIdAsync(command.Id, cancellationToken);
-
-        if (discountCode is null)
+        if (currentPage > 1)
         {
-            throw new NotFoundException($"Discount code with id '{command.Id}' was not found.");
+            currentPage--;
         }
-
-        _discountCodeRepository.Delete(discountCode);
-        await _discountCodeRepository.SaveChangesAsync(cancellationToken);
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodeById\GetDiscountCodeByIdHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodeById;
-
-public class GetDiscountCodeByIdHandler
-{
-    private readonly IDiscountCodeRepository _discountCodeRepository;
-    private readonly IMapper _mapper;
-
-    public GetDiscountCodeByIdHandler(IDiscountCodeRepository discountCodeRepository, IMapper mapper)
-    {
-        _discountCodeRepository = discountCodeRepository;
-        _mapper = mapper;
     }
 
-    public async Task<DiscountCodeDto> HandleAsync(GetDiscountCodeByIdQuery query, CancellationToken cancellationToken = default)
+    private void NextPage()
     {
-        DiscountCode? discountCode = await _discountCodeRepository.GetByIdAsync(query.Id, cancellationToken);
-
-        if (discountCode is null)
+        if (currentPage < TotalPages)
         {
-            throw new NotFoundException($"Discount code with id '{query.Id}' was not found.");
+            currentPage++;
         }
-
-        return _mapper.Map<DiscountCodeDto>(discountCode);
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodes\GetDiscountCodesHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodes;
-
-public class GetDiscountCodesHandler
-{
-    private readonly IDiscountCodeRepository _discountCodeRepository;
-    private readonly IMapper _mapper;
-
-    public GetDiscountCodesHandler(IDiscountCodeRepository discountCodeRepository, IMapper mapper)
-    {
-        _discountCodeRepository = discountCodeRepository;
-        _mapper = mapper;
     }
 
-    public async Task<IReadOnlyList<DiscountCodeDto>> HandleAsync(CancellationToken cancellationToken = default)
+    private void OpenCreateModal()
     {
-        IReadOnlyList<DiscountCode> discountCodes = await _discountCodeRepository.GetAllAsync(cancellationToken);
-        return _mapper.Map<IReadOnlyList<DiscountCodeDto>>(discountCodes);
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Queries\GetDiscountCodesByEditionId\GetDiscountCodesByEditionIdHandler.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.GetDiscountCodesByEditionId;
-
-public class GetDiscountCodesByEditionIdHandler
-{
-    private readonly IDiscountCodeRepository _discountCodeRepository;
-    private readonly IMapper _mapper;
-
-    public GetDiscountCodesByEditionIdHandler(IDiscountCodeRepository discountCodeRepository, IMapper mapper)
-    {
-        _discountCodeRepository = discountCodeRepository;
-        _mapper = mapper;
-    }
-
-    public async Task<IReadOnlyList<DiscountCodeDto>> HandleAsync(GetDiscountCodesByEditionIdQuery query, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<DiscountCode> discountCodes = await _discountCodeRepository.GetByEditionIdAsync(query.EditionId, cancellationToken);
-        return _mapper.Map<IReadOnlyList<DiscountCodeDto>>(discountCodes);
-    }
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Services\IDiscountCodeService.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
-
-public interface IDiscountCodeService
-{
-    Task<ApiResponse<CreateDiscountCodeResponse>> CreateAsync(CreateDiscountCodeCommand command, CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetDiscountCodeByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetDiscountCodesResponse>> GetAllAsync(CancellationToken cancellationToken = default);
-    Task<ApiResponse<GetDiscountCodesByEditionIdResponse>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
-    Task<ApiResponse<UpdateDiscountCodeResponse>> UpdateAsync(Guid id, UpdateDiscountCodeCommand command, CancellationToken cancellationToken = default);
-    Task<ApiResponse<DeleteDiscountCodeResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
-}
-'@
-
-New-FileIfNotExists "$root\Alakai.FestivalManager.Application\Features\DiscountCodes\Services\DiscountCodeService.cs" @'
-namespace Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
-
-public class DiscountCodeService : IDiscountCodeService
-{
-    private readonly CreateDiscountCodeHandler _createDiscountCodeHandler;
-    private readonly GetDiscountCodeByIdHandler _getDiscountCodeByIdHandler;
-    private readonly GetDiscountCodesHandler _getDiscountCodesHandler;
-    private readonly GetDiscountCodesByEditionIdHandler _getDiscountCodesByEditionIdHandler;
-    private readonly UpdateDiscountCodeHandler _updateDiscountCodeHandler;
-    private readonly DeleteDiscountCodeHandler _deleteDiscountCodeHandler;
-    private readonly IValidator<CreateDiscountCodeCommand> _createDiscountCodeValidator;
-    private readonly IValidator<UpdateDiscountCodeCommand> _updateDiscountCodeValidator;
-
-    public DiscountCodeService(CreateDiscountCodeHandler createDiscountCodeHandler, GetDiscountCodeByIdHandler getDiscountCodeByIdHandler, GetDiscountCodesHandler getDiscountCodesHandler, GetDiscountCodesByEditionIdHandler getDiscountCodesByEditionIdHandler, UpdateDiscountCodeHandler updateDiscountCodeHandler, DeleteDiscountCodeHandler deleteDiscountCodeHandler, IValidator<CreateDiscountCodeCommand> createDiscountCodeValidator, IValidator<UpdateDiscountCodeCommand> updateDiscountCodeValidator)
-    {
-        _createDiscountCodeHandler = createDiscountCodeHandler;
-        _getDiscountCodeByIdHandler = getDiscountCodeByIdHandler;
-        _getDiscountCodesHandler = getDiscountCodesHandler;
-        _getDiscountCodesByEditionIdHandler = getDiscountCodesByEditionIdHandler;
-        _updateDiscountCodeHandler = updateDiscountCodeHandler;
-        _deleteDiscountCodeHandler = deleteDiscountCodeHandler;
-        _createDiscountCodeValidator = createDiscountCodeValidator;
-        _updateDiscountCodeValidator = updateDiscountCodeValidator;
-    }
-
-    public async Task<ApiResponse<CreateDiscountCodeResponse>> CreateAsync(CreateDiscountCodeCommand command, CancellationToken cancellationToken = default)
-    {
-        ValidationResult validationResult = await _createDiscountCodeValidator.ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        editingUser = null;
+        formModel = new UserFormModel
         {
-            return ApiResponse<CreateDiscountCodeResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
-        }
-
-        DiscountCodeDto discountCodeDto = await _createDiscountCodeHandler.HandleAsync(command, cancellationToken);
-
-        ApiResponse<CreateDiscountCodeResponse> response = new()
-        {
-            Success = true,
-            Data = new CreateDiscountCodeResponse { DiscountCode = discountCodeDto },
-            Errors = [],
-            Message = $"{discountCodeDto.Code} is correctly registered"
+            IsActive = true
         };
-
-        return response;
+        showModal = true;
     }
 
-    public async Task<ApiResponse<GetDiscountCodeByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    private void OpenEditModal(UserDto user)
     {
-        DiscountCodeDto discountCodeDto = await _getDiscountCodeByIdHandler.HandleAsync(new GetDiscountCodeByIdQuery { Id = id }, cancellationToken);
-
-        ApiResponse<GetDiscountCodeByIdResponse> response = new()
+        editingUser = user;
+        formModel = new UserFormModel
         {
-            Success = true,
-            Data = new GetDiscountCodeByIdResponse { DiscountCode = discountCodeDto },
-            Errors = [],
-            Message = $"{discountCodeDto.Code} retrieved successfully"
+            FirstName = user.FirstName,
+            LastName = user.LastName,
+            Email = user.Email,
+            Phone = user.Phone,
+            Country = user.Country,
+            City = user.City,
+            MustChangePassword = user.MustChangePassword,
+            IsActive = user.IsActive
         };
-
-        return response;
+        showModal = true;
     }
 
-    public async Task<ApiResponse<GetDiscountCodesResponse>> GetAllAsync(CancellationToken cancellationToken = default)
+    private void CloseModal()
     {
-        IReadOnlyList<DiscountCodeDto> discountCodes = await _getDiscountCodesHandler.HandleAsync(cancellationToken);
-
-        ApiResponse<GetDiscountCodesResponse> response = new()
-        {
-            Success = true,
-            Data = new GetDiscountCodesResponse { DiscountCodes = discountCodes },
-            Errors = [],
-            Message = $"There are {discountCodes.Count} discount codes registered"
-        };
-
-        return response;
+        showModal = false;
     }
 
-    public async Task<ApiResponse<GetDiscountCodesByEditionIdResponse>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
+    private async Task SaveAsync()
     {
-        IReadOnlyList<DiscountCodeDto> discountCodes = await _getDiscountCodesByEditionIdHandler.HandleAsync(new GetDiscountCodesByEditionIdQuery { EditionId = editionId }, cancellationToken);
-
-        ApiResponse<GetDiscountCodesByEditionIdResponse> response = new()
+        try
         {
-            Success = true,
-            Data = new GetDiscountCodesByEditionIdResponse { DiscountCodes = discountCodes },
-            Errors = [],
-            Message = $"There are {discountCodes.Count} discount codes for this edition"
-        };
+            if (editingUser is null)
+            {
+                CreateUserRequest request = new()
+                {
+                    FirstName = formModel.FirstName,
+                    LastName = formModel.LastName,
+                    Email = formModel.Email,
+                    Phone = formModel.Phone,
+                    Country = formModel.Country,
+                    City = formModel.City,
+                    Password = formModel.Password
+                };
 
-        return response;
+                await UserApiClient.CreateAsync(request);
+                successMessage = "User created successfully.";
+            }
+            else
+            {
+                UpdateUserRequest request = new()
+                {
+                    FirstName = formModel.FirstName,
+                    LastName = formModel.LastName,
+                    Email = formModel.Email,
+                    Phone = formModel.Phone,
+                    Country = formModel.Country,
+                    City = formModel.City,
+                    MustChangePassword = formModel.MustChangePassword,
+                    IsActive = formModel.IsActive
+                };
+
+                await UserApiClient.UpdateAsync(editingUser.Id, request);
+                successMessage = "User updated successfully.";
+            }
+
+            showModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
     }
 
-    public async Task<ApiResponse<UpdateDiscountCodeResponse>> UpdateAsync(Guid id, UpdateDiscountCodeCommand command, CancellationToken cancellationToken = default)
+    private void OpenDeleteModal(UserDto user)
     {
-        command.Id = id;
+        deletingUser = user;
+    }
 
-        ValidationResult validationResult = await _updateDiscountCodeValidator.ValidateAsync(command, cancellationToken);
+    private void CloseDeleteModal()
+    {
+        deletingUser = null;
+    }
 
-        if (!validationResult.IsValid)
+    private async Task DeleteAsync()
+    {
+        if (deletingUser is null)
         {
-            return ApiResponse<UpdateDiscountCodeResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+            return;
         }
 
-        DiscountCodeDto discountCodeDto = await _updateDiscountCodeHandler.HandleAsync(command, cancellationToken);
-
-        ApiResponse<UpdateDiscountCodeResponse> response = new()
+        try
         {
-            Success = true,
-            Data = new UpdateDiscountCodeResponse { DiscountCode = discountCodeDto },
-            Errors = [],
-            Message = $"{discountCodeDto.Code} updated successfully"
-        };
-
-        return response;
+            await UserApiClient.DeleteAsync(deletingUser.Id);
+            successMessage = "User deleted successfully.";
+            deletingUser = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
     }
 
-    public async Task<ApiResponse<DeleteDiscountCodeResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    private static string FormatDate(DateTime date)
     {
-        await _deleteDiscountCodeHandler.HandleAsync(new DeleteDiscountCodeCommand { Id = id }, cancellationToken);
-
-        ApiResponse<DeleteDiscountCodeResponse> response = new()
+        if (date == DateTime.MinValue)
         {
-            Success = true,
-            Data = new DeleteDiscountCodeResponse { Id = id, Deleted = true },
-            Errors = [],
-            Message = "Discount code deleted successfully"
-        };
+            return "-";
+        }
 
-        return response;
+        return date.ToString("dd/MM/yyyy");
+    }
+
+    private static string FormatNullableDate(DateTime? date)
+    {
+        return date.HasValue ? date.Value.ToString("dd/MM/yyyy") : "-";
+    }
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+
+    private class UserFormModel
+    {
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public string? Country { get; set; }
+        public string? City { get; set; }
+        public string? Password { get; set; }
+        public bool MustChangePassword { get; set; }
+        public bool IsActive { get; set; }
     }
 }
 '@
 
-New-FileIfNotExists "$root\Alakai.FestivalManager.Api\Controllers\DiscountCodesController.cs" @'
-namespace Alakai.FestivalManager.Api.Controllers;
-
-[ApiController]
-[Route("api/discount-codes")]
-public class DiscountCodesController : ControllerBase
-{
-    private readonly IDiscountCodeService _discountCodeService;
-    private readonly IMapper _mapper;
-
-    public DiscountCodesController(IDiscountCodeService discountCodeService, IMapper mapper)
-    {
-        _discountCodeService = discountCodeService;
-        _mapper = mapper;
-    }
-
-    [HttpGet]
-    public async Task<ActionResult<ApiResponse<GetDiscountCodesResponse>>> GetAll(CancellationToken cancellationToken)
-    {
-        ApiResponse<GetDiscountCodesResponse> response = await _discountCodeService.GetAllAsync(cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<GetDiscountCodeByIdResponse>>> GetById(Guid id, CancellationToken cancellationToken)
-    {
-        ApiResponse<GetDiscountCodeByIdResponse> response = await _discountCodeService.GetByIdAsync(id, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpGet("by-edition/{editionId:guid}")]
-    public async Task<ActionResult<ApiResponse<GetDiscountCodesByEditionIdResponse>>> GetByEditionId(Guid editionId, CancellationToken cancellationToken)
-    {
-        ApiResponse<GetDiscountCodesByEditionIdResponse> response = await _discountCodeService.GetByEditionIdAsync(editionId, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpPost]
-    public async Task<ActionResult<ApiResponse<CreateDiscountCodeResponse>>> Create([FromBody] CreateDiscountCodeRequest request, CancellationToken cancellationToken)
-    {
-        CreateDiscountCodeCommand command = _mapper.Map<CreateDiscountCodeCommand>(request);
-        ApiResponse<CreateDiscountCodeResponse> response = await _discountCodeService.CreateAsync(command, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpPut("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<UpdateDiscountCodeResponse>>> Update(Guid id, [FromBody] UpdateDiscountCodeRequest request, CancellationToken cancellationToken)
-    {
-        UpdateDiscountCodeCommand command = _mapper.Map<UpdateDiscountCodeCommand>(request);
-        ApiResponse<UpdateDiscountCodeResponse> response = await _discountCodeService.UpdateAsync(id, command, cancellationToken);
-        return Ok(response);
-    }
-
-    [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<DeleteDiscountCodeResponse>>> Delete(Guid id, CancellationToken cancellationToken)
-    {
-        ApiResponse<DeleteDiscountCodeResponse> response = await _discountCodeService.DeleteAsync(id, cancellationToken);
-        return Ok(response);
-    }
-}
-'@
-
-$dbContextPath = "$root\Alakai.FestivalManager.Infrastructure\Persistence\FestivalManagerDbContext.cs"
-Insert-AfterIfMissing $dbContextPath "public DbSet<DiscountCode> DiscountCodes" "    public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();" "    public DbSet<EmailLog> EmailLogs => Set<EmailLog>();"
-
-New-FileIfNotExists "$root\NEXT_STEPS_DISCOUNT_CODES.txt" @'
-DiscountCodes backend generated.
-
-Manual steps still required:
-
-1. Add DI in ApplicationDependencyInjectionExtension:
-   services.AddScoped<CreateDiscountCodeHandler>();
-   services.AddScoped<GetDiscountCodeByIdHandler>();
-   services.AddScoped<GetDiscountCodesHandler>();
-   services.AddScoped<GetDiscountCodesByEditionIdHandler>();
-   services.AddScoped<UpdateDiscountCodeHandler>();
-   services.AddScoped<DeleteDiscountCodeHandler>();
-   services.AddScoped<IDiscountCodeService, DiscountCodeService>();
-
-2. Add DI in InfrastructureDependencyInjectionExtension:
-   services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
-
-3. Add these properties manually to Registration entity:
-   public Guid? DiscountCodeId { get; set; }
-   public DiscountCode? DiscountCode { get; set; }
-   public string? DiscountCodeValue { get; set; }
-   public DiscountApplicationStatus DiscountStatus { get; set; }
-
-4. Add these properties manually to RegistrationConfiguration:
-   builder.Property(r => r.DiscountCodeValue).HasMaxLength(100);
-   builder.Property(r => r.DiscountStatus).IsRequired();
-   builder.HasIndex(r => r.DiscountCodeId);
-   builder.HasOne(r => r.DiscountCode).WithMany().HasForeignKey(r => r.DiscountCodeId).OnDelete(DeleteBehavior.Restrict);
-
-5. Add to Registration DTO/Request/Command as needed:
-   Guid? DiscountCodeId
-   string? DiscountCodeValue
-   DiscountApplicationStatus DiscountStatus
-
-6. Migration:
-   dotnet ef migrations add AddDiscountCodes -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api
-
-7. Update database:
-   dotnet ef database update -p Alakai.FestivalManager.Infrastructure -s Alakai.FestivalManager.Api
-
-Next phase:
-- Add discount calculation service.
-- Integrate it into CreateRegistrationHandler.
-'@
-
-Write-Host ""
-Write-Host "DiscountCodes backend generated."
-Write-Host "Only DI, Registration manual fields, and migrations remain."
+Write-Host "Users admin files created."
+Write-Host "No Sidebar, Program.cs, App.razor, csproj, CSS or assets were modified."

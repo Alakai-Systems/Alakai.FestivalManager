@@ -122,7 +122,7 @@ function* candidatePermutations(candidate) {
         let modifier = candidate.slice(wasSlash ? dashIdx : dashIdx + 1);
         lastIndex = dashIdx - 1;
         // TODO: This feels a bit hacky
-        if (prefix === " || modifier === "/") {
+        if (prefix === "" || modifier === "/") {
             continue;
         }
         yield [
@@ -132,7 +132,7 @@ function* candidatePermutations(candidate) {
     }
 }
 function applyPrefix(matches, context) {
-    if (matches.length === 0 || context.tailwindConfig.prefix === ") {
+    if (matches.length === 0 || context.tailwindConfig.prefix === "") {
         return matches;
     }
     for (let match of matches){
@@ -243,8 +243,8 @@ function applyVariant(variant, matches, context) {
             // @-[200px] case
             if (char === "@" && separator === "-") return [];
             // group[:hover] case
-            if (char !== "@" && separator === ") return [];
-            variant = variant.replace(`${separator}[${value}]`, ");
+            if (char !== "@" && separator === "") return [];
+            variant = variant.replace(`${separator}[${value}]`, "");
             args.value = value;
         }
     }
@@ -466,7 +466,7 @@ function isValidPropName(name) {
     }
     try {
         const url = new URL(declaration);
-        return url.scheme !== " && url.host !== ";
+        return url.scheme !== "" && url.host !== "";
     } catch (err) {
         // Definitely not a valid url
         return false;

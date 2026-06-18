@@ -10,7 +10,7 @@ function ValueParser(value) {
     return new ValueParser(value);
 }
 ValueParser.prototype.toString = function() {
-    return Array.isArray(this.nodes) ? stringify(this.nodes) : ";
+    return Array.isArray(this.nodes) ? stringify(this.nodes) : "";
 };
 ValueParser.prototype.walk = function(cb, bubble) {
     walk(this.nodes, cb, bubble);

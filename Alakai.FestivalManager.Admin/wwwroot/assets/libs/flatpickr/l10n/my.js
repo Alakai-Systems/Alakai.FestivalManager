@@ -54,7 +54,7 @@
       },
       firstDayOfWeek: 1,
       ordinal: function () {
-          return ";
+          return "";
       },
       time_24hr: true,
   };

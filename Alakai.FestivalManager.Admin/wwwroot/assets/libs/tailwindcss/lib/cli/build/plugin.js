@@ -97,7 +97,7 @@ function loadBuiltinPostcssPlugins() {
                     if (rule.text.startsWith(IMPORT_COMMENT)) {
                         rule.after(postcss.atRule({
                             name: "import",
-                            params: rule.text.replace(IMPORT_COMMENT, ")
+                            params: rule.text.replace(IMPORT_COMMENT, "")
                         }));
                         rule.remove();
                     }

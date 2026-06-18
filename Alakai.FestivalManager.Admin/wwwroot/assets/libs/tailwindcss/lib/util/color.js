@@ -61,8 +61,8 @@ function parseColor(value, { loose =false  } = {}) {
             g,
             b,
             b,
-            a ? a + a : "
-        ].join(")).match(HEX);
+            a ? a + a : ""
+        ].join("")).match(HEX);
     if (hex !== null) {
         return {
             mode: "rgb",
@@ -110,7 +110,7 @@ function parseColor(value, { loose =false  } = {}) {
 function formatColor({ mode , color , alpha  }) {
     let hasAlpha = alpha !== undefined;
     if (mode === "rgba" || mode === "hsla") {
-        return `${mode}(${color.join(", ")}${hasAlpha ? `, ${alpha}` : "})`;
+        return `${mode}(${color.join(", ")}${hasAlpha ? `, ${alpha}` : ""})`;
     }
-    return `${mode}(${color.join(" ")}${hasAlpha ? ` / ${alpha}` : "})`;
+    return `${mode}(${color.join(" ")}${hasAlpha ? ` / ${alpha}` : ""})`;
 }

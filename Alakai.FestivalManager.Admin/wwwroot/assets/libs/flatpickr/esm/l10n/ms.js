@@ -40,7 +40,7 @@ export var Malaysian = {
     },
     firstDayOfWeek: 1,
     ordinal: function () {
-        return ";
+        return "";
     },
 };
 export default fp.l10ns;

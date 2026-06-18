@@ -124,7 +124,7 @@ if (process.stdout.isTTY /* Detect redirecting output to a file */  && (process.
     });
     process.exit(0);
 }
-let command = ((arg = ")=>arg.startsWith("-") ? undefined : arg)(process.argv[2]) || "build";
+let command = ((arg = "")=>arg.startsWith("-") ? undefined : arg)(process.argv[2]) || "build";
 if (commands[command] === undefined) {
     if (_fs.default.existsSync(_path.default.resolve(command))) {
         // TODO: Deprecate this in future versions

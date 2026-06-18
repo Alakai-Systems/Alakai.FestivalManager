@@ -48,7 +48,7 @@ export var UzbekLatin = {
     },
     firstDayOfWeek: 1,
     ordinal: function () {
-        return ";
+        return "";
     },
     rangeSeparator: " — ",
     weekAbbreviation: "Hafta",

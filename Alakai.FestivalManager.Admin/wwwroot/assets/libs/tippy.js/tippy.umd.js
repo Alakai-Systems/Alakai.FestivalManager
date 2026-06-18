@@ -751,7 +751,7 @@
       }
 
       popper.style.pointerEvents = instance.props.interactive && !fromHide ? '' : 'none';
-      popper.style.zIndex = " + instance.props.zIndex;
+      popper.style.zIndex = "" + instance.props.zIndex;
     }
 
     function invokeHook(hook, args, shouldInvokePropsHook) {

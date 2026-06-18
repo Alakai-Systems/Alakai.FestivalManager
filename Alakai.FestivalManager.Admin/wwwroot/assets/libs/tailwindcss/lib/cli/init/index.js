@@ -40,7 +40,7 @@ function init(args) {
         // Change colors import
         stubContentsFile = stubContentsFile.replace("../colors", "tailwindcss/colors");
         // Replace contents of {ts,js,cjs} file with the stub {simple,full}.
-        stubFile = stubFile.replace("__CONFIG__", stubContentsFile.replace("module.exports =", ").trim()).trim() + "\n\n";
+        stubFile = stubFile.replace("__CONFIG__", stubContentsFile.replace("module.exports =", "").trim()).trim() + "\n\n";
         _fs.default.writeFileSync(tailwindConfigLocation, stubFile, "utf8");
         messages.push(`Created Tailwind CSS config file: ${_path.default.basename(tailwindConfigLocation)}`);
     }

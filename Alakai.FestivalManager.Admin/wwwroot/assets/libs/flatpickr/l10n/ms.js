@@ -46,7 +46,7 @@
       },
       firstDayOfWeek: 1,
       ordinal: function () {
-          return ";
+          return "";
       },
   };
   var ms = fp.l10ns;

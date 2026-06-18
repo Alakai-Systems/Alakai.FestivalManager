@@ -40,7 +40,7 @@ const REGEX_HAS_SPECIAL = RegExp(REGEX_SPECIAL.source);
         source
     ];
     source = source.map((item)=>item instanceof RegExp ? item.source : item);
-    return source.join(");
+    return source.join("");
 }
 function pattern(source) {
     return new RegExp(toSource(source), "g");
@@ -70,5 +70,5 @@ function nestedBrackets(open, close, depth = 1) {
     ]);
 }
 function escape(string) {
-    return string && REGEX_HAS_SPECIAL.test(string) ? string.replace(REGEX_SPECIAL, "\\$&") : string || ";
+    return string && REGEX_HAS_SPECIAL.test(string) ? string.replace(REGEX_SPECIAL, "\\$&") : string || "";
 }

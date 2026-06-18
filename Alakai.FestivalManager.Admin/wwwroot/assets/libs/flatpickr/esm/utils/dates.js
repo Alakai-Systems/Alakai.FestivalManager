@@ -9,15 +9,15 @@ export var createDateFormatter = function (_a) {
             return config.formatDate(dateObj, frmt, locale);
         }
         return frmt
-            .split(")
+            .split("")
             .map(function (c, i, arr) {
             return formats[c] && arr[i - 1] !== "\\"
                 ? formats[c](dateObj, locale, config)
                 : c !== "\\"
                     ? c
-                    : ";
+                    : "";
         })
-            .join(");
+            .join("");
     };
 };
 export var createDateParser = function (_a) {
@@ -49,7 +49,7 @@ export var createDateParser = function (_a) {
             }
             else {
                 var matched = void 0, ops = [];
-                for (var i = 0, matchIndex = 0, regexStr = "; i < format.length; i++) {
+                for (var i = 0, matchIndex = 0, regexStr = ""; i < format.length; i++) {
                     var token = format[i];
                     var isBackSlash = token === "\\";
                     var escaped = format[i - 1] === "\\" || isBackSlash;

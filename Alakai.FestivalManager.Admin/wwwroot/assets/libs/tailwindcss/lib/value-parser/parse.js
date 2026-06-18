@@ -26,9 +26,9 @@ module.exports = function(input) {
     ];
     var balanced = 0;
     var parent;
-    var name = ";
-    var before = ";
-    var after = ";
+    var name = "";
+    var before = "";
+    var after = "";
     while(pos < max){
         // Whitespaces
         if (code <= 32) {
@@ -121,9 +121,9 @@ module.exports = function(input) {
                 sourceEndIndex: pos + token.length,
                 value: token,
                 before: before,
-                after: "
+                after: ""
             });
-            before = ";
+            before = "";
             pos += 1;
             code = value.charCodeAt(pos);
         // Open parentheses
@@ -179,7 +179,7 @@ module.exports = function(input) {
                         token.nodes = [];
                     }
                     if (token.unclosed && whitespacePos + 1 !== next) {
-                        token.after = ";
+                        token.after = "";
                         token.nodes.push({
                             type: "space",
                             sourceIndex: whitespacePos + 1,
@@ -191,7 +191,7 @@ module.exports = function(input) {
                         token.sourceEndIndex = next;
                     }
                 } else {
-                    token.after = ";
+                    token.after = "";
                     token.nodes = [];
                 }
                 pos = next + 1;
@@ -200,21 +200,21 @@ module.exports = function(input) {
                 tokens.push(token);
             } else {
                 balanced += 1;
-                token.after = ";
+                token.after = "";
                 token.sourceEndIndex = pos + 1;
                 tokens.push(token);
                 stack.push(token);
                 tokens = token.nodes = [];
                 parent = token;
             }
-            name = ";
+            name = "";
         // Close parentheses
         } else if (closeParentheses === code && balanced) {
             pos += 1;
             code = value.charCodeAt(pos);
             parent.after = after;
             parent.sourceEndIndex += after.length;
-            after = ";
+            after = "";
             balanced -= 1;
             stack[stack.length - 1].sourceEndIndex = pos;
             stack.pop();

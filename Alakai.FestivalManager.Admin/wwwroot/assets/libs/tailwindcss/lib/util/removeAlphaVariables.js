@@ -24,7 +24,7 @@ function removeAlphaVariables(container, toRemove) {
         }
         for (let varName of toRemove){
             if (decl.value.includes(`/ var(${varName})`)) {
-                decl.value = decl.value.replace(`/ var(${varName})`, ");
+                decl.value = decl.value.replace(`/ var(${varName})`, "");
             }
         }
     });

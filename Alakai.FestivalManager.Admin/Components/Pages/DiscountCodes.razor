@@ -1,0 +1,488 @@
+@page "/discount-codes"
+@using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@inject DiscountCodeApiClient DiscountCodeApiClient
+@inject EditionApiClient EditionApiClient
+
+<PageHeader Title="Event Setup" pTitle="Discount Codes"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div>
+                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Discount Codes</h2>
+                <p class="text-sm text-black/50 dark:text-white/40">Manage discount and group codes by edition.</p>
+            </div>
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-72" placeholder="Search discount codes..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="">All editions</option>
+                    @foreach (EditionDto edition in editions)
+                    {
+                        <option value="@edition.Id">@edition.Name</option>
+                    }
+                </select>
+
+                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Code
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading discount codes...</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Code")'>Code @SortIcon("Code")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                            <th class="px-4 py-3 font-semibold">Type</th>
+                            <th class="px-4 py-3 font-semibold">Value</th>
+                            <th class="px-4 py-3 font-semibold">Activation</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Uses")'>Uses @SortIcon("Uses")</button></th>
+                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (DiscountCodeDto item in PagedCodes)
+                        {
+                            <tr>
+                                <td class="px-4 py-3 font-medium">@item.Code</td>
+                                <td class="px-4 py-3">@item.Name</td>
+                                <td class="px-4 py-3">@item.DiscountType</td>
+                                <td class="px-4 py-3">@FormatDiscountValue(item)</td>
+                                <td class="px-4 py-3">@FormatActivation(item)</td>
+                                <td class="px-4 py-3">@item.CurrentUses</td>
+                                <td class="px-4 py-3"><span class="@GetStatusClass(item.IsActive)">@(item.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="px-4 py-3">
+                                    <div class="flex justify-end gap-3">
+                                        <button type="button" class="text-black hover:text-purple" title="Edit" @onclick="() => OpenEditModal(item)"><i class="ri-pencil-line"></i></button>
+                                        <button type="button" class="text-danger hover:text-danger/70" title="Delete" @onclick="() => OpenDeleteModal(item)"><i class="ri-delete-bin-line"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @StartRow to @EndRow of @FilteredCodes.Count discount codes
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="w-full max-w-2xl mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
+            <div class="flex items-center justify-between p-5 border-b">
+                <h3 class="text-lg font-semibold">@(editingCode is null ? "New Discount Code" : "Edit Discount Code")</h3>
+                <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+            </div>
+
+            <EditForm Model="formModel" OnValidSubmit="SaveAsync">
+                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                    <div>
+                        <label class="form-label">Edition</label>
+                        <select class="form-select" @bind="formModel.EditionId">
+                            @foreach (EditionDto edition in editions)
+                            {
+                                <option value="@edition.Id">@edition.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Code</label>
+                        <InputText class="form-input" @bind-Value="formModel.Code" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Name</label>
+                        <InputText class="form-input" @bind-Value="formModel.Name" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Discount Value</label>
+                        <InputNumber class="form-input" @bind-Value="formModel.DiscountValue" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Discount Type</label>
+                        <select class="form-select" @bind="formModel.DiscountType">
+                            <option value="@DiscountType.FixedAmount">Fixed amount</option>
+                            <option value="@DiscountType.Percentage">Percentage</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Activation</label>
+                        <select class="form-select" @bind="formModel.ActivationType">
+                            <option value="@DiscountActivationType.Immediate">Immediate</option>
+                            <option value="@DiscountActivationType.AfterThreshold">After threshold</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Threshold</label>
+                        <InputNumber class="form-input" @bind-Value="formModel.ActivationThreshold" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Max Uses</label>
+                        <InputNumber class="form-input" @bind-Value="formModel.MaxUses" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="form-label">Description</label>
+                        <InputTextArea class="form-input" rows="3" @bind-Value="formModel.Description" />
+                    </div>
+
+                    @if (editingCode is not null)
+                    {
+                        <div>
+                            <label class="form-label">Current Uses</label>
+                            <InputNumber class="form-input" @bind-Value="formModel.CurrentUses" />
+                        </div>
+
+                        <div class="flex items-center gap-2 mt-7">
+                            <InputCheckbox @bind-Value="formModel.IsActive" />
+                            <span>Active</span>
+                        </div>
+                    }
+                </div>
+
+                <div class="flex justify-end gap-3 p-5 border-t">
+                    <button type="button" class="btn border" @onclick="CloseModal">Cancel</button>
+                    <button type="submit" class="btn bg-purple text-white">Save</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (deleteCode is not null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="w-full max-w-md mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
+            <div class="p-5 border-b">
+                <h3 class="text-lg font-semibold">Delete Discount Code</h3>
+            </div>
+
+            <div class="p-5">
+                <p>Delete <strong>@deleteCode.Code</strong>?</p>
+            </div>
+
+            <div class="flex justify-end gap-3 p-5 border-t">
+                <button type="button" class="btn border" @onclick="CloseDeleteModal">Cancel</button>
+                <button type="button" class="btn bg-danger text-white" @onclick="DeleteAsync">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<DiscountCodeDto> codes = [];
+    private List<EditionDto> editions = [];
+    private DiscountCodeFormModel formModel = new();
+    private DiscountCodeDto? editingCode;
+    private DiscountCodeDto? deleteCode;
+    private string searchText = string.Empty;
+    private string editionFilter = string.Empty;
+    private string sortColumn = "Code";
+    private bool sortAscending = true;
+    private bool isLoading = true;
+    private bool isModalOpen;
+    private string? successMessage;
+    private string? errorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            codes = (await DiscountCodeApiClient.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<DiscountCodeDto> FilteredCodes
+    {
+        get
+        {
+            IEnumerable<DiscountCodeDto> query = codes;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(c => c.Code.Contains(searchText, StringComparison.OrdinalIgnoreCase) || c.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (Guid.TryParse(editionFilter, out Guid editionId))
+            {
+                query = query.Where(c => c.EditionId == editionId);
+            }
+
+            query = sortColumn switch
+            {
+                "Name" => sortAscending ? query.OrderBy(c => c.Name) : query.OrderByDescending(c => c.Name),
+                "Uses" => sortAscending ? query.OrderBy(c => c.CurrentUses) : query.OrderByDescending(c => c.CurrentUses),
+                _ => sortAscending ? query.OrderBy(c => c.Code) : query.OrderByDescending(c => c.Code)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private IEnumerable<DiscountCodeDto> PagedCodes => FilteredCodes.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredCodes.Count / (double)pageSize));
+    private int StartRow => FilteredCodes.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredCodes.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingCode = null;
+        formModel = new DiscountCodeFormModel
+        {
+            EditionId = editions.FirstOrDefault()?.Id ?? Guid.Empty,
+            DiscountType = DiscountType.FixedAmount,
+            DiscountValue = 20,
+            ActivationType = DiscountActivationType.AfterThreshold,
+            ActivationThreshold = 10,
+            IsActive = true
+        };
+        isModalOpen = true;
+    }
+
+    private void OpenEditModal(DiscountCodeDto code)
+    {
+        editingCode = code;
+        formModel = new DiscountCodeFormModel
+        {
+            EditionId = code.EditionId,
+            Code = code.Code,
+            Name = code.Name,
+            Description = code.Description,
+            DiscountType = code.DiscountType,
+            DiscountValue = code.DiscountValue,
+            ActivationType = code.ActivationType,
+            ActivationThreshold = code.ActivationThreshold,
+            MaxUses = code.MaxUses,
+            CurrentUses = code.CurrentUses,
+            IsActive = code.IsActive
+        };
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            if (editingCode is null)
+            {
+                CreateDiscountCodeRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Code = formModel.Code,
+                    Name = formModel.Name,
+                    Description = formModel.Description,
+                    DiscountType = formModel.DiscountType,
+                    DiscountValue = formModel.DiscountValue,
+                    ActivationType = formModel.ActivationType,
+                    ActivationThreshold = formModel.ActivationThreshold,
+                    MaxUses = formModel.MaxUses
+                };
+
+                await DiscountCodeApiClient.CreateAsync(request);
+                successMessage = "Discount code created.";
+            }
+            else
+            {
+                UpdateDiscountCodeRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Code = formModel.Code,
+                    Name = formModel.Name,
+                    Description = formModel.Description,
+                    DiscountType = formModel.DiscountType,
+                    DiscountValue = formModel.DiscountValue,
+                    ActivationType = formModel.ActivationType,
+                    ActivationThreshold = formModel.ActivationThreshold,
+                    MaxUses = formModel.MaxUses,
+                    CurrentUses = formModel.CurrentUses,
+                    IsActive = formModel.IsActive
+                };
+
+                await DiscountCodeApiClient.UpdateAsync(editingCode.Id, request);
+                successMessage = "Discount code updated.";
+            }
+
+            CloseModal();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void OpenDeleteModal(DiscountCodeDto code)
+    {
+        deleteCode = code;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteCode = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deleteCode is null)
+        {
+            return;
+        }
+
+        try
+        {
+            await DiscountCodeApiClient.DeleteAsync(deleteCode.Id);
+            successMessage = "Discount code deleted.";
+            deleteCode = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private static string FormatDiscountValue(DiscountCodeDto code)
+    {
+        return code.DiscountType == DiscountType.Percentage ? $"{code.DiscountValue:0.##}%" : $"{code.DiscountValue:0.##} €";
+    }
+
+    private static string FormatActivation(DiscountCodeDto code)
+    {
+        return code.ActivationType == DiscountActivationType.Immediate ? "Immediate" : $"After {code.ActivationThreshold}";
+    }
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "px-2 py-1 text-xs rounded bg-success/10 text-success" : "px-2 py-1 text-xs rounded bg-danger/10 text-danger";
+    }
+
+    private class DiscountCodeFormModel
+    {
+        public Guid EditionId { get; set; }
+        public string Code { get; set; } = string.Empty;
+        public string Name { get; set; } = string.Empty;
+        public string? Description { get; set; }
+        public DiscountType DiscountType { get; set; }
+        public decimal DiscountValue { get; set; }
+        public DiscountActivationType ActivationType { get; set; }
+        public int? ActivationThreshold { get; set; }
+        public int? MaxUses { get; set; }
+        public int CurrentUses { get; set; }
+        public bool IsActive { get; set; }
+    }
+}

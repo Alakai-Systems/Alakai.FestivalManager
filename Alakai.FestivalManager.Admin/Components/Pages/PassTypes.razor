@@ -16,10 +16,6 @@
     <div class="grid grid-cols-1 gap-4">
         <div class="card">
             <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-                <div>
-                    <h2 class="text-base font-semibold text-black capitalize dark:text-white">Pass Types</h2>
-                    <p class="text-sm text-black/50 dark:text-white/40">Manage pass type configuration.</p>
-                </div>
 
                 <div class="flex flex-col gap-3 md:flex-row md:items-center">
                     <div class="relative w-full md:w-72">
@@ -588,11 +584,7 @@
 
     private string GetEditionName(Guid? editionId)
     {
-        if (editionId is null || editionId == Guid.Empty) 
-        {
-            return string.Empty;
-        }
-
+        if (editionId is null || editionId == Guid.Empty) return string.Empty;
         EditionDto? ed = editions.FirstOrDefault(e => e.Id == editionId);
 
         if(ed is null)

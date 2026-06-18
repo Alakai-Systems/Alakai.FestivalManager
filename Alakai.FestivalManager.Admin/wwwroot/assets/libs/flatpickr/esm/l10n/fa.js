@@ -48,7 +48,7 @@ export var Persian = {
     },
     firstDayOfWeek: 6,
     ordinal: function () {
-        return ";
+        return "";
     },
 };
 fp.l10ns.fa = Persian;

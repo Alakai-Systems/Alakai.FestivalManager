@@ -48,7 +48,7 @@ export var Georgian = {
     },
     firstDayOfWeek: 1,
     ordinal: function () {
-        return ";
+        return "";
     },
     rangeSeparator: " — ",
     weekAbbreviation: "კვ.",

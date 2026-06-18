@@ -39,7 +39,7 @@ function pathToString(path) {
     return path.reduce((acc, cur, i)=>{
         if (cur.includes(".")) return `${acc}[${cur}]`;
         return i === 0 ? cur : `${acc}.${cur}`;
-    }, ");
+    }, "");
 }
 function list(items) {
     return items.map((key)=>`'${key}'`).join(", ");
@@ -48,7 +48,7 @@ function listKeys(obj) {
     return list(Object.keys(obj));
 }
 function validatePath(config, path, defaultValue, themeOpts = {}) {
-    const pathString = Array.isArray(path) ? pathToString(path) : path.replace(/^['"]+|['"]+$/g, ");
+    const pathString = Array.isArray(path) ? pathToString(path) : path.replace(/^['"]+|['"]+$/g, "");
     const pathSegments = Array.isArray(path) ? path : (0, _toPath.toPath)(pathString);
     const value = (0, _dlv.default)(config.theme, pathSegments, defaultValue);
     if (value === undefined) {
@@ -115,11 +115,11 @@ function validatePath(config, path, defaultValue, themeOpts = {}) {
 function extractArgs(node, vNodes, functions) {
     vNodes = vNodes.map((vNode)=>resolveVNode(node, vNode, functions));
     let args = [
-        "
+        ""
     ];
     for (let vNode of vNodes){
         if (vNode.type === "div" && vNode.value === ",") {
-            args.push(");
+            args.push("");
         } else {
             args[args.length - 1] += _index.default.stringify(vNode);
         }
@@ -151,7 +151,7 @@ let nodeTypePropertyMap = {
  */ function* toPaths(path) {
     // Strip quotes from beginning and end of string
     // This allows the alpha value to be present inside of quotes
-    path = path.replace(/^['"]+|['"]+$/g, ");
+    path = path.replace(/^['"]+|['"]+$/g, "");
     let matches = path.match(/^([^\s]+)(?![^\[]*\])(?:\s*\/\s*([^\/\s]+))$/);
     let alpha = undefined;
     yield [
@@ -217,7 +217,7 @@ function _default(context) {
             return value;
         },
         screen: (node, screen)=>{
-            screen = screen.replace(/^['"]+/g, ").replace(/['"]+$/g, ");
+            screen = screen.replace(/^['"]+/g, "").replace(/['"]+$/g, "");
             let screens = (0, _normalizeScreens.normalizeScreens)(config.theme.screens);
             let screenDefinition = screens.find(({ name  })=>name === screen);
             if (!screenDefinition) {

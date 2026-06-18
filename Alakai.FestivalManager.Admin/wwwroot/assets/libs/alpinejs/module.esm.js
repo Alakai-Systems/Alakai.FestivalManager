@@ -332,13 +332,13 @@ function collapseProxies() {
 // packages/alpinejs/src/interceptor.js
 function initInterceptors(data2) {
   let isObject2 = (val) => typeof val === "object" && !Array.isArray(val) && val !== null;
-  let recurse = (obj, basePath = ") => {
+  let recurse = (obj, basePath = "") => {
     Object.entries(Object.getOwnPropertyDescriptors(obj)).forEach(([key, { value, enumerable }]) => {
       if (enumerable === false || value === void 0)
         return;
       if (typeof value === "object" && value !== null && value.__v_skip)
         return;
-      let path = basePath === " ? key : `${basePath}.${key}`;
+      let path = basePath === "" ? key : `${basePath}.${key}`;
       if (typeof value === "object" && value !== null && value._x_interceptor) {
         obj[key] = value.initialize(data2, path, key);
       } else {
@@ -437,7 +437,7 @@ function handleError(error2, el, expression = void 0) {
   );
   console.warn(`Alpine Expression Error: ${error2.message}
 
-${expression ? 'Expression: "' + expression + '"\n\n' : "}`, el);
+${expression ? 'Expression: "' + expression + '"\n\n' : ""}`, el);
   setTimeout(() => {
     throw error2;
   }, 0);
@@ -542,7 +542,7 @@ function runIfTypeOfFunction(receiver, value, scope2, params, el) {
 
 // packages/alpinejs/src/directives.js
 var prefixAsString = "x-";
-function prefix(subject = ") {
+function prefix(subject = "") {
   return prefixAsString + subject;
 }
 function setPrefix(newPrefix) {
@@ -675,7 +675,7 @@ function toParsedDirectives(transformedAttributeMap, originalAttributeOverride) 
     return {
       type: typeMatch ? typeMatch[1] : null,
       value: valueMatch ? valueMatch[1] : null,
-      modifiers: modifiers.map((i) => i.replace(".", ")),
+      modifiers: modifiers.map((i) => i.replace(".", "")),
       expression: value,
       original
     };
@@ -885,7 +885,7 @@ function setClassesFromString(el, classString) {
       el.classList.remove(...classes);
     };
   };
-  classString = classString === true ? classString = " : classString || ";
+  classString = classString === true ? classString = "" : classString || "";
   return addClassesAndReturnUndo(missingClasses(classString));
 }
 function setClassesFromObject(el, classObject) {
@@ -941,7 +941,7 @@ function setStylesFromString(el, value) {
   let cache = el.getAttribute("style", value);
   el.setAttribute("style", value);
   return () => {
-    el.setAttribute("style", cache || ");
+    el.setAttribute("style", cache || "");
   };
 }
 function kebabCase(subject) {
@@ -975,7 +975,7 @@ directive("transition", (el, { value, modifiers, expression }, { evaluate: evalu
   }
 });
 function registerTransitionsFromClassString(el, classString, stage) {
-  registerTransitionObject(el, setClasses, ");
+  registerTransitionObject(el, setClasses, "");
   let directiveStorageMap = {
     "enter": (classes) => {
       el._x_transition.enter.during = classes;
@@ -1196,10 +1196,10 @@ function performTransition(el, stages) {
   requestAnimationFrame(() => {
     if (interrupted)
       return;
-    let duration = Number(getComputedStyle(el).transitionDuration.replace(/,.*/, ").replace("s", ")) * 1e3;
-    let delay = Number(getComputedStyle(el).transitionDelay.replace(/,.*/, ").replace("s", ")) * 1e3;
+    let duration = Number(getComputedStyle(el).transitionDuration.replace(/,.*/, "").replace("s", "")) * 1e3;
+    let delay = Number(getComputedStyle(el).transitionDelay.replace(/,.*/, "").replace("s", "")) * 1e3;
     if (duration === 0)
-      duration = Number(getComputedStyle(el).animationDuration.replace("s", ")) * 1e3;
+      duration = Number(getComputedStyle(el).animationDuration.replace("s", "")) * 1e3;
     mutateDom(() => {
       stages.before();
     });
@@ -1353,7 +1353,7 @@ function bindInputValue(el, value) {
   } else {
     if (el.value === value)
       return;
-    el.value = value === void 0 ? " : value;
+    el.value = value === void 0 ? "" : value;
   }
 }
 function bindClasses(el, value) {
@@ -1391,7 +1391,7 @@ function setPropertyIfChanged(el, propName, value) {
 }
 function updateSelect(el, value) {
   const arrayWrappedValue = [].concat(value).map((value2) => {
-    return value2 + ";
+    return value2 + "";
   });
   Array.from(el.options).forEach((option) => {
     option.selected = arrayWrappedValue.includes(option.value);
@@ -1465,7 +1465,7 @@ function getAttributeBinding(el, name, fallback) {
   let attr = el.getAttribute(name);
   if (attr === null)
     return typeof fallback === "function" ? fallback() : fallback;
-  if (attr === ")
+  if (attr === "")
     return true;
   if (isBooleanAttr(name)) {
     return !![name, "true"].includes(attr);
@@ -1726,7 +1726,7 @@ var toTypeString = (value) => objectToString.call(value);
 var toRawType = (value) => {
   return toTypeString(value).slice(8, -1);
 };
-var isIntegerKey = (key) => isString(key) && key !== "NaN" && key[0] !== "-" && " + parseInt(key, 10) === key;
+var isIntegerKey = (key) => isString(key) && key !== "NaN" && key[0] !== "-" && "" + parseInt(key, 10) === key;
 var cacheStringFunction = (fn) => {
   const cache = /* @__PURE__ */ Object.create(null);
   return (str) => {
@@ -1736,7 +1736,7 @@ var cacheStringFunction = (fn) => {
 };
 var camelizeRE = /-(\w)/g;
 var camelize = cacheStringFunction((str) => {
-  return str.replace(camelizeRE, (_, c) => c ? c.toUpperCase() : ");
+  return str.replace(camelizeRE, (_, c) => c ? c.toUpperCase() : "");
 });
 var hyphenateRE = /\B([A-Z])/g;
 var hyphenate = cacheStringFunction((str) => str.replace(hyphenateRE, "-$1").toLowerCase());
@@ -1748,8 +1748,8 @@ var hasChanged = (value, oldValue) => value !== oldValue && (value === value || 
 var targetMap = /* @__PURE__ */ new WeakMap();
 var effectStack = [];
 var activeEffect;
-var ITERATE_KEY = Symbol(true ? "iterate" : ");
-var MAP_KEY_ITERATE_KEY = Symbol(true ? "Map key iterate" : ");
+var ITERATE_KEY = Symbol(true ? "iterate" : "");
+var MAP_KEY_ITERATE_KEY = Symbol(true ? "Map key iterate" : "");
 function isEffect(fn) {
   return fn && fn._isEffect === true;
 }
@@ -1933,7 +1933,7 @@ function createArrayInstrumentations() {
     instrumentations[key] = function(...args) {
       const arr = toRaw(this);
       for (let i = 0, l = this.length; i < l; i++) {
-        track(arr, "get", i + ");
+        track(arr, "get", i + "");
       }
       const res = arr[key](...args);
       if (res === -1 || res === false) {
@@ -2474,7 +2474,7 @@ function setIdRoot(el, name) {
 
 // packages/alpinejs/src/magics/$id.js
 magic("id", (el, { cleanup: cleanup2 }) => (name, key = null) => {
-  let cacheKey = `${name}${key ? `-${key}` : "}`;
+  let cacheKey = `${name}${key ? `-${key}` : ""}`;
   return cacheIdByNameOnElement(el, cacheKey, cleanup2, () => {
     let root = closestIdRoot(el, name);
     let id = root ? root._x_ids[name] : findAndIncrementId(name);
@@ -2825,7 +2825,7 @@ directive("model", (el, { modifiers, expression }, { effect: effect3, cleanup: c
     setValue(getInputValue(el, modifiers, e, getValue()));
   });
   if (modifiers.includes("fill")) {
-    if ([void 0, null, "].includes(getValue()) || el.type === "checkbox" && Array.isArray(getValue()) || el.tagName.toLowerCase() === "select" && el.multiple) {
+    if ([void 0, null, ""].includes(getValue()) || el.type === "checkbox" && Array.isArray(getValue()) || el.tagName.toLowerCase() === "select" && el.multiple) {
       setValue(
         getInputValue(el, modifiers, { target: el }, getValue())
       );
@@ -2851,7 +2851,7 @@ directive("model", (el, { modifiers, expression }, { effect: effect3, cleanup: c
   };
   el._x_forceModelUpdate = (value) => {
     if (value === void 0 && typeof expression === "string" && expression.match(/\./))
-      value = ";
+      value = "";
     window.fromModel = true;
     mutateDom(() => bind(el, "value", value));
     delete window.fromModel;
@@ -2992,7 +2992,7 @@ var handler2 = (el, { value, modifiers, expression, original }, { effect: effect
   let evaluate2 = evaluateLater(el, expression);
   effect3(() => evaluate2((result) => {
     if (result === void 0 && typeof expression === "string" && expression.match(/\./)) {
-      result = ";
+      result = "";
     }
     mutateDom(() => bind(el, value, result, modifiers));
   }));
@@ -3018,7 +3018,7 @@ addRootSelector(() => `[${prefix("data")}]`);
 directive("data", (el, { expression }, { cleanup: cleanup2 }) => {
   if (shouldSkipRegisteringDataDuringClone(el))
     return;
-  expression = expression === " ? "{}" : expression;
+  expression = expression === "" ? "{}" : expression;
   let magicContext = {};
   injectMagics(magicContext, el);
   let dataProviderContext = {};
@@ -3246,10 +3246,10 @@ function parseForExpression(expression) {
     return;
   let res = {};
   res.items = inMatch[2].trim();
-  let item = inMatch[1].replace(stripParensRE, ").trim();
+  let item = inMatch[1].replace(stripParensRE, "").trim();
   let iteratorMatch = item.match(forIteratorRE);
   if (iteratorMatch) {
-    res.item = item.replace(forIteratorRE, ").trim();
+    res.item = item.replace(forIteratorRE, "").trim();
     res.index = iteratorMatch[1].trim();
     if (iteratorMatch[2]) {
       res.collection = iteratorMatch[2].trim();
@@ -3262,12 +3262,12 @@ function parseForExpression(expression) {
 function getIterationScopeVariables(iteratorNames, item, index, items) {
   let scopeVariables = {};
   if (/^\[.*\]$/.test(iteratorNames.item) && Array.isArray(item)) {
-    let names = iteratorNames.item.replace("[", ").replace("]", ").split(",").map((i) => i.trim());
+    let names = iteratorNames.item.replace("[", "").replace("]", "").split(",").map((i) => i.trim());
     names.forEach((name, i) => {
       scopeVariables[name] = item[i];
     });
   } else if (/^\{.*\}$/.test(iteratorNames.item) && !Array.isArray(item) && typeof item === "object") {
-    let names = iteratorNames.item.replace("{", ").replace("}", ").split(",").map((i) => i.trim());
+    let names = iteratorNames.item.replace("{", "").replace("}", "").split(",").map((i) => i.trim());
     names.forEach((name) => {
       scopeVariables[name] = item[name];
     });

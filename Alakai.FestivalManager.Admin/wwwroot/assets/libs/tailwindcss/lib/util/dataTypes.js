@@ -110,7 +110,7 @@ function normalize(value, context = null, isRoot = true) {
                 return part;
             }
             return normalize(part, context, false);
-        }).join(");
+        }).join("");
     }
     // Convert `_` to ` `, except for escaped underscores `\_`
     value = value.replace(/([^\\])_+/g, (fullMatch, characterBefore)=>characterBefore + " ".repeat(fullMatch.length - 1)).replace(/^_/g, " ").replace(/\\_/g, "_");
@@ -177,14 +177,14 @@ function normalizeAttributeSelectors(value) {
         "repeating-conic-gradient"
     ];
     return value.replace(/(calc|min|max|clamp)\(.+\)/g, (match)=>{
-        let result = ";
+        let result = "";
         function lastChar() {
             let char = result.trimEnd();
             return char[char.length - 1];
         }
         for(let i = 0; i < match.length; i++){
             function peek(word) {
-                return word.split(").every((char, j)=>match[i + j] === char);
+                return word.split("").every((char, j)=>match[i + j] === char);
             }
             function consumeUntil(chars) {
                 let minIndex = Infinity;

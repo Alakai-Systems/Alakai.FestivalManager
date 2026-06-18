@@ -1,7 +1,643 @@
-﻿@page "/registrations"
+@page "/registrations"
+@using Alakai.FestivalManager.Admin.Components.Layout
+@inject RegistrationApiClient RegistrationApiClient
+@inject PassTypeApiClient PassTypeApiClient
+@inject LevelApiClient LevelApiClient
 
-<PageTitle>Registrations</PageTitle>
+<PageHeader Title="Operations" pTitle="Registrations"></PageHeader>
 
-<h1 class="text-2xl font-semibold text-black dark:text-white">Registrations</h1>
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
 
-<p class="mt-2 text-black/60">Registration management will be available here.</p>
+        <div class="flex flex-col gap-3 mb-5 md:flex-row md:items-center md:flex-wrap">
+
+            <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                <option value="10">10 rows</option>
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+            </select>
+
+            <div class="relative w-full md:w-72">
+                <input class="form-input" placeholder="Search by name or email..."
+                       @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+            </div>
+
+            <select class="form-select w-full md:w-44" @bind="paymentFilter" @bind:after="ResetPage">
+                <option value="">All payment statuses</option>
+                <option value="@PaymentStatus.Paid">Paid</option>
+                <option value="@PaymentStatus.Unpaid">Unpaid</option>
+                <option value="@PaymentStatus.Pending">Pending</option>
+                <option value="@PaymentStatus.Failed">Failed</option>
+                <option value="@PaymentStatus.Refunded">Refunded</option>
+            </select>
+
+            <select class="form-select w-full md:w-44" @bind="partnerFilter" @bind:after="ResetPage">
+                <option value="">All partner statuses</option>
+                <option value="complete">Partner registered</option>
+                <option value="missing">Partner missing</option>
+                <option value="none">No partner</option>
+            </select>
+
+            <select class="form-select w-full md:w-44" @bind="passTypeFilter" @bind:after="ResetPage">
+                <option value="">All pass types</option>
+                @foreach (PassTypeDto passType in passTypes)
+                {
+                    <option value="@passType.Id">@passType.Name</option>
+                }
+            </select>
+
+            <select class="form-select w-full md:w-44" @bind="levelFilter" @bind:after="ResetPage">
+                <option value="">All levels</option>
+                @foreach (LevelDto level in levels)
+                {
+                    <option value="@level.Id">@level.Name</option>
+                }
+            </select>
+
+            <select class="form-select w-full md:w-44" @bind="groupFilter" @bind:after="ResetPage">
+                <option value="">All groups</option>
+                @foreach (string group in Groups)
+                {
+                    <option value="@group">@group</option>
+                }
+            </select>
+
+        </div>
+
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading registrations...</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Pass")'>Pass @SortIcon("Pass")</button></th>
+                            <th class="px-4 py-3 font-semibold">Level</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
+                            <th class="px-4 py-3 font-semibold">Price</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Group")'>Group @SortIcon("Group")</button></th>
+                            <th class="px-4 py-3 font-semibold">Partner</th>
+                            <th class="px-4 py-3 font-semibold">Payment</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Date")'>Date @SortIcon("Date")</button></th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (RegistrationDto registration in PagedRegistrations)
+                        {
+                            <tr class="@GetRowClass(registration)">
+                                <td class="px-4 py-3">
+                                    <div class="font-medium">@registration.FullName</div>
+                                    <div class="text-xs text-black/50">@registration.Email</div>
+                                </td>
+                                <td class="px-4 py-3">@GetPassTypeName(registration.PassTypeId)</td>
+                                <td class="px-4 py-3">@GetLevelName(registration.LevelId)</td>
+                                <td class="px-4 py-3">@FormatRole(registration.DanceRole)</td>
+                                <td class="px-4 py-3">
+                                    <div>@registration.FinalPrice.ToString("0.##") €</div>
+                                    <div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
+                                </td>
+                                <td class="px-4 py-3">@registration.GroupCode</td>
+                                <td class="px-4 py-3">@FormatPartner(registration)</td>
+                                <td class="px-4 py-3"><span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span></td>
+                                <td class="px-4 py-3">@FormatDate(registration.CreatedAt)</td>
+                                <td class="px-4 py-3">
+                                    <div class="flex justify-end gap-2">
+                                        <button type="button" class="text-black hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
+                                        <button type="button" class="text-black hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
+                                        <button type="button" class="text-black hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
+                                        <button type="button" class="text-black hover:text-purple" title="Missing partner email" @onclick='() => EmailAction("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
+                                        <button type="button" class="text-black hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
+                                        <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @StartRow to @EndRow of @FilteredRegistrations.Count registrations
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (editingRegistration is not null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="w-full max-w-3xl mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
+            <div class="flex items-center justify-between p-5 border-b">
+                <h3 class="text-lg font-semibold">Edit Registration</h3>
+                <button type="button" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
+            </div>
+
+            <EditForm Model="editModel" OnValidSubmit="SaveEditAsync">
+                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                    <div>
+                        <label class="form-label">First Name</label>
+                        <InputText class="form-input" @bind-Value="editModel.FirstName" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Last Name</label>
+                        <InputText class="form-input" @bind-Value="editModel.LastName" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Email</label>
+                        <InputText class="form-input" @bind-Value="editModel.Email" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Phone</label>
+                        <InputText class="form-input" @bind-Value="editModel.Phone" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Pass Type</label>
+                        <select class="form-select" @bind="editModel.PassTypeId">
+                            @foreach (PassTypeDto passType in passTypes)
+                            {
+                                <option value="@passType.Id">@passType.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Level</label>
+                        <select class="form-select" @bind="editModel.LevelId">
+                            <option value="">No level</option>
+                            @foreach (LevelDto level in levels)
+                            {
+                                <option value="@level.Id">@level.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Dance Role</label>
+                        <select class="form-select" @bind="editModel.DanceRole">
+                            <option value="">No role</option>
+                            <option value="@DanceRole.Leader">Leader</option>
+                            <option value="@DanceRole.Follower">Follower</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Partner Email</label>
+                        <InputText class="form-input" @bind-Value="editModel.PartnerEmail" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Payment Status</label>
+                        <select class="form-select" @bind="editModel.PaymentStatus">
+                            <option value="@PaymentStatus.Unpaid">Unpaid</option>
+                            <option value="@PaymentStatus.Pending">Pending</option>
+                            <option value="@PaymentStatus.Paid">Paid</option>
+                            <option value="@PaymentStatus.Failed">Failed</option>
+                            <option value="@PaymentStatus.Refunded">Refunded</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Registration Status</label>
+                        <select class="form-select" @bind="editModel.Status">
+                            <option value="@RegistrationStatus.PendingPayment">Pending Payment</option>
+                            <option value="@RegistrationStatus.Registered">Pending Payment</option>
+                            <option value="@RegistrationStatus.Confirmed">Confirmed</option>
+                            <option value="@RegistrationStatus.WaitingPartner">Waiting Partner</option>
+                            <option value="@RegistrationStatus.Cancelled">Cancelled</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="form-label">Base Price</label>
+                        <InputNumber class="form-input" @bind-Value="editModel.BasePrice" />
+                    </div>
+
+                    <div>
+                        <label class="form-label">Group Code</label>
+                        <InputText class="form-input" @bind-Value="editModel.DiscountCodeValue" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="form-label">Internal Notes</label>
+                        <InputTextArea class="form-input" rows="3" @bind-Value="editModel.InternalNotes" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 p-5 border-t">
+                    <button type="button" class="btn border" @onclick="CloseEditModal">Cancel</button>
+                    <button type="submit" class="btn bg-purple text-white">Save</button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@if (deleteRegistration is not null)
+{
+    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+        <div class="w-full max-w-md mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
+            <div class="p-5 border-b">
+                <h3 class="text-lg font-semibold">Delete Registration</h3>
+            </div>
+
+            <div class="p-5">
+                <p>Delete <strong>@deleteRegistration.FullName</strong>?</p>
+                <p class="mt-2 text-sm text-black/50">The backend should physically delete the registration and related entries/logs.</p>
+                <p class="mt-2 text-sm text-black/50">Cancellation email button is prepared, but the send endpoint is still pending.</p>
+            </div>
+
+            <div class="flex justify-end gap-3 p-5 border-t">
+                <button type="button" class="btn border" @onclick="CloseDeleteModal">Cancel</button>
+                <button type="button" class="btn bg-danger text-white" @onclick="DeleteAsync">Delete</button>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RegistrationDto> registrations = [];
+    private List<PassTypeDto> passTypes = [];
+    private List<LevelDto> levels = [];
+    private RegistrationDto? editingRegistration;
+    private RegistrationDto? deleteRegistration;
+    private RegistrationEditModel editModel = new();
+    private string searchText = string.Empty;
+    private string paymentFilter = string.Empty;
+    private string partnerFilter = string.Empty;
+    private string passTypeFilter = string.Empty;
+    private string levelFilter = string.Empty;
+    private string groupFilter = string.Empty;
+    private string sortColumn = "Name";
+    private bool sortAscending = true;
+    private bool isLoading = true;
+    private string? successMessage;
+    private string? errorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            registrations = (await RegistrationApiClient.GetAllAsync()).ToList();
+            passTypes = (await PassTypeApiClient.GetAllAsync()).ToList();
+            levels = (await LevelApiClient.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<string> Groups => registrations.Where(r => !string.IsNullOrWhiteSpace(r.GroupCode)).Select(r => r.GroupCode).Distinct().OrderBy(g => g).ToList();
+
+    private List<RegistrationDto> FilteredRegistrations
+    {
+        get
+        {
+            IEnumerable<RegistrationDto> query = registrations;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(r => r.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase) || r.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (Enum.TryParse(paymentFilter, out PaymentStatus paymentStatus))
+            {
+                query = query.Where(r => r.PaymentStatus == paymentStatus);
+            }
+
+            if (partnerFilter == "complete")
+            {
+                query = query.Where(r => !string.IsNullOrWhiteSpace(r.PartnerEmail) && r.PartnerRegistrationId.HasValue);
+            }
+            else if (partnerFilter == "missing")
+            {
+                query = query.Where(r => !string.IsNullOrWhiteSpace(r.PartnerEmail) && !r.PartnerRegistrationId.HasValue);
+            }
+            else if (partnerFilter == "none")
+            {
+                query = query.Where(r => string.IsNullOrWhiteSpace(r.PartnerEmail));
+            }
+
+            if (Guid.TryParse(passTypeFilter, out Guid passTypeId))
+            {
+                query = query.Where(r => r.PassTypeId == passTypeId);
+            }
+
+            if (Guid.TryParse(levelFilter, out Guid levelId))
+            {
+                query = query.Where(r => r.LevelId == levelId);
+            }
+
+            if (!string.IsNullOrWhiteSpace(groupFilter))
+            {
+                query = query.Where(r => r.GroupCode == groupFilter);
+            }
+
+            query = sortColumn switch
+            {
+                "Pass" => sortAscending ? query.OrderBy(r => GetPassTypeName(r.PassTypeId)) : query.OrderByDescending(r => GetPassTypeName(r.PassTypeId)),
+                "Role" => sortAscending ? query.OrderBy(r => r.DanceRole) : query.OrderByDescending(r => r.DanceRole),
+                "Group" => sortAscending ? query.OrderBy(r => r.GroupCode) : query.OrderByDescending(r => r.GroupCode),
+                "Date" => sortAscending ? query.OrderBy(r => r.CreatedAt) : query.OrderByDescending(r => r.CreatedAt),
+                _ => sortAscending ? query.OrderBy(r => r.FullName) : query.OrderByDescending(r => r.FullName)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private IEnumerable<RegistrationDto> PagedRegistrations => FilteredRegistrations.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredRegistrations.Count / (double)pageSize));
+    private int StartRow => FilteredRegistrations.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredRegistrations.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private string GetPassTypeName(Guid passTypeId)
+    {
+        return passTypes.FirstOrDefault(p => p.Id == passTypeId)?.Name ?? "-";
+    }
+
+    private string GetLevelName(Guid? levelId)
+    {
+        if (!levelId.HasValue)
+        {
+            return "-";
+        }
+
+        return levels.FirstOrDefault(l => l.Id == levelId.Value)?.Name ?? "-";
+    }
+
+    private static string FormatRole(DanceRole? danceRole)
+    {
+        return danceRole.HasValue ? danceRole.Value.ToString() : "-";
+    }
+
+    private static string FormatPartner(RegistrationDto registration)
+    {
+        if (string.IsNullOrWhiteSpace(registration.PartnerEmail))
+        {
+            return "-";
+        }
+
+        return registration.PartnerRegistrationId.HasValue ? $"Registered: {registration.PartnerEmail}" : $"Missing: {registration.PartnerEmail}";
+    }
+
+    private static string FormatDate(DateTime date)
+    {
+        if (date == DateTime.MinValue)
+        {
+            return "-";
+        }
+
+        return date.ToString("dd/MM/yyyy");
+    }
+
+    private static string GetRowClass(RegistrationDto registration)
+    {
+        if (registration.PaymentStatus == PaymentStatus.Unpaid || registration.PaymentStatus == PaymentStatus.Failed)
+        {
+            return "bg-danger/5";
+        }
+
+        if (!string.IsNullOrWhiteSpace(registration.PartnerEmail) && !registration.PartnerRegistrationId.HasValue)
+        {
+            return "bg-warning/10";
+        }
+
+        return string.Empty;
+    }
+
+    private static string GetPaymentClass(PaymentStatus paymentStatus)
+    {
+        return paymentStatus switch
+        {
+            PaymentStatus.Paid => "px-2 py-1 text-xs rounded bg-success/10 text-success",
+            PaymentStatus.Pending => "px-2 py-1 text-xs rounded bg-warning/10 text-warning",
+            PaymentStatus.Unpaid => "px-2 py-1 text-xs rounded bg-danger/10 text-danger",
+            PaymentStatus.Failed => "px-2 py-1 text-xs rounded bg-danger/10 text-danger",
+            _ => "px-2 py-1 text-xs rounded bg-black/10 text-black"
+        };
+    }
+
+    private void EmailAction(string action, RegistrationDto registration)
+    {
+        successMessage = $"Pending backend endpoint: send {action} to {registration.Email}.";
+    }
+
+    private void OpenEditModal(RegistrationDto registration)
+    {
+        editingRegistration = registration;
+        editModel = new RegistrationEditModel
+        {
+            EditionId = registration.EditionId,
+            PassTypeId = registration.PassTypeId,
+            LevelId = registration.LevelId,
+            FirstName = registration.FirstName,
+            LastName = registration.LastName,
+            Email = registration.Email,
+            Phone = registration.Phone,
+            Country = registration.Country,
+            City = registration.City,
+            DocumentNumber = registration.DocumentNumber,
+            DocumentCountry = registration.DocumentCountry,
+            DanceRole = registration.DanceRole,
+            PartnerEmail = registration.PartnerEmail,
+            BasePrice = registration.BasePrice,
+            DiscountCodeValue = registration.GroupCode,
+            Notes = registration.Notes,
+            InternalNotes = registration.InternalNotes,
+            Status = registration.Status,
+            PaymentStatus = registration.PaymentStatus,
+            IsActive = registration.IsActive
+        };
+    }
+
+    private void CloseEditModal()
+    {
+        editingRegistration = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editingRegistration is null)
+        {
+            return;
+        }
+
+        try
+        {
+            UpdateRegistrationRequest request = new()
+            {
+                EditionId = editModel.EditionId,
+                PassTypeId = editModel.PassTypeId,
+                LevelId = editModel.LevelId,
+                FirstName = editModel.FirstName,
+                LastName = editModel.LastName,
+                Email = editModel.Email,
+                Phone = editModel.Phone,
+                Country = editModel.Country,
+                City = editModel.City,
+                DocumentNumber = editModel.DocumentNumber,
+                DocumentCountry = editModel.DocumentCountry,
+                DanceRole = editModel.DanceRole,
+                PartnerEmail = editModel.PartnerEmail,
+                BasePrice = editModel.BasePrice,
+                DiscountCodeValue = editModel.DiscountCodeValue,
+                Notes = editModel.Notes,
+                InternalNotes = editModel.InternalNotes,
+                Status = editModel.Status,
+                PaymentStatus = editModel.PaymentStatus,
+                IsActive = editModel.IsActive
+            };
+
+            await RegistrationApiClient.UpdateAsync(editingRegistration.Id, request);
+            successMessage = "Registration updated.";
+            editingRegistration = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void OpenDeleteModal(RegistrationDto registration)
+    {
+        deleteRegistration = registration;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteRegistration = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deleteRegistration is null)
+        {
+            return;
+        }
+
+        try
+        {
+            EmailAction("cancellation", deleteRegistration);
+            await RegistrationApiClient.DeleteAsync(deleteRegistration.Id);
+            successMessage = "Registration deleted. Cancellation email endpoint is still pending.";
+            deleteRegistration = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private class RegistrationEditModel
+    {
+        public Guid EditionId { get; set; }
+        public Guid PassTypeId { get; set; }
+        public Guid? LevelId { get; set; }
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public string? Country { get; set; }
+        public string? City { get; set; }
+        public string? DocumentNumber { get; set; }
+        public string? DocumentCountry { get; set; }
+        public DanceRole? DanceRole { get; set; }
+        public string? PartnerEmail { get; set; }
+        public decimal BasePrice { get; set; }
+        public string? DiscountCodeValue { get; set; }
+        public string? Notes { get; set; }
+        public string? InternalNotes { get; set; }
+        public RegistrationStatus Status { get; set; }
+        public PaymentStatus PaymentStatus { get; set; }
+        public bool IsActive { get; set; }
+    }
+}
