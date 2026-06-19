@@ -126,12 +126,12 @@
 
 @if (isModalOpen)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder"
-             style="width: min(95vw, 760px);">
-            <div class="flex items-center justify-between p-5 border-b">
-                <h3 class="text-lg font-semibold">@(editingCode is null ? "New Discount Code" : "Edit Discount Code")</h3>
-                <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold">@(editingCode is null ? "New Discount Code" : "Edit Discount Code")</h3>
+                    <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
             </div>
 
             <EditForm Model="formModel" OnValidSubmit="SaveAsync">
@@ -213,26 +213,25 @@
             </EditForm>
         </div>
     </div>
+</div>
 }
 
 @if (deleteCode is not null)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-            <div class="p-5 border-b">
-                <h3 class="text-lg font-semibold text-black dark:text-white">Delete Discount Code</h3>
-            </div>
-
-            <div class="px-5 py-4">
-                <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deleteCode.Code</strong>?</p>
-            </div>
-
-            <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Discount Code</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deleteCode.Code</strong>?</p>
+                </div>
+             <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                 <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
                 <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">Delete</button>
-            </div>
+             </div>
         </div>
     </div>
+</div>
 }
 
 @code {
@@ -467,6 +466,7 @@
 
                 await DiscountCodeApiClient.CreateAsync(request);
                 successMessage = "Discount code created.";
+                ShowSuccess(successMessage);
             }
             else
             {
@@ -487,6 +487,7 @@
 
                 await DiscountCodeApiClient.UpdateAsync(editingCode.Id, request);
                 successMessage = "Discount code updated.";
+                ShowSuccess(successMessage);
             }
 
             CloseModal();
@@ -520,6 +521,7 @@
             await DiscountCodeApiClient.DeleteAsync(deleteCode.Id);
             successMessage = "Discount code deleted.";
             deleteCode = null;
+            ShowSuccess(successMessage);
             await LoadDataAsync();
         }
         catch (Exception ex)
