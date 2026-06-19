@@ -9,10 +9,6 @@
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
     <div class="card">
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Discount Codes</h2>
-                <p class="text-sm text-black/50 dark:text-white/40">Manage discount and group codes by edition.</p>
-            </div>
 
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <input class="form-input md:w-72" placeholder="Search discount codes..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
@@ -23,6 +19,28 @@
                     {
                         <option value="@edition.Id">@edition.Name</option>
                     }
+                </select>
+
+                <select class="form-select md:w-56" @bind="typeFilter" @bind:after="ResetPage">
+                    <option value="">All types</option>
+                    @foreach (var t in Enum.GetValues(typeof(DiscountType)))
+                    {
+                        <option value="@t.ToString()">@t</option>
+                    }
+                </select>
+
+                <select class="form-select md:w-56" @bind="activationFilter" @bind:after="ResetPage">
+                    <option value="">All activations</option>
+                    @foreach (var t in Enum.GetValues(typeof(DiscountActivationType)))
+                    {
+                        <option value="@t.ToString()">@t</option>
+                    }
+                </select>
+
+                <select class="form-select md:w-56" @bind="statusFilter" @bind:after="ResetPage">
+                    <option value="">All statuses</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
                 </select>
 
                 <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
@@ -60,11 +78,11 @@
                         <tr class="text-left">
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Code")'>Code @SortIcon("Code")</button></th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
-                            <th class="px-4 py-3 font-semibold">Type</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Type")'>Type @SortIcon("Type")</button></th>
                             <th class="px-4 py-3 font-semibold">Value</th>
-                            <th class="px-4 py-3 font-semibold">Activation</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Activation")'>Activation @SortIcon("Activation")</button></th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Uses")'>Uses @SortIcon("Uses")</button></th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
@@ -109,7 +127,8 @@
 @if (isModalOpen)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="w-full max-w-2xl mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
+        <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder"
+             style="width: min(95vw, 760px);">
             <div class="flex items-center justify-between p-5 border-b">
                 <h3 class="text-lg font-semibold">@(editingCode is null ? "New Discount Code" : "Edit Discount Code")</h3>
                 <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
@@ -199,18 +218,18 @@
 @if (deleteCode is not null)
 {
     <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="w-full max-w-md mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
+        <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
             <div class="p-5 border-b">
-                <h3 class="text-lg font-semibold">Delete Discount Code</h3>
+                <h3 class="text-lg font-semibold text-black dark:text-white">Delete Discount Code</h3>
             </div>
 
-            <div class="p-5">
-                <p>Delete <strong>@deleteCode.Code</strong>?</p>
+            <div class="px-5 py-4">
+                <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deleteCode.Code</strong>?</p>
             </div>
 
-            <div class="flex justify-end gap-3 p-5 border-t">
-                <button type="button" class="btn border" @onclick="CloseDeleteModal">Cancel</button>
-                <button type="button" class="btn bg-danger text-white" @onclick="DeleteAsync">Delete</button>
+            <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
+                <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">Delete</button>
             </div>
         </div>
     </div>
@@ -232,6 +251,11 @@
     private string? errorMessage;
     private int pageSize = 10;
     private int currentPage = 1;
+    private bool isSaving;
+    private string? typeFilter;
+    private string? statusFilter;
+    private string? activationFilter;
+
 
     protected override async Task OnInitializedAsync()
     {
@@ -258,6 +282,30 @@
         }
     }
 
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
     private List<DiscountCodeDto> FilteredCodes
     {
         get
@@ -274,10 +322,34 @@
                 query = query.Where(c => c.EditionId == editionId);
             }
 
+            if (!string.IsNullOrWhiteSpace(typeFilter))
+            {
+                query = query.Where(c => c.DiscountType.ToString() == typeFilter);
+            }
+
+            if (!string.IsNullOrWhiteSpace(activationFilter))
+            {
+                query = query.Where(c => c.ActivationType.ToString() == activationFilter);
+            }
+
+            if (!string.IsNullOrWhiteSpace(statusFilter))
+            {
+                query = query.Where(c =>
+                    (statusFilter == "Active" && c.IsActive) ||
+                    (statusFilter == "Inactive" && !c.IsActive)
+                );
+            }
+
             query = sortColumn switch
             {
                 "Name" => sortAscending ? query.OrderBy(c => c.Name) : query.OrderByDescending(c => c.Name),
                 "Uses" => sortAscending ? query.OrderBy(c => c.CurrentUses) : query.OrderByDescending(c => c.CurrentUses),
+                "Type" => sortAscending ? query.OrderBy(c => c.DiscountType) : query.OrderByDescending(c => c.DiscountType),
+                "Activation" => sortAscending ? query.OrderBy(c => c.ActivationType) : query.OrderByDescending(c => c.ActivationType),
+                "Status" => sortAscending
+                    ? query.OrderBy(c => c.IsActive ? 0 : 1)
+                    : query.OrderByDescending(c => c.IsActive ? 0 : 1),
+
                 _ => sortAscending ? query.OrderBy(c => c.Code) : query.OrderByDescending(c => c.Code)
             };
 

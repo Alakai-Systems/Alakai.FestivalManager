@@ -1,4 +1,5 @@
 @page "/competitions"
+@using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @inject CompetitionApiClient CompetitionApiClient
 @inject EditionApiClient EditionApiClient
@@ -8,10 +9,6 @@
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
     <div class="card">
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Competitions</h2>
-                <p class="text-sm text-black/50 dark:text-white/40">Manage Solo Jazz and Mix & Match competitions with capacities.</p>
-            </div>
 
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <input class="form-input md:w-72" placeholder="Search competitions..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
@@ -26,14 +23,52 @@
 
                 <select class="form-select md:w-32" @bind="formatFilter" @bind:after="ResetPage">
                     <option value="">All formats</option>
-                    <option value="@CompetitionFormat.SoloJazz">Solo Jazz</option>
-                    <option value="@CompetitionFormat.MixAndMatch">Mix & Match</option>
-                </select>
+                    <option value="SoloJazz">Solo Jazz</option>
+                    <option value="MixAndMatch">Mix & Match</option>
 
-                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
-                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                    New Competition
-                </button>
+                </select>
+                @if (SelectedFormat == CompetitionFormat.MixAndMatch)
+                {
+                        <select class="form-select md:w-32" @bind="mixAndMatchLevelFilter" @bind:after="ResetPage">
+                                <option value="">Level</option>
+                                @foreach (MixAndMatchLevel level in Enum.GetValues(typeof(MixAndMatchLevel)))
+                                {
+                                    <option value="@level.ToString()">@level</option>
+                                }
+                        </select>
+
+                        <select class="form-select md:w-32" @bind="mixAndMatchRoleFilter" @bind:after="ResetPage">
+                                <option value="">Role</option>
+                                @foreach (DanceRole role in Enum.GetValues(typeof(DanceRole)))
+                                {
+                                    <option value="@role.ToString()">@role</option>
+                                }
+                        </select>
+
+                    <button type="button"
+                            class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                            @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                        New Capacity
+                    </button>
+                }
+                else if(SelectedFormat is CompetitionFormat.SoloJazz)
+                {
+                    <button type="button"
+                            class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                            @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                        New Capacity
+                    </button>
+                }
+                else
+                {
+                    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                        New Competition
+                    </button>
+                }
+
             </div>
         </div>
 
@@ -53,53 +88,80 @@
         }
         else
         {
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
-                            <th class="px-4 py-3 font-semibold">Format</th>
-                            <th class="px-4 py-3 font-semibold">Price</th>
-                            <th class="px-4 py-3 font-semibold">Capacities</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("SortOrder")'>Sort @SortIcon("SortOrder")</button></th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
-                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (PagedCompetitions.Count == 0)
-                        {
-                            <tr>
-                                <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No competitions found.</td>
-                            </tr>
-                        }
-                        else
-                        {
-                            @foreach (CompetitionDto competition in PagedCompetitions)
-                            {
-                                <tr class="border-b border-black/10 dark:border-darkborder">
-                                    <td class="px-4 py-3">
-                                        <div class="font-medium">@competition.Name</div>
-                                        <div class="text-xs text-black/50">@competition.Description</div>
-                                    </td>
-                                    <td class="px-4 py-3">@competition.Format</td>
-                                    <td class="px-4 py-3">@competition.Price.ToString("0.00") €</td>
-                                    <td class="px-4 py-3">@FormatCapacities(competition)</td>
-                                    <td class="px-4 py-3">@competition.SortOrder</td>
-                                    <td class="px-4 py-3"><span class="@GetStatusClass(competition.IsActive)">@(competition.IsActive ? "Active" : "Inactive")</span></td>
-                                    <td class="px-4 py-3">
-                                        <div class="flex items-center justify-end gap-3">
-                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(competition)"><i class="ri-pencil-line text-lg"></i></button>
-                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(competition)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-            </div>
+            @if (SelectedFormat == CompetitionFormat.SoloJazz)
+            {
+                @RenderSoloJazzTable()
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                            Previous
+                        </button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                            @currentPage
+                        </span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                            Next
+                        </button>
+                    </div>
+                </div>
+
+            }
+            else if (SelectedFormat == CompetitionFormat.MixAndMatch)
+            {
+                @RenderMixAndMatchTable()
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                            Previous
+                        </button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                            @currentPage
+                        </span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                            Next
+                        </button>
+                    </div>
+                </div>
+
+            }
+            else
+            {
+                @RenderDefaultCompetitionTable()
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                            Previous
+                        </button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                            @currentPage
+                        </span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                            Next
+                        </button>
+                    </div>
+                </div>
+
+            }
         }
+
     </div>
 </div>
 
@@ -131,6 +193,7 @@
                                 <option value="@CompetitionFormat.SoloJazz">Solo Jazz</option>
                                 <option value="@CompetitionFormat.MixAndMatch">Mix & Match</option>
                             </select>
+
                         </div>
 
                         <div>
@@ -198,20 +261,186 @@
     </div>
 }
 
-@if (deletingCompetition is not null)
+@if (showDeleteModal && deletingCompetition is not null)
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-md mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Competition</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingCompetition.Name?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deletingCompetition.Name?</strong>?</p>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-danger" @onclick="DeleteAsync">Delete</button>
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync"> @(isSaving ? "Deleting..." : "Delete")</button>
                 </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (showCreateCapacityModal && editingCapacity is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder"
+                 style="width: min(95vw, 760px);">
+
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">New Capacity</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60"
+                            @onclick="() => showCreateCapacityModal = false">
+                        <i class="ri-close-line text-2xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Level</label>
+                            <select class="form-select" @bind="editingCapacity.MixAndMatchLevel">
+                                <option value="">No level</option>
+                                @foreach (MixAndMatchLevel level in Enum.GetValues(typeof(MixAndMatchLevel)))
+                                {
+                                    <option value="@level">@level</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Role</label>
+                            <select class="form-select" @bind="editingCapacity.DanceRole">
+                                @foreach (DanceRole role in Enum.GetValues(typeof(DanceRole)))
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Capacity</label>
+                            <InputNumber class="form-input" @bind-Value="editingCapacity.Capacity" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Sort Order</label>
+                            <InputNumber class="form-input" @bind-Value="editingCapacity.SortOrder" />
+                        </div>
+
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10"
+                            @onclick="() => showCreateCapacityModal = false">
+                        Cancel
+                    </button>
+
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple"
+                            @onclick="SaveNewCapacityAsync">
+                        Save
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+@if (showEditCapacityModal && editingCapacity is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder"
+                 style="width: min(95vw, 760px);">
+
+                <!-- HEADER -->
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Capacity</h3>
+                    <button type="button"
+                            class="text-black/50 hover:text-black dark:text-white/60"
+                            @onclick="() => showEditCapacityModal = false">
+                        <i class="ri-close-line text-2xl"></i>
+                    </button>
+                </div>
+
+                <!-- BODY -->
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Level</label>
+                            <select class="form-select" @bind="editingCapacity.MixAndMatchLevel">
+                                @foreach (MixAndMatchLevel level in Enum.GetValues(typeof(MixAndMatchLevel)))
+                                {
+                                    <option value="@level">@level</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Role</label>
+                            <select class="form-select" @bind="editingCapacity.DanceRole">
+                                @foreach (DanceRole role in Enum.GetValues(typeof(DanceRole)))
+                                {
+                                    <option value="@role">@role</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Capacity</label>
+                            <InputNumber class="form-input" @bind-Value="editingCapacity.Capacity" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Sort Order</label>
+                            <InputNumber class="form-input" @bind-Value="editingCapacity.SortOrder" />
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- FOOTER -->
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button"
+                            class="px-4 py-2 text-sm border rounded-md border-black/10"
+                            @onclick="() => showEditCapacityModal = false">
+                        Cancel
+                    </button>
+
+                    <button type="button"
+                            class="px-4 py-2 text-sm text-white rounded-md bg-purple"
+                            @onclick="SaveEditedCapacityAsync">
+                        Save
+                    </button>
+                </div>
+
+            </div>
+        </div>
+    </div>
+}
+
+
+@if (showDeleteCapacityModal && editingCapacity is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Capacity</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@editingCapacity.MixAndMatchLevel @editingCapacity.DanceRole?</strong>?</p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteCapacityAsync">
+                        @(isSaving ? "Deleting..." : "Delete")
+                    </button>
+                </div>
+
             </div>
         </div>
     </div>
@@ -224,6 +453,7 @@
     private CompetitionDto? deletingCompetition;
     private CompetitionFormModel formModel = new();
     private string searchText = string.Empty;
+    private bool isSaving;
     private Guid editionFilter = Guid.Empty;
     private string formatFilter = string.Empty;
     private string sortColumn = "Name";
@@ -234,6 +464,70 @@
     private string? errorMessage;
     private int currentPage = 1;
     private int pageSize = 10;
+    private CompetitionFormat? SelectedFormat
+    {
+        get
+        {
+            if (Enum.TryParse(formatFilter, out CompetitionFormat format))
+            {
+                return format;
+            }
+
+            return null;
+        }
+    }
+    private string mixAndMatchLevelFilter = string.Empty;
+    private string mixAndMatchRoleFilter = string.Empty;
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredCompetitions.Count / pageSize));
+    private int ShowingFrom => FilteredCompetitions.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int ShowingTo => Math.Min(currentPage * pageSize, FilteredCompetitions.Count);
+    private CompetitionDto? editingCompetitionForCapacity;
+    private CompetitionCapacityDto? editingCapacity;
+    private bool showCreateCapacityModal = false;
+    private bool showEditCapacityModal = false;
+    private bool showDeleteCapacityModal = false;
+    private bool showDeleteModal = false;
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -276,20 +570,39 @@
                 query = query.Where(c => c.EditionId == editionFilter);
             }
 
-            if (Enum.TryParse(formatFilter, out CompetitionFormat format))
+            if (!string.IsNullOrWhiteSpace(formatFilter) &&
+                Enum.TryParse(formatFilter, out CompetitionFormat format))
             {
                 query = query.Where(c => c.Format == format);
+
+                if (format == CompetitionFormat.MixAndMatch)
+                {
+                    if (!string.IsNullOrWhiteSpace(mixAndMatchLevelFilter) &&
+                        Enum.TryParse(mixAndMatchLevelFilter, out MixAndMatchLevel level))
+                    {
+                        query = query.Where(c => c.Capacities.Any(cap => cap.MixAndMatchLevel == level));
+                    }
+
+                    if (!string.IsNullOrWhiteSpace(mixAndMatchRoleFilter) &&
+                        Enum.TryParse(mixAndMatchRoleFilter, out DanceRole role))
+                    {
+                        query = query.Where(c => c.Capacities.Any(cap => cap.DanceRole == role));
+                    }
+                }
             }
 
             query = sortColumn switch
             {
+                "Format" => sortAscending ? query.OrderBy(c => c.Format) : query.OrderByDescending(c => c.Format),
                 "SortOrder" => sortAscending ? query.OrderBy(c => c.SortOrder) : query.OrderByDescending(c => c.SortOrder),
+                "Status" => sortAscending ? query.OrderBy(c => c.IsActive) : query.OrderByDescending(c => c.IsActive),
                 _ => sortAscending ? query.OrderBy(c => c.Name) : query.OrderByDescending(c => c.Name)
             };
 
             return query.ToList();
         }
     }
+
 
     private List<CompetitionDto> PagedCompetitions => FilteredCompetitions.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
 
@@ -320,6 +633,385 @@
 
         return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
     }
+
+    private void OpenCreateCapacityModal(CompetitionDto competition)
+    {
+        editingCompetitionForCapacity = competition;
+
+        editingCapacity = new CompetitionCapacityDto
+        {
+            Id = Guid.NewGuid(), // temporal
+            MixAndMatchLevel = null,
+            DanceRole = DanceRole.Leader,
+            Capacity = 0,
+            SortOrder = competition.Capacities.Count + 1,
+            Current = 0
+        };
+
+        showCreateCapacityModal = true;
+    }
+
+    private void OpenEditCapacityModal(CompetitionDto competition, CompetitionCapacityDto capacity)
+    {
+        editingCompetitionForCapacity = competition;
+
+        editingCapacity = new CompetitionCapacityDto
+        {
+            Id = capacity.Id,
+            MixAndMatchLevel = capacity.MixAndMatchLevel,
+            DanceRole = capacity.DanceRole,
+            Capacity = capacity.Capacity,
+            SortOrder = capacity.SortOrder,
+            Current = capacity.Current
+        };
+
+        showEditCapacityModal = true;
+    }
+
+    private void OpenDeleteCapacityModal(CompetitionDto competition, CompetitionCapacityDto capacity)
+    {
+        editingCompetitionForCapacity = competition;
+        editingCapacity = capacity;
+        showDeleteCapacityModal = true;
+    }
+
+    private void CloseModals()
+    {
+        showCreateCapacityModal = false;
+        showEditCapacityModal = false;
+        showDeleteCapacityModal = false;
+        showDeleteModal = false;
+        showModal = false;
+    }
+
+    private async Task SaveNewCapacityAsync()
+    {
+        try
+        {
+            if (editingCompetitionForCapacity is null || editingCapacity is null)
+            {
+                ShowError("No competition selected.");
+                return;
+            }
+
+            var updatedCapacities =
+                editingCompetitionForCapacity.Capacities
+                .Select(c => new UpdateCompetitionCapacityRequest
+                {
+                    MixAndMatchLevel = c.MixAndMatchLevel,
+                    DanceRole = c.DanceRole,
+                    Capacity = c.Capacity,
+                    SortOrder = c.SortOrder
+                })
+                .ToList();
+
+            updatedCapacities.Add(new UpdateCompetitionCapacityRequest
+            {
+                MixAndMatchLevel = editingCapacity.MixAndMatchLevel,
+                DanceRole = editingCapacity.DanceRole,
+                Capacity = editingCapacity.Capacity,
+                SortOrder = editingCapacity.SortOrder
+            });
+
+            var request = new UpdateCompetitionRequest
+            {
+                EditionId = editingCompetitionForCapacity.EditionId,
+                Name = editingCompetitionForCapacity.Name,
+                Description = editingCompetitionForCapacity.Description,
+                Format = editingCompetitionForCapacity.Format,
+                RequiresPartner = editingCompetitionForCapacity.RequiresPartner,
+                RequiresRole = editingCompetitionForCapacity.RequiresRole,
+                Price = editingCompetitionForCapacity.Price,
+                RegistrationOpenAt = editingCompetitionForCapacity.RegistrationOpenAt,
+                RegistrationCloseAt = editingCompetitionForCapacity.RegistrationCloseAt,
+                SortOrder = editingCompetitionForCapacity.SortOrder,
+                IsActive = editingCompetitionForCapacity.IsActive,
+                Capacities = updatedCapacities
+            };
+
+            await CompetitionApiClient.UpdateAsync(editingCompetitionForCapacity.Id, request);
+
+            showCreateCapacityModal = false;
+            ShowSuccess("Capacity created successfully.");
+
+            await LoadDataAsync();
+        }
+        catch
+        {
+            ShowError("Error creating capacity.");
+        }
+    }
+
+
+    private async Task SaveEditedCapacityAsync()
+    {
+        if (editingCompetitionForCapacity is null || editingCapacity is null)
+            return;
+
+        var updatedCapacities =
+            editingCompetitionForCapacity.Capacities
+            .Where(c => c.Id != editingCapacity.Id)
+            .Select(c => new UpdateCompetitionCapacityRequest
+            {
+                MixAndMatchLevel = c.MixAndMatchLevel,
+                DanceRole = c.DanceRole,
+                Capacity = c.Capacity,
+                SortOrder = c.SortOrder
+            })
+            .ToList();
+
+        updatedCapacities.Add(new UpdateCompetitionCapacityRequest
+        {
+            MixAndMatchLevel = editingCapacity.MixAndMatchLevel,
+            DanceRole = editingCapacity.DanceRole,
+            Capacity = editingCapacity.Capacity,
+            SortOrder = editingCapacity.SortOrder
+        });
+
+        var request = new UpdateCompetitionRequest
+        {
+            EditionId = editingCompetitionForCapacity.EditionId,
+            Name = editingCompetitionForCapacity.Name,
+            Description = editingCompetitionForCapacity.Description,
+            Format = editingCompetitionForCapacity.Format,
+            RequiresPartner = editingCompetitionForCapacity.RequiresPartner,
+            RequiresRole = editingCompetitionForCapacity.RequiresRole,
+            Price = editingCompetitionForCapacity.Price,
+            RegistrationOpenAt = editingCompetitionForCapacity.RegistrationOpenAt,
+            RegistrationCloseAt = editingCompetitionForCapacity.RegistrationCloseAt,
+            SortOrder = editingCompetitionForCapacity.SortOrder,
+            IsActive = editingCompetitionForCapacity.IsActive,
+            Capacities = updatedCapacities
+        };
+
+        await CompetitionApiClient.UpdateAsync(editingCompetitionForCapacity.Id, request);
+
+        showEditCapacityModal = false;
+        ShowSuccess("Capacity updated successfully.");
+        await LoadDataAsync();
+    }
+
+
+    private async Task DeleteCapacityAsync()
+    {
+        if (editingCompetitionForCapacity is null || editingCapacity is null)
+            return;
+
+        var updatedCapacities =
+            editingCompetitionForCapacity.Capacities
+            .Where(c => c.Id != editingCapacity.Id)
+            .Select(c => new UpdateCompetitionCapacityRequest
+            {
+                MixAndMatchLevel = c.MixAndMatchLevel,
+                DanceRole = c.DanceRole,
+                Capacity = c.Capacity,
+                SortOrder = c.SortOrder
+            })
+            .ToList();
+
+        var request = new UpdateCompetitionRequest
+        {
+            EditionId = editingCompetitionForCapacity.EditionId,
+            Name = editingCompetitionForCapacity.Name,
+            Description = editingCompetitionForCapacity.Description,
+            Format = editingCompetitionForCapacity.Format,
+            RequiresPartner = editingCompetitionForCapacity.RequiresPartner,
+            RequiresRole = editingCompetitionForCapacity.RequiresRole,
+            Price = editingCompetitionForCapacity.Price,
+            RegistrationOpenAt = editingCompetitionForCapacity.RegistrationOpenAt,
+            RegistrationCloseAt = editingCompetitionForCapacity.RegistrationCloseAt,
+            SortOrder = editingCompetitionForCapacity.SortOrder,
+            IsActive = editingCompetitionForCapacity.IsActive,
+            Capacities = updatedCapacities
+        };
+
+        await CompetitionApiClient.UpdateAsync(editingCompetitionForCapacity.Id, request);
+
+        showDeleteCapacityModal = false;
+        ShowSuccess("Capacity deleted.");
+        await LoadDataAsync();
+    }
+
+
+    private RenderFragment RenderDefaultCompetitionTable() => __builder =>
+    {
+        <div class="overflow-x-auto">
+            <table class="w-full table-hover">
+                <thead class="bg-gray-50 dark:bg-dark">
+                    <tr class="tex-left">
+                        <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                        <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Format")'>Format @SortIcon("Format")</button></th>
+                        <th class="px-4 py-3 font-semibold">Price</th>
+                        <th class="px-4 py-3 font-semibold">Capacities</th>
+                        <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("SortOrder")'>Sort @SortIcon("SortOrder")</button></th>
+                        <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
+                        <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (PagedCompetitions.Count == 0)
+                    {
+                        <tr>
+                            <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No competitions found.</td>
+                        </tr>
+                    }
+                    else
+                    {
+                        @foreach (CompetitionDto competition in PagedCompetitions)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder" @onclick="() => formatFilter = competition.Format.ToString()">
+                                <td class="px-4 py-3">
+                                    <div class="font-medium">@competition.Name</div>
+                                    <div class="text-xs text-black/50">@competition.Description</div>
+                                </td>
+                                <td class="px-4 py-3">@competition.Format</td>
+                                <td class="px-4 py-3">@competition.Price.ToString("0.00") €</td>
+                                <td class="px-4 py-3">@FormatCapacities(competition)</td>
+                                <td class="px-4 py-3">@competition.SortOrder</td>
+                                <td class="px-4 py-3"><span class="@GetStatusClass(competition.IsActive)">@(competition.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="px-4 py-3">
+                                    <div class="flex items-center justify-end gap-3">
+                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(competition)"><i class="ri-pencil-line text-lg"></i></button>
+                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(competition)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    };
+
+    private RenderFragment RenderSoloJazzTable() => __builder =>
+    {
+        <table class="w-full table-hover">
+            <thead class="bg-gray-50 dark:bg-dark">
+                <tr class="text-left">
+                    <th class="px-4 py-3 font-semibold">Name</th>
+                    <th class="px-4 py-3 font-semibold">Price</th>
+                    <th class="px-4 py-3 font-semibold">Capacity</th>
+                    <th class="px-4 py-3 font-semibold">Ocupación</th>
+                    <th class="px-4 py-3 font-semibold">Status</th>
+                    <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                @foreach (var c in PagedCompetitions.Where(x => x.Format == CompetitionFormat.SoloJazz))
+                {
+                    var cap = c.Capacities.FirstOrDefault();
+
+                    <tr class="border-b border-black/10 dark:border-darkborder">
+                        <td class="px-4 py-3">
+                            <div class="font-medium">@c.Name</div>
+                            <div class="text-xs text-black/50 dark:text-white/40">@c.Description</div>
+                        </td>
+
+                        <td class="px-4 py-3">@c.Price.ToString("0.00") €</td>
+
+                        <td class="px-4 py-3">@cap?.Capacity</td>
+
+                        <td class="px-4 py-3">@($"{cap?.Current}/{cap?.Capacity}")</td>
+
+                        <td class="px-4 py-3">
+                            <span class="@GetStatusClass(c.IsActive)">
+                                @(c.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-end gap-3">
+                                <button type="button" class="text-black dark:text-white/80" @onclick="() => OpenEditModal(c)">
+                                    <i class="ri-pencil-line text-lg"></i>
+                                </button>
+                                <button type="button" class="text-danger" @onclick="() => OpenDeleteModal(c)">
+                                    <i class="ri-delete-bin-line text-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    };
+
+    private RenderFragment RenderMixAndMatchTable() => __builder =>
+{
+    <table class="w-full table-hover">
+        <thead class="bg-gray-50 dark:bg-dark">
+            <tr class="text-left">
+                <th class="px-4 py-3 font-semibold">Name</th>
+                <th class="px-4 py-3 font-semibold">Level</th>
+                <th class="px-4 py-3 font-semibold">Role</th>
+                <th class="px-4 py-3 font-semibold">Capacity</th>
+                <th class="px-4 py-3 font-semibold">Ocupación</th>
+                <th class="px-4 py-3 font-semibold">Status</th>
+                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var c in PagedCompetitions.Where(x => x.Format == CompetitionFormat.MixAndMatch))
+            {
+                // Aplicamos los filtros de nivel/rol sobre las capacities
+                var caps = c.Capacities.AsEnumerable();
+
+                if (!string.IsNullOrWhiteSpace(mixAndMatchLevelFilter) &&
+                Enum.TryParse(mixAndMatchLevelFilter, out MixAndMatchLevel level))
+                {
+                    caps = caps.Where(cap => cap.MixAndMatchLevel == level);
+                }
+
+                if (!string.IsNullOrWhiteSpace(mixAndMatchRoleFilter) &&
+                Enum.TryParse(mixAndMatchRoleFilter, out DanceRole role))
+                {
+                    caps = caps.Where(cap => cap.DanceRole == role);
+                }
+
+                var filteredCaps = caps.ToList();
+
+                if (filteredCaps.Count == 0)
+                {
+                    // Si esta competición no tiene capacities que pasen el filtro, no pintamos nada
+                    continue;
+                }
+
+                foreach (var cap in filteredCaps)
+                {
+                    <tr class="border-b border-black/10 dark:border-darkborder">
+                        <td class="px-4 py-3">
+                            <div class="font-medium">@c.Name</div>
+                            <div class="text-xs text-black/50 dark:text-white/40">@c.Description</div>
+                        </td>
+
+                        <td class="px-4 py-3">@cap.MixAndMatchLevel</td>
+                        <td class="px-4 py-3">@cap.DanceRole</td>
+                        <td class="px-4 py-3">@cap.Capacity</td>
+                        <td class="px-4 py-3">@($"{cap.Current}/{cap.Capacity}")</td>
+
+                        <td class="px-4 py-3">
+                            <span class="@GetStatusClass(c.IsActive)">
+                                @(c.IsActive ? "Active" : "Inactive")
+                            </span>
+                        </td>
+
+                        <td class="px-4 py-3">
+                            <div class="flex items-center justify-end gap-3">
+                                <button type="button" class="text-black dark:text-white/80" @onclick="() => OpenEditCapacityModal(c, cap)">
+                                    <i class="ri-pencil-line text-lg"></i>
+                                </button>
+                                <button type="button" class="text-danger" @onclick="() => OpenDeleteCapacityModal(c, cap)">
+                                    <i class="ri-delete-bin-line text-lg"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            }
+        </tbody>
+    </table>
+};
 
     private void OpenCreateModal()
     {

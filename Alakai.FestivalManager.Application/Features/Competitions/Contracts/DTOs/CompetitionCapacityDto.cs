@@ -7,6 +7,7 @@ public class CompetitionCapacityDto
     public MixAndMatchLevel? MixAndMatchLevel { get; set; }
     public DanceRole DanceRole { get; set; }
     public int Capacity { get; set; }
+    public int Current { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
 }

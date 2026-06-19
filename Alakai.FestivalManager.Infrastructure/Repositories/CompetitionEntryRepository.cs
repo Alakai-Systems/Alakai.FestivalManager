@@ -39,6 +39,12 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
         return await _context.CompetitionEntries.CountAsync(e => e.CompetitionId == competitionId && e.MixAndMatchLevel == mixAndMatchLevel && e.DanceRole == danceRole && e.IsActive, cancellationToken);
     }
 
+    public async Task<int> CountActiveByCapacityIdAsync(Guid capacityId, CancellationToken cancellationToken = default)
+    {
+        return await _context.CompetitionEntries.Where(e => e.CompetitionCapacityId == capacityId && e.IsActive && e.Status == CompetitionEntryStatus.Confirmed).CountAsync(cancellationToken);
+    }
+
+
     public async Task<bool> ExistsByCompetitionAndRegistrationAsync(Guid competitionId, Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.CompetitionEntries.AnyAsync(e => e.CompetitionId == competitionId && e.RegistrationId == registrationId && e.IsActive, cancellationToken);

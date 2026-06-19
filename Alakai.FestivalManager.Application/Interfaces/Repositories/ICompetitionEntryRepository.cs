@@ -9,6 +9,7 @@ public interface ICompetitionEntryRepository
     Task<IReadOnlyList<CompetitionEntry>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
     Task<int> CountActiveByCompetitionLevelAndRoleAsync(Guid competitionId, MixAndMatchLevel? mixAndMatchLevel, DanceRole danceRole, CancellationToken cancellationToken = default);
     Task<bool> ExistsByCompetitionAndRegistrationAsync(Guid competitionId, Guid registrationId, CancellationToken cancellationToken = default);
+    Task<int> CountActiveByCapacityIdAsync(Guid capacityId, CancellationToken cancellationToken = default);
     void Update(CompetitionEntry entry);
     void Delete(CompetitionEntry entry);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
