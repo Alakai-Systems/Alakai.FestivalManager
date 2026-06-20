@@ -25,6 +25,7 @@
                     <option value="">All formats</option>
                     <option value="SoloJazz">Solo Jazz</option>
                     <option value="MixAndMatch">Mix & Match</option>
+                    <option value="Strictly">Strictly</option>
 
                 </select>
                 @if (SelectedFormat == CompetitionFormat.MixAndMatch)
@@ -53,6 +54,15 @@
                     </button>
                 }
                 else if(SelectedFormat is CompetitionFormat.SoloJazz)
+                {
+                    <button type="button"
+                            class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                            @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                        New Capacity
+                    </button>
+                }
+                else if (SelectedFormat is CompetitionFormat.Strictly)
                 {
                     <button type="button"
                             class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
@@ -115,6 +125,30 @@
             else if (SelectedFormat == CompetitionFormat.MixAndMatch)
             {
                 @RenderMixAndMatchTable()
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                            Previous
+                        </button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                            @currentPage
+                        </span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                            Next
+                        </button>
+                    </div>
+                </div>
+
+            }
+            else if (SelectedFormat == CompetitionFormat.Strictly)
+            {
+                @RenderStrictlyTable()
                 <div class="flex items-center justify-between mt-4">
                     <p class="text-sm text-black/50 dark:text-white/40">
                         Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
@@ -935,6 +969,59 @@
             </tbody>
         </table>
     };
+
+    private RenderFragment RenderStrictlyTable() => __builder =>
+{
+    <table class="w-full table-hover">
+        <thead class="bg-gray-50 dark:bg-dark">
+            <tr class="text-left">
+                <th class="px-4 py-3 font-semibold">Name</th>
+                <th class="px-4 py-3 font-semibold">Price</th>
+                <th class="px-4 py-3 font-semibold">Capacity</th>
+                <th class="px-4 py-3 font-semibold">Ocupación</th>
+                <th class="px-4 py-3 font-semibold">Status</th>
+                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            @foreach (var c in PagedCompetitions.Where(x => x.Format == CompetitionFormat.Strictly))
+            {
+                var cap = c.Capacities.FirstOrDefault();
+
+                <tr class="border-b border-black/10 dark:border-darkborder">
+                    <td class="px-4 py-3">
+                        <div class="font-medium">@c.Name</div>
+                        <div class="text-xs text-black/50 dark:text-white/40">@c.Description</div>
+                    </td>
+
+                    <td class="px-4 py-3">@c.Price.ToString("0.00") €</td>
+
+                    <td class="px-4 py-3">@cap?.Capacity</td>
+
+                    <td class="px-4 py-3">@($"{cap?.Current}/{cap?.Capacity}")</td>
+
+                    <td class="px-4 py-3">
+                        <span class="@GetStatusClass(c.IsActive)">
+                            @(c.IsActive ? "Active" : "Inactive")
+                        </span>
+                    </td>
+
+                    <td class="px-4 py-3">
+                        <div class="flex items-center justify-end gap-3">
+                            <button type="button" class="text-black dark:text-white/80" @onclick="() => OpenEditModal(c)">
+                                <i class="ri-pencil-line text-lg"></i>
+                            </button>
+                            <button type="button" class="text-danger" @onclick="() => OpenDeleteModal(c)">
+                                <i class="ri-delete-bin-line text-lg"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+};
 
     private RenderFragment RenderMixAndMatchTable() => __builder =>
 {

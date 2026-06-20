@@ -64,7 +64,7 @@ public class CreateCompetitionEntryHandler
         }
 
         CompetitionEntry entry = _mapper.Map<CompetitionEntry>(command);
-        entry.Status = command.PartnerRegistrationId.HasValue || !competition.RequiresPartner ? CompetitionEntryStatus.Registered : CompetitionEntryStatus.WaitingPartner;
+        entry.Status = command.PartnerRegistrationId.HasValue || competition.RequiresPartner is false? CompetitionEntryStatus.Registered : CompetitionEntryStatus.WaitingPartner;
         entry.IsActive = true;
         entry.CompetitionCapacityId = capacity.Id;
         entry.DanceRole = capacity.DanceRole;

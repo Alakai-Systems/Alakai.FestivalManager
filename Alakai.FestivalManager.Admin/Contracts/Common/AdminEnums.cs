@@ -10,8 +10,10 @@ public enum DanceRole
 public enum CompetitionFormat
 {
     SoloJazz = 1,
-    MixAndMatch = 2
+    MixAndMatch = 2,
+    Strictly = 3
 }
+
 
 public enum MixAndMatchLevel
 {

@@ -149,134 +149,132 @@
 
 @if (editingRegistration is not null)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="w-full max-w-3xl mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
-            <div class="flex items-center justify-between p-5 border-b">
-                <h3 class="text-lg font-semibold">Edit Registration</h3>
-                <button type="button" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 760px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold">Edit Registration</h3>
+                    <button type="button" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <EditForm Model="editModel" OnValidSubmit="SaveEditAsync">
+                    <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                        <div>
+                            <label class="form-label">First Name</label>
+                            <InputText class="form-input" @bind-Value="editModel.FirstName" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Last Name</label>
+                            <InputText class="form-input" @bind-Value="editModel.LastName" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Email</label>
+                            <InputText class="form-input" @bind-Value="editModel.Email" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Phone</label>
+                            <InputText class="form-input" @bind-Value="editModel.Phone" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Pass Type</label>
+                            <select class="form-select" @bind="editModel.PassTypeId">
+                                @foreach (PassTypeDto passType in passTypes)
+                                {
+                                    <option value="@passType.Id">@passType.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Level</label>
+                            <select class="form-select" @bind="editModel.LevelId">
+                                <option value="">No level</option>
+                                @foreach (LevelDto level in levels)
+                                {
+                                    <option value="@level.Id">@level.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Dance Role</label>
+                            <select class="form-select" @bind="editModel.DanceRole">
+                                <option value="">No role</option>
+                                <option value="@DanceRole.Leader">Leader</option>
+                                <option value="@DanceRole.Follower">Follower</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Partner Email</label>
+                            <InputText class="form-input" @bind-Value="editModel.PartnerEmail" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Payment Status</label>
+                            <select class="form-select" @bind="editModel.PaymentStatus">
+                                <option value="@PaymentStatus.Unpaid">Unpaid</option>
+                                <option value="@PaymentStatus.Pending">Pending</option>
+                                <option value="@PaymentStatus.Paid">Paid</option>
+                                <option value="@PaymentStatus.Failed">Failed</option>
+                                <option value="@PaymentStatus.Refunded">Refunded</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Registration Status</label>
+                            <select class="form-select" @bind="editModel.Status">
+                                <option value="@RegistrationStatus.PendingPayment">Pending Payment</option>
+                                <option value="@RegistrationStatus.Registered">Pending Payment</option>
+                                <option value="@RegistrationStatus.Confirmed">Confirmed</option>
+                                <option value="@RegistrationStatus.WaitingPartner">Waiting Partner</option>
+                                <option value="@RegistrationStatus.Cancelled">Cancelled</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Base Price</label>
+                            <InputNumber class="form-input" @bind-Value="editModel.BasePrice" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Group Code</label>
+                            <InputText class="form-input" @bind-Value="editModel.DiscountCodeValue" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="form-label">Internal Notes</label>
+                            <InputTextArea class="form-input" rows="3" @bind-Value="editModel.InternalNotes" />
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 p-5 border-t">
+                        <button type="button" class="btn border" @onclick="CloseEditModal">Cancel</button>
+                        <button type="submit" class="btn bg-purple text-white">Save</button>
+                    </div>
+                </EditForm>
             </div>
-
-            <EditForm Model="editModel" OnValidSubmit="SaveEditAsync">
-                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                    <div>
-                        <label class="form-label">First Name</label>
-                        <InputText class="form-input" @bind-Value="editModel.FirstName" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Last Name</label>
-                        <InputText class="form-input" @bind-Value="editModel.LastName" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Email</label>
-                        <InputText class="form-input" @bind-Value="editModel.Email" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Phone</label>
-                        <InputText class="form-input" @bind-Value="editModel.Phone" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Pass Type</label>
-                        <select class="form-select" @bind="editModel.PassTypeId">
-                            @foreach (PassTypeDto passType in passTypes)
-                            {
-                                <option value="@passType.Id">@passType.Name</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Level</label>
-                        <select class="form-select" @bind="editModel.LevelId">
-                            <option value="">No level</option>
-                            @foreach (LevelDto level in levels)
-                            {
-                                <option value="@level.Id">@level.Name</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Dance Role</label>
-                        <select class="form-select" @bind="editModel.DanceRole">
-                            <option value="">No role</option>
-                            <option value="@DanceRole.Leader">Leader</option>
-                            <option value="@DanceRole.Follower">Follower</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Partner Email</label>
-                        <InputText class="form-input" @bind-Value="editModel.PartnerEmail" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Payment Status</label>
-                        <select class="form-select" @bind="editModel.PaymentStatus">
-                            <option value="@PaymentStatus.Unpaid">Unpaid</option>
-                            <option value="@PaymentStatus.Pending">Pending</option>
-                            <option value="@PaymentStatus.Paid">Paid</option>
-                            <option value="@PaymentStatus.Failed">Failed</option>
-                            <option value="@PaymentStatus.Refunded">Refunded</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Registration Status</label>
-                        <select class="form-select" @bind="editModel.Status">
-                            <option value="@RegistrationStatus.PendingPayment">Pending Payment</option>
-                            <option value="@RegistrationStatus.Registered">Pending Payment</option>
-                            <option value="@RegistrationStatus.Confirmed">Confirmed</option>
-                            <option value="@RegistrationStatus.WaitingPartner">Waiting Partner</option>
-                            <option value="@RegistrationStatus.Cancelled">Cancelled</option>
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="form-label">Base Price</label>
-                        <InputNumber class="form-input" @bind-Value="editModel.BasePrice" />
-                    </div>
-
-                    <div>
-                        <label class="form-label">Group Code</label>
-                        <InputText class="form-input" @bind-Value="editModel.DiscountCodeValue" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="form-label">Internal Notes</label>
-                        <InputTextArea class="form-input" rows="3" @bind-Value="editModel.InternalNotes" />
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 p-5 border-t">
-                    <button type="button" class="btn border" @onclick="CloseEditModal">Cancel</button>
-                    <button type="submit" class="btn bg-purple text-white">Save</button>
-                </div>
-            </EditForm>
         </div>
     </div>
 }
 
 @if (deleteRegistration is not null)
 {
-    <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-        <div class="w-full max-w-md mx-4 bg-white rounded-lg shadow-lg dark:bg-dark">
-            <div class="p-5 border-b">
-                <h3 class="text-lg font-semibold">Delete Registration</h3>
-            </div>
-
-            <div class="p-5">
-                <p>Delete <strong>@deleteRegistration.FullName</strong>?</p>
-                <p class="mt-2 text-sm text-black/50">The backend should physically delete the registration and related entries/logs.</p>
-                <p class="mt-2 text-sm text-black/50">Cancellation email button is prepared, but the send endpoint is still pending.</p>
-            </div>
-
-            <div class="flex justify-end gap-3 p-5 border-t">
-                <button type="button" class="btn border" @onclick="CloseDeleteModal">Cancel</button>
-                <button type="button" class="btn bg-danger text-white" @onclick="DeleteAsync">Delete</button>
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Registration</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deleteRegistration.FullName</strong>?</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
             </div>
         </div>
     </div>
@@ -298,6 +296,7 @@
     private string sortColumn = "Name";
     private bool sortAscending = true;
     private bool isLoading = true;
+    private bool isSaving;
     private string? successMessage;
     private string? errorMessage;
     private int pageSize = 10;
@@ -435,6 +434,30 @@
         {
             currentPage++;
         }
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
     }
 
     private string GetPassTypeName(Guid passTypeId)
@@ -578,11 +601,14 @@
             await RegistrationApiClient.UpdateAsync(editingRegistration.Id, request);
             successMessage = "Registration updated.";
             editingRegistration = null;
+
+            ShowSuccess(successMessage);
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowError(errorMessage);
         }
     }
 
@@ -609,11 +635,14 @@
             await RegistrationApiClient.DeleteAsync(deleteRegistration.Id);
             successMessage = "Registration deleted. Cancellation email endpoint is still pending.";
             deleteRegistration = null;
+
+            ShowSuccess(successMessage);
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowError(errorMessage);
         }
     }
 

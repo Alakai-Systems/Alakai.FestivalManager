@@ -2,6 +2,7 @@
 @using Alakai.FestivalManager.Admin.Components.Layout
 @inject CompetitionEntryApiClient CompetitionEntryApiClient
 @inject CompetitionApiClient CompetitionApiClient
+@inject RegistrationApiClient RegistrationApiClient
 
 <PageHeader Title="Operations" pTitle="Competition Entries"></PageHeader>
 
@@ -48,11 +49,11 @@
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold">Competition</th>
-                            <th class="px-4 py-3 font-semibold">Registration</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Registration")'>Registration @SortIcon("Registration")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Competition")'>Competition @SortIcon("Competition")</button></th>
                             <th class="px-4 py-3 font-semibold">Partner</th>
-                            <th class="px-4 py-3 font-semibold">Role</th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
                             <th class="px-4 py-3 font-semibold">Date</th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
@@ -69,8 +70,8 @@
                             @foreach (CompetitionEntryDto entry in PagedEntries)
                             {
                                 <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">@GetRegistrationName(entry.RegistrationId)</td>
                                     <td class="px-4 py-3">@GetCompetitionName(entry.CompetitionId)</td>
-                                    <td class="px-4 py-3">@entry.RegistrationId</td>
                                     <td class="px-4 py-3">@FormatPartner(entry)</td>
                                     <td class="px-4 py-3">@entry.DanceRole</td>
                                     <td class="px-4 py-3"><span class="@GetStatusClass(entry.Status)">@entry.Status</span></td>
@@ -86,6 +87,17 @@
                         }
                     </tbody>
                 </table>
+            </div>
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @StartRow to @EndRow of @FilteredEntries.Count entries
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
             </div>
         }
     </div>
@@ -133,10 +145,10 @@
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-md mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Competition Entry</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete this competition entry?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete competition<strong>@GetCompetitionName(@deletingEntry.CompetitionId)</strong> for<strong>@GetRegistrationName(@deletingEntry.RegistrationId)</strong>?</p>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -151,16 +163,21 @@
 @code {
     private List<CompetitionEntryDto> entries = [];
     private List<CompetitionDto> competitions = [];
+    private List<RegistrationDto> registrations = [];
     private CompetitionEntryDto? editingEntry;
     private CompetitionEntryDto? deletingEntry;
     private CompetitionEntryEditModel editModel = new();
     private Guid competitionFilter = Guid.Empty;
+    private Guid registrationFilter = Guid.Empty;
     private string statusFilter = string.Empty;
+    private string danceRoleFilter = string.Empty;
     private bool isLoading = true;
     private string? successMessage;
     private string? errorMessage;
     private int currentPage = 1;
     private int pageSize = 25;
+    private bool sortAscending = true;
+    private string sortColumn = "Name";
 
     protected override async Task OnInitializedAsync()
     {
@@ -176,6 +193,7 @@
         {
             entries = (await CompetitionEntryApiClient.GetAllAsync()).ToList();
             competitions = (await CompetitionApiClient.GetAllAsync()).ToList();
+            registrations = (await RegistrationApiClient.GetAllAsync()).ToList();
         }
         catch (Exception ex)
         {
@@ -198,12 +216,31 @@
                 query = query.Where(e => e.CompetitionId == competitionFilter);
             }
 
+            if (registrationFilter != Guid.Empty)
+            {
+                query = query.Where(e => e.RegistrationId == registrationFilter);
+            }
+
+            if (Enum.TryParse(danceRoleFilter, out DanceRole danceRole))
+            {
+                query = query.Where(e => e.DanceRole == danceRole);
+            }
+
             if (Enum.TryParse(statusFilter, out CompetitionEntryStatus status))
             {
                 query = query.Where(e => e.Status == status);
             }
 
-            return query.OrderByDescending(e => e.CreatedAt).ToList();
+            query = sortColumn switch
+            {
+                "Competition" => sortAscending ? query.OrderBy(r => GetCompetitionName(r.CompetitionId)) : query.OrderByDescending(r => GetCompetitionName(r.CompetitionId)),
+                "Registration" => sortAscending ? query.OrderBy(r => r.DanceRole) : query.OrderByDescending(r => r.DanceRole),
+                "Role" => sortAscending ? query.OrderBy(r => r.DanceRole) : query.OrderByDescending(r => r.DanceRole),
+                "Status" => sortAscending ? query.OrderBy(r => r.Status) : query.OrderByDescending(r => r.Status),
+                _ => sortAscending ? query.OrderBy(r => r.RegistrationId) : query.OrderByDescending(r => r.RegistrationId)
+            };
+
+            return query.ToList();
         }
     }
 
@@ -214,14 +251,70 @@
         currentPage = 1;
     }
 
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+    }
+
+    private IEnumerable<CompetitionEntryDto> PagedRegistrations => FilteredEntries.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredEntries.Count / (double)pageSize));
+    private int StartRow => FilteredEntries.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredEntries.Count);
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
     private string GetCompetitionName(Guid competitionId)
     {
         return competitions.FirstOrDefault(c => c.Id == competitionId)?.Name ?? competitionId.ToString();
     }
 
-    private static string FormatPartner(CompetitionEntryDto entry)
+    private string GetRegistrationName(Guid registrationId)
     {
-        return entry.PartnerRegistrationId.HasValue ? entry.PartnerRegistrationId.Value.ToString() : "-";
+        string firstName = registrations.FirstOrDefault(c => c.Id == registrationId)?.FirstName ?? registrationId.ToString();
+        string lastName = registrations.FirstOrDefault(c => c.Id == registrationId)?.LastName ?? registrationId.ToString();
+        string registrationName = $"{firstName} {lastName}";
+
+        return registrationName;
+    }
+
+    private string FormatPartner(CompetitionEntryDto entry)
+    {
+        string firstName = registrations.FirstOrDefault(c => c.Id == entry.PartnerRegistrationId)?.FirstName ?? string.Empty;
+        string lastName = registrations.FirstOrDefault(c => c.Id == entry.PartnerRegistrationId)?.LastName ?? string.Empty;
+        string registrationName = firstName + lastName;
+
+        return entry.PartnerRegistrationId.HasValue ? registrationName : "-";
     }
 
     private static string GetStatusClass(CompetitionEntryStatus status)
@@ -258,6 +351,30 @@
         editingEntry = null;
     }
 
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
     private async Task SaveEditAsync()
     {
         if (editingEntry is null)
@@ -284,11 +401,14 @@
             await CompetitionEntryApiClient.UpdateAsync(editingEntry.Id, request);
             successMessage = "Competition entry updated successfully.";
             editingEntry = null;
+
+            ShowSuccess(successMessage);
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowError(errorMessage);
         }
     }
 
@@ -314,11 +434,14 @@
             await CompetitionEntryApiClient.DeleteAsync(deletingEntry.Id);
             successMessage = "Competition entry deleted successfully.";
             deletingEntry = null;
+
+            ShowSuccess(successMessage);
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowError(errorMessage);
         }
     }
 

@@ -1,4 +1,5 @@
 @page "/emails"
+@using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @inject EmailTemplateApiClient EmailTemplateApiClient
 @inject EditionApiClient EditionApiClient
@@ -8,11 +9,6 @@
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
     <div class="card">
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Email Templates</h2>
-                <p class="text-sm text-black/50 dark:text-white/40">Manage email templates and variables. Visual editor can be added later.</p>
-            </div>
-
             <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
                 <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
                 New Template

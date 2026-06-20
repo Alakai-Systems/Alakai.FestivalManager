@@ -1,8 +1,3 @@
-using Alakai.FestivalManager.Application.Common.Exceptions;
-using Alakai.FestivalManager.Application.Features.Users.Contracts.DTOs;
-using Alakai.FestivalManager.Domain.Entities;
-using AutoMapper;
-
 namespace Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
 
 public class UpdateUserHandler
@@ -32,11 +27,13 @@ public class UpdateUserHandler
             throw new BusinessRuleException($"A user with email '{command.Email}' already exists.");
         }
 
-        _mapper.Map<User>(command);
+        _mapper.Map(command, user);
 
         user.SetUpdated();
         await _userRepository.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<UserDto>(user);
+        UserDto userDto = _mapper.Map<UserDto>(user);
+
+        return userDto;
     }
 }

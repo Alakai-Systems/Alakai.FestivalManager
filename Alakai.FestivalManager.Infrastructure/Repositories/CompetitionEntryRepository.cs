@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class CompetitionEntryRepository : ICompetitionEntryRepository
@@ -44,6 +46,10 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
         return await _context.CompetitionEntries.Where(e => e.CompetitionCapacityId == capacityId && e.IsActive && e.Status == CompetitionEntryStatus.Confirmed).CountAsync(cancellationToken);
     }
 
+    public async Task<bool> ExistsByCapacityIdAsync(Guid capacityId, CancellationToken cancellationToken)
+    {
+        return await _context.CompetitionEntries.AnyAsync(e => e.CompetitionCapacityId == capacityId, cancellationToken);
+    }
 
     public async Task<bool> ExistsByCompetitionAndRegistrationAsync(Guid competitionId, Guid registrationId, CancellationToken cancellationToken = default)
     {

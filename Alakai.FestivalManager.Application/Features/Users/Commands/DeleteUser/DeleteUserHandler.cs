@@ -18,10 +18,15 @@ public class DeleteUserHandler
             throw new NotFoundException($"User with id '{command.Id}' was not found.");
         }
 
-        user.IsActive = false;
-
-        _userRepository.Update(user);
-        await _userRepository.SaveChangesAsync(cancellationToken);
+        try
+        {
+            _userRepository.Delete(user);
+            await _userRepository.SaveChangesAsync(cancellationToken);
+        }
+        catch (DbUpdateException ex)
+        {
+            throw new BusinessRuleException("This user cannot be deleted because it has a related registration.");
+        }
 
         return true;
     }
