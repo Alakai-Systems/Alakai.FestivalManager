@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
 
 public interface IDiscountCodeRepository
@@ -8,6 +10,7 @@ public interface IDiscountCodeRepository
     Task<IReadOnlyList<DiscountCode>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<IReadOnlyList<DiscountCode>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
     Task<bool> ExistsByEditionAndCodeAsync(Guid editionId, string code, CancellationToken cancellationToken = default);
+    Task<int> CountUsesAsync(Guid discountCodeId, CancellationToken cancellationToken = default);
     void Update(DiscountCode discountCode);
     void Delete(DiscountCode discountCode);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);

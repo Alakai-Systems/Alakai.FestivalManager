@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Admin.Contracts.Registrations.Requests;
 
 public class UpdateRegistrationRequest
 {
+    public Guid Id { get; set; }
     public Guid EditionId { get; set; }
     public Guid PassTypeId { get; set; }
     public Guid? LevelId { get; set; }

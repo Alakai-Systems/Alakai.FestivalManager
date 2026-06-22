@@ -5,7 +5,11 @@ public class RegistrationMappingProfile : Profile
     public RegistrationMappingProfile()
     {
         //Generics y Gets
-        CreateMap<Registration, RegistrationDto>();
+        CreateMap<Registration, RegistrationDto>()
+            .ForMember(dest => dest.DiscountCodeValue, opt => opt.MapFrom(src => src.DiscountCodeValue))
+            .ForMember(dest => dest.DiscountAmount, opt => opt.MapFrom(src => src.DiscountAmount))
+            .ForMember(dest => dest.FinalPrice, opt => opt.MapFrom(src => src.FinalPrice))
+            .ForMember(dest => dest.DiscountStatus, opt => opt.MapFrom(src => src.DiscountStatus));
         CreateMap<IReadOnlyList<RegistrationDto>, IReadOnlyList<Registration>>();
 
         //Create Registration
@@ -23,10 +27,7 @@ public class RegistrationMappingProfile : Profile
             .ForMember(dest => dest.UpdatedAt, opt => opt.Ignore())
             .ForMember(dest => dest.CancelledAt, opt => opt.Ignore())
             .ForMember(dest => dest.IsActive, opt => opt.Ignore())
-            .ForMember(dest => dest.DiscountCode, opt => opt.Ignore())
-            .ForMember(dest => dest.DiscountCodeId, opt => opt.Ignore())
-            .ForMember(dest => dest.DiscountCodeValue, opt => opt.Ignore())
-            .ForMember(dest => dest.DiscountStatus, opt => opt.Ignore());
+            .ForMember(dest => dest.DiscountCode, opt => opt.Ignore());
         CreateMap<CreateRegistrationRequest, CreateRegistrationCommand>();
         CreateMap<RegistrationDto, CreateRegistrationResponse>();
 
@@ -47,7 +48,6 @@ public class RegistrationMappingProfile : Profile
             .ForMember(dest => dest.IsActive, opt => opt.Ignore())
             .ForMember(dest => dest.DiscountCode, opt => opt.Ignore())
             .ForMember(dest => dest.DiscountCodeId, opt => opt.Ignore())
-            .ForMember(dest => dest.DiscountCodeValue, opt => opt.Ignore())
             .ForMember(dest => dest.DiscountStatus, opt => opt.Ignore());
         CreateMap<UpdateRegistrationRequest, UpdateRegistrationCommand>();
         CreateMap<RegistrationDto, UpdateRegistrationResponse>();

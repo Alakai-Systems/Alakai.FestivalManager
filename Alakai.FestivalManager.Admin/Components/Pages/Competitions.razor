@@ -258,9 +258,13 @@
                     </div>
 
                     <div class="border rounded-lg border-black/10 dark:border-darkborder p-4">
-                        <div class="flex items-center justify-between mb-3">
-                            <h4 class="font-semibold text-black dark:text-white">Capacities</h4>
-                            <button type="button" class="btn border text-sm" @onclick="AddCapacity">Add capacity</button>
+                        <div class="flex items-center justify-end mb-3">
+                            <button type="button"
+                                    class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                                    @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                                New Capacity
+                            </button>
                         </div>
 
                         @foreach (CompetitionCapacityFormModel capacity in formModel.Capacities)

@@ -5,12 +5,15 @@ public class DeleteRegistrationHandler
     private readonly IRegistrationRepository _registrationRepository;
     private readonly ICompetitionEntryRepository _competitionEntryRepository;
     private readonly IEmailLogRepository _emailLogRepository;
+    private readonly IDiscountCodeRepository _discountCodeRepository;
 
-    public DeleteRegistrationHandler(IRegistrationRepository registrationRepository, ICompetitionEntryRepository competitionEntryRepository, IEmailLogRepository emailLogRepository)
+    public DeleteRegistrationHandler(IRegistrationRepository registrationRepository, ICompetitionEntryRepository competitionEntryRepository, 
+        IEmailLogRepository emailLogRepository, IDiscountCodeRepository discountCodeRepository)
     {
         _registrationRepository = registrationRepository;
         _competitionEntryRepository = competitionEntryRepository;
         _emailLogRepository = emailLogRepository;
+        _discountCodeRepository = discountCodeRepository;
     }
 
     public async Task<Guid> HandleAsync(DeleteRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -36,8 +39,32 @@ public class DeleteRegistrationHandler
             _emailLogRepository.Delete(emailLog);
         }
 
+        Guid? codeId = existing.DiscountCodeId;
+
+        existing.Status = RegistrationStatus.Cancelled;
+        existing.CancelledAt = DateTime.UtcNow;
+        existing.IsActive = false;
+
         _registrationRepository.Delete(existing);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        if (codeId.HasValue)
+        {
+            int uses = await _registrationRepository.CountByDiscountCodeAsync(codeId.Value, cancellationToken);
+            DiscountCode? code = await _discountCodeRepository.GetByIdAsync(codeId.Value, cancellationToken);
+
+            if (code is not null)
+            {
+                code.CurrentUses = uses;
+
+                if (code.ActivationType != DiscountActivationType.Immediate && uses == 0)
+                {
+                    _discountCodeRepository.Delete(code);
+                }
+
+                await _discountCodeRepository.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         return command.Id;
     }

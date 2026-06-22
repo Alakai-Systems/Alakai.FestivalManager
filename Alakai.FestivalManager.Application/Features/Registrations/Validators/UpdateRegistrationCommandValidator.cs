@@ -1,6 +1,3 @@
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
-using FluentValidation;
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Validators;
 
 public class UpdateRegistrationCommandValidator : AbstractValidator<UpdateRegistrationCommand>

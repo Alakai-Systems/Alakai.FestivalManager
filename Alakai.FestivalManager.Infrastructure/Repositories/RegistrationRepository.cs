@@ -57,6 +57,12 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations.AnyAsync(r => r.EditionId == editionId && r.Email == email, cancellationToken);
     }
 
+    public async Task<int> CountByDiscountCodeAsync(Guid discountCodeId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations.CountAsync(r => r.DiscountCodeId == discountCodeId, cancellationToken);
+    }
+
+
     public void Update(Registration registration)
     {
         _context.Registrations.Update(registration);

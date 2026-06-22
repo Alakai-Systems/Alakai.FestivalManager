@@ -25,7 +25,7 @@ public class UpdateRegistrationRequest
     public decimal BasePrice { get; set; }
     public decimal DiscountAmount { get; set; }
     public decimal FinalPrice { get; set; }
-    public string? DiscountCode { get; set; }
+    public string? DiscountCodeValue { get; set; }
     public string? PaymentReference { get; set; }
     public DateTime? PaidAt { get; set; }
     public string? Notes { get; set; }

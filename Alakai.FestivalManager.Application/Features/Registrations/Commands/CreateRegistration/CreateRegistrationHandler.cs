@@ -113,11 +113,19 @@ public class CreateRegistrationHandler
 
         if (discount.DiscountCodeId.HasValue)
         {
+            Guid codeId = registration.DiscountCodeId ?? Guid.Empty;
+
+            int uses = await _registrationRepository.CountByDiscountCodeAsync(codeId, cancellationToken);
             DiscountCode? code = await _discountCodeRepository.GetByIdAsync(discount.DiscountCodeId.Value, cancellationToken);
 
             if (code is not null)
             {
-                code.CurrentUses++;
+                code.CurrentUses = uses;
+
+                if (code.ActivationType != DiscountActivationType.Immediate && uses == 0)
+                {
+                    _discountCodeRepository.Delete(code);
+                }
 
                 await _discountCodeRepository.SaveChangesAsync(cancellationToken);
             }

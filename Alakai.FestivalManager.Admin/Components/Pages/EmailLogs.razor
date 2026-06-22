@@ -70,6 +70,18 @@
                     </tbody>
                 </table>
             </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @ShowingFrom to @ShowingTo of @FilteredLogs.Count pass types
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
         }
     </div>
 </div>
@@ -80,6 +92,8 @@
     private string statusFilter = string.Empty;
     private bool isLoading = true;
     private string? errorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
 
     protected override async Task OnInitializedAsync()
     {
@@ -123,6 +137,33 @@
 
             return query.ToList();
         }
+    }
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredLogs.Count / pageSize));
+    private int ShowingFrom => FilteredLogs.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int ShowingTo => Math.Min(currentPage * pageSize, FilteredLogs.Count);
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1) currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages) currentPage++;
     }
 
     private static string GetStatusClass(EmailLogStatus status)

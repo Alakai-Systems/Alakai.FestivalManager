@@ -11,12 +11,6 @@
 
         <div class="flex flex-col gap-3 mb-5 md:flex-row md:items-center md:flex-wrap">
 
-            <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                <option value="10">10 rows</option>
-                <option value="25">25 rows</option>
-                <option value="50">50 rows</option>
-            </select>
-
             <div class="relative w-full md:w-72">
                 <input class="form-input" placeholder="Search by name or email..."
                        @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
@@ -60,6 +54,12 @@
                 {
                     <option value="@group">@group</option>
                 }
+            </select>
+
+            <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
             </select>
 
         </div>
@@ -112,7 +112,7 @@
                                     <div>@registration.FinalPrice.ToString("0.##") €</div>
                                     <div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
                                 </td>
-                                <td class="px-4 py-3">@registration.GroupCode</td>
+                                <td class="px-4 py-3">@registration.DiscountCodeValue</td>
                                 <td class="px-4 py-3">@FormatPartner(registration)</td>
                                 <td class="px-4 py-3"><span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span></td>
                                 <td class="px-4 py-3">@FormatDate(registration.CreatedAt)</td>
@@ -157,31 +157,31 @@
                     <button type="button" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
                 </div>
 
-                <EditForm Model="editModel" OnValidSubmit="SaveEditAsync">
+                <EditForm Model="editingRegistration" OnValidSubmit="SaveEditAsync">
                     <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                         <div>
                             <label class="form-label">First Name</label>
-                            <InputText class="form-input" @bind-Value="editModel.FirstName" />
+                            <InputText class="form-input" @bind-Value="editingRegistration.FirstName" />
                         </div>
 
                         <div>
                             <label class="form-label">Last Name</label>
-                            <InputText class="form-input" @bind-Value="editModel.LastName" />
+                            <InputText class="form-input" @bind-Value="editingRegistration.LastName" />
                         </div>
 
                         <div>
                             <label class="form-label">Email</label>
-                            <InputText class="form-input" @bind-Value="editModel.Email" />
+                            <InputText class="form-input" @bind-Value="editingRegistration.Email" />
                         </div>
 
                         <div>
                             <label class="form-label">Phone</label>
-                            <InputText class="form-input" @bind-Value="editModel.Phone" />
+                            <InputText class="form-input" @bind-Value="editingRegistration.Phone" />
                         </div>
 
                         <div>
                             <label class="form-label">Pass Type</label>
-                            <select class="form-select" @bind="editModel.PassTypeId">
+                            <select class="form-select" @bind="editingRegistration.PassTypeId">
                                 @foreach (PassTypeDto passType in passTypes)
                                 {
                                     <option value="@passType.Id">@passType.Name</option>
@@ -191,7 +191,7 @@
 
                         <div>
                             <label class="form-label">Level</label>
-                            <select class="form-select" @bind="editModel.LevelId">
+                            <select class="form-select" @bind="editingRegistration.LevelId">
                                 <option value="">No level</option>
                                 @foreach (LevelDto level in levels)
                                 {
@@ -202,7 +202,7 @@
 
                         <div>
                             <label class="form-label">Dance Role</label>
-                            <select class="form-select" @bind="editModel.DanceRole">
+                            <select class="form-select" @bind="editingRegistration.DanceRole">
                                 <option value="">No role</option>
                                 <option value="@DanceRole.Leader">Leader</option>
                                 <option value="@DanceRole.Follower">Follower</option>
@@ -211,12 +211,12 @@
 
                         <div>
                             <label class="form-label">Partner Email</label>
-                            <InputText class="form-input" @bind-Value="editModel.PartnerEmail" />
+                            <InputText class="form-input" @bind-Value="editingRegistration.PartnerEmail" />
                         </div>
 
                         <div>
                             <label class="form-label">Payment Status</label>
-                            <select class="form-select" @bind="editModel.PaymentStatus">
+                            <select class="form-select" @bind="editingRegistration.PaymentStatus">
                                 <option value="@PaymentStatus.Unpaid">Unpaid</option>
                                 <option value="@PaymentStatus.Pending">Pending</option>
                                 <option value="@PaymentStatus.Paid">Paid</option>
@@ -227,9 +227,9 @@
 
                         <div>
                             <label class="form-label">Registration Status</label>
-                            <select class="form-select" @bind="editModel.Status">
+                            <select class="form-select" @bind="editingRegistration.Status">
+                                <option value="@RegistrationStatus.Registered">Registered</option>
                                 <option value="@RegistrationStatus.PendingPayment">Pending Payment</option>
-                                <option value="@RegistrationStatus.Registered">Pending Payment</option>
                                 <option value="@RegistrationStatus.Confirmed">Confirmed</option>
                                 <option value="@RegistrationStatus.WaitingPartner">Waiting Partner</option>
                                 <option value="@RegistrationStatus.Cancelled">Cancelled</option>
@@ -238,17 +238,17 @@
 
                         <div>
                             <label class="form-label">Base Price</label>
-                            <InputNumber class="form-input" @bind-Value="editModel.BasePrice" />
+                            <InputNumber class="form-input" @bind-Value="editingRegistration.BasePrice" />
                         </div>
 
                         <div>
                             <label class="form-label">Group Code</label>
-                            <InputText class="form-input" @bind-Value="editModel.DiscountCodeValue" />
+                            <InputText class="form-input" @bind-Value="editingRegistration.DiscountCodeValue" />
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="form-label">Internal Notes</label>
-                            <InputTextArea class="form-input" rows="3" @bind-Value="editModel.InternalNotes" />
+                            <InputTextArea class="form-input" rows="3" @bind-Value="editingRegistration.InternalNotes" />
                         </div>
                     </div>
 
@@ -286,7 +286,6 @@
     private List<LevelDto> levels = [];
     private RegistrationDto? editingRegistration;
     private RegistrationDto? deleteRegistration;
-    private RegistrationEditModel editModel = new();
     private string searchText = string.Empty;
     private string paymentFilter = string.Empty;
     private string partnerFilter = string.Empty;
@@ -299,7 +298,7 @@
     private bool isSaving;
     private string? successMessage;
     private string? errorMessage;
-    private int pageSize = 10;
+    private int pageSize = 25;
     private int currentPage = 1;
 
     protected override async Task OnInitializedAsync()
@@ -328,7 +327,7 @@
         }
     }
 
-    private List<string> Groups => registrations.Where(r => !string.IsNullOrWhiteSpace(r.GroupCode)).Select(r => r.GroupCode).Distinct().OrderBy(g => g).ToList();
+    private List<string?> Groups => registrations.Where(r => !string.IsNullOrWhiteSpace(r.DiscountCodeValue)).Select(r => r.DiscountCodeValue).Distinct().OrderBy(g => g).ToList();
 
     private List<RegistrationDto> FilteredRegistrations
     {
@@ -371,14 +370,14 @@
 
             if (!string.IsNullOrWhiteSpace(groupFilter))
             {
-                query = query.Where(r => r.GroupCode == groupFilter);
+                query = query.Where(r => r.DiscountCodeValue == groupFilter);
             }
 
             query = sortColumn switch
             {
                 "Pass" => sortAscending ? query.OrderBy(r => GetPassTypeName(r.PassTypeId)) : query.OrderByDescending(r => GetPassTypeName(r.PassTypeId)),
                 "Role" => sortAscending ? query.OrderBy(r => r.DanceRole) : query.OrderByDescending(r => r.DanceRole),
-                "Group" => sortAscending ? query.OrderBy(r => r.GroupCode) : query.OrderByDescending(r => r.GroupCode),
+                "Group" => sortAscending ? query.OrderBy(r => r.DiscountCodeValue) : query.OrderByDescending(r => r.DiscountCodeValue),
                 "Date" => sortAscending ? query.OrderBy(r => r.CreatedAt) : query.OrderByDescending(r => r.CreatedAt),
                 _ => sortAscending ? query.OrderBy(r => r.FullName) : query.OrderByDescending(r => r.FullName)
             };
@@ -434,6 +433,12 @@
         {
             currentPage++;
         }
+    }
+
+    private void NormalizeGuids()
+    {
+        if (editingRegistration?.PartnerRegistrationId == Guid.Empty)
+            editingRegistration.PartnerRegistrationId = null;
     }
 
     private void ShowSuccess(string message)
@@ -535,29 +540,6 @@
     private void OpenEditModal(RegistrationDto registration)
     {
         editingRegistration = registration;
-        editModel = new RegistrationEditModel
-        {
-            EditionId = registration.EditionId,
-            PassTypeId = registration.PassTypeId,
-            LevelId = registration.LevelId,
-            FirstName = registration.FirstName,
-            LastName = registration.LastName,
-            Email = registration.Email,
-            Phone = registration.Phone,
-            Country = registration.Country,
-            City = registration.City,
-            DocumentNumber = registration.DocumentNumber,
-            DocumentCountry = registration.DocumentCountry,
-            DanceRole = registration.DanceRole,
-            PartnerEmail = registration.PartnerEmail,
-            BasePrice = registration.BasePrice,
-            DiscountCodeValue = registration.GroupCode,
-            Notes = registration.Notes,
-            InternalNotes = registration.InternalNotes,
-            Status = registration.Status,
-            PaymentStatus = registration.PaymentStatus,
-            IsActive = registration.IsActive
-        };
     }
 
     private void CloseEditModal()
@@ -567,6 +549,8 @@
 
     private async Task SaveEditAsync()
     {
+        NormalizeGuids();
+
         if (editingRegistration is null)
         {
             return;
@@ -576,26 +560,27 @@
         {
             UpdateRegistrationRequest request = new()
             {
-                EditionId = editModel.EditionId,
-                PassTypeId = editModel.PassTypeId,
-                LevelId = editModel.LevelId,
-                FirstName = editModel.FirstName,
-                LastName = editModel.LastName,
-                Email = editModel.Email,
-                Phone = editModel.Phone,
-                Country = editModel.Country,
-                City = editModel.City,
-                DocumentNumber = editModel.DocumentNumber,
-                DocumentCountry = editModel.DocumentCountry,
-                DanceRole = editModel.DanceRole,
-                PartnerEmail = editModel.PartnerEmail,
-                BasePrice = editModel.BasePrice,
-                DiscountCodeValue = editModel.DiscountCodeValue,
-                Notes = editModel.Notes,
-                InternalNotes = editModel.InternalNotes,
-                Status = editModel.Status,
-                PaymentStatus = editModel.PaymentStatus,
-                IsActive = editModel.IsActive
+                Id = editingRegistration.Id,
+                EditionId = editingRegistration.EditionId,
+                PassTypeId = editingRegistration.PassTypeId,
+                LevelId = editingRegistration.LevelId,
+                FirstName = editingRegistration.FirstName,
+                LastName = editingRegistration.LastName,
+                Email = editingRegistration.Email,
+                Phone = editingRegistration.Phone,
+                Country = editingRegistration.Country,
+                City = editingRegistration.City,
+                DocumentNumber = editingRegistration.DocumentNumber,
+                DocumentCountry = editingRegistration.DocumentCountry,
+                DanceRole = editingRegistration.DanceRole,
+                PartnerEmail = editingRegistration.PartnerEmail,
+                BasePrice = editingRegistration.BasePrice,
+                DiscountCodeValue = editingRegistration.DiscountCodeValue,
+                Notes = editingRegistration.Notes,
+                InternalNotes = editingRegistration.InternalNotes,
+                Status = editingRegistration.Status,
+                PaymentStatus = editingRegistration.PaymentStatus,
+                IsActive = editingRegistration.IsActive
             };
 
             await RegistrationApiClient.UpdateAsync(editingRegistration.Id, request);
@@ -644,29 +629,5 @@
             errorMessage = ex.Message;
             ShowError(errorMessage);
         }
-    }
-
-    private class RegistrationEditModel
-    {
-        public Guid EditionId { get; set; }
-        public Guid PassTypeId { get; set; }
-        public Guid? LevelId { get; set; }
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string? Phone { get; set; }
-        public string? Country { get; set; }
-        public string? City { get; set; }
-        public string? DocumentNumber { get; set; }
-        public string? DocumentCountry { get; set; }
-        public DanceRole? DanceRole { get; set; }
-        public string? PartnerEmail { get; set; }
-        public decimal BasePrice { get; set; }
-        public string? DiscountCodeValue { get; set; }
-        public string? Notes { get; set; }
-        public string? InternalNotes { get; set; }
-        public RegistrationStatus Status { get; set; }
-        public PaymentStatus PaymentStatus { get; set; }
-        public bool IsActive { get; set; }
     }
 }

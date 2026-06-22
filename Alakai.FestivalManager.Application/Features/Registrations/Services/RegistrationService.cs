@@ -91,7 +91,7 @@ public partial class RegistrationService : IRegistrationService
 
     public async Task<ApiResponse<UpdateRegistrationResponse>> UpdateAsync(Guid id, UpdateRegistrationCommand command, CancellationToken cancellationToken = default)
     {
-        FluentValidation.Results.ValidationResult validationResult = await _updateRegistrationValidator.ValidateAsync(command, cancellationToken);
+        ValidationResult validationResult = await _updateRegistrationValidator.ValidateAsync(command, cancellationToken);
 
         if (!validationResult.IsValid)
         {

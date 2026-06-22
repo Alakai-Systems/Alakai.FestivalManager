@@ -1,9 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
-using Alakai.FestivalManager.Domain.Entities;
-
 namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
 
 public interface IRegistrationRepository
@@ -14,6 +8,7 @@ public interface IRegistrationRepository
     Task<IReadOnlyList<Registration>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
     Task<Registration?> GetByEditionAndEmailAsync(Guid editionId, string email, CancellationToken cancellationToken = default);
     Task<bool> ExistsByEditionAndEmailAsync(Guid editionId, string email, CancellationToken cancellationToken = default);
+    Task<int> CountByDiscountCodeAsync(Guid discountCodeId, CancellationToken cancellationToken = default);
     void Update(Registration registration);
     void Delete(Registration registration);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

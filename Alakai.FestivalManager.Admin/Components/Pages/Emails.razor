@@ -9,10 +9,35 @@
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
     <div class="card">
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
-                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                New Template
-            </button>
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-72" placeholder="Search email templates..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="@Guid.Empty">All editions</option>
+                    @foreach (EditionDto edition in editions)
+                    {
+                        <option value="@edition.Id">@edition.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="statusFilter" @bind:after="ResetPage">
+                    <option value="All">All statuses</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="5">5 rows</option>
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Template
+                </button>
+            </div>
         </div>
 
         @if (!string.IsNullOrWhiteSpace(successMessage))
@@ -38,13 +63,13 @@
                             <th class="px-4 py-3 font-semibold">Name</th>
                             <th class="px-4 py-3 font-semibold">Key</th>
                             <th class="px-4 py-3 font-semibold">Subject</th>
-                            <th class="px-4 py-3 font-semibold">Scope</th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Edition")'>Edition @SortIcon("Edition")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @if (templates.Count == 0)
+                        @if (FilteredEmailTemplates.Count == 0)
                         {
                             <tr>
                                 <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No email templates found.</td>
@@ -52,13 +77,13 @@
                         }
                         else
                         {
-                            @foreach (EmailTemplateDto template in templates.OrderBy(t => t.TemplateKey).ThenBy(t => t.Name))
+                            @foreach (EmailTemplateDto template in PagedCodes)
                             {
                                 <tr class="border-b border-black/10 dark:border-darkborder">
                                     <td class="px-4 py-3">@template.Name</td>
                                     <td class="px-4 py-3">@template.TemplateKey</td>
                                     <td class="px-4 py-3">@template.Subject</td>
-                                    <td class="px-4 py-3">@(template.EditionId.HasValue ? "Edition" : "Global")</td>
+                                    <td class="px-4 py-3">@GetEditionName(template.EditionId)</td>
                                     <td class="px-4 py-3"><span class="@GetStatusClass(template.IsActive)">@(template.IsActive ? "Active" : "Inactive")</span></td>
                                     <td class="px-4 py-3">
                                         <div class="flex items-center justify-end gap-3">
@@ -71,6 +96,18 @@
                         }
                     </tbody>
                 </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @StartRow to @EndRow of @FilteredEmailTemplates.Count discount codes
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
             </div>
         }
     </div>
@@ -153,7 +190,7 @@
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-md mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Email Template</h3>
                     <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingTemplate.Name?</p>
@@ -161,8 +198,9 @@
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                     <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-danger" @onclick="DeleteAsync">Delete</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync"> @(isSaving ? "Deleting..." : "Delete")</button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -174,10 +212,18 @@
     private EmailTemplateDto? editingTemplate;
     private EmailTemplateDto? deletingTemplate;
     private EmailTemplateFormModel formModel = new();
+    private string searchText = string.Empty;
+    private bool isSaving;
+    private string editionFilter = string.Empty;
+    private string statusFilter = "All";
+    private int pageSize = 5;
+    private int currentPage = 1;
     private bool isLoading = true;
     private bool showModal;
     private string? successMessage;
     private string? errorMessage;
+    private string sortColumn = "Name";
+    private bool sortAscending = true;
 
     protected override async Task OnInitializedAsync()
     {
@@ -201,6 +247,154 @@
         finally
         {
             isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+        StateHasChanged();
+        NormalizePage();
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+
+        ResetPage();
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-fill text-xs text-black/30\"></i>");
+        }
+
+        string icon = sortAscending ? "ri-arrow-up-fill" : "ri-arrow-down-fill";
+        return new MarkupString($"<i class=\"{icon} text-xs text-purple\"></i>");
+    }
+
+    private string GetEditionName(Guid? editionId)
+    {
+        if (editionId is null || editionId == Guid.Empty) return string.Empty;
+        EditionDto? ed = editions.FirstOrDefault(e => e.Id == editionId);
+
+        if (ed is null)
+        {
+            return editionId.ToString() ?? string.Empty;
+        }
+
+        return $"{ed.Year} - {ed.Name}";
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private List<EmailTemplateDto> FilteredEmailTemplates
+    {
+        get
+        {
+            IEnumerable<EmailTemplateDto> query = templates;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(c =>
+                 c.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                 c.Subject.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                 c.TemplateKey.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase)
+ );
+            }
+
+            if (Guid.TryParse(editionFilter, out Guid editionId) && editionId != Guid.Empty)
+            {
+                query = query.Where(c => c.EditionId == editionId);
+            }
+
+            if (statusFilter == "Active")
+            {
+                query = query.Where(c => c.IsActive);
+            }
+            else if (statusFilter == "Inactive")
+            {
+                query = query.Where(c => !c.IsActive);
+            }
+
+            query = sortColumn switch
+            {
+                "Edition" => sortAscending ? query.OrderBy(c => c.EditionId) : query.OrderByDescending(c => c.EditionId),
+                "Status" => sortAscending
+                    ? query.OrderBy(c => c.IsActive ? 0 : 1)
+                    : query.OrderByDescending(c => c.IsActive ? 0 : 1),
+
+                _ => sortAscending ? query.OrderBy(c => c.Name) : query.OrderByDescending(c => c.Name)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private IEnumerable<EmailTemplateDto> PagedCodes => FilteredEmailTemplates.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredEmailTemplates.Count / (double)pageSize));
+    private int StartRow => FilteredEmailTemplates.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredEmailTemplates.Count);
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
         }
     }
 
@@ -256,6 +450,7 @@
 
                 await EmailTemplateApiClient.CreateAsync(request);
                 successMessage = "Email template created successfully.";
+                ShowSuccess(successMessage);
             }
             else
             {
@@ -273,6 +468,7 @@
 
                 await EmailTemplateApiClient.UpdateAsync(editingTemplate.Id, request);
                 successMessage = "Email template updated successfully.";
+                ShowSuccess(successMessage);
             }
 
             showModal = false;
@@ -281,6 +477,7 @@
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowError(errorMessage);
         }
     }
 
@@ -306,11 +503,13 @@
             await EmailTemplateApiClient.DeleteAsync(deletingTemplate.Id);
             successMessage = "Email template deleted successfully.";
             deletingTemplate = null;
+            ShowSuccess(successMessage);
             await LoadDataAsync();
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
+            ShowError(errorMessage);
         }
     }
 

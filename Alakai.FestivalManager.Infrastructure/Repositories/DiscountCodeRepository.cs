@@ -41,6 +41,12 @@ public class DiscountCodeRepository : IDiscountCodeRepository
         return await _context.DiscountCodes.AnyAsync(d => d.EditionId == editionId && d.Code == normalizedCode, cancellationToken);
     }
 
+    public async Task<int> CountUsesAsync(Guid discountCodeId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations.CountAsync(r => r.DiscountCodeId == discountCodeId, cancellationToken);
+    }
+
+
     public void Update(DiscountCode discountCode)
     {
         _context.DiscountCodes.Update(discountCode);
