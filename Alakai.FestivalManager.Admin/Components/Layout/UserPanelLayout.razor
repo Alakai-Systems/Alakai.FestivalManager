@@ -1,0 +1,75 @@
+﻿@inherits LayoutComponentBase
+
+@using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs
+
+@inject UserPanelApiClient UserPanelApiClient
+@inject ITokenStorageService TokenStorageService
+@inject NavigationManager Navigation
+
+<div class="min-h-screen bg-slate-100 dark:bg-dark">
+    <header class="sticky top-0 z-30 border-b border-black/10 bg-white dark:border-darkborder dark:bg-darklight shadow-sm">
+        <div class="flex items-center justify-between px-8 py-5">
+            <a href="/user-panel/dashboard" class="flex items-center gap-3">
+                <div class="flex items-center justify-center w-10 h-10 rounded-md bg-purple text-white">
+                    <i class="ri-music-2-line text-xl"></i>
+                </div>
+
+                <div>
+                    <div class="font-bold leading-none text-black dark:text-white">@FirstName @LastName</div>
+                    <div class="mt-1 text-xs text-muted dark:text-darkmuted">User Panel</div>
+                </div>
+            </a>
+
+            <nav class="hidden md:flex items-center gap-2">
+                <a href="#personal-data" class="px-3 py-2 text-sm rounded-md hover:bg-purple/10 hover:text-purple">Personal details</a>
+                <a href="#registration-data" class="px-3 py-2 text-sm rounded-md hover:bg-purple/10 hover:text-purple">Registration</a>
+                <a href="#payments" class="px-3 py-2 text-sm rounded-md hover:bg-purple/10 hover:text-purple">Payments</a>
+                <a href="#invoices" class="px-3 py-2 text-sm rounded-md hover:bg-purple/10 hover:text-purple">Invoices</a>
+                <a href="#competitions" class="px-3 py-2 text-sm rounded-md hover:bg-purple/10 hover:text-purple">Competitions</a>
+            </nav>
+
+            <a href="/user-panel/login"
+               class="inline-flex items-center justify-center rounded-md bg-purple px-5 py-2.5 font-medium text-white transition hover:bg-purple/90" @onclick="LogoutAsync">
+                Logout
+            </a>
+        </div>
+    </header>
+
+    <main class="px-6 py-8">
+        <div class="max-w-[1440px] mx-auto">
+            @Body
+        </div>
+    </main>
+</div>
+
+@code {
+    private UserPanelDashboardDto? Dashboard { get; set; }
+
+    private string FirstName { get; set; } = string.Empty;
+    private string LastName { get; set; } = string.Empty;
+    private IReadOnlyList<UserPanelCompetitionDto> Competitions => Dashboard?.Competitions ?? [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardAsync();
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        Dashboard = await UserPanelApiClient.GetDashboardAsync();
+
+        if(Dashboard is not null)
+        {
+            FirstName = Dashboard.User.FirstName;
+            LastName = Dashboard.User.LastName;
+        };
+    }
+
+    private async Task LogoutAsync()
+    {
+        await TokenStorageService.RemoveTokenAsync();
+
+        Navigation.NavigateTo("/user-panel/login", true);
+    }
+}

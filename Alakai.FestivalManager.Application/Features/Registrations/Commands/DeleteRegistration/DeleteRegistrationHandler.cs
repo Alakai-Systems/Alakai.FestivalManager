@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Domain.Entities;
+
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 
 public class DeleteRegistrationHandler

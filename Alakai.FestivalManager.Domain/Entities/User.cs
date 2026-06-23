@@ -9,8 +9,13 @@ public class User : BaseEntity
     public string? Country { get; set; }
     public string? City { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
+    public UserRole Role { get; set; } = UserRole.User;
     public DateTime? LastLoginAt { get; set; }
+    public DateTime? PasswordChangedAt { get; set; }
     public bool MustChangePassword { get; set; }
-    public bool IsActive { get; set; }
+    public bool IsLocked { get; set; }
+    public int FailedLoginAttempts { get; set; }
+    public DateTime? LockoutEndAt { get; set; }
+    public bool IsActive { get; set; } = true;
     public ICollection<Registration> Registrations { get; set; } = [];
 }

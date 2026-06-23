@@ -1,6 +1,17 @@
 global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Contracts.Repositories;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.Login;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.Logout;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.ResetPassword;
+global using Alakai.FestivalManager.Application.Features.Auth.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Settings;
+global using Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrentUser;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.DeleteCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
@@ -102,6 +113,7 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Queries.G
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrations;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
@@ -120,5 +132,12 @@ global using FluentValidation.Results;
 global using Microsoft.AspNetCore.Identity;
 global using Microsoft.EntityFrameworkCore;
 global using Microsoft.Extensions.DependencyInjection;
+global using Microsoft.Extensions.Options;
+global using Microsoft.IdentityModel.Tokens;
+global using System.IdentityModel.Tokens.Jwt;
+global using System.Security.Claims;
+global using System.Security.Cryptography;
 global using System.Text;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Services;
 

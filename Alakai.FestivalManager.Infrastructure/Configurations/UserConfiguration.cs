@@ -20,6 +20,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.HasIndex(u => u.Email)
+            .IsUnique();
+
         builder.Property(u => u.Phone)
             .HasMaxLength(50);
 
@@ -29,12 +32,28 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.City)
             .HasMaxLength(100);
 
+        builder.Property(u => u.LastLoginAt);
+
+        builder.Property(u => u.MustChangePassword);
+
+        builder.Property(u => u.Role)
+            .IsRequired();
+
         builder.Property(u => u.PasswordHash)
+            .IsRequired()
             .HasMaxLength(500);
 
         builder.Property(u => u.LastLoginAt);
 
-        builder.Property(u => u.MustChangePassword)
+        builder.Property(u => u.IsLocked)
+            .IsRequired();
+
+        builder.Property(u => u.FailedLoginAttempts)
+            .IsRequired();
+
+        builder.Property(u => u.LockoutEndAt);
+
+        builder.Property(u => u.IsActive)
             .IsRequired();
 
         builder.Property(u => u.CreatedAt)
@@ -44,9 +63,6 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.IsActive)
             .IsRequired();
-
-        builder.HasIndex(u => u.Email)
-            .IsUnique();
 
         builder.HasMany(u => u.Registrations)
             .WithOne(r => r.User)

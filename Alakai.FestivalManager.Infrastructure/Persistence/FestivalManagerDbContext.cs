@@ -1,4 +1,3 @@
-using Microsoft.EntityFrameworkCore;
 namespace Alakai.FestivalManager.Infrastructure.Persistence;
 
 public class FestivalManagerDbContext : DbContext
@@ -19,6 +18,8 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
+    public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+    public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

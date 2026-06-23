@@ -20,6 +20,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IEmailTemplateRepository, EmailTemplateRepository>();
         services.AddScoped<IEmailLogRepository, EmailLogRepository>();
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
+        services.AddScoped<IAuthRepository, AuthRepository>();
+        services.AddScoped<IUserPanelRepository, UserPanelRepository>();
 
         return services;
     }

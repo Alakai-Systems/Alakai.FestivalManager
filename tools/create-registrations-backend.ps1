@@ -6,717 +6,1018 @@ $ErrorActionPreference = "Stop"
 
 function Write-File {
     param([string]$Path, [string]$Content)
-
     $directory = Split-Path $Path -Parent
-
-    if (-not (Test-Path $directory)) {
-        New-Item -ItemType Directory -Path $directory -Force | Out-Null
-    }
-
+    if (-not (Test-Path $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
     Set-Content -Path $Path -Value $Content -Encoding UTF8
     Write-Host "Written: $Path"
 }
 
-function Add-GlobalUsing {
+function Add-LineIfMissing {
     param([string]$Path, [string]$Line)
-
-    if (-not (Test-Path $Path)) {
-        Write-Host "Skipped global using. File not found: $Path"
-        return
-    }
-
+    if (-not (Test-Path $Path)) { Write-Host "Skipped. File not found: $Path"; return }
     $content = Get-Content -Path $Path -Raw
-
-    if ($content.Contains($Line)) {
-        Write-Host "Already present: $Line"
-        return
-    }
-
+    if ($content.Contains($Line)) { Write-Host "Already present: $Line"; return }
     Add-Content -Path $Path -Value $Line -Encoding UTF8
-    Write-Host "Added global using: $Line"
+    Write-Host "Added: $Line"
+}
+
+function Patch-JsonJwtIfMissing {
+    param([string]$Path)
+    if (-not (Test-Path $Path)) { Write-Host "Skipped appsettings patch. File not found: $Path"; return }
+    $content = Get-Content -Path $Path -Raw
+    if ($content.Contains('"Jwt"')) { Write-Host "Jwt settings already present."; return }
+    $trimmed = $content.TrimEnd()
+    $lastBraceIndex = $trimmed.LastIndexOf("}")
+    if ($lastBraceIndex -lt 0) { Write-Host "Skipped appsettings patch. Invalid JSON shape."; return }
+    $beforeLastBrace = $trimmed.Substring(0, $lastBraceIndex).TrimEnd()
+    $afterLastBrace = $trimmed.Substring($lastBraceIndex)
+    if ($beforeLastBrace.EndsWith("{")) {
+        $jwtBlock = "`r`n  `"Jwt`": {`r`n    `"Issuer`": `"AlakaiFestivalManager`",`r`n    `"Audience`": `"AlakaiFestivalManager`",`r`n    `"SecretKey`": `"THIS_IS_A_DEVELOPMENT_SECRET_KEY_CHANGE_IT_IN_PRODUCTION_2026`",`r`n    `"ExpirationMinutes`": 120,`r`n    `"RefreshTokenExpirationDays`": 30`r`n  }`r`n"
+    }
+    else {
+        $jwtBlock = ",`r`n  `"Jwt`": {`r`n    `"Issuer`": `"AlakaiFestivalManager`",`r`n    `"Audience`": `"AlakaiFestivalManager`",`r`n    `"SecretKey`": `"THIS_IS_A_DEVELOPMENT_SECRET_KEY_CHANGE_IT_IN_PRODUCTION_2026`",`r`n    `"ExpirationMinutes`": 120,`r`n    `"RefreshTokenExpirationDays`": 30`r`n  }`r`n"
+    }
+    Set-Content -Path $Path -Value ($beforeLastBrace + $jwtBlock + $afterLastBrace) -Encoding UTF8
+    Write-Host "Patched Jwt settings in appsettings.json"
 }
 
 $root = Resolve-Path $SolutionRoot
-$adminRoot = Join-Path $root "Alakai.FestivalManager.Admin"
-$globalPath = Join-Path $adminRoot "Global.cs"
+$applicationRoot = Join-Path $root "Alakai.FestivalManager.Application"
+$infrastructureRoot = Join-Path $root "Alakai.FestivalManager.Infrastructure"
+$apiRoot = Join-Path $root "Alakai.FestivalManager.Api"
 
-if (-not (Test-Path $adminRoot)) {
-    throw "Admin project not found at $adminRoot"
+if (-not (Test-Path $applicationRoot)) { throw "Application project not found." }
+if (-not (Test-Path $infrastructureRoot)) { throw "Infrastructure project not found." }
+if (-not (Test-Path $apiRoot)) { throw "Api project not found." }
+
+Write-Host "Adding NuGet packages..."
+dotnet add "$apiRoot\Alakai.FestivalManager.Api.csproj" package Microsoft.AspNetCore.Authentication.JwtBearer
+dotnet add "$applicationRoot\Alakai.FestivalManager.Application.csproj" package Microsoft.Extensions.Identity.Core
+dotnet add "$applicationRoot\Alakai.FestivalManager.Application.csproj" package System.IdentityModel.Tokens.Jwt
+dotnet add "$applicationRoot\Alakai.FestivalManager.Application.csproj" package Microsoft.Extensions.Options.ConfigurationExtensions
+
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.Login;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.Logout;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.ResetPassword;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.DTOs;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Settings;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrentUser;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Services;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Microsoft.AspNetCore.Identity;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Microsoft.Extensions.Options;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using Microsoft.IdentityModel.Tokens;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using System.IdentityModel.Tokens.Jwt;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using System.Security.Claims;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using System.Security.Cryptography;"
+Add-LineIfMissing "$applicationRoot\GlobalUsings.cs" "global using System.Text;"
+
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.Login;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.Logout;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Commands.ResetPassword;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Settings;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrentUser;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Alakai.FestivalManager.Application.Features.Auth.Services;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Microsoft.AspNetCore.Authentication.JwtBearer;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Microsoft.AspNetCore.Authorization;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using Microsoft.IdentityModel.Tokens;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using System.Security.Claims;"
+Add-LineIfMissing "$apiRoot\GlobalUsings.cs" "global using System.Text;"
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Settings\JwtSettings.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Settings;
+
+public class JwtSettings
+{
+    public string Issuer { get; set; } = string.Empty;
+    public string Audience { get; set; } = string.Empty;
+    public string SecretKey { get; set; } = string.Empty;
+    public int ExpirationMinutes { get; set; }
+    public int RefreshTokenExpirationDays { get; set; }
 }
+'@
 
-Add-GlobalUsing $globalPath "global using Alakai.FestivalManager.Admin.Contracts.Users.DTOs;"
-Add-GlobalUsing $globalPath "global using Alakai.FestivalManager.Admin.Contracts.Users.Requests;"
-Add-GlobalUsing $globalPath "global using Alakai.FestivalManager.Admin.Contracts.Users.Responses;"
+Write-File "$applicationRoot\Features\Auth\Contracts\DTOs\AuthUserDto.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.DTOs;
 
-Write-File "$adminRoot\Contracts\Users\DTOs\UserDto.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.DTOs;
-
-public class UserDto
+public class AuthUserDto
 {
     public Guid Id { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
-    public string FullName => $"{FirstName} {LastName}";
     public string Email { get; set; } = string.Empty;
-    public string? Phone { get; set; }
-    public string? Country { get; set; }
-    public string? City { get; set; }
-    public DateTime CreatedAt { get; set; }
-    public DateTime? UpdatedAt { get; set; }
-    public DateTime? LastLoginAt { get; set; }
+    public UserRole Role { get; set; }
     public bool MustChangePassword { get; set; }
-    public bool IsActive { get; set; }
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Requests\CreateUserRequest.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Requests;
+Write-File "$applicationRoot\Features\Auth\Contracts\DTOs\AuthResultDto.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.DTOs;
 
-public class CreateUserRequest
+public class AuthResultDto
 {
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+    public string AccessToken { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+    public DateTime ExpiresAt { get; set; }
+    public AuthUserDto User { get; set; } = default!;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Requests\LoginRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;
+
+public class LoginRequest
+{
     public string Email { get; set; } = string.Empty;
-    public string? Phone { get; set; }
-    public string? Country { get; set; }
-    public string? City { get; set; }
-    public string? Password { get; set; }
+    public string Password { get; set; } = string.Empty;
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Requests\UpdateUserRequest.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Requests;
+Write-File "$applicationRoot\Features\Auth\Contracts\Requests\RefreshTokenRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;
 
-public class UpdateUserRequest
+public class RefreshTokenRequest
 {
-    public string FirstName { get; set; } = string.Empty;
-    public string LastName { get; set; } = string.Empty;
+    public string AccessToken { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Requests\ForgotPasswordRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;
+
+public class ForgotPasswordRequest
+{
     public string Email { get; set; } = string.Empty;
-    public string? Phone { get; set; }
-    public string? Country { get; set; }
-    public string? City { get; set; }
-    public bool MustChangePassword { get; set; }
-    public bool IsActive { get; set; }
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Responses\GetUsersResponse.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
+Write-File "$applicationRoot\Features\Auth\Contracts\Requests\ResetPasswordRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;
 
-public class GetUsersResponse
+public class ResetPasswordRequest
 {
-    public IReadOnlyList<UserDto> Users { get; set; } = [];
+    public string Token { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Responses\GetUserByIdResponse.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
+Write-File "$applicationRoot\Features\Auth\Contracts\Requests\ChangePasswordRequest.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests;
 
-public class GetUserByIdResponse
+public class ChangePasswordRequest
 {
-    public UserDto User { get; set; } = default!;
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Responses\CreateUserResponse.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
+Write-File "$applicationRoot\Features\Auth\Commands\Login\LoginCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Commands.Login;
 
-public class CreateUserResponse
+public class LoginCommand
 {
-    public UserDto User { get; set; } = default!;
+    public string Email { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Responses\UpdateUserResponse.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
+Write-File "$applicationRoot\Features\Auth\Commands\RefreshToken\RefreshTokenCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;
 
-public class UpdateUserResponse
+public class RefreshTokenCommand
 {
-    public UserDto User { get; set; } = default!;
+    public string AccessToken { get; set; } = string.Empty;
+    public string RefreshToken { get; set; } = string.Empty;
 }
 '@
 
-Write-File "$adminRoot\Contracts\Users\Responses\DeleteUserResponse.cs" @'
-namespace Alakai.FestivalManager.Admin.Contracts.Users.Responses;
+Write-File "$applicationRoot\Features\Auth\Commands\ForgotPassword\ForgotPasswordCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;
 
-public class DeleteUserResponse
+public class ForgotPasswordCommand
 {
-    public Guid Id { get; set; }
-    public bool Deleted { get; set; }
+    public string Email { get; set; } = string.Empty;
 }
 '@
 
-Write-File "$adminRoot\Services\Api\UserApiClient.cs" @'
-using System.Text.Json;
+Write-File "$applicationRoot\Features\Auth\Commands\ResetPassword\ResetPasswordCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Commands.ResetPassword;
 
-namespace Alakai.FestivalManager.Admin.Services.Api;
-
-public class UserApiClient
+public class ResetPasswordCommand
 {
-    private readonly HttpClient _httpClient;
+    public string Token { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+'@
 
-    public UserApiClient(HttpClient httpClient)
+Write-File "$applicationRoot\Features\Auth\Commands\ChangePassword\ChangePasswordCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;
+
+public class ChangePasswordCommand
+{
+    public Guid UserId { get; set; }
+    public string CurrentPassword { get; set; } = string.Empty;
+    public string NewPassword { get; set; } = string.Empty;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Commands\Logout\LogoutCommand.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Commands.Logout;
+
+public class LogoutCommand
+{
+    public string RefreshToken { get; set; } = string.Empty;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Queries\GetCurrentUser\GetCurrentUserQuery.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrentUser;
+
+public class GetCurrentUserQuery
+{
+    public Guid UserId { get; set; }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\LoginResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class LoginResponse
+{
+    public AuthResultDto Auth { get; set; } = default!;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\RefreshTokenResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class RefreshTokenResponse
+{
+    public AuthResultDto Auth { get; set; } = default!;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\ForgotPasswordResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class ForgotPasswordResponse
+{
+    public bool Sent { get; set; }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\ResetPasswordResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class ResetPasswordResponse
+{
+    public bool PasswordReset { get; set; }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\ChangePasswordResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class ChangePasswordResponse
+{
+    public bool PasswordChanged { get; set; }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\GetCurrentUserResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class GetCurrentUserResponse
+{
+    public AuthUserDto User { get; set; } = default!;
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Contracts\Responses\LogoutResponse.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+
+public class LogoutResponse
+{
+    public bool LoggedOut { get; set; }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Validators\LoginCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Validators;
+
+public class LoginCommandValidator : AbstractValidator<LoginCommand>
+{
+    public LoginCommandValidator()
     {
-        _httpClient = httpClient;
-    }
-
-    public async Task<IReadOnlyList<UserDto>> GetAllAsync(CancellationToken cancellationToken = default)
-    {
-        ApiResponse<GetUsersResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetUsersResponse>>("api/users", cancellationToken);
-
-        if (response?.Success is not true)
-        {
-            throw new ApiClientException(response?.Message ?? "Could not load users.", response?.Errors);
-        }
-
-        return response.Data?.Users ?? [];
-    }
-
-    public async Task<UserDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        ApiResponse<GetUserByIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetUserByIdResponse>>($"api/users/{id}", cancellationToken);
-
-        if (response?.Success is not true || response.Data?.User is null)
-        {
-            throw new ApiClientException(response?.Message ?? "Could not load user.", response?.Errors);
-        }
-
-        return response.Data.User;
-    }
-
-    public async Task CreateAsync(CreateUserRequest request, CancellationToken cancellationToken = default)
-    {
-        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/users", request, cancellationToken);
-        ApiResponse<CreateUserResponse>? response = await ReadResponseAsync<CreateUserResponse>(httpResponse, cancellationToken);
-
-        EnsureSuccess(httpResponse, response);
-    }
-
-    public async Task UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default)
-    {
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/users/{id}", request, cancellationToken);
-        ApiResponse<UpdateUserResponse>? response = await ReadResponseAsync<UpdateUserResponse>(httpResponse, cancellationToken);
-
-        EnsureSuccess(httpResponse, response);
-    }
-
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/users/{id}", cancellationToken);
-        ApiResponse<DeleteUserResponse>? response = await ReadResponseAsync<DeleteUserResponse>(httpResponse, cancellationToken);
-
-        EnsureSuccess(httpResponse, response);
-    }
-
-    private static async Task<ApiResponse<T>?> ReadResponseAsync<T>(HttpResponseMessage httpResponse, CancellationToken cancellationToken)
-    {
-        try
-        {
-            return await httpResponse.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken);
-        }
-        catch (JsonException)
-        {
-            string content = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
-            string message = string.IsNullOrWhiteSpace(content) ? $"Request failed with status code {(int)httpResponse.StatusCode}." : content;
-
-            throw new ApiClientException(message);
-        }
-    }
-
-    private static void EnsureSuccess<T>(HttpResponseMessage httpResponse, ApiResponse<T>? response)
-    {
-        if (httpResponse.IsSuccessStatusCode && response?.Success == true)
-        {
-            return;
-        }
-
-        string message = response?.Message ?? $"Request failed with status code {(int)httpResponse.StatusCode}.";
-        IReadOnlyList<string> errors = response?.Errors ?? [];
-
-        throw new ApiClientException(message, errors);
+        RuleFor(l => l.Email).NotEmpty().EmailAddress().MaximumLength(200);
+        RuleFor(l => l.Password).NotEmpty().MinimumLength(8).MaximumLength(100);
     }
 }
 '@
 
-Write-File "$adminRoot\Components\Pages\Users.razor" @'
-@page "/users"
-@inject UserApiClient UserApiClient
+Write-File "$applicationRoot\Features\Auth\Validators\RefreshTokenCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Validators;
 
-<PageHeader Title="Operations" pTitle="Users"></PageHeader>
-
-<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
-    <div class="card">
-        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-                <h2 class="text-base font-semibold text-black capitalize dark:text-white">Users</h2>
-                <p class="text-sm text-black/50 dark:text-white/40">Manage users created from registrations and admin entries.</p>
-            </div>
-
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input md:w-72" placeholder="Search users..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
-
-                <select class="form-select md:w-40" @bind="statusFilter" @bind:after="ResetPage">
-                    <option value="">All statuses</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="mustchange">Must change password</option>
-                </select>
-
-                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                    <option value="10">10 rows</option>
-                    <option value="25">25 rows</option>
-                    <option value="50">50 rows</option>
-                </select>
-
-                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
-                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                    New User
-                </button>
-            </div>
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-
-        @if (isLoading)
-        {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading users...</p>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Email")'>Email @SortIcon("Email")</button></th>
-                            <th class="px-4 py-3 font-semibold">Phone</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Country")'>Country @SortIcon("Country")</button></th>
-                            <th class="px-4 py-3 font-semibold">City</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("CreatedAt")'>Created @SortIcon("CreatedAt")</button></th>
-                            <th class="px-4 py-3 font-semibold">Login</th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
-                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (PagedUsers.Count == 0)
-                        {
-                            <tr>
-                                <td colspan="9" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No users found.</td>
-                            </tr>
-                        }
-                        else
-                        {
-                            @foreach (UserDto user in PagedUsers)
-                            {
-                                <tr class="border-b border-black/10 dark:border-darkborder">
-                                    <td class="px-4 py-3">
-                                        <div class="font-medium">@user.FullName</div>
-                                        @if (user.MustChangePassword)
-                                        {
-                                            <div class="text-xs text-warning">Must change password</div>
-                                        }
-                                    </td>
-                                    <td class="px-4 py-3">@user.Email</td>
-                                    <td class="px-4 py-3">@user.Phone</td>
-                                    <td class="px-4 py-3">@user.Country</td>
-                                    <td class="px-4 py-3">@user.City</td>
-                                    <td class="px-4 py-3">@FormatDate(user.CreatedAt)</td>
-                                    <td class="px-4 py-3">@FormatNullableDate(user.LastLoginAt)</td>
-                                    <td class="px-4 py-3"><span class="@GetStatusClass(user.IsActive)">@(user.IsActive ? "Active" : "Inactive")</span></td>
-                                    <td class="px-4 py-3">
-                                        <div class="flex items-center justify-end gap-3">
-                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(user)"><i class="ri-pencil-line text-lg"></i></button>
-                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(user)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex flex-col gap-3 mt-4 md:flex-row md:items-center md:justify-between">
-                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredUsers.Count users</p>
-
-                <div class="flex items-center gap-2">
-                    <button type="button" class="btn border" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
-                    <span class="px-4 py-2 text-sm rounded bg-purple/10 text-purple">@currentPage</span>
-                    <button type="button" class="btn border" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
-                </div>
-            </div>
-        }
-    </div>
-</div>
-
-@if (showModal)
+public class RefreshTokenCommandValidator : AbstractValidator<RefreshTokenCommand>
 {
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 760px);">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingUser is null ? "New User" : "Edit User")</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-
-                <EditForm Model="formModel" OnValidSubmit="SaveAsync">
-                    <div class="p-5 space-y-4">
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">First Name</label>
-                                <InputText class="form-input" @bind-Value="formModel.FirstName" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Last Name</label>
-                                <InputText class="form-input" @bind-Value="formModel.LastName" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Email</label>
-                                <InputText class="form-input" @bind-Value="formModel.Email" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Phone</label>
-                                <InputText class="form-input" @bind-Value="formModel.Phone" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Country</label>
-                                <InputText class="form-input" @bind-Value="formModel.Country" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">City</label>
-                                <InputText class="form-input" @bind-Value="formModel.City" />
-                            </div>
-
-                            @if (editingUser is null)
-                            {
-                                <div class="md:col-span-2">
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Initial Password</label>
-                                    <InputText class="form-input" type="password" @bind-Value="formModel.Password" />
-                                </div>
-                            }
-
-                            @if (editingUser is not null)
-                            {
-                                <div class="flex items-center gap-4 md:col-span-2">
-                                    <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.MustChangePassword" />Must change password</label>
-                                    <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
-                                </div>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
-                        <button type="submit" class="px-4 py-2 text-sm text-white rounded-md bg-purple">Save</button>
-                    </div>
-                </EditForm>
-            </div>
-        </div>
-    </div>
-}
-
-@if (deletingUser is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-md mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete User</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingUser.FullName?</p>
-                    <p class="mt-2 text-sm text-danger">If this user has registrations, backend constraints may block the delete.</p>
-                </div>
-
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-danger" @onclick="DeleteAsync">Delete</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@code {
-    private List<UserDto> users = [];
-    private UserDto? editingUser;
-    private UserDto? deletingUser;
-    private UserFormModel formModel = new();
-    private string searchText = string.Empty;
-    private string statusFilter = string.Empty;
-    private string sortColumn = "Name";
-    private bool sortAscending = true;
-    private bool isLoading = true;
-    private bool showModal;
-    private string? successMessage;
-    private string? errorMessage;
-    private int currentPage = 1;
-    private int pageSize = 10;
-
-    protected override async Task OnInitializedAsync()
+    public RefreshTokenCommandValidator()
     {
-        await LoadDataAsync();
+        RuleFor(r => r.AccessToken).NotEmpty();
+        RuleFor(r => r.RefreshToken).NotEmpty();
+    }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Validators\ForgotPasswordCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Validators;
+
+public class ForgotPasswordCommandValidator : AbstractValidator<ForgotPasswordCommand>
+{
+    public ForgotPasswordCommandValidator()
+    {
+        RuleFor(f => f.Email).NotEmpty().EmailAddress().MaximumLength(200);
+    }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Validators\ResetPasswordCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Validators;
+
+public class ResetPasswordCommandValidator : AbstractValidator<ResetPasswordCommand>
+{
+    public ResetPasswordCommandValidator()
+    {
+        RuleFor(r => r.Token).NotEmpty();
+        RuleFor(r => r.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(100);
+    }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Validators\ChangePasswordCommandValidator.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Validators;
+
+public class ChangePasswordCommandValidator : AbstractValidator<ChangePasswordCommand>
+{
+    public ChangePasswordCommandValidator()
+    {
+        RuleFor(c => c.UserId).NotEmpty();
+        RuleFor(c => c.CurrentPassword).NotEmpty().MinimumLength(8).MaximumLength(100);
+        RuleFor(c => c.NewPassword).NotEmpty().MinimumLength(8).MaximumLength(100);
+    }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Mapping\AuthMappingProfile.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Mapping;
+
+public class AuthMappingProfile : Profile
+{
+    public AuthMappingProfile()
+    {
+        CreateMap<LoginRequest, LoginCommand>();
+        CreateMap<RefreshTokenRequest, RefreshTokenCommand>();
+        CreateMap<ForgotPasswordRequest, ForgotPasswordCommand>();
+        CreateMap<ResetPasswordRequest, ResetPasswordCommand>();
+        CreateMap<ChangePasswordRequest, ChangePasswordCommand>();
+        CreateMap<User, AuthUserDto>();
+    }
+}
+'@
+
+Write-File "$applicationRoot\Contracts\Repositories\IAuthRepository.cs" @'
+namespace Alakai.FestivalManager.Application.Contracts.Repositories;
+
+public interface IAuthRepository
+{
+    Task<User?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task AddRefreshTokenAsync(RefreshToken refreshToken, CancellationToken cancellationToken = default);
+    Task<RefreshToken?> GetRefreshTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task AddPasswordResetTokenAsync(PasswordResetToken passwordResetToken, CancellationToken cancellationToken = default);
+    Task<PasswordResetToken?> GetPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default);
+    Task SaveChangesAsync(CancellationToken cancellationToken = default);
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Services\IPasswordService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+
+public interface IPasswordService
+{
+    string HashPassword(User user, string password);
+    bool VerifyPassword(User user, string password, string passwordHash);
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Services\PasswordService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+
+public class PasswordService : IPasswordService
+{
+    private readonly PasswordHasher<User> _passwordHasher = new();
+
+    public string HashPassword(User user, string password)
+    {
+        return _passwordHasher.HashPassword(user, password);
     }
 
-    private async Task LoadDataAsync()
+    public bool VerifyPassword(User user, string password, string passwordHash)
     {
-        isLoading = true;
-        errorMessage = null;
+        PasswordVerificationResult result = _passwordHasher.VerifyHashedPassword(user, passwordHash, password);
 
-        try
-        {
-            users = (await UserApiClient.GetAllAsync()).ToList();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isLoading = false;
-        }
+        return result == PasswordVerificationResult.Success ||
+               result == PasswordVerificationResult.SuccessRehashNeeded;
+    }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Services\IJwtService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+
+public interface IJwtService
+{
+    string GenerateAccessToken(User user);
+    RefreshToken GenerateRefreshToken(User user);
+    ClaimsPrincipal? GetPrincipalFromExpiredToken(string token);
+    DateTime GetAccessTokenExpiration();
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Services\JwtService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+
+public class JwtService : IJwtService
+{
+    private readonly JwtSettings _jwtSettings;
+
+    public JwtService(IOptions<JwtSettings> jwtOptions)
+    {
+        _jwtSettings = jwtOptions.Value;
     }
 
-    private List<UserDto> FilteredUsers
+    public string GenerateAccessToken(User user)
     {
-        get
-        {
-            IEnumerable<UserDto> query = users;
+        List<Claim> claims =
+        [
+            new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+            new(JwtRegisteredClaimNames.Email, user.Email),
+            new(ClaimTypes.NameIdentifier, user.Id.ToString()),
+            new(ClaimTypes.Email, user.Email),
+            new(ClaimTypes.Role, user.Role.ToString()),
+            new(ClaimTypes.Name, $"{user.FirstName} {user.LastName}")
+        ];
 
-            if (!string.IsNullOrWhiteSpace(searchText))
+        SymmetricSecurityKey key = new(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+        SigningCredentials credentials = new(key, SecurityAlgorithms.HmacSha256);
+        DateTime expiresAt = GetAccessTokenExpiration();
+
+        JwtSecurityToken token = new(issuer: _jwtSettings.Issuer, audience: _jwtSettings.Audience, claims: claims, expires: expiresAt, signingCredentials: credentials);
+
+        return new JwtSecurityTokenHandler().WriteToken(token);
+    }
+
+    public RefreshToken GenerateRefreshToken(User user)
+    {
+        byte[] randomBytes = RandomNumberGenerator.GetBytes(64);
+        string token = Convert.ToBase64String(randomBytes);
+
+        return new RefreshToken
+        {
+            UserId = user.Id,
+            Token = token,
+            ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays)
+        };
+    }
+
+    public ClaimsPrincipal? GetPrincipalFromExpiredToken(string token)
+    {
+        TokenValidationParameters parameters = new()
+        {
+            ValidateAudience = true,
+            ValidateIssuer = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = false,
+            ValidIssuer = _jwtSettings.Issuer,
+            ValidAudience = _jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey))
+        };
+
+        JwtSecurityTokenHandler handler = new();
+
+        return handler.ValidateToken(token, parameters, out SecurityToken _);
+    }
+
+    public DateTime GetAccessTokenExpiration()
+    {
+        return DateTime.UtcNow.AddMinutes(_jwtSettings.ExpirationMinutes);
+    }
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Services\IAuthService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+
+public interface IAuthService
+{
+    Task<ApiResponse<LoginResponse>> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ResetPasswordResponse>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ChangePasswordResponse>> ChangePasswordAsync(ChangePasswordCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetCurrentUserResponse>> GetCurrentUserAsync(GetCurrentUserQuery query, CancellationToken cancellationToken = default);
+    Task<ApiResponse<LogoutResponse>> LogoutAsync(LogoutCommand command, CancellationToken cancellationToken = default);
+}
+'@
+
+Write-File "$applicationRoot\Features\Auth\Services\AuthService.cs" @'
+namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+
+public class AuthService : IAuthService
+{
+    private readonly IAuthRepository _authRepository;
+    private readonly IPasswordService _passwordService;
+    private readonly IJwtService _jwtService;
+    private readonly IMapper _mapper;
+    private readonly IValidator<LoginCommand> _loginValidator;
+    private readonly IValidator<RefreshTokenCommand> _refreshTokenValidator;
+    private readonly IValidator<ForgotPasswordCommand> _forgotPasswordValidator;
+    private readonly IValidator<ResetPasswordCommand> _resetPasswordValidator;
+    private readonly IValidator<ChangePasswordCommand> _changePasswordValidator;
+
+    public AuthService(IAuthRepository authRepository, IPasswordService passwordService, IJwtService jwtService, IMapper mapper, IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator, IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator)
+    {
+        _authRepository = authRepository;
+        _passwordService = passwordService;
+        _jwtService = jwtService;
+        _mapper = mapper;
+        _loginValidator = loginValidator;
+        _refreshTokenValidator = refreshTokenValidator;
+        _forgotPasswordValidator = forgotPasswordValidator;
+        _resetPasswordValidator = resetPasswordValidator;
+        _changePasswordValidator = changePasswordValidator;
+    }
+
+    public async Task<ApiResponse<LoginResponse>> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default)
+    {
+        ValidationResult validationResult = await _loginValidator.ValidateAsync(command, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return ApiResponse<LoginResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+        }
+
+        string normalizedEmail = command.Email.Trim().ToLowerInvariant();
+        User? user = await _authRepository.GetUserByEmailAsync(normalizedEmail, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return ApiResponse<LoginResponse>.Failure(["Invalid email or password."], "Login failed");
+        }
+
+        if (user.IsLocked && user.LockoutEndAt.HasValue && user.LockoutEndAt.Value > DateTime.UtcNow)
+        {
+            return ApiResponse<LoginResponse>.Failure(["User is temporarily locked."], "Login failed");
+        }
+
+        bool validPassword = _passwordService.VerifyPassword(user, command.Password, user.PasswordHash);
+
+        if (!validPassword)
+        {
+            user.FailedLoginAttempts++;
+
+            if (user.FailedLoginAttempts >= 5)
             {
-                query = query.Where(u => u.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase) || u.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+                user.IsLocked = true;
+                user.LockoutEndAt = DateTime.UtcNow.AddMinutes(15);
             }
 
-            if (statusFilter == "active")
-            {
-                query = query.Where(u => u.IsActive);
-            }
-            else if (statusFilter == "inactive")
-            {
-                query = query.Where(u => !u.IsActive);
-            }
-            else if (statusFilter == "mustchange")
-            {
-                query = query.Where(u => u.MustChangePassword);
-            }
+            await _authRepository.SaveChangesAsync(cancellationToken);
 
-            query = sortColumn switch
+            return ApiResponse<LoginResponse>.Failure(["Invalid email or password."], "Login failed");
+        }
+
+        user.FailedLoginAttempts = 0;
+        user.IsLocked = false;
+        user.LockoutEndAt = null;
+        user.LastLoginAt = DateTime.UtcNow;
+
+        RefreshToken refreshToken = _jwtService.GenerateRefreshToken(user);
+        await _authRepository.AddRefreshTokenAsync(refreshToken, cancellationToken);
+        await _authRepository.SaveChangesAsync(cancellationToken);
+
+        AuthResultDto authResult = CreateAuthResult(user, refreshToken.Token);
+
+        return new ApiResponse<LoginResponse> { Success = true, Data = new LoginResponse { Auth = authResult }, Errors = [], Message = "Login successful" };
+    }
+
+    public async Task<ApiResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default)
+    {
+        ValidationResult validationResult = await _refreshTokenValidator.ValidateAsync(command, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return ApiResponse<RefreshTokenResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+        }
+
+        ClaimsPrincipal? principal = _jwtService.GetPrincipalFromExpiredToken(command.AccessToken);
+
+        if (principal is null)
+        {
+            return ApiResponse<RefreshTokenResponse>.Failure(["Invalid access token."], "Refresh token failed");
+        }
+
+        string? userIdValue = principal.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return ApiResponse<RefreshTokenResponse>.Failure(["Invalid access token."], "Refresh token failed");
+        }
+
+        RefreshToken? existingRefreshToken = await _authRepository.GetRefreshTokenAsync(command.RefreshToken, cancellationToken);
+
+        if (existingRefreshToken is null || !existingRefreshToken.IsActive || existingRefreshToken.UserId != userId)
+        {
+            return ApiResponse<RefreshTokenResponse>.Failure(["Invalid refresh token."], "Refresh token failed");
+        }
+
+        User? user = await _authRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return ApiResponse<RefreshTokenResponse>.Failure(["User not found."], "Refresh token failed");
+        }
+
+        existingRefreshToken.RevokedAt = DateTime.UtcNow;
+        RefreshToken newRefreshToken = _jwtService.GenerateRefreshToken(user);
+        await _authRepository.AddRefreshTokenAsync(newRefreshToken, cancellationToken);
+        await _authRepository.SaveChangesAsync(cancellationToken);
+
+        AuthResultDto authResult = CreateAuthResult(user, newRefreshToken.Token);
+
+        return new ApiResponse<RefreshTokenResponse> { Success = true, Data = new RefreshTokenResponse { Auth = authResult }, Errors = [], Message = "Token refreshed successfully" };
+    }
+
+    public async Task<ApiResponse<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordCommand command, CancellationToken cancellationToken = default)
+    {
+        ValidationResult validationResult = await _forgotPasswordValidator.ValidateAsync(command, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return ApiResponse<ForgotPasswordResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+        }
+
+        string normalizedEmail = command.Email.Trim().ToLowerInvariant();
+        User? user = await _authRepository.GetUserByEmailAsync(normalizedEmail, cancellationToken);
+
+        if (user is not null && user.IsActive)
+        {
+            PasswordResetToken passwordResetToken = new()
             {
-                "Email" => sortAscending ? query.OrderBy(u => u.Email) : query.OrderByDescending(u => u.Email),
-                "Country" => sortAscending ? query.OrderBy(u => u.Country) : query.OrderByDescending(u => u.Country),
-                "CreatedAt" => sortAscending ? query.OrderBy(u => u.CreatedAt) : query.OrderByDescending(u => u.CreatedAt),
-                _ => sortAscending ? query.OrderBy(u => u.FullName) : query.OrderByDescending(u => u.FullName)
+                UserId = user.Id,
+                Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
+                ExpiresAt = DateTime.UtcNow.AddHours(2)
             };
 
-            return query.ToList();
-        }
-    }
-
-    private List<UserDto> PagedUsers => FilteredUsers.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredUsers.Count / (double)pageSize));
-    private int StartRow => FilteredUsers.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-    private int EndRow => Math.Min(currentPage * pageSize, FilteredUsers.Count);
-
-    private void ResetPage()
-    {
-        currentPage = 1;
-    }
-
-    private void SortBy(string column)
-    {
-        if (sortColumn == column)
-        {
-            sortAscending = !sortAscending;
-        }
-        else
-        {
-            sortColumn = column;
-            sortAscending = true;
-        }
-    }
-
-    private MarkupString SortIcon(string column)
-    {
-        if (sortColumn != column)
-        {
-            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+            await _authRepository.AddPasswordResetTokenAsync(passwordResetToken, cancellationToken);
+            await _authRepository.SaveChangesAsync(cancellationToken);
         }
 
-        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+        return new ApiResponse<ForgotPasswordResponse> { Success = true, Data = new ForgotPasswordResponse { Sent = true }, Errors = [], Message = "If the email exists, a reset link has been generated" };
     }
 
-    private void PreviousPage()
+    public async Task<ApiResponse<ResetPasswordResponse>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken = default)
     {
-        if (currentPage > 1)
+        ValidationResult validationResult = await _resetPasswordValidator.ValidateAsync(command, cancellationToken);
+
+        if (!validationResult.IsValid)
         {
-            currentPage--;
-        }
-    }
-
-    private void NextPage()
-    {
-        if (currentPage < TotalPages)
-        {
-            currentPage++;
-        }
-    }
-
-    private void OpenCreateModal()
-    {
-        editingUser = null;
-        formModel = new UserFormModel
-        {
-            IsActive = true
-        };
-        showModal = true;
-    }
-
-    private void OpenEditModal(UserDto user)
-    {
-        editingUser = user;
-        formModel = new UserFormModel
-        {
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            Phone = user.Phone,
-            Country = user.Country,
-            City = user.City,
-            MustChangePassword = user.MustChangePassword,
-            IsActive = user.IsActive
-        };
-        showModal = true;
-    }
-
-    private void CloseModal()
-    {
-        showModal = false;
-    }
-
-    private async Task SaveAsync()
-    {
-        try
-        {
-            if (editingUser is null)
-            {
-                CreateUserRequest request = new()
-                {
-                    FirstName = formModel.FirstName,
-                    LastName = formModel.LastName,
-                    Email = formModel.Email,
-                    Phone = formModel.Phone,
-                    Country = formModel.Country,
-                    City = formModel.City,
-                    Password = formModel.Password
-                };
-
-                await UserApiClient.CreateAsync(request);
-                successMessage = "User created successfully.";
-            }
-            else
-            {
-                UpdateUserRequest request = new()
-                {
-                    FirstName = formModel.FirstName,
-                    LastName = formModel.LastName,
-                    Email = formModel.Email,
-                    Phone = formModel.Phone,
-                    Country = formModel.Country,
-                    City = formModel.City,
-                    MustChangePassword = formModel.MustChangePassword,
-                    IsActive = formModel.IsActive
-                };
-
-                await UserApiClient.UpdateAsync(editingUser.Id, request);
-                successMessage = "User updated successfully.";
-            }
-
-            showModal = false;
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-    }
-
-    private void OpenDeleteModal(UserDto user)
-    {
-        deletingUser = user;
-    }
-
-    private void CloseDeleteModal()
-    {
-        deletingUser = null;
-    }
-
-    private async Task DeleteAsync()
-    {
-        if (deletingUser is null)
-        {
-            return;
+            return ApiResponse<ResetPasswordResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
         }
 
-        try
-        {
-            await UserApiClient.DeleteAsync(deletingUser.Id);
-            successMessage = "User deleted successfully.";
-            deletingUser = null;
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-    }
+        PasswordResetToken? passwordResetToken = await _authRepository.GetPasswordResetTokenAsync(command.Token, cancellationToken);
 
-    private static string FormatDate(DateTime date)
-    {
-        if (date == DateTime.MinValue)
+        if (passwordResetToken is null || passwordResetToken.IsUsed || passwordResetToken.ExpiresAt <= DateTime.UtcNow)
         {
-            return "-";
+            return ApiResponse<ResetPasswordResponse>.Failure(["Invalid or expired reset token."], "Reset password failed");
         }
 
-        return date.ToString("dd/MM/yyyy");
+        User? user = await _authRepository.GetUserByIdAsync(passwordResetToken.UserId, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return ApiResponse<ResetPasswordResponse>.Failure(["User not found."], "Reset password failed");
+        }
+
+        user.PasswordHash = _passwordService.HashPassword(user, command.NewPassword);
+        user.PasswordChangedAt = DateTime.UtcNow;
+        user.MustChangePassword = false;
+        user.FailedLoginAttempts = 0;
+        user.IsLocked = false;
+        user.LockoutEndAt = null;
+        passwordResetToken.UsedAt = DateTime.UtcNow;
+
+        await _authRepository.SaveChangesAsync(cancellationToken);
+
+        return new ApiResponse<ResetPasswordResponse> { Success = true, Data = new ResetPasswordResponse { PasswordReset = true }, Errors = [], Message = "Password reset successfully" };
     }
 
-    private static string FormatNullableDate(DateTime? date)
+    public async Task<ApiResponse<ChangePasswordResponse>> ChangePasswordAsync(ChangePasswordCommand command, CancellationToken cancellationToken = default)
     {
-        return date.HasValue ? date.Value.ToString("dd/MM/yyyy") : "-";
+        ValidationResult validationResult = await _changePasswordValidator.ValidateAsync(command, cancellationToken);
+
+        if (!validationResult.IsValid)
+        {
+            return ApiResponse<ChangePasswordResponse>.Failure(validationResult.Errors.Select(e => e.ErrorMessage).ToList(), "Validation failed");
+        }
+
+        User? user = await _authRepository.GetUserByIdAsync(command.UserId, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return ApiResponse<ChangePasswordResponse>.Failure(["User not found."], "Change password failed");
+        }
+
+        bool validPassword = _passwordService.VerifyPassword(user, command.CurrentPassword, user.PasswordHash);
+
+        if (!validPassword)
+        {
+            return ApiResponse<ChangePasswordResponse>.Failure(["Current password is incorrect."], "Change password failed");
+        }
+
+        user.PasswordHash = _passwordService.HashPassword(user, command.NewPassword);
+        user.PasswordChangedAt = DateTime.UtcNow;
+        user.MustChangePassword = false;
+
+        await _authRepository.SaveChangesAsync(cancellationToken);
+
+        return new ApiResponse<ChangePasswordResponse> { Success = true, Data = new ChangePasswordResponse { PasswordChanged = true }, Errors = [], Message = "Password changed successfully" };
     }
 
-    private static string GetStatusClass(bool isActive)
+    public async Task<ApiResponse<GetCurrentUserResponse>> GetCurrentUserAsync(GetCurrentUserQuery query, CancellationToken cancellationToken = default)
     {
-        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+        User? user = await _authRepository.GetUserByIdAsync(query.UserId, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return ApiResponse<GetCurrentUserResponse>.Failure(["User not found."], "Current user not found");
+        }
+
+        return new ApiResponse<GetCurrentUserResponse> { Success = true, Data = new GetCurrentUserResponse { User = _mapper.Map<AuthUserDto>(user) }, Errors = [], Message = "Current user retrieved successfully" };
     }
 
-    private class UserFormModel
+    public async Task<ApiResponse<LogoutResponse>> LogoutAsync(LogoutCommand command, CancellationToken cancellationToken = default)
     {
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string? Phone { get; set; }
-        public string? Country { get; set; }
-        public string? City { get; set; }
-        public string? Password { get; set; }
-        public bool MustChangePassword { get; set; }
-        public bool IsActive { get; set; }
+        RefreshToken? refreshToken = await _authRepository.GetRefreshTokenAsync(command.RefreshToken, cancellationToken);
+
+        if (refreshToken is not null && refreshToken.RevokedAt is null)
+        {
+            refreshToken.RevokedAt = DateTime.UtcNow;
+            await _authRepository.SaveChangesAsync(cancellationToken);
+        }
+
+        return new ApiResponse<LogoutResponse> { Success = true, Data = new LogoutResponse { LoggedOut = true }, Errors = [], Message = "Logout successful" };
+    }
+
+    private AuthResultDto CreateAuthResult(User user, string refreshToken)
+    {
+        return new AuthResultDto { AccessToken = _jwtService.GenerateAccessToken(user), RefreshToken = refreshToken, ExpiresAt = _jwtService.GetAccessTokenExpiration(), User = _mapper.Map<AuthUserDto>(user) };
     }
 }
 '@
 
-Write-Host "Users admin files created."
-Write-Host "No Sidebar, Program.cs, App.razor, csproj, CSS or assets were modified."
+Write-File "$infrastructureRoot\Repositories\AuthRepository.cs" @'
+namespace Alakai.FestivalManager.Infrastructure.Repositories;
+
+public class AuthRepository : IAuthRepository
+{
+    private readonly FestivalManagerDbContext _context;
+
+    public AuthRepository(FestivalManagerDbContext context)
+    {
+        _context = context;
+    }
+
+    public async Task<User?> GetUserByIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users.FirstOrDefaultAsync(u => u.Id == id, cancellationToken);
+    }
+
+    public async Task<User?> GetUserByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        string normalizedEmail = email.Trim().ToLowerInvariant();
+
+        return await _context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == normalizedEmail, cancellationToken);
+    }
+
+    public async Task AddRefreshTokenAsync(RefreshToken refreshToken, CancellationToken cancellationToken = default)
+    {
+        await _context.RefreshTokens.AddAsync(refreshToken, cancellationToken);
+    }
+
+    public async Task<RefreshToken?> GetRefreshTokenAsync(string token, CancellationToken cancellationToken = default)
+    {
+        return await _context.RefreshTokens.FirstOrDefaultAsync(r => r.Token == token, cancellationToken);
+    }
+
+    public async Task AddPasswordResetTokenAsync(PasswordResetToken passwordResetToken, CancellationToken cancellationToken = default)
+    {
+        await _context.PasswordResetTokens.AddAsync(passwordResetToken, cancellationToken);
+    }
+
+    public async Task<PasswordResetToken?> GetPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default)
+    {
+        return await _context.PasswordResetTokens.FirstOrDefaultAsync(p => p.Token == token, cancellationToken);
+    }
+
+    public async Task SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        await _context.SaveChangesAsync(cancellationToken);
+    }
+}
+'@
+
+Write-File "$apiRoot\Controllers\AuthController.cs" @'
+namespace Alakai.FestivalManager.Api.Controllers;
+
+[ApiController]
+[Route("api/auth")]
+public class AuthController : ControllerBase
+{
+    private readonly IAuthService _authService;
+    private readonly IMapper _mapper;
+
+    public AuthController(IAuthService authService, IMapper mapper)
+    {
+        _authService = authService;
+        _mapper = mapper;
+    }
+
+    [HttpPost("login")]
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken)
+    {
+        LoginCommand command = _mapper.Map<LoginCommand>(request);
+        ApiResponse<LoginResponse> response = await _authService.LoginAsync(command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return Unauthorized(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("refresh-token")]
+    public async Task<ActionResult<ApiResponse<RefreshTokenResponse>>> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
+    {
+        RefreshTokenCommand command = _mapper.Map<RefreshTokenCommand>(request);
+        ApiResponse<RefreshTokenResponse> response = await _authService.RefreshTokenAsync(command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return Unauthorized(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult<ApiResponse<ForgotPasswordResponse>>> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken)
+    {
+        ForgotPasswordCommand command = _mapper.Map<ForgotPasswordCommand>(request);
+        ApiResponse<ForgotPasswordResponse> response = await _authService.ForgotPasswordAsync(command, cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<ApiResponse<ResetPasswordResponse>>> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken)
+    {
+        ResetPasswordCommand command = _mapper.Map<ResetPasswordCommand>(request);
+        ApiResponse<ResetPasswordResponse> response = await _authService.ResetPasswordAsync(command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [Authorize]
+    [HttpPost("change-password")]
+    public async Task<ActionResult<ApiResponse<ChangePasswordResponse>>> ChangePassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ChangePasswordCommand command = _mapper.Map<ChangePasswordCommand>(request);
+        command.UserId = userId;
+
+        ApiResponse<ChangePasswordResponse> response = await _authService.ChangePasswordAsync(command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [Authorize]
+    [HttpGet("me")]
+    public async Task<ActionResult<ApiResponse<GetCurrentUserResponse>>> Me(CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetCurrentUserResponse> response = await _authService.GetCurrentUserAsync(new GetCurrentUserQuery { UserId = userId }, cancellationToken);
+
+        if (!response.Success)
+        {
+            return Unauthorized(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("logout")]
+    public async Task<ActionResult<ApiResponse<LogoutResponse>>> Logout([FromBody] LogoutCommand command, CancellationToken cancellationToken)
+    {
+        ApiResponse<LogoutResponse> response = await _authService.LogoutAsync(command, cancellationToken);
+
+        return Ok(response);
+    }
+}
+'@
+
+Write-File "$root\AUTH_DI_TO_ADD.txt" @'
+ApplicationDependencyInjectionExtension.cs:
+
+//Auth
+services.AddScoped<IPasswordService, PasswordService>();
+services.AddScoped<IJwtService, JwtService>();
+services.AddScoped<IAuthService, AuthService>();
+services.AddScoped<IValidator<LoginCommand>, LoginCommandValidator>();
+services.AddScoped<IValidator<RefreshTokenCommand>, RefreshTokenCommandValidator>();
+services.AddScoped<IValidator<ForgotPasswordCommand>, ForgotPasswordCommandValidator>();
+services.AddScoped<IValidator<ResetPasswordCommand>, ResetPasswordCommandValidator>();
+services.AddScoped<IValidator<ChangePasswordCommand>, ChangePasswordCommandValidator>();
+
+InfrastructureDependencyInjectionExtension.cs:
+
+//Auth
+services.AddScoped<IAuthRepository, AuthRepository>();
+
+Program.cs in Api, before builder.Services.AddControllers():
+
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        JwtSettings jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>() ?? new JwtSettings();
+
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateIssuerSigningKey = true,
+            ValidateLifetime = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
+Program.cs in Api, before app.MapControllers():
+
+app.UseAuthentication();
+app.UseAuthorization();
+'@
+
+Patch-JsonJwtIfMissing "$apiRoot\appsettings.json"
+
+Write-Host ""
+Write-Host "Auth backend files generated."
+Write-Host "Review AUTH_DI_TO_ADD.txt and add DI/JWT middleware manually."
+Write-Host "Run dotnet build after adding DI registrations."

@@ -96,8 +96,7 @@ public class CreateRegistrationHandler
 
         decimal basePrice = level.RegularPrice;
 
-        DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue,
-        cancellationToken);
+        DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue, cancellationToken);
 
         Registration registration = _mapper.Map<Registration>(command);
         registration.UserId = user.Id;
@@ -111,28 +110,21 @@ public class CreateRegistrationHandler
         registration.DiscountCodeValue = discount.DiscountCodeValue;
         registration.DiscountStatus = discount.DiscountStatus;
 
+        await _registrationRepository.AddAsync(registration, cancellationToken);
+        await _registrationRepository.SaveChangesAsync(cancellationToken);
+
         if (discount.DiscountCodeId.HasValue)
         {
-            Guid codeId = registration.DiscountCodeId ?? Guid.Empty;
-
-            int uses = await _registrationRepository.CountByDiscountCodeAsync(codeId, cancellationToken);
             DiscountCode? code = await _discountCodeRepository.GetByIdAsync(discount.DiscountCodeId.Value, cancellationToken);
 
             if (code is not null)
             {
+                int uses = await _registrationRepository.CountByDiscountCodeAsync(code.Id, cancellationToken);
                 code.CurrentUses = uses;
-
-                if (code.ActivationType != DiscountActivationType.Immediate && uses == 0)
-                {
-                    _discountCodeRepository.Delete(code);
-                }
 
                 await _discountCodeRepository.SaveChangesAsync(cancellationToken);
             }
         }
-
-        await _registrationRepository.AddAsync(registration, cancellationToken);
-        await _registrationRepository.SaveChangesAsync(cancellationToken);
 
         await _emailNotificationService.CreateEmailLogAsync(
             EmailTemplateKey.RegistrationCreated,

@@ -579,6 +579,78 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.ToTable("PassTypes", (string)null);
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("UsedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("PasswordResetTokens", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime?>("RevokedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Token")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Token")
+                        .IsUnique();
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens", (string)null);
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>
                 {
                     b.Property<Guid>("Id")
@@ -748,12 +820,18 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasMaxLength(200)
                         .HasColumnType("nvarchar(200)");
 
+                    b.Property<int>("FailedLoginAttempts")
+                        .HasColumnType("int");
+
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLocked")
                         .HasColumnType("bit");
 
                     b.Property<DateTime?>("LastLoginAt")
@@ -764,8 +842,14 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
+                    b.Property<DateTime?>("LockoutEndAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<bool>("MustChangePassword")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("PasswordChangedAt")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -775,6 +859,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<string>("Phone")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -926,6 +1013,28 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Edition");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.PasswordResetToken", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RefreshToken", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.User", "User")
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>

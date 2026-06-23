@@ -1,4 +1,11 @@
-﻿using Alakai.FestivalManager.Application.Services.Security;
+﻿using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;
+using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;
+using Alakai.FestivalManager.Application.Features.Auth.Commands.Login;
+using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;
+using Alakai.FestivalManager.Application.Features.Auth.Commands.ResetPassword;
+using Alakai.FestivalManager.Application.Features.Auth.Services;
+using Alakai.FestivalManager.Application.Features.Auth.Validators;
+using Alakai.FestivalManager.Application.Services.Security;
 
 namespace Alakai.FestivalManager.Application.Extensions;
 
@@ -119,8 +126,14 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<IDiscountCalculationService, DiscountCalculationService>();
         services.AddScoped<IDiscountCodeService, DiscountCodeService>();
 
-        //PasswordHasher
+        //Auth
         services.AddScoped<IPasswordHasherService, PasswordHasherService>();
+        services.AddScoped<IPasswordService, PasswordService>();
+        services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<IAuthService, AuthService>();
+
+        //User Panel
+        services.AddScoped<IUserPanelService, UserPanelService>();
 
         return services;
     }

@@ -1,0 +1,602 @@
+﻿@page "/user-panel/dashboard"
+@layout UserPanelLayout
+
+@using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs
+
+@inject UserPanelApiClient UserPanelApiClient
+@inject NavigationManager Navigation
+@inject IAuthApiClient AuthApiClient
+
+<PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
+
+@if (IsLoading)
+{
+    <div class="card">
+        Loading dashboard...
+    </div>
+
+    return;
+}
+
+@if (!string.IsNullOrWhiteSpace(ErrorMessage))
+{
+    <div class="card text-danger">
+        @ErrorMessage
+    </div>
+
+    return;
+}
+
+<!-- Start All Card -->
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)] rounded-xl bg-light/60 p-4 dark:bg-dark/40">
+
+    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div class="card shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-purple/10 text-purple">
+                    <i class="ri-user-line text-2xl"></i>
+                </div>
+                <div>
+                    <MudText Class="text-muted dark:text-darkmuted">Registration</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@RegistrationStatus</MudText>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-warning/10 text-warning">
+                    <i class="ri-bank-card-line text-2xl"></i>
+                </div>
+                <div>
+                    <MudText Class="text-muted dark:text-darkmuted">Payment</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@PaymentStatus</MudText>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-success/10 text-success">
+                    <i class="ri-trophy-line text-2xl"></i>
+                </div>
+                <div>
+                    <MudText Class="text-muted dark:text-darkmuted">Competitions</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Competitions.Count</MudText>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="flex items-center gap-4">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-info/10 text-info">
+                    <i class="ri-file-list-3-line text-2xl"></i>
+                </div>
+                <div>
+                    <MudText Class="text-muted dark:text-darkmuted">Invoices</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Invoices.Count</MudText>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <div class="card shadow-sm">
+            <div class="mb-5" id="personal-data">
+                <h2 class="text-lg font-bold text-black dark:text-white">My personal details</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Update your personal details.</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(ProfileSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">
+                    @ProfileSuccessMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(ProfileErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">
+                    @ProfileErrorMessage
+                </div>
+            }
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="space-y-2">
+                    <MudText>First Name</MudText>
+                    <input type="text" class="form-input" placeholder="First Name" @bind="FirstName">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>Last Name</MudText>
+                    <input type="text" class="form-input" placeholder="Last Name" @bind="LastName">
+                </div>
+
+                <div class="space-y-2 md:col-span-2">
+                    <MudText>Your email</MudText>
+                    <input type="email" class="form-input" placeholder="Email" @bind="Email">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>Phone</MudText>
+                    <input type="text" class="form-input" placeholder="Phone" @bind="Phone">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>Country</MudText>
+                    <input type="text" class="form-input" placeholder="Country" @bind="Country">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>City</MudText>
+                    <input type="text" class="form-input" placeholder="City" @bind="City">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>Document Number</MudText>
+                    <input type="text" class="form-input" placeholder="Document Number" @bind="DocumentNumber">
+                </div>
+
+                <div class="flex flex-wrap gap-3 md:col-span-2">
+                    <button type="button"
+                            class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]"
+                            @onclick="SaveProfileAsync">
+                        Save
+                    </button>
+
+                    <button type="button"
+                            class="btn bg-light border-light text-black hover:bg-light/[0.85] hover:border-light/[0.85]"
+                            @onclick="LoadDashboardAsync">
+                        Discard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="mb-5" id="registration-data">
+                <h2 class="text-lg font-bold text-black dark:text-white">My Registration details</h2>
+            </div>
+
+            <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div class="p-4 rounded bg-light/20 dark:bg-white/5">
+                    <MudText Class="text-muted dark:text-darkmuted">Pass</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@PassTypeName</MudText>
+                </div>
+
+                <div class="p-4 rounded bg-light/20 dark:bg-white/5">
+                    <MudText Class="text-muted dark:text-darkmuted">Level</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@LevelName</MudText>
+                </div>
+
+                <div class="p-4 rounded bg-light/20 dark:bg-white/5">
+                    <MudText Class="text-muted dark:text-darkmuted">Role</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@DanceRole</MudText>
+                </div>
+
+                <div class="p-4 rounded bg-light/20 dark:bg-white/5">
+                    <MudText Class="text-muted dark:text-darkmuted">Partner</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@PartnerText</MudText>
+                </div>
+
+                <div class="p-4 rounded bg-light/20 dark:bg-white/5">
+                    <MudText Class="text-muted dark:text-darkmuted">Discount Code</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@DiscountCode</MudText>
+                </div>
+
+                <div class="p-4 rounded bg-light/20 dark:bg-white/5">
+                    <MudText Class="text-muted dark:text-darkmuted">Final Price</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="mb-5" id="payments">
+                    <h2 class="text-lg font-bold text-black dark:text-white">Payments</h2>
+                    <p class="mt-1 text-sm text-muted dark:text-darkmuted">Pay your registration.</p>
+                </div>
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">Pay now</button>
+            </div>
+
+            <div class="flex items-center justify-between gap-4 p-4 rounded bg-light/20 dark:bg-white/5">
+                <div>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">Registration Payment</MudText>
+                    <MudText Class="text-muted mt-0.5 dark:text-darkmuted">Status of your payment.</MudText>
+                </div>
+
+                <div class="text-right">
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
+                    <MudText Class="text-warning">@PaymentStatus</MudText>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="mb-5" id="invoices">
+                    <h2 class="text-lg font-bold text-black dark:text-white">Invoices</h2>
+                </div>
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">Create invoice</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Invoice</th>
+                            <th class="px-4 py-3 font-semibold">Date</th>
+                            <th class="px-4 py-3 font-semibold">Amount</th>
+                            <th class="px-4 py-3 font-semibold text-right">Accions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (Invoices.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/40">There are no invoices available yet.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (UserPanelInvoiceDto invoice in Invoices)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">@invoice.Number</td>
+                                    <td class="px-4 py-3">@invoice.Date.ToString("dd/MM/yyyy")</td>
+                                    <td class="px-4 py-3">@invoice.Amount.ToString("0.00") €</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button type="button" class="text-black dark:text-white/80">
+                                            <i class="ri-download-line text-lg"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="flex items-center justify-between gap-4 mb-4">
+                <div class="mb-5" id="competitions">
+                    <h2 class="text-lg font-bold text-black dark:text-white">Competitions</h2>
+                </div>
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">Register</button>
+            </div>
+
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Competition</th>
+                            <th class="px-4 py-3 font-semibold">Role</th>
+                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold text-right">Accions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (UserPanelCompetitionDto competition in Competitions)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3">@competition.CompetitionName</td>
+                                <td class="px-4 py-3">@competition.Role</td>
+                                <td class="px-4 py-3">
+                                    <span class="@GetCompetitionStatusClass(competition.Status)">
+                                        @competition.Status
+                                    </span>
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="text-black dark:text-white/80">
+                                        <i class="ri-pencil-line text-lg"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+
+                        @if (Competitions.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/40">You are not registered to any competition.</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="mb-5" id="change-password">
+                <h2 class="text-lg font-bold text-black dark:text-white">Change password</h2>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(PasswordSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">
+                    @PasswordSuccessMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(PasswordErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">
+                    @PasswordErrorMessage
+                </div>
+            }
+
+            <div class="space-y-4">
+                <div class="space-y-2">
+                    <MudText>Current Password</MudText>
+                    <input type="password" class="form-input" placeholder="Current Password" @bind="CurrentPassword">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>New Password</MudText>
+                    <input type="password" class="form-input" placeholder="New Password" @bind="NewPassword">
+                </div>
+
+                <div class="space-y-2">
+                    <MudText>Confirm Password</MudText>
+                    <input type="password" class="form-input" placeholder="Confirm Password" @bind="ConfirmPassword">
+                </div>
+
+                <div class="flex flex-wrap gap-3 md:col-span-2">
+                    <button type="button"
+                            class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]"
+                            @onclick="ChangePasswordAsync">
+                        Save
+                    </button>
+
+                    <button type="button"
+                            class="btn bg-light border-light text-black hover:bg-light/[0.85] hover:border-light/[0.85]"
+                            @onclick="ClearPasswordFields">
+                        Discard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- End All Card -->
+@code {
+    private UserPanelDashboardDto? Dashboard { get; set; }
+
+    private bool IsLoading { get; set; } = true;
+
+    private string RegistrationStatus => Dashboard?.Registration?.RegistrationStatus ?? "-";
+    private string PaymentStatus => Dashboard?.Registration?.PaymentStatus ?? "-";
+
+    private string FirstName { get; set; } = string.Empty;
+    private string LastName { get; set; } = string.Empty;
+    private string Email { get; set; } = string.Empty;
+    private string? Phone { get; set; }
+    private string? Country { get; set; }
+    private string? City { get; set; }
+    private string? DocumentNumber { get; set; }
+
+    private string PassTypeName => Dashboard?.Registration?.PassTypeName ?? "-";
+    private string LevelName => Dashboard?.Registration?.LevelName ?? "-";
+    private string DanceRole => Dashboard?.Registration?.DanceRole ?? "-";
+    private string PartnerText => string.IsNullOrWhiteSpace(Dashboard?.Registration?.PartnerEmail) ? "Sin pareja indicada" : Dashboard.Registration.PartnerEmail;
+    private string DiscountCode => Dashboard?.Registration?.DiscountCodeValue ?? "-";
+    private decimal FinalPrice => Dashboard?.Registration?.FinalPrice ?? 0;
+
+    private IReadOnlyList<UserPanelCompetitionDto> Competitions => Dashboard?.Competitions ?? [];
+    private IReadOnlyList<UserPanelInvoiceDto> Invoices => Dashboard?.Invoices ?? [];
+
+    private string CurrentPassword { get; set; } = string.Empty;
+    private string NewPassword { get; set; } = string.Empty;
+    private string ConfirmPassword { get; set; } = string.Empty;
+    private string? ErrorMessage { get; set; } = string.Empty;
+    private string? PasswordSuccessMessage { get; set; } = string.Empty;
+    private string? PasswordErrorMessage { get; set; } = string.Empty;
+    private string? ProfileSuccessMessage { get; set; } = string.Empty;
+    private string? ProfileErrorMessage { get; set; } = string.Empty;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await LoadDashboardAsync();
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadDashboardAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
+        {
+            Dashboard = await UserPanelApiClient.GetDashboardAsync();
+
+            if (Dashboard is null)
+            {
+                Navigation.NavigateTo("/user-panel/login", true);
+                return;
+            }
+
+            FirstName = Dashboard.User.FirstName;
+            LastName = Dashboard.User.LastName;
+            Email = Dashboard.User.Email;
+            Phone = Dashboard.User.Phone;
+            Country = Dashboard.User.Country;
+            City = Dashboard.User.City;
+            DocumentNumber = Dashboard.Registration?.DocumentNumber;
+
+            SyncFormFromDashboard();
+        }
+        catch
+        {
+            ErrorMessage = "Dashboard could not be loaded.";
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private static string GetCompetitionStatusClass(string status)
+    {
+        return status switch
+        {
+            "Registered" => "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success",
+            "WaitingPartner" => "inline-block rounded text-xs px-2 py-1 bg-warning/10 text-warning",
+            "Cancelled" => "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger",
+            _ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
+        };
+    }
+
+    private void SyncFormFromDashboard()
+    {
+        FirstName = Dashboard?.User.FirstName ?? string.Empty;
+        LastName = Dashboard?.User.LastName ?? string.Empty;
+        Email = Dashboard?.User.Email ?? string.Empty;
+        Phone = Dashboard?.User.Phone;
+        Country = Dashboard?.User.Country;
+        City = Dashboard?.User.City;
+        DocumentNumber = Dashboard?.Registration?.DocumentNumber;
+    }
+
+    private async Task SaveProfileAsync()
+    {
+        ClearProfileMessages();
+
+        UpdateUserPanelProfileRequest request = new()
+        {
+            FirstName = FirstName,
+            LastName = LastName,
+            Email = Email,
+            Phone = Phone,
+            Country = Country,
+            City = City,
+            DocumentNumber = DocumentNumber,
+            DocumentCountry = Dashboard?.Registration?.DocumentCountry
+        };
+
+        UserPanelDashboardDto? updatedDashboard = await UserPanelApiClient.UpdateProfileAsync(request);
+
+        if (updatedDashboard is null)
+        {
+            await ShowProfileErrorAsync("Profile could not be saved.");
+            return;
+        }
+
+        Dashboard = updatedDashboard;
+
+        SyncFormFromDashboard();
+
+        await ShowProfileSuccessAsync("Profile saved successfully.");
+    }
+
+    private async Task ChangePasswordAsync()
+    {
+        ClearPasswordMessages();
+
+        if (string.IsNullOrWhiteSpace(CurrentPassword) ||
+            string.IsNullOrWhiteSpace(NewPassword) ||
+            string.IsNullOrWhiteSpace(ConfirmPassword))
+        {
+            await ShowPasswordErrorAsync("Please complete all password fields.");
+            return;
+        }
+
+        if (NewPassword != ConfirmPassword)
+        {
+            await ShowPasswordErrorAsync("New password and confirmation do not match.");
+            return;
+        }
+
+        bool changed = await AuthApiClient.ChangePasswordAsync(CurrentPassword, NewPassword);
+
+        if (!changed)
+        {
+            await ShowPasswordErrorAsync("Password could not be changed.");
+            return;
+        }
+
+        CurrentPassword = string.Empty;
+        NewPassword = string.Empty;
+        ConfirmPassword = string.Empty;
+
+        await ShowPasswordSuccessAsync("Password changed successfully.");
+    }
+
+    private void ClearPasswordFields()
+    {
+        CurrentPassword = string.Empty;
+        NewPassword = string.Empty;
+        ConfirmPassword = string.Empty;
+
+        ClearPasswordMessages();
+    }
+
+    private void ClearProfileMessages()
+    {
+        ProfileSuccessMessage = null;
+        ProfileErrorMessage = null;
+    }
+
+    private void ClearPasswordMessages()
+    {
+        PasswordSuccessMessage = null;
+        PasswordErrorMessage = null;
+    }
+
+    private async Task ShowProfileSuccessAsync(string message)
+    {
+        ProfileSuccessMessage = message;
+        ProfileErrorMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(3500);
+
+        ProfileSuccessMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowProfileErrorAsync(string message)
+    {
+        ProfileErrorMessage = message;
+        ProfileSuccessMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(3500);
+
+        ProfileErrorMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowPasswordSuccessAsync(string message)
+    {
+        PasswordSuccessMessage = message;
+        PasswordErrorMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(3500);
+
+        PasswordSuccessMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowPasswordErrorAsync(string message)
+    {
+        PasswordErrorMessage = message;
+        PasswordSuccessMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(3500);
+
+        PasswordErrorMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+    }
+}
