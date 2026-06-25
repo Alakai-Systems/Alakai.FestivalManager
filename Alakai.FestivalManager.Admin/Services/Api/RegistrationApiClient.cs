@@ -33,6 +33,22 @@ public class RegistrationApiClient
         return response.Data?.Registrations ?? [];
     }
 
+    public async Task<string> GetByEmailAsync(Guid editionId, string email, CancellationToken cancellationToken = default)
+    {
+        ApiResponse<GetRegistrationsByEditionIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetRegistrationsByEditionIdResponse>>($"api/registrations/by-edition/{editionId}", cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            throw new ApiClientException(response?.Message ?? "Could not load registrations.", response?.Errors);
+        }
+
+        string firstName = response.Data?.Registrations.FirstOrDefault(c => c.Email == email)?.FirstName ?? string.Empty;
+        string lastName = response.Data?.Registrations.FirstOrDefault(c => c.Email == email).LastName ?? string.Empty;
+        string name = $"{firstName} {lastName}".Trim();
+
+        return name;
+    }
+
     public async Task UpdateAsync(Guid id, UpdateRegistrationRequest request, CancellationToken cancellationToken = default)
     {
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/registrations/{id}", request, cancellationToken);

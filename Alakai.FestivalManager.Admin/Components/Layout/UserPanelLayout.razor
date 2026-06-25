@@ -48,7 +48,7 @@
 
     private string FirstName { get; set; } = string.Empty;
     private string LastName { get; set; } = string.Empty;
-    private IReadOnlyList<UserPanelCompetitionDto> Competitions => Dashboard?.Competitions ?? [];
+    private IReadOnlyList<CompetitionEntryDto> Competitions => Dashboard?.Competitions ?? [];
 
     protected override async Task OnInitializedAsync()
     {

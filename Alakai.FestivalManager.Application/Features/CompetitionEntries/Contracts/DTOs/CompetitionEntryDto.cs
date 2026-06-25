@@ -1,5 +1,3 @@
-using Alakai.FestivalManager.Application.Features.Competitions.Contracts.DTOs;
-
 namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.DTOs;
 
 public class CompetitionEntryDto

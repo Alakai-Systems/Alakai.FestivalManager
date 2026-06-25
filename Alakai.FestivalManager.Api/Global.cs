@@ -15,6 +15,7 @@ global using Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrent
 global using Alakai.FestivalManager.Application.Features.Auth.Services;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
+global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Services;
 global using Alakai.FestivalManager.Application.Features.Competitions.Commands.CreateCompetition;
@@ -61,6 +62,9 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Commands.
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Services;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
 global using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;
@@ -79,6 +83,5 @@ global using System.Net;
 global using System.Security.Claims;
 global using System.Text;
 global using System.Text.Json;
-global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;
-global using Alakai.FestivalManager.Application.Features.UserPanel.Services;
+
 

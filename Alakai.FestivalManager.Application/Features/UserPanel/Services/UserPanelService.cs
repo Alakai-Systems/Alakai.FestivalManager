@@ -1,14 +1,22 @@
-﻿using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Requests;
-
-namespace Alakai.FestivalManager.Application.Features.UserPanel.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.UserPanel.Services;
 
 public class UserPanelService : IUserPanelService
 {
     private readonly IUserPanelRepository _userPanelRepository;
-
-    public UserPanelService(IUserPanelRepository userPanelRepository)
+    private readonly ICompetitionEntryService _competitionEntryService;
+    private readonly ICompetitionEntryRepository _competitionEntryRepository;
+    private readonly ICompetitionRepository _competitionRepository;
+    private readonly ICompetitionCapacityRepository _competitionCapacityRepository;
+    private readonly IMapper _mapper;
+    public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper, 
+        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository, ICompetitionCapacityRepository competitionCapacityRepository)
     {
         _userPanelRepository = userPanelRepository;
+        _competitionEntryService = competitionEntryService;
+        _mapper = mapper;
+        _competitionEntryRepository = competitionEntryRepository;
+        _competitionRepository = competitionRepository;
+        _competitionCapacityRepository = competitionCapacityRepository;
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> GetDashboardAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -28,6 +36,17 @@ public class UserPanelService : IUserPanelService
 
         Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
 
+        if(registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "User panel dashboard could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
         IReadOnlyList<Registration> registrations = await _userPanelRepository.GetRegistrationsByUserIdAsync(userId, cancellationToken);
 
         IReadOnlyList<Guid> registrationIds = registrations
@@ -37,6 +56,12 @@ public class UserPanelService : IUserPanelService
         IReadOnlyList<CompetitionEntry> competitionEntries = registrationIds.Count == 0
             ? []
             : await _userPanelRepository.GetCompetitionEntriesByRegistrationIdsAsync(registrationIds, cancellationToken);
+
+        IReadOnlyList<Competition> availableCompetitions = await _competitionRepository.GetByEditionIdAsync(registration.EditionId, cancellationToken);
+
+        IReadOnlyList<Guid> competitionIds = availableCompetitions.Select(c => c.Id).ToList();
+
+        IReadOnlyList<CompetitionCapacity> competitionCapacities = await _competitionCapacityRepository.GetByCompetitionIdsAsync(competitionIds, cancellationToken);
 
         UserPanelDashboardDto dashboard = new()
         {
@@ -64,12 +89,45 @@ public class UserPanelService : IUserPanelService
                 DocumentNumber = registration.DocumentNumber,
                 DocumentCountry = registration.DocumentCountry
             },
-            Competitions = competitionEntries.Select(c => new UserPanelCompetitionDto
+            Competitions = competitionEntries.Select(c => new CompetitionEntryDto
             {
                 Id = c.Id,
-                CompetitionName = c.Competition.Name,
-                Role = c.DanceRole?.ToString(),
-                Status = c.Status.ToString()
+                CompetitionId = c.CompetitionId,
+                RegistrationId = c.RegistrationId,
+                PartnerRegistrationId = c.PartnerRegistrationId,
+                CompetitionCapacityId = c.CompetitionCapacityId,
+                DanceRole = c.DanceRole,
+                Status = c.Status,
+                Notes = c.Notes,
+                InternalNotes = c.InternalNotes,
+                IsActive = c.IsActive
+            }).ToList(),
+            AvailableCompetitions = availableCompetitions.Select(c => new CompetitionDto
+            {
+                Id = c.Id,
+                Name = c.Name,
+                EditionId = c.EditionId,
+                Description = c.Description,
+                Format = c.Format,
+                Capacities = c.Capacities.Select(capacity => new CompetitionCapacityDto
+                {
+                    Id = capacity.Id,
+                    CompetitionId = capacity.CompetitionId,
+                    MixAndMatchLevel = capacity.MixAndMatchLevel,
+                    DanceRole = capacity.DanceRole,
+                    Capacity = capacity.Capacity,
+                    SortOrder = capacity.SortOrder,
+                    IsActive = capacity.IsActive
+                }).ToList(),
+                RequiresPartner = c.RequiresPartner,
+                RequiresRole = c.RequiresRole,
+                Price = c.Price,
+                RegistrationOpenAt = c.RegistrationOpenAt,
+                RegistrationCloseAt = c.RegistrationCloseAt,
+                SortOrder = c.SortOrder,
+                IsActive = c.IsActive,
+                CreatedAt = c.CreatedAt,
+                UpdatedAt = c.UpdatedAt
             }).ToList(),
             Invoices = []
         };
@@ -85,6 +143,77 @@ public class UserPanelService : IUserPanelService
             Errors = []
         };
     }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        request.RegistrationId = registration.Id;
+        request.InternalNotes = null;
+
+        CreateCompetitionEntryCommand competitionCommand = _mapper.Map<CreateCompetitionEntryCommand>(request);
+
+        await _competitionEntryService.CreateAsync(competitionCommand, cancellationToken);
+
+        return await GetDashboardAsync(userId, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
+
+        if (existing is null || existing.Registration.UserId != userId)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be updated.",
+                Data = null,
+                Errors = ["Competition entry not found."]
+            };
+        }
+
+        request.RegistrationId = existing.RegistrationId;
+        request.InternalNotes = null;
+
+        UpdateCompetitionEntryCommand competitionCommand = _mapper.Map<UpdateCompetitionEntryCommand>(request);
+
+        await _competitionEntryService.UpdateAsync(competitionEntryId, competitionCommand, cancellationToken);
+
+        return await GetDashboardAsync(userId, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, Guid competitionEntryId, CancellationToken cancellationToken = default)
+    {
+        CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
+
+        if (existing is null || existing.Registration.UserId != userId)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be deleted.",
+                Data = null,
+                Errors = ["Competition entry not found."]
+            };
+        }
+
+        await _competitionEntryService.DeleteAsync(competitionEntryId, cancellationToken);
+
+        return await GetDashboardAsync(userId, cancellationToken);
+    }
+
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
     {
         User? user = await _userPanelRepository.GetUserByIdAsync(userId, cancellationToken);

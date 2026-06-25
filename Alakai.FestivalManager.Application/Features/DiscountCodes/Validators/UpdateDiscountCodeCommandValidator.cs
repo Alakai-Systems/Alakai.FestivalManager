@@ -12,8 +12,14 @@ public class UpdateDiscountCodeCommandValidator : AbstractValidator<UpdateDiscou
         RuleFor(d => d.DiscountType).IsInEnum();
         RuleFor(d => d.DiscountValue).GreaterThan(0);
         RuleFor(d => d.ActivationType).IsInEnum();
-        RuleFor(d => d.ActivationThreshold).GreaterThan(0).When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
-        RuleFor(d => d.ActivationThreshold).Null().When(d => d.ActivationType == DiscountActivationType.Immediate);
+        RuleFor(d => d.ActivationThreshold)
+            .GreaterThan(0)
+            .When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
+
+        RuleFor(d => d.ActivationThreshold)
+            .Must(value => value is null || value == 0)
+            .When(d => d.ActivationType == DiscountActivationType.Immediate)
+            .WithMessage("Activation threshold must be empty when activation type is immediate.");
         RuleFor(d => d.MaxUses).GreaterThan(0).When(d => d.MaxUses.HasValue);
         RuleFor(d => d.CurrentUses).GreaterThanOrEqualTo(0);
         RuleFor(d => d.EndsAt).GreaterThan(d => d.StartsAt).When(d => d.StartsAt.HasValue && d.EndsAt.HasValue);

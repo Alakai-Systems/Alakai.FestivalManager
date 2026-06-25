@@ -3,8 +3,11 @@
 
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs
+@using Alakai.FestivalManager.Admin.Services.Api
 
 @inject UserPanelApiClient UserPanelApiClient
+@inject RegistrationApiClient RegistrationApiClient
+@inject CompetitionEntryApiClient CompetitionEntryApiClient
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
 
@@ -172,7 +175,7 @@
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
                     <MudText Class="text-muted dark:text-darkmuted">Role</MudText>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@DanceRole</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@RegistrationDanceRole</MudText>
                 </div>
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
@@ -265,33 +268,56 @@
                 <div class="mb-5" id="competitions">
                     <h2 class="text-lg font-bold text-black dark:text-white">Competitions</h2>
                 </div>
-                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">Register</button>
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="OpenCreateCompetitionModal">
+                    Register
+                </button>
             </div>
+
+            @if (!string.IsNullOrWhiteSpace(CompetitionSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">
+                    @CompetitionSuccessMessage
+                </div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(CompetitionErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">
+                    @CompetitionErrorMessage
+                </div>
+            }
 
             <div class="overflow-x-auto">
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
                             <th class="px-4 py-3 font-semibold">Competition</th>
+                            <th class="px-4 py-3 font-semibold">Level</th>
                             <th class="px-4 py-3 font-semibold">Role</th>
                             <th class="px-4 py-3 font-semibold">Status</th>
                             <th class="px-4 py-3 font-semibold text-right">Accions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (UserPanelCompetitionDto competition in Competitions)
+                        @foreach (CompetitionEntryDto competition in Competitions)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
-                                <td class="px-4 py-3">@competition.CompetitionName</td>
-                                <td class="px-4 py-3">@competition.Role</td>
+                                <td class="px-4 py-3">@GetCompetitionName(competition.CompetitionId)</td>
+                                <td class="px-4 py-3">@GetCompetitionLevel(competition)</td>
+                                <td class="px-4 py-3">@competition.DanceRole</td>
                                 <td class="px-4 py-3">
-                                    <span class="@GetCompetitionStatusClass(competition.Status)">
+                                    <span class="@GetCompetitionStatusClass(@competition.Status.ToString())">
                                         @competition.Status
                                     </span>
                                 </td>
                                 <td class="px-4 py-3 text-right">
-                                    <button type="button" class="text-black dark:text-white/80">
+                                    <button type="button" class="text-black dark:text-white/80" 
+                                        @onclick="() => OpenEditCompetitionModal(competition)">
                                         <i class="ri-pencil-line text-lg"></i>
+                                    </button>
+                                    <button type="button" class="text-danger"
+                                        @onclick="() => OpenDeleteCompetitionModal(competition)">
+                                        <i class="ri-delete-bin-line text-lg"></i>
                                     </button>
                                 </td>
                             </tr>
@@ -360,11 +386,121 @@
         </div>
     </div>
 </div>
+
+@if (ShowCompetitionModal)
+{
+    <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+        <div class="relative w-full max-w-lg overflow-hidden rounded-lg border border-black/10 bg-white shadow-3xl dark:border-darkborder dark:bg-darklight">
+
+            <div class="flex items-center justify-between border-b border-black/10 px-5 py-4 dark:border-darkborder">
+                <div>
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@CompetitionModalTitle</h3>
+                    <p class="mt-1 text-sm text-muted dark:text-darkmuted">
+                        Select your competition details.
+                    </p>
+                </div>
+
+                <button type="button" class="text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white" @onclick="CloseCompetitionModal">
+                    <i class="ri-close-line text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 px-5 py-5">
+                @if (!string.IsNullOrWhiteSpace(CompetitionModalError))
+                {
+                    <div class="rounded bg-danger/10 p-3 text-sm text-danger">
+                        @CompetitionModalError
+                    </div>
+                }
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-black dark:text-white">Competition</label>
+                    <select class="form-select" value="@CompetitionFormCompetitionId" @onchange="OnCompetitionChanged">
+                        <option value="@Guid.Empty">Select competition</option>
+
+                        @foreach (CompetitionDto competition in AvailableCompetitions)
+                        {
+                            <option value="@competition.Id">@competition.Name</option>
+                        }
+                    </select>
+                </div>
+
+                @if (IsMixAndMatchCompetition)
+                {
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-black dark:text-white">Level</label>
+                        <select class="form-select" @bind="CompetitionFormCompetitionCapacityId">
+                            <option value="@Guid.Empty">Select level</option>
+
+                            @foreach (CompetitionCapacityDto capacity in AvailableMixAndMatchCapacities)
+                            {
+                                <option value="@capacity.Id">@GetMixAndMatchLevelText(capacity.MixAndMatchLevel)</option>
+                            }
+                        </select>
+                    </div>
+
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-black dark:text-white">Role</label>
+                        <select class="form-select" @bind="CompetitionFormDanceRole">
+                            <option value="">Select role</option>
+                            <option value="Leader">Leader</option>
+                            <option value="Follower">Follower</option>
+                        </select>
+                    </div>
+                }
+
+                @if (IsSoloJazzCompetition)
+                {
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-black dark:text-white">Role</label>
+                        <input type="text" class="form-input" value="Individual" disabled>
+                    </div>
+                }
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-black/10 px-5 py-4 dark:border-darkborder">
+                <button type="button" class="btn bg-light border-light text-black hover:bg-light/[0.85] hover:border-light/[0.85]" @onclick="CloseCompetitionModal">
+                    Cancel
+                </button>
+
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="SaveCompetitionEntryAsync">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (ShowDeleteCompetitionModal)
+{
+    <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+        <div class="relative w-[92vw] md:w-[380px] overflow-hidden rounded-lg border border-black/10 bg-white shadow-3xl dark:border-darkborder dark:bg-darklight">
+
+            <div class="border-b border-black/10 px-5 py-4 dark:border-darkborder">
+                <h3 class="text-lg font-bold text-black dark:text-white">Delete competition</h3>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">
+                    Are you sure you want to delete your registration to @CompetitionToDeleteName?
+                </p>
+            </div>
+
+            <div class="flex justify-end gap-3 px-5 py-4">
+                <button type="button" class="btn bg-light border-light text-black hover:bg-light/[0.85] hover:border-light/[0.85]" disabled="@isSaving" @onclick="CloseDeleteCompetitionModal">
+                    Cancel
+                </button>
+
+                <button type="button" class="btn bg-danger border-danger text-white hover:bg-danger/[0.85] hover:border-danger/[0.85] disabled:opacity-50" disabled="@isSaving" @onclick="DeleteCompetitionEntryAsync">
+                    @(isSaving ? "Deleting..." : "Delete")
+                </button>
+            </div>
+        </div>
+    </div>
+}
 <!-- End All Card -->
 @code {
     private UserPanelDashboardDto? Dashboard { get; set; }
 
     private bool IsLoading { get; set; } = true;
+    private bool isSaving;
 
     private string RegistrationStatus => Dashboard?.Registration?.RegistrationStatus ?? "-";
     private string PaymentStatus => Dashboard?.Registration?.PaymentStatus ?? "-";
@@ -379,13 +515,14 @@
 
     private string PassTypeName => Dashboard?.Registration?.PassTypeName ?? "-";
     private string LevelName => Dashboard?.Registration?.LevelName ?? "-";
-    private string DanceRole => Dashboard?.Registration?.DanceRole ?? "-";
-    private string PartnerText => string.IsNullOrWhiteSpace(Dashboard?.Registration?.PartnerEmail) ? "Sin pareja indicada" : Dashboard.Registration.PartnerEmail;
+    private string RegistrationDanceRole => Dashboard?.Registration?.DanceRole ?? "-";
+    private string PartnerText => Dashboard?.Registration?.PartnerEmail ?? "No assigned partner";
     private string DiscountCode => Dashboard?.Registration?.DiscountCodeValue ?? "-";
     private decimal FinalPrice => Dashboard?.Registration?.FinalPrice ?? 0;
 
-    private IReadOnlyList<UserPanelCompetitionDto> Competitions => Dashboard?.Competitions ?? [];
+    private IReadOnlyList<CompetitionEntryDto> Competitions => Dashboard?.Competitions ?? [];
     private IReadOnlyList<UserPanelInvoiceDto> Invoices => Dashboard?.Invoices ?? [];
+    private IReadOnlyList<CompetitionDto> AvailableCompetitions => Dashboard?.AvailableCompetitions ?? [];
 
     private string CurrentPassword { get; set; } = string.Empty;
     private string NewPassword { get; set; } = string.Empty;
@@ -395,6 +532,36 @@
     private string? PasswordErrorMessage { get; set; } = string.Empty;
     private string? ProfileSuccessMessage { get; set; } = string.Empty;
     private string? ProfileErrorMessage { get; set; } = string.Empty;
+    private string? CompetitionSuccessMessage { get; set; } = string.Empty;
+    private string? CompetitionErrorMessage { get; set; } = string.Empty;
+
+    private bool ShowCompetitionModal { get; set; }
+    private bool ShowDeleteCompetitionModal { get; set; }
+    private bool IsEditingCompetitionEntry { get; set; }
+    private Guid? EditingCompetitionEntryId { get; set; }
+    private Guid? DeletingCompetitionEntryId { get; set; }
+    private string CompetitionModalTitle => IsEditingCompetitionEntry ? "Edit competition entry" : "Register competition";
+    private string? CompetitionModalError { get; set; }
+    private string? CompetitionModalSuccess { get; set; }
+    private string? CompetitionToDeleteName { get; set; }
+    private Guid CompetitionFormCompetitionId { get; set; }
+    private Guid CompetitionFormCompetitionCapacityId { get; set; }
+    private string? CompetitionFormDanceRole { get; set; }
+    private string? CompetitionFormNotes { get; set; }
+    private CompetitionEntryStatus CompetitionFormStatus { get; set; }
+    private bool CompetitionFormIsActive { get; set; } = true;
+    private string SelectedCompetitionName => GetCompetitionName(CompetitionFormCompetitionId);
+    private bool IsSoloJazzCompetition => SelectedCompetitionName.Contains("Solo Jazz", StringComparison.OrdinalIgnoreCase);
+    private bool IsMixAndMatchCompetition => SelectedCompetitionName.Contains("Mix", StringComparison.OrdinalIgnoreCase);
+    private CompetitionDto? SelectedCompetition => AvailableCompetitions.FirstOrDefault(c => c.Id == CompetitionFormCompetitionId);
+    private IReadOnlyList<CompetitionCapacityDto> AvailableMixAndMatchCapacities =>
+    SelectedCompetition?.Capacities?
+        .Where(c => c.IsActive)
+        .GroupBy(c => c.MixAndMatchLevel)
+        .Select(g => g.OrderBy(c => c.SortOrder).First())
+        .OrderBy(c => c.SortOrder)
+        .ToList()
+    ?? [];
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -598,5 +765,361 @@
         PasswordErrorMessage = null;
 
         await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowCompetitionSuccessAsync(string message)
+    {
+        CompetitionSuccessMessage = message;
+        CompetitionErrorMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(3500);
+
+        CompetitionSuccessMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task ShowCompetitionErrorAsync(string message)
+    {
+        CompetitionErrorMessage = message;
+        CompetitionSuccessMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+        await Task.Delay(3500);
+
+        CompetitionErrorMessage = null;
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private Guid GetSelectedCompetitionCapacityId()
+    {
+        if (!IsMixAndMatchCompetition)
+        {
+            CompetitionCapacityDto? capacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
+
+            return capacity?.Id ?? Guid.Empty;
+        }
+
+        CompetitionCapacityDto? selectedLevel = AvailableMixAndMatchCapacities.FirstOrDefault(c => c.Id == CompetitionFormCompetitionCapacityId);
+
+        if (selectedLevel is null)
+        {
+            return Guid.Empty;
+        }
+
+        bool parsed = Enum.TryParse(CompetitionFormDanceRole, out DanceRole selectedRole);
+
+        if (!parsed)
+        {
+            return Guid.Empty;
+        }
+
+        CompetitionCapacityDto? capacityByRole = SelectedCompetition?.Capacities?
+            .FirstOrDefault(c => c.IsActive && c.MixAndMatchLevel == selectedLevel.MixAndMatchLevel && c.DanceRole == selectedRole);
+
+        return capacityByRole?.Id ?? Guid.Empty;
+    }
+
+    private void OpenCreateCompetitionModal()
+    {
+        IsEditingCompetitionEntry = false;
+        EditingCompetitionEntryId = null;
+        CompetitionModalError = null;
+        CompetitionModalSuccess = null;
+        CompetitionFormCompetitionId = Guid.Empty;
+        CompetitionFormCompetitionCapacityId = Guid.Empty;
+        CompetitionFormDanceRole = null;
+        CompetitionFormNotes = null;
+        CompetitionFormStatus = CompetitionEntryStatus.Registered;
+        CompetitionFormIsActive = true;
+        ShowCompetitionModal = true;
+        ShowDeleteCompetitionModal = false;
+    }
+
+    private void OpenEditCompetitionModal(CompetitionEntryDto competition)
+    {
+        IsEditingCompetitionEntry = true;
+        EditingCompetitionEntryId = competition.Id;
+        CompetitionModalError = null;
+        CompetitionModalSuccess = null;
+        CompetitionFormCompetitionId = competition.CompetitionId;
+        CompetitionFormCompetitionCapacityId = competition.CompetitionCapacityId;
+        CompetitionFormDanceRole = competition.DanceRole?.ToString();
+        CompetitionFormNotes = competition.Notes;
+        CompetitionFormStatus = competition.Status;
+        CompetitionFormIsActive = competition.IsActive;
+
+        if (IsSoloJazzCompetition)
+        {
+            CompetitionFormDanceRole = "Individual";
+        }
+
+        ShowCompetitionModal = true;
+        ShowDeleteCompetitionModal = false;
+    }
+
+    private void CloseCompetitionModal()
+    {
+        ShowCompetitionModal = false;
+        CompetitionModalError = null;
+    }
+
+    private void OpenDeleteCompetitionModal(CompetitionEntryDto competition)
+    {
+        DeletingCompetitionEntryId = competition.Id;
+        CompetitionToDeleteName = GetCompetitionName(competition.CompetitionId);
+        ShowDeleteCompetitionModal = true;
+        ShowCompetitionModal = false;
+    }
+
+    private void CloseDeleteCompetitionModal()
+    {
+        ShowDeleteCompetitionModal = false;
+        DeletingCompetitionEntryId = null;
+        CompetitionToDeleteName = null;
+    }
+
+    private void OnCompetitionChanged(ChangeEventArgs args)
+    {
+        string? value = args.Value?.ToString();
+
+        if (!Guid.TryParse(value, out Guid competitionId))
+        {
+            CompetitionFormCompetitionId = Guid.Empty;
+            CompetitionFormCompetitionCapacityId = Guid.Empty;
+            CompetitionFormDanceRole = null;
+            return;
+        }
+
+        CompetitionFormCompetitionId = competitionId;
+        CompetitionFormCompetitionCapacityId = Guid.Empty;
+
+        if (IsSoloJazzCompetition)
+        {
+            CompetitionCapacityDto? soloCapacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
+
+            if (soloCapacity is not null)
+            {
+                CompetitionFormCompetitionCapacityId = soloCapacity.Id;
+            }
+
+            CompetitionFormDanceRole = "Individual";
+            return;
+        }
+
+        CompetitionFormDanceRole = null;
+    }
+
+    private string GetMixAndMatchLevelText(MixAndMatchLevel? level)
+    {
+        return level switch
+        {
+            MixAndMatchLevel.Open => "Open",
+            MixAndMatchLevel.Advanced => "Advanced",
+            _ => level?.ToString() ?? "-"
+        };
+    }
+
+    private async Task SaveCompetitionEntryAsync()
+    {
+        CompetitionModalError = null;
+        CompetitionModalSuccess = null;
+
+        if (Dashboard?.Registration is null)
+        {
+            CompetitionModalError = "Registration not found.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        if (CompetitionFormCompetitionId == Guid.Empty)
+        {
+            CompetitionModalError = "Please select a competition.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        if (IsSoloJazzCompetition)
+        {
+            CompetitionCapacityDto? soloCapacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
+
+            if (soloCapacity is null)
+            {
+                CompetitionModalError = "Solo Jazz capacity is not configured.";
+                await ShowCompetitionErrorAsync(CompetitionModalError);
+                return;
+            }
+
+            CompetitionFormCompetitionCapacityId = soloCapacity.Id;
+            CompetitionFormDanceRole = "Individual";
+        }
+
+        if (IsMixAndMatchCompetition && CompetitionFormCompetitionCapacityId == Guid.Empty)
+        {
+            CompetitionModalError = "Please select a level.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        if (IsMixAndMatchCompetition && string.IsNullOrWhiteSpace(CompetitionFormDanceRole))
+        {
+            CompetitionModalError = "Please select a role.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        Guid competitionCapacityId = CompetitionFormCompetitionCapacityId;
+
+        if (IsSoloJazzCompetition)
+        {
+            CompetitionCapacityDto? soloCapacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
+
+            if (soloCapacity is null)
+            {
+                CompetitionModalError = "Solo Jazz competition has no capacity configured. Please create a capacity for Solo Jazz in the admin panel.";
+                await ShowCompetitionErrorAsync(CompetitionModalError);
+                return;
+            }
+
+            competitionCapacityId = soloCapacity.Id;
+        }
+
+        if (competitionCapacityId == Guid.Empty)
+        {
+            CompetitionModalError = "Competition capacity could not be found.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        if (IsEditingCompetitionEntry)
+        {
+            if (!EditingCompetitionEntryId.HasValue)
+            {
+                CompetitionModalError = "Competition entry not found.";
+                await ShowCompetitionErrorAsync(CompetitionModalError);
+                return;
+            }
+
+            UpdateCompetitionEntryRequest request = new()
+            {
+                CompetitionId = CompetitionFormCompetitionId,
+                RegistrationId = Dashboard.Registration.Id,
+                PartnerRegistrationId = null,
+                CompetitionCapacityId = competitionCapacityId,
+                DanceRole = ParseDanceRole(CompetitionFormDanceRole),
+                Notes = CompetitionFormNotes,
+                InternalNotes = null,
+                Status = CompetitionFormStatus,
+                CancelledAt = null,
+                IsActive = CompetitionFormIsActive,
+            };
+
+            try
+            {
+                await CompetitionEntryApiClient.UpdateAsync(EditingCompetitionEntryId.Value, request);
+                CloseCompetitionModal();
+                await LoadDashboardAsync();
+                await ShowCompetitionSuccessAsync("Competition entry updated successfully.");
+            }
+            catch (Exception ex)
+            {
+                CompetitionModalError = ex.Message;
+                await ShowCompetitionErrorAsync(CompetitionModalError);
+            }
+
+            return;
+        }
+
+        CreateCompetitionEntryRequest createRequest = new()
+        {
+            CompetitionId = CompetitionFormCompetitionId,
+            RegistrationId = Dashboard.Registration.Id,
+            PartnerRegistrationId = null,
+            CompetitionCapacityId = competitionCapacityId,
+            DanceRole = ParseDanceRole(CompetitionFormDanceRole),
+            Notes = CompetitionFormNotes,
+            InternalNotes = null
+        };
+
+        try
+        {
+            await CompetitionEntryApiClient.CreateAsync(createRequest);
+            CloseCompetitionModal();
+            await LoadDashboardAsync();
+            await ShowCompetitionSuccessAsync("Competition entry created successfully.");
+        }
+        catch(Exception ex)
+        {
+            CompetitionModalError = ex.Message;
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+        }
+    }
+
+    private async Task DeleteCompetitionEntryAsync()
+    {
+        if (!DeletingCompetitionEntryId.HasValue)
+        {
+            CompetitionModalError = "Competition entry not found.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        try
+        {
+            await CompetitionEntryApiClient.DeleteAsync(DeletingCompetitionEntryId.Value);
+            CloseDeleteCompetitionModal();
+            await LoadDashboardAsync();
+            await ShowCompetitionSuccessAsync("Competition entry deleted successfully.");
+        }
+        catch
+        {
+            CompetitionModalError = "Competition entry could not be deleted.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+        }
+    }
+
+    private string GetCompetitionName(Guid competitionId)
+    {
+        CompetitionDto? competition = AvailableCompetitions.FirstOrDefault(c => c.Id == competitionId);
+
+        return competition?.Name ?? "-";
+    }
+
+    private string GetCompetitionLevel(CompetitionEntryDto competitionEntry)
+    {
+        CompetitionDto? competition = AvailableCompetitions.FirstOrDefault(c => c.Id == competitionEntry.CompetitionId);
+
+        if (competition is null)
+        {
+            return "-";
+        }
+
+        if (competition.Format == CompetitionFormat.SoloJazz)
+        {
+            return "Open";
+        }
+
+        CompetitionCapacityDto? capacity = competition.Capacities.FirstOrDefault(c => c.Id == competitionEntry.CompetitionCapacityId);
+
+        if (capacity is null)
+        {
+            return "-";
+        }
+
+        return GetMixAndMatchLevelText(capacity.MixAndMatchLevel);
+    }
+
+    private DanceRole? ParseDanceRole(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        bool parsed = Enum.TryParse(value, out DanceRole role);
+
+        return parsed ? role : null;
     }
 }

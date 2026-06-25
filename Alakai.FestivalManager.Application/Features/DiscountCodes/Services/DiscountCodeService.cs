@@ -94,6 +94,11 @@ public class DiscountCodeService : IDiscountCodeService
     {
         command.Id = id;
 
+        if (command.ActivationType == DiscountActivationType.Immediate)
+        {
+            command.ActivationThreshold = null;
+        }
+
         ValidationResult validationResult = await _updateDiscountCodeValidator.ValidateAsync(command, cancellationToken);
 
         if (validationResult.IsValid is false)

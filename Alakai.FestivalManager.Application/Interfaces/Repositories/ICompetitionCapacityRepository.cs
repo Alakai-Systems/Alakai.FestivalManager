@@ -7,6 +7,7 @@ public interface ICompetitionCapacityRepository
     Task<CompetitionCapacity?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<CompetitionCapacity>> GetByCompetitionIdAsync(Guid competitionId, CancellationToken cancellationToken = default);
     Task<CompetitionCapacity?> GetByCompetitionLevelAndRoleAsync(Guid competitionId, MixAndMatchLevel? mixAndMatchLevel, DanceRole danceRole, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<CompetitionCapacity>> GetByCompetitionIdsAsync(IReadOnlyList<Guid> competitionIds, CancellationToken cancellationToken = default);
     void Update(CompetitionCapacity capacity);
     void Delete(CompetitionCapacity capacity);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);

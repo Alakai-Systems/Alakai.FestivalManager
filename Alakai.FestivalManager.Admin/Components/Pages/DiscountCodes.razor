@@ -171,7 +171,7 @@
 
                     <div>
                         <label class="form-label">Activation</label>
-                        <select class="form-select" @bind="formModel.ActivationType">
+                        <select class="form-select" @onchange="@OnActivationTypeChanged">
                             <option value="@DiscountActivationType.Immediate">Immediate</option>
                             <option value="@DiscountActivationType.AfterThreshold">After threshold</option>
                         </select>
@@ -303,6 +303,24 @@
             errorMessage = null;
             StateHasChanged();
         });
+    }
+
+    private void OnActivationTypeChanged(ChangeEventArgs args)
+    {
+        if (Enum.TryParse(args.Value?.ToString(), out DiscountActivationType activationType))
+        {
+            formModel.ActivationType = activationType;
+
+            if (activationType == DiscountActivationType.Immediate)
+            {
+                formModel.ActivationThreshold = null;
+            }
+
+            if (activationType == DiscountActivationType.AfterThreshold && !formModel.ActivationThreshold.HasValue)
+            {
+                formModel.ActivationThreshold = 10;
+            }
+        }
     }
 
     private List<DiscountCodeDto> FilteredCodes
@@ -479,7 +497,7 @@
                     DiscountType = formModel.DiscountType,
                     DiscountValue = formModel.DiscountValue,
                     ActivationType = formModel.ActivationType,
-                    ActivationThreshold = formModel.ActivationThreshold,
+                    ActivationThreshold = formModel.ActivationType == DiscountActivationType.Immediate ? null : formModel.ActivationThreshold,
                     MaxUses = formModel.MaxUses,
                     CurrentUses = formModel.CurrentUses,
                     IsActive = formModel.IsActive

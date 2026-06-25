@@ -16,6 +16,7 @@ global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Comm
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.DeleteCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Queries.GetCompetitionEntries;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Queries.GetCompetitionEntriesByCompetitionId;
@@ -114,6 +115,9 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Queries.G
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.UserPanel.Services;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
@@ -138,6 +142,4 @@ global using System.IdentityModel.Tokens.Jwt;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
-global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;
-global using Alakai.FestivalManager.Application.Features.UserPanel.Services;
 
