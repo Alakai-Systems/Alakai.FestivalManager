@@ -1,6 +1,3 @@
-using System;
-using Alakai.FestivalManager.Domain.Enums;
-
 namespace Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
 
 public class UpdateRegistrationRequest

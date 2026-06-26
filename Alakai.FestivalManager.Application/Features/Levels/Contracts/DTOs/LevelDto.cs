@@ -14,6 +14,9 @@ public class LevelDto
     public int? IndividualCapacity { get; set; }
     public int? MaxLeaderDifference { get; set; }
     public int? MaxFollowerDifference { get; set; }
+    public int CurrentLeaders { get; set; }
+    public int CurrentFollowers { get; set; }
+    public int CurrentIndividuals { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
 }

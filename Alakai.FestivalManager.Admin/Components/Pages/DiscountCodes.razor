@@ -13,7 +13,7 @@
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <input class="form-input md:w-72" placeholder="Search discount codes..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
-                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                <select class="form-select md:w-50" @bind="editionFilter" @bind:after="ResetPage">
                     <option value="">All editions</option>
                     @foreach (EditionDto edition in editions)
                     {
@@ -21,7 +21,7 @@
                     }
                 </select>
 
-                <select class="form-select md:w-56" @bind="typeFilter" @bind:after="ResetPage">
+                <select class="form-select md:w-50" @bind="typeFilter" @bind:after="ResetPage">
                     <option value="">All types</option>
                     @foreach (var t in Enum.GetValues(typeof(DiscountType)))
                     {
@@ -29,7 +29,7 @@
                     }
                 </select>
 
-                <select class="form-select md:w-56" @bind="activationFilter" @bind:after="ResetPage">
+                <select class="form-select md:w-50" @bind="activationFilter" @bind:after="ResetPage">
                     <option value="">All activations</option>
                     @foreach (var t in Enum.GetValues(typeof(DiscountActivationType)))
                     {
@@ -37,7 +37,7 @@
                     }
                 </select>
 
-                <select class="form-select md:w-56" @bind="statusFilter" @bind:after="ResetPage">
+                <select class="form-select md:w-50" @bind="statusFilter" @bind:after="ResetPage">
                     <option value="">All statuses</option>
                     <option value="Active">Active</option>
                     <option value="Inactive">Inactive</option>
@@ -72,7 +72,7 @@
         }
         else
         {
-            <div class="overflow-x-auto">
+            <div class="w-full max-w-full overflow-x-auto">
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
@@ -171,10 +171,10 @@
 
                     <div>
                         <label class="form-label">Activation</label>
-                        <select class="form-select" @onchange="@OnActivationTypeChanged">
-                            <option value="@DiscountActivationType.Immediate">Immediate</option>
-                            <option value="@DiscountActivationType.AfterThreshold">After threshold</option>
-                        </select>
+                            <select class="form-select" @bind="formModel.ActivationType" @bind:after="OnActivationTypeChanged">
+                                <option value="@DiscountActivationType.Immediate">Immediate</option>
+                                <option value="@DiscountActivationType.AfterThreshold">After threshold</option>
+                            </select>
                     </div>
 
                     <div>
@@ -305,21 +305,16 @@
         });
     }
 
-    private void OnActivationTypeChanged(ChangeEventArgs args)
+    private void OnActivationTypeChanged()
     {
-        if (Enum.TryParse(args.Value?.ToString(), out DiscountActivationType activationType))
+        if (formModel.ActivationType == DiscountActivationType.Immediate)
         {
-            formModel.ActivationType = activationType;
+            formModel.ActivationThreshold = null;
+        }
 
-            if (activationType == DiscountActivationType.Immediate)
-            {
-                formModel.ActivationThreshold = null;
-            }
-
-            if (activationType == DiscountActivationType.AfterThreshold && !formModel.ActivationThreshold.HasValue)
-            {
-                formModel.ActivationThreshold = 10;
-            }
+        if (formModel.ActivationType == DiscountActivationType.AfterThreshold && !formModel.ActivationThreshold.HasValue)
+        {
+            formModel.ActivationThreshold = 10;
         }
     }
 
@@ -469,6 +464,10 @@
         {
             if (editingCode is null)
             {
+                if (formModel.ActivationType == DiscountActivationType.Immediate)
+                {
+                    formModel.ActivationThreshold = null;
+                }
                 CreateDiscountCodeRequest request = new()
                 {
                     EditionId = formModel.EditionId,
@@ -478,7 +477,7 @@
                     DiscountType = formModel.DiscountType,
                     DiscountValue = formModel.DiscountValue,
                     ActivationType = formModel.ActivationType,
-                    ActivationThreshold = formModel.ActivationThreshold,
+                    ActivationThreshold = formModel.ActivationType == DiscountActivationType.Immediate ? null : formModel.ActivationThreshold,
                     MaxUses = formModel.MaxUses
                 };
 
@@ -488,6 +487,11 @@
             }
             else
             {
+                if (formModel.ActivationType == DiscountActivationType.Immediate)
+                {
+                    formModel.ActivationThreshold = null;
+                }
+
                 UpdateDiscountCodeRequest request = new()
                 {
                     EditionId = formModel.EditionId,

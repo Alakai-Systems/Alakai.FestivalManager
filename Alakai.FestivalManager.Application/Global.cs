@@ -127,7 +127,8 @@ global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserBy
 global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;
 global using Alakai.FestivalManager.Application.Features.Users.Services;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
-global using Alakai.FestivalManager.Application.Services.Emailing;
+global using Alakai.FestivalManager.Application.Features.Emails.Services;
+global using Alakai.FestivalManager.Application.Services.Security;
 global using Alakai.FestivalManager.Domain.Entities;
 global using Alakai.FestivalManager.Domain.Enums;
 global using AutoMapper;
@@ -142,4 +143,5 @@ global using System.IdentityModel.Tokens.Jwt;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
+global using Alakai.FestivalManager.Application.Features.Emails.Contracts;
 

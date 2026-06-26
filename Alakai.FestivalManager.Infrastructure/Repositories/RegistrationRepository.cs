@@ -20,7 +20,20 @@ public class RegistrationRepository : IRegistrationRepository
             .Include(r => r.PassType)
             .Include(r => r.Level)
             .Include(r => r.Edition)
+            .Include(r => r.PartnerRegistration).ThenInclude(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
+    }
+
+    public async Task<Registration?> GetByUserIdAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Include(r => r.PassType)
+            .Include(r => r.Level)
+            .Include(r => r.Edition)
+            .Include(r => r.User)
+            .Include(r => r.PartnerRegistration).ThenInclude(pr => pr.User)
+            .Include(r => r.DiscountCode)
+            .FirstOrDefaultAsync(r => r.UserId == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<Registration>> GetAllAsync(CancellationToken cancellationToken = default)
@@ -30,6 +43,7 @@ public class RegistrationRepository : IRegistrationRepository
             .Include(r => r.PassType)
             .Include(r => r.Level)
             .Include(r => r.Edition)
+            .Include(r => r.PartnerRegistration).ThenInclude(r => r.User)
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -62,7 +76,25 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations.CountAsync(r => r.DiscountCodeId == discountCodeId, cancellationToken);
     }
 
+    public async Task<Registration?> GetByIdWithPartnerDataAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .Include(r => r.PartnerRegistration)
+            .FirstOrDefaultAsync(r => r.Id == id && r.IsActive, cancellationToken);
+    }
 
+    public async Task<Registration?> GetActiveByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        string normalizedEmail = email.Trim().ToLower();
+
+        return await _context.Registrations
+            .FirstOrDefaultAsync(r => r.Email.ToLower() == normalizedEmail && r.IsActive, cancellationToken);
+    }
+
+    public async Task<int> CountActiveByLevelAndRoleAsync(Guid levelId, DanceRole role, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations.CountAsync(r => r.LevelId == levelId && r.DanceRole == role && r.IsActive, cancellationToken);
+    }
     public void Update(Registration registration)
     {
         _context.Registrations.Update(registration);

@@ -33,6 +33,12 @@
                     <option value="@CompetitionEntryStatus.WaitingPartner">Waiting Partner</option>
                     <option value="@CompetitionEntryStatus.Cancelled">Cancelled</option>
                 </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                    <option value="100">100 rows</option>
+                </select>
             </div>
         </div>
 

@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Contracts.Registrations.Responses;
+
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class RegistrationApiClient
@@ -47,6 +49,18 @@ public class RegistrationApiClient
         string name = $"{firstName} {lastName}".Trim();
 
         return name;
+    }
+
+    public async Task<RegistrationDto> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        ApiResponse<GetRegistrationByUserIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetRegistrationByUserIdResponse>>($"api/registrations/by-userId/{userId}", cancellationToken);
+
+        if (response is null || response.Data is null || response?.Success is not true)
+        {
+            throw new ApiClientException(response?.Message ?? "Could not load registrations.", response?.Errors);
+        }
+
+        return response.Data.Registration;
     }
 
     public async Task UpdateAsync(Guid id, UpdateRegistrationRequest request, CancellationToken cancellationToken = default)

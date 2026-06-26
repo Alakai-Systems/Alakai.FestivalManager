@@ -97,8 +97,12 @@ public static class ApiCLientsDependencyInjectionExtension
             client.BaseAddress = new Uri(baseUrl);
         });
 
-        services.AddScoped<ITokenStorageService,
-            TokenStorageService>();
+        services.AddHttpClient<EmailNotificationApiClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://localhost:7157/");
+        });
+
+        services.AddScoped<ITokenStorageService, TokenStorageService>();
 
         services.AddScoped<ProtectedLocalStorage>();
 

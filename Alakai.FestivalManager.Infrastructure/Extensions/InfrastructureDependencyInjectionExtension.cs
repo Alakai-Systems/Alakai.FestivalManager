@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Extensions;
+﻿using Alakai.FestivalManager.Infrastructure.Email;
+
+namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
 public static class InfrastructureDependencyInjectionExtension
 {
@@ -22,6 +24,9 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IUserPanelRepository, UserPanelRepository>();
+        services.Configure<EmailOptions>(configuration.GetSection("Email"));
+        services.AddScoped<IEmailSender, MailKitEmailSender>();
+        services.AddScoped<IEmailDispatcher, EmailDispatcher>();
 
         return services;
     }

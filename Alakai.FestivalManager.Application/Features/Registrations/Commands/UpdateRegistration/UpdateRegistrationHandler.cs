@@ -10,10 +10,12 @@ public class UpdateRegistrationHandler
     private readonly ILevelRepository _levelRepository;
     private readonly IDiscountCodeRepository _discountCodeRepository;
     private readonly IDiscountCalculationService _discountCalculationService;
+    private readonly IRegistrationPartnerService _registrationPartnerService;
     private readonly IMapper _mapper;
 
     public UpdateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
-        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IMapper mapper, IDiscountCalculationService discountCalculationService, IDiscountCodeRepository discountCodeRepository)
+        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IMapper mapper, IDiscountCalculationService discountCalculationService,
+        IDiscountCodeRepository discountCodeRepository, IRegistrationPartnerService registrationPartnerService)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
@@ -22,6 +24,7 @@ public class UpdateRegistrationHandler
         _mapper = mapper;
         _discountCalculationService = discountCalculationService;
         _discountCodeRepository = discountCodeRepository;
+        _registrationPartnerService = registrationPartnerService;
     }
 
     public async Task<RegistrationDto> HandleAsync(UpdateRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -97,9 +100,11 @@ public class UpdateRegistrationHandler
         existing.DiscountCodeId = discount.DiscountCodeId;
         existing.DiscountCodeValue = discount.DiscountCodeValue;
         existing.DiscountStatus = discount.DiscountStatus;
+        existing.PaymentStatus = command.PaymentStatus;
 
         existing.SetUpdated();
         await _registrationRepository.SaveChangesAsync(cancellationToken);
+        await _registrationPartnerService.LinkPartnerAsync(existing.Id, cancellationToken);
 
         // 1) Recalcular usos del código NUEVO (si hay)
         if (existing.DiscountCodeId.HasValue)

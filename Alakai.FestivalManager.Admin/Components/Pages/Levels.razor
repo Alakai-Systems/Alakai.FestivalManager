@@ -98,6 +98,7 @@
                                 <th class="px-4 py-3 font-semibold">Early</th>
                                 <th class="px-4 py-3 font-semibold">Group</th>
                                 <th class="px-4 py-3 font-semibold">Regular</th>
+                                <th class="px-4 py-3 font-semibold">Occupation</th>
                                 <th class="px-4 py-3 font-semibold">
                                     <button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("SortOrder")'>
                                         Sort
@@ -130,6 +131,7 @@
                                         <td class="px-4 py-3">@level.EarlyBirdPrice.ToString("0.00")</td>
                                         <td class="px-4 py-3">@level.GroupPrice.ToString("0.00")</td>
                                         <td class="px-4 py-3">@level.RegularPrice.ToString("0.00")</td>
+                                        <td class="px-4 py-3">@level.OccupationText</td>
                                         <td class="px-4 py-3">@level.SortOrder</td>
                                         <td class="px-4 py-3">
                                             @if (level.IsActive)

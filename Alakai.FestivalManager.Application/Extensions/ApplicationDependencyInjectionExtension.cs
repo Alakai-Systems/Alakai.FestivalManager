@@ -5,6 +5,7 @@ using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;
 using Alakai.FestivalManager.Application.Features.Auth.Commands.ResetPassword;
 using Alakai.FestivalManager.Application.Features.Auth.Services;
 using Alakai.FestivalManager.Application.Features.Auth.Validators;
+using Alakai.FestivalManager.Application.Features.Emails.Services;
 using Alakai.FestivalManager.Application.Services.Security;
 
 namespace Alakai.FestivalManager.Application.Extensions;
@@ -63,6 +64,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateRegistrationHandler>();
         services.AddScoped<DeleteRegistrationHandler>();
         services.AddScoped<IRegistrationService, RegistrationService>();
+        services.AddScoped<IRegistrationPartnerService, RegistrationPartnerService>();
 
         //Users
         services.AddScoped<CreateUserHandler>();

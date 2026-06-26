@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationById;
+
 namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
@@ -33,6 +35,13 @@ public class RegistrationsController : ControllerBase
     public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
     {
         ApiResponse<GetRegistrationsResponse> response = await _registrationService.GetAllAsync(cancellationToken);
+        return Ok(response);
+    }
+
+    [HttpGet("by-userId/{userId:guid}")]
+    public async Task<IActionResult> GetByUserId(Guid userId, CancellationToken cancellationToken)
+    {
+        ApiResponse<GetRegistrationByUserIdResponse> response = await _registrationService.GetByUserIdAsync(userId, cancellationToken);
         return Ok(response);
     }
 

@@ -1,5 +1,4 @@
-using Alakai.FestivalManager.Application.Services.Security;
-using Alakai.FestivalManager.Domain.Entities;
+using Alakai.FestivalManager.Application.Features.Emails.Services;
 
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 
@@ -14,12 +13,13 @@ public class CreateRegistrationHandler
     private readonly IDiscountCalculationService _discountCalculationService;
     private readonly IDiscountCodeRepository _discountCodeRepository;
     private readonly IPasswordHasherService _passwordHasherService;
+    private readonly IRegistrationPartnerService _registrationPartnerService;
     private readonly IMapper _mapper;
 
     public CreateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
-        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper, 
-        IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService, 
-        IDiscountCodeRepository discountCodeRepository, IPasswordHasherService passwordHasherService)
+        IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper,
+        IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService,
+        IDiscountCodeRepository discountCodeRepository, IPasswordHasherService passwordHasherService, IRegistrationPartnerService registrationPartnerService)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
@@ -31,6 +31,7 @@ public class CreateRegistrationHandler
         _discountCalculationService = discountCalculationService;
         _discountCodeRepository = discountCodeRepository;
         _passwordHasherService = passwordHasherService;
+        _registrationPartnerService = registrationPartnerService;
     }
 
     public async Task<RegistrationDto> HandleAsync(CreateRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -112,6 +113,7 @@ public class CreateRegistrationHandler
 
         await _registrationRepository.AddAsync(registration, cancellationToken);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
+        await _registrationPartnerService.LinkPartnerAsync(registration.Id, cancellationToken);
 
         if (discount.DiscountCodeId.HasValue)
         {

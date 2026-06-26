@@ -1,5 +1,7 @@
 @page "/registrations"
 @using Alakai.FestivalManager.Admin.Components.Layout
+
+@inject EmailNotificationApiClient EmailNotificationApiClient
 @inject RegistrationApiClient RegistrationApiClient
 @inject PassTypeApiClient PassTypeApiClient
 @inject LevelApiClient LevelApiClient
@@ -7,143 +9,147 @@
 <PageHeader Title="Operations" pTitle="Registrations"></PageHeader>
 
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
-    <div class="card">
+    <div class="grid grid-cols-1 gap-4">
+        <div class="card">
+            <div class="flex flex-col gap-3 mb-5 md:flex-row md:items-center md:flex-wrap">
 
-        <div class="flex flex-col gap-3 mb-5 md:flex-row md:items-center md:flex-wrap">
-
-            <div class="relative w-full md:w-72">
-                <input class="form-input" placeholder="Search by name or email..."
-                       @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
-            </div>
-
-            <select class="form-select w-full md:w-44" @bind="paymentFilter" @bind:after="ResetPage">
-                <option value="">All payment statuses</option>
-                <option value="@PaymentStatus.Paid">Paid</option>
-                <option value="@PaymentStatus.Unpaid">Unpaid</option>
-                <option value="@PaymentStatus.Pending">Pending</option>
-                <option value="@PaymentStatus.Failed">Failed</option>
-                <option value="@PaymentStatus.Refunded">Refunded</option>
-            </select>
-
-            <select class="form-select w-full md:w-44" @bind="partnerFilter" @bind:after="ResetPage">
-                <option value="">All partner statuses</option>
-                <option value="complete">Partner registered</option>
-                <option value="missing">Partner missing</option>
-                <option value="none">No partner</option>
-            </select>
-
-            <select class="form-select w-full md:w-44" @bind="passTypeFilter" @bind:after="ResetPage">
-                <option value="">All pass types</option>
-                @foreach (PassTypeDto passType in passTypes)
-                {
-                    <option value="@passType.Id">@passType.Name</option>
-                }
-            </select>
-
-            <select class="form-select w-full md:w-44" @bind="levelFilter" @bind:after="ResetPage">
-                <option value="">All levels</option>
-                @foreach (LevelDto level in levels)
-                {
-                    <option value="@level.Id">@level.Name</option>
-                }
-            </select>
-
-            <select class="form-select w-full md:w-44" @bind="groupFilter" @bind:after="ResetPage">
-                <option value="">All groups</option>
-                @foreach (string group in Groups)
-                {
-                    <option value="@group">@group</option>
-                }
-            </select>
-
-            <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                <option value="25">25 rows</option>
-                <option value="50">50 rows</option>
-                <option value="100">100 rows</option>
-            </select>
-
-        </div>
-
-
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-
-        @if (isLoading)
-        {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading registrations...</p>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Pass")'>Pass @SortIcon("Pass")</button></th>
-                            <th class="px-4 py-3 font-semibold">Level</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
-                            <th class="px-4 py-3 font-semibold">Price</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Group")'>Group @SortIcon("Group")</button></th>
-                            <th class="px-4 py-3 font-semibold">Partner</th>
-                            <th class="px-4 py-3 font-semibold">Payment</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Date")'>Date @SortIcon("Date")</button></th>
-                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (RegistrationDto registration in PagedRegistrations)
-                        {
-                            <tr class="@GetRowClass(registration)">
-                                <td class="px-4 py-3">
-                                    <div class="font-medium">@registration.FullName</div>
-                                    <div class="text-xs text-black/50">@registration.Email</div>
-                                </td>
-                                <td class="px-4 py-3">@GetPassTypeName(registration.PassTypeId)</td>
-                                <td class="px-4 py-3">@GetLevelName(registration.LevelId)</td>
-                                <td class="px-4 py-3">@FormatRole(registration.DanceRole)</td>
-                                <td class="px-4 py-3">
-                                    <div>@registration.FinalPrice.ToString("0.##") €</div>
-                                    <div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
-                                </td>
-                                <td class="px-4 py-3">@registration.DiscountCodeValue</td>
-                                <td class="px-4 py-3">@FormatPartner(registration)</td>
-                                <td class="px-4 py-3"><span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span></td>
-                                <td class="px-4 py-3">@FormatDate(registration.CreatedAt)</td>
-                                <td class="px-4 py-3">
-                                    <div class="flex justify-end gap-2">
-                                        <button type="button" class="text-black hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
-                                        <button type="button" class="text-black hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
-                                        <button type="button" class="text-black hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
-                                        <button type="button" class="text-black hover:text-purple" title="Missing partner email" @onclick='() => EmailAction("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
-                                        <button type="button" class="text-black hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
-                                        <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
-                    Showing @StartRow to @EndRow of @FilteredRegistrations.Count registrations
-                </p>
-
-                <div class="flex items-center gap-2">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
-                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                <div class="relative w-full md:w-50">
+                    <input class="form-input" placeholder="Search by name or email..."
+                           @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
                 </div>
+
+                <select class="form-select w-full md:w-40" @bind="paymentFilter" @bind:after="ResetPage">
+                    <option value="">All payment statuses</option>
+                    <option value="@PaymentStatus.Paid">Paid</option>
+                    <option value="@PaymentStatus.Unpaid">Unpaid</option>
+                    <option value="@PaymentStatus.Pending">Pending</option>
+                    <option value="@PaymentStatus.Failed">Failed</option>
+                    <option value="@PaymentStatus.Refunded">Refunded</option>
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="partnerFilter" @bind:after="ResetPage">
+                    <option value="">All partner statuses</option>
+                    <option value="complete">Partner registered</option>
+                    <option value="missing">Partner missing</option>
+                    <option value="none">No partner</option>
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="passTypeFilter" @bind:after="ResetPage">
+                    <option value="">All pass types</option>
+                    @foreach (PassTypeDto passType in passTypes)
+                    {
+                        <option value="@passType.Id">@passType.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="levelFilter" @bind:after="ResetPage">
+                    <option value="">All levels</option>
+                    @foreach (LevelDto level in levels)
+                    {
+                        <option value="@level.Id">@level.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="groupFilter" @bind:after="ResetPage">
+                    <option value="">All groups</option>
+                    @foreach (string group in Groups)
+                    {
+                        <option value="@group">@group</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                    <option value="100">100 rows</option>
+                </select>
+
             </div>
-        }
+
+
+            @if (!string.IsNullOrWhiteSpace(successMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+            }
+
+            @if (isLoading)
+            {
+                <p class="text-sm text-black/50 dark:text-white/40">Loading registrations...</p>
+            }
+            else
+            {
+                <div class="overflow-x-auto" style="max-width: 100%;">
+                    <table class="table-hover w-full text-sm">
+                        <thead class="bg-gray-50 dark:bg-dark">
+                            <tr class="text-left">
+                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Pass")'>Pass @SortIcon("Pass")</button></th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold">Level</th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold">Price</th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Group")'>Group @SortIcon("Group")</button></th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold">Partner</th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold">Payment</th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Date")'>Date @SortIcon("Date")</button></th>
+                                <th class="px-2 py-2 max-w-[150px] font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (RegistrationDto registration in PagedRegistrations)
+                            {
+                                <tr class="@GetRowClass(registration)">
+                                    <td class="px-2 py-2 max-w-[180px]">
+                                        <div class="font-medium truncate">@registration.FullName</div>
+                                        <div class="text-xs text-black/50 truncate">@registration.Email</div>
+                                    </td>
+                                    <td class="px-2 py-2 whitespace-nowrap">@GetPassTypeName(registration.PassTypeId)</td>
+                                    <td class="px-2 py-2 whitespace-nowrap">@GetLevelName(registration.LevelId)</td>
+                                    <td class="px-2 py-2 whitespace-nowrap">@FormatRole(registration.DanceRole)</td>
+                                    <td class="px-2 py-2 whitespace-nowrap">
+                                        <div>@registration.FinalPrice.ToString("0.##") €</div>
+                                        @if (registration.FinalPrice != registration.BasePrice)
+                                        {
+                                            <div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
+                                        }
+                                    </td>
+                                    <td class="px-2 py-2 whitespace-nowrap">@registration.DiscountCodeValue</td>
+                                    <td class="px-2 py-2 max-w-[140px] truncate">@FormatPartner(registration)</td>
+                                    <td class="px-2 py-2 whitespace-nowrap"><span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span></td>
+                                    <td class="px-2 py-2 whitespace-nowrap">@FormatDate(registration.CreatedAt)</td>
+                                    <td class="px-2 py-2">
+                                        <div class="flex justify-end gap-2">
+                                            <button type="button" class="text-black hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
+                                            <button type="button" class="text-black hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
+                                            <button type="button" class="text-black hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
+                                            <button type="button" class="text-black hover:text-purple" title="Missing partner email" @onclick='() => EmailAction("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
+                                            <button type="button" class="text-black hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
+                                            <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="flex items-center justify-between mt-4">
+                    <p class="text-sm text-black/50 dark:text-white/40">
+                        Showing @StartRow to @EndRow of @FilteredRegistrations.Count registrations
+                    </p>
+
+                    <div class="flex items-center gap-2">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
 </div>
 
@@ -177,6 +183,11 @@
                         <div>
                             <label class="form-label">Phone</label>
                             <InputText class="form-input" @bind-Value="editingRegistration.Phone" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Document</label>
+                            <InputText class="form-input" @bind-Value="editingRegistration.DocumentNumber" />
                         </div>
 
                         <div>
@@ -273,7 +284,7 @@
                 </div>
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                     <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ConfirmDeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
                 </div>
             </div>
         </div>
@@ -492,7 +503,12 @@
             return "-";
         }
 
-        return registration.PartnerRegistrationId.HasValue ? $"Registered: {registration.PartnerEmail}" : $"Missing: {registration.PartnerEmail}";
+        if (!string.IsNullOrWhiteSpace(registration.PartnerName))
+        {
+            return registration.PartnerName;
+        }
+
+        return $"Missing: {registration.PartnerEmail}";
     }
 
     private static string FormatDate(DateTime date)
@@ -532,14 +548,39 @@
         };
     }
 
-    private void EmailAction(string action, RegistrationDto registration)
+    private async Task EmailAction(string action, RegistrationDto registration)
     {
-        successMessage = $"Pending backend endpoint: send {action} to {registration.Email}.";
+        try
+        {
+            EmailTemplateKey templateKey = GetTemplateKey(action);
+
+            await EmailNotificationApiClient.SendRegistrationEmailAsync(registration.Id, templateKey);
+
+            ShowSuccess("Email sent successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private static EmailTemplateKey GetTemplateKey(string action)
+    {
+        return action switch
+        {
+            "registration confirmation" => EmailTemplateKey.RegistrationCreated,
+            "payment confirmation" => EmailTemplateKey.PaymentConfirmed,
+            "unpaid reminder" => EmailTemplateKey.PaymentFailed,
+            "missing partner" => EmailTemplateKey.WaitingPartner,
+            _ => EmailTemplateKey.RegistrationCreated
+        };
     }
 
     private void OpenEditModal(RegistrationDto registration)
     {
         editingRegistration = registration;
+        editingRegistration.PaymentStatus = registration.PaymentStatus;
+        editingRegistration.DocumentNumber = registration.DocumentNumber;
     }
 
     private void CloseEditModal()
@@ -607,27 +648,38 @@
         deleteRegistration = null;
     }
 
-    private async Task DeleteAsync()
+    private async Task ConfirmDeleteAsync()
     {
         if (deleteRegistration is null)
         {
             return;
         }
 
+        isSaving = true;
+        errorMessage = null;
+        successMessage = null;
+
         try
         {
-            EmailAction("cancellation", deleteRegistration);
+            await EmailNotificationApiClient.SendRegistrationEmailAsync(deleteRegistration.Id, EmailTemplateKey.RegistrationCancelled);
+
             await RegistrationApiClient.DeleteAsync(deleteRegistration.Id);
-            successMessage = "Registration deleted. Cancellation email endpoint is still pending.";
+
+            CloseDeleteModal();
+
             deleteRegistration = null;
 
-            ShowSuccess(successMessage);
             await LoadDataAsync();
+
+            ShowSuccess("Registration deleted and cancellation email sent successfully.");
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
-            ShowError(errorMessage);
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
         }
     }
 }

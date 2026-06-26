@@ -6,6 +6,7 @@ public partial class RegistrationService : IRegistrationService
     private readonly GetRegistrationByIdHandler _getRegistrationByIdHandler;
     private readonly GetRegistrationsHandler _getRegistrationsHandler;
     private readonly GetRegistrationsByEditionIdHandler _getRegistrationsByEditionIdHandler;
+    private readonly GetRegistrationByUserIdHandler _getRegistrationByUserIdHandler;
     private readonly UpdateRegistrationHandler _updateRegistrationHandler;
     private readonly DeleteRegistrationHandler _deleteRegistrationHandler;
     private readonly IValidator<CreateRegistrationCommand> _createRegistrationValidator;
@@ -88,6 +89,32 @@ public partial class RegistrationService : IRegistrationService
             Errors = new List<string>()
         };
     }
+
+    public async Task<ApiResponse<GetRegistrationByUserIdResponse>> GetByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        RegistrationDto? dto = await _getRegistrationByUserIdHandler.HandleAsync(new GetRegistrationByUserIdQuery(userId), cancellationToken);
+
+        if (dto is null)
+        {
+            return new ApiResponse<GetRegistrationByUserIdResponse>
+            {
+                Success = false,
+                Message = "No registration found for this user.",
+                Data = null,
+                Errors = new List<string> { "Registration not found." }
+            };
+        }
+
+        return new ApiResponse<GetRegistrationByUserIdResponse>
+        {
+            Success = true,
+            Message = "There is 1 registration for this user.",
+            Data = new GetRegistrationByUserIdResponse { Registration = dto },
+            Errors = new List<string>()
+        };
+    }
+
+
 
     public async Task<ApiResponse<UpdateRegistrationResponse>> UpdateAsync(Guid id, UpdateRegistrationCommand command, CancellationToken cancellationToken = default)
     {

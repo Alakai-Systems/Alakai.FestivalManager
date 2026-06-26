@@ -10,6 +10,7 @@ public class RegistrationDto
 
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public string FullName => $"{FirstName} {LastName}";
     public string Email { get; set; } = string.Empty;
     public string? Phone { get; set; }
     public string? Country { get; set; }
@@ -17,6 +18,7 @@ public class RegistrationDto
 
     public DanceRole? DanceRole { get; set; }
     public string? PartnerEmail { get; set; }
+    public string? PartnerName { get; set; }
     public Guid? PartnerRegistrationId { get; set; }
 
     public RegistrationStatus Status { get; set; }

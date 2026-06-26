@@ -22,6 +22,7 @@ public class RegistrationDto
     public string? DocumentCountry { get; set; }
     public DanceRole? DanceRole { get; set; }
     public string? PartnerEmail { get; set; }
+    public string? PartnerName { get; set; }
     public Guid? PartnerRegistrationId { get; set; }
     public RegistrationStatus Status { get; set; }
     public PaymentStatus PaymentStatus { get; set; }

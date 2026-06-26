@@ -9,7 +9,12 @@ public class RegistrationMappingProfile : Profile
             .ForMember(dest => dest.DiscountCodeValue, opt => opt.MapFrom(src => src.DiscountCodeValue))
             .ForMember(dest => dest.DiscountAmount, opt => opt.MapFrom(src => src.DiscountAmount))
             .ForMember(dest => dest.FinalPrice, opt => opt.MapFrom(src => src.FinalPrice))
-            .ForMember(dest => dest.DiscountStatus, opt => opt.MapFrom(src => src.DiscountStatus));
+            .ForMember(dest => dest.DiscountStatus, opt => opt.MapFrom(src => src.DiscountStatus))
+            .ForMember(dest => dest.FullName, opt => opt.MapFrom(s => s.User.FirstName + " " + s.User.LastName))
+            .ForMember(dest => dest.PartnerName, opt => opt.MapFrom(s =>
+                s.PartnerRegistration == null
+                    ? null
+                    : s.PartnerRegistration.User.FirstName + " " + s.PartnerRegistration.User.LastName));
         CreateMap<IReadOnlyList<RegistrationDto>, IReadOnlyList<Registration>>();
 
         //Create Registration

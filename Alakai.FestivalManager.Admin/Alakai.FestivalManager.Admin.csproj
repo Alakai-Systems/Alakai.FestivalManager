@@ -19,4 +19,8 @@
     <Folder Include="Contracts\PassTypes\Responses\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Alakai.FestivalManager.Application\Alakai.FestivalManager.Application.csproj" />
+  </ItemGroup>
+
 </Project>

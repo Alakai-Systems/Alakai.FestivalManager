@@ -17,9 +17,9 @@ public class UpdateDiscountCodeCommandValidator : AbstractValidator<UpdateDiscou
             .When(d => d.ActivationType == DiscountActivationType.AfterThreshold);
 
         RuleFor(d => d.ActivationThreshold)
-            .Must(value => value is null || value == 0)
+            .Must(value => !value.HasValue || value.Value == 0)
             .When(d => d.ActivationType == DiscountActivationType.Immediate)
-            .WithMessage("Activation threshold must be empty when activation type is immediate.");
+            .WithMessage("Activation threshold must be empty or 0 when activation type is immediate.");
         RuleFor(d => d.MaxUses).GreaterThan(0).When(d => d.MaxUses.HasValue);
         RuleFor(d => d.CurrentUses).GreaterThanOrEqualTo(0);
         RuleFor(d => d.EndsAt).GreaterThan(d => d.StartsAt).When(d => d.StartsAt.HasValue && d.EndsAt.HasValue);

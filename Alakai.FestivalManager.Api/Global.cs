@@ -83,5 +83,8 @@ global using System.Net;
 global using System.Security.Claims;
 global using System.Text;
 global using System.Text.Json;
-
+global using Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Emails.Services;
+global using Alakai.FestivalManager.Domain.Enums;
+global using Alakai.FestivalManager.Infrastructure.Email;
 

@@ -7,195 +7,197 @@
 <PageHeader Title="Event Setup" pTitle="Competitions"></PageHeader>
 
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
-    <div class="card">
-        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+    <div class="grid grid-cols-1 gap-4">
+        <div class="card">
+            <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
 
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input md:w-72" placeholder="Search competitions..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+                <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                    <input class="form-input md:w-72" placeholder="Search competitions..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
-                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
-                    <option value="@Guid.Empty">All editions</option>
-                    @foreach (EditionDto edition in editions)
+                    <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                        <option value="@Guid.Empty">All editions</option>
+                        @foreach (EditionDto edition in editions)
+                        {
+                            <option value="@edition.Id">@edition.Name</option>
+                        }
+                    </select>
+
+                    <select class="form-select md:w-32" @bind="formatFilter" @bind:after="ResetPage">
+                        <option value="">All formats</option>
+                        <option value="SoloJazz">Solo Jazz</option>
+                        <option value="MixAndMatch">Mix & Match</option>
+                        <option value="Strictly">Strictly</option>
+
+                    </select>
+                    @if (SelectedFormat == CompetitionFormat.MixAndMatch)
                     {
-                        <option value="@edition.Id">@edition.Name</option>
+                            <select class="form-select md:w-32" @bind="mixAndMatchLevelFilter" @bind:after="ResetPage">
+                                    <option value="">Level</option>
+                                    @foreach (MixAndMatchLevel level in Enum.GetValues(typeof(MixAndMatchLevel)))
+                                    {
+                                        <option value="@level.ToString()">@level</option>
+                                    }
+                            </select>
+
+                            <select class="form-select md:w-32" @bind="mixAndMatchRoleFilter" @bind:after="ResetPage">
+                                    <option value="">Role</option>
+                                    @foreach (DanceRole role in Enum.GetValues(typeof(DanceRole)))
+                                    {
+                                        <option value="@role.ToString()">@role</option>
+                                    }
+                            </select>
+
+                        <button type="button"
+                                class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                                @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                            <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                            New Capacity
+                        </button>
                     }
-                </select>
+                    else if(SelectedFormat is CompetitionFormat.SoloJazz)
+                    {
+                        <button type="button"
+                                class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                                @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                            <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                            New Capacity
+                        </button>
+                    }
+                    else if (SelectedFormat is CompetitionFormat.Strictly)
+                    {
+                        <button type="button"
+                                class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
+                                @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
+                            <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                            New Capacity
+                        </button>
+                    }
+                    else
+                    {
+                        <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                            <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                            New Competition
+                        </button>
+                    }
 
-                <select class="form-select md:w-32" @bind="formatFilter" @bind:after="ResetPage">
-                    <option value="">All formats</option>
-                    <option value="SoloJazz">Solo Jazz</option>
-                    <option value="MixAndMatch">Mix & Match</option>
-                    <option value="Strictly">Strictly</option>
-
-                </select>
-                @if (SelectedFormat == CompetitionFormat.MixAndMatch)
-                {
-                        <select class="form-select md:w-32" @bind="mixAndMatchLevelFilter" @bind:after="ResetPage">
-                                <option value="">Level</option>
-                                @foreach (MixAndMatchLevel level in Enum.GetValues(typeof(MixAndMatchLevel)))
-                                {
-                                    <option value="@level.ToString()">@level</option>
-                                }
-                        </select>
-
-                        <select class="form-select md:w-32" @bind="mixAndMatchRoleFilter" @bind:after="ResetPage">
-                                <option value="">Role</option>
-                                @foreach (DanceRole role in Enum.GetValues(typeof(DanceRole)))
-                                {
-                                    <option value="@role.ToString()">@role</option>
-                                }
-                        </select>
-
-                    <button type="button"
-                            class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
-                            @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
-                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                        New Capacity
-                    </button>
-                }
-                else if(SelectedFormat is CompetitionFormat.SoloJazz)
-                {
-                    <button type="button"
-                            class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
-                            @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
-                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                        New Capacity
-                    </button>
-                }
-                else if (SelectedFormat is CompetitionFormat.Strictly)
-                {
-                    <button type="button"
-                            class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap"
-                            @onclick="() => OpenCreateCapacityModal(FilteredCompetitions.First())">
-                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                        New Capacity
-                    </button>
-                }
-                else
-                {
-                    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
-                        <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                        New Competition
-                    </button>
-                }
-
+                </div>
             </div>
-        </div>
 
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-        }
-
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-
-        @if (isLoading)
-        {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading competitions...</p>
-        }
-        else
-        {
-            @if (SelectedFormat == CompetitionFormat.SoloJazz)
+            @if (!string.IsNullOrWhiteSpace(successMessage))
             {
-                @RenderSoloJazzTable()
-                <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
-                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
-                    </p>
-
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
-                            Previous
-                        </button>
-                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
-                            @currentPage
-                        </span>
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
-                            Next
-                        </button>
-                    </div>
-                </div>
-
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
             }
-            else if (SelectedFormat == CompetitionFormat.MixAndMatch)
+
+            @if (!string.IsNullOrWhiteSpace(errorMessage))
             {
-                @RenderMixAndMatchTable()
-                <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
-                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
-                    </p>
-
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
-                            Previous
-                        </button>
-                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
-                            @currentPage
-                        </span>
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
-                            Next
-                        </button>
-                    </div>
-                </div>
-
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
             }
-            else if (SelectedFormat == CompetitionFormat.Strictly)
+
+            @if (isLoading)
             {
-                @RenderStrictlyTable()
-                <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
-                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
-                    </p>
-
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
-                            Previous
-                        </button>
-                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
-                            @currentPage
-                        </span>
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
-                            Next
-                        </button>
-                    </div>
-                </div>
-
+                <p class="text-sm text-black/50 dark:text-white/40">Loading competitions...</p>
             }
             else
             {
-                @RenderDefaultCompetitionTable()
-                <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
-                        Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
-                    </p>
+                @if (SelectedFormat == CompetitionFormat.SoloJazz)
+                {
+                    @RenderSoloJazzTable()
+                    <div class="flex items-center justify-between mt-4">
+                        <p class="text-sm text-black/50 dark:text-white/40">
+                            Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                        </p>
 
-                    <div class="flex items-center gap-2">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage == 1)" @onclick="PreviousPage">
-                            Previous
-                        </button>
-                        <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
-                            @currentPage
-                        </span>
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
-                                disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
-                            Next
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                                Previous
+                            </button>
+                            <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                                @currentPage
+                            </span>
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                                Next
+                            </button>
+                        </div>
                     </div>
-                </div>
 
+                }
+                else if (SelectedFormat == CompetitionFormat.MixAndMatch)
+                {
+                    @RenderMixAndMatchTable()
+                    <div class="flex items-center justify-between mt-4">
+                        <p class="text-sm text-black/50 dark:text-white/40">
+                            Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                        </p>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                                Previous
+                            </button>
+                            <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                                @currentPage
+                            </span>
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+
+                }
+                else if (SelectedFormat == CompetitionFormat.Strictly)
+                {
+                    @RenderStrictlyTable()
+                    <div class="flex items-center justify-between mt-4">
+                        <p class="text-sm text-black/50 dark:text-white/40">
+                            Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                        </p>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                                Previous
+                            </button>
+                            <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                                @currentPage
+                            </span>
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+
+                }
+                else
+                {
+                    @RenderDefaultCompetitionTable()
+                    <div class="flex items-center justify-between mt-4">
+                        <p class="text-sm text-black/50 dark:text-white/40">
+                            Showing @ShowingFrom to @ShowingTo of @FilteredCompetitions.Count competitions
+                        </p>
+
+                        <div class="flex items-center gap-2">
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage == 1)" @onclick="PreviousPage">
+                                Previous
+                            </button>
+                            <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">
+                                @currentPage
+                            </span>
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50"
+                                    disabled="@(currentPage >= TotalPages)" @onclick="NextPage">
+                                Next
+                            </button>
+                        </div>
+                    </div>
+
+                }
             }
-        }
 
+        </div>
     </div>
 </div>
 
@@ -880,7 +882,6 @@
                         <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
                         <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Format")'>Format @SortIcon("Format")</button></th>
                         <th class="px-4 py-3 font-semibold">Price</th>
-                        <th class="px-4 py-3 font-semibold">Capacities</th>
                         <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("SortOrder")'>Sort @SortIcon("SortOrder")</button></th>
                         <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
                         <th class="px-4 py-3 font-semibold text-right">Actions</th>
@@ -904,7 +905,6 @@
                                 </td>
                                 <td class="px-4 py-3">@competition.Format</td>
                                 <td class="px-4 py-3">@competition.Price.ToString("0.00") €</td>
-                                <td class="px-4 py-3">@FormatCapacities(competition)</td>
                                 <td class="px-4 py-3">@competition.SortOrder</td>
                                 <td class="px-4 py-3"><span class="@GetStatusClass(competition.IsActive)">@(competition.IsActive ? "Active" : "Inactive")</span></td>
                                 <td class="px-4 py-3">
@@ -936,9 +936,9 @@
             </thead>
 
             <tbody>
-                @foreach (var c in PagedCompetitions.Where(x => x.Format == CompetitionFormat.SoloJazz))
+                @foreach (CompetitionDto c in PagedCompetitions.Where(x => x.Format == CompetitionFormat.SoloJazz))
                 {
-                    var cap = c.Capacities.FirstOrDefault();
+                    CompetitionCapacityDto cap = c.Capacities.FirstOrDefault();
 
                     <tr class="border-b border-black/10 dark:border-darkborder">
                         <td class="px-4 py-3">
