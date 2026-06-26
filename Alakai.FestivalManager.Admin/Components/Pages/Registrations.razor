@@ -87,16 +87,16 @@
                     <table class="table-hover w-full text-sm">
                         <thead class="bg-gray-50 dark:bg-dark">
                             <tr class="text-left">
-                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Pass")'>Pass @SortIcon("Pass")</button></th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold">Level</th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold">Price</th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Group")'>Group @SortIcon("Group")</button></th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold">Partner</th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold">Payment</th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Date")'>Date @SortIcon("Date")</button></th>
-                                <th class="px-2 py-2 max-w-[150px] font-semibold text-right">Actions</th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Pass")'>Pass @SortIcon("Pass")</button></th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold">Level</th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold">Price</th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Group")'>Group @SortIcon("Group")</button></th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold">Partner</th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold">Payment</th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Date")'>Date @SortIcon("Date")</button></th>
+                                <th class="px-2 py-2 max-w-[140px] font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -122,7 +122,7 @@
                                     <td class="px-2 py-2 whitespace-nowrap"><span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span></td>
                                     <td class="px-2 py-2 whitespace-nowrap">@FormatDate(registration.CreatedAt)</td>
                                     <td class="px-2 py-2">
-                                        <div class="flex justify-end gap-2">
+                                        <div class="flex justify-end gap-1">
                                             <button type="button" class="text-black hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
                                             <button type="button" class="text-black hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
                                             <button type="button" class="text-black hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
@@ -508,7 +508,7 @@
             return registration.PartnerName;
         }
 
-        return $"Missing: {registration.PartnerEmail}";
+        return $"Missing: {registration.PartnerName}";
     }
 
     private static string FormatDate(DateTime date)
@@ -552,28 +552,38 @@
     {
         try
         {
-            EmailTemplateKey templateKey = GetTemplateKey(action);
+            switch (action)
+            {
+                case "registration confirmation":
+                    await EmailNotificationApiClient.SendRegistrationConfirmationAsync(registration.Id);
+                    break;
 
-            await EmailNotificationApiClient.SendRegistrationEmailAsync(registration.Id, templateKey);
+                case "payment confirmation":
+                    await EmailNotificationApiClient.SendPaymentConfirmationAsync(registration.Id);
+                    break;
+
+                case "unpaid reminder":
+                    await EmailNotificationApiClient.SendPaymentReminderAsync(registration.Id);
+                    break;
+
+                case "missing partner":
+                    await EmailNotificationApiClient.SendMissingPartnerReminderAsync(registration.Id);
+                    break;
+
+                case "cancellation":
+                    await EmailNotificationApiClient.SendCancellationAsync(registration.Id);
+                    break;
+
+                default:
+                    throw new InvalidOperationException("Unknown email action.");
+            }
 
             ShowSuccess("Email sent successfully.");
         }
         catch (Exception ex)
         {
-            ShowError(ex.Message);
+           ShowError(ex.Message);
         }
-    }
-
-    private static EmailTemplateKey GetTemplateKey(string action)
-    {
-        return action switch
-        {
-            "registration confirmation" => EmailTemplateKey.RegistrationCreated,
-            "payment confirmation" => EmailTemplateKey.PaymentConfirmed,
-            "unpaid reminder" => EmailTemplateKey.PaymentFailed,
-            "missing partner" => EmailTemplateKey.WaitingPartner,
-            _ => EmailTemplateKey.RegistrationCreated
-        };
     }
 
     private void OpenEditModal(RegistrationDto registration)

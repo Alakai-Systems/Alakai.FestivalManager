@@ -14,7 +14,7 @@ public partial class RegistrationService : IRegistrationService
 
     public RegistrationService(CreateRegistrationHandler createRegistrationHandler, GetRegistrationByIdHandler getRegistrationByIdHandler, GetRegistrationsHandler getRegistrationsHandler, 
         GetRegistrationsByEditionIdHandler getRegistrationsByEditionIdHandler, UpdateRegistrationHandler updateRegistrationHandler, DeleteRegistrationHandler deleteRegistrationHandler, 
-        IValidator<CreateRegistrationCommand> createRegistrationValidator, IValidator<UpdateRegistrationCommand> updateRegistrationValidator)
+        IValidator<CreateRegistrationCommand> createRegistrationValidator, IValidator<UpdateRegistrationCommand> updateRegistrationValidator, GetRegistrationByUserIdHandler getRegistrationByUserIdHandler)
     {
         _createRegistrationHandler = createRegistrationHandler;
         _getRegistrationByIdHandler = getRegistrationByIdHandler;
@@ -24,6 +24,7 @@ public partial class RegistrationService : IRegistrationService
         _deleteRegistrationHandler = deleteRegistrationHandler;
         _createRegistrationValidator = createRegistrationValidator;
         _updateRegistrationValidator = updateRegistrationValidator;
+        _getRegistrationByUserIdHandler = getRegistrationByUserIdHandler;
     }
 
     public async Task<ApiResponse<CreateRegistrationResponse>> CreateAsync(CreateRegistrationCommand command, CancellationToken cancellationToken = default)

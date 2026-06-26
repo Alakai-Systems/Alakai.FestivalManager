@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Emails.Contracts;
+﻿namespace Alakai.FestivalManager.Application.Features.Emails.Models;
 
 public class EmailTemplateModel
 {

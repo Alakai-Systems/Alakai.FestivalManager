@@ -1,5 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Email;
-
+﻿namespace Alakai.FestivalManager.Application.Features.Emails.Models;
 public class EmailAttachment
 {
     public string FileName { get; set; } = string.Empty;

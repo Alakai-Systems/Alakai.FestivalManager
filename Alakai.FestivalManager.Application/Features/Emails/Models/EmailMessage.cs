@@ -1,5 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Email;
-
+﻿namespace Alakai.FestivalManager.Application.Features.Emails.Models;
 public class EmailMessage
 {
     public EmailAddress To { get; set; } = new();

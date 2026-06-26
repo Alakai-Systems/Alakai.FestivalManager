@@ -15,6 +15,8 @@ public class RegistrationDto
     public string? Phone { get; set; }
     public string? Country { get; set; }
     public string? City { get; set; }
+    public string? DocumentNumber { get; set; }
+    public string? DocumentCountry { get; set; }
 
     public DanceRole? DanceRole { get; set; }
     public string? PartnerEmail { get; set; }

@@ -26,7 +26,6 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IUserPanelRepository, UserPanelRepository>();
         services.Configure<EmailOptions>(configuration.GetSection("Email"));
         services.AddScoped<IEmailSender, MailKitEmailSender>();
-        services.AddScoped<IEmailDispatcher, EmailDispatcher>();
 
         return services;
     }

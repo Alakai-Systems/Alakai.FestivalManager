@@ -24,4 +24,29 @@ public class EmailNotificationApiClient
 
         throw new Exception(message);
     }
+
+    public Task SendRegistrationConfirmationAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return SendRegistrationEmailAsync(registrationId, EmailTemplateKey.RegistrationCreated, cancellationToken);
+    }
+
+    public Task SendPaymentConfirmationAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return SendRegistrationEmailAsync(registrationId, EmailTemplateKey.PaymentConfirmed, cancellationToken);
+    }
+
+    public Task SendPaymentReminderAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return SendRegistrationEmailAsync(registrationId, EmailTemplateKey.PaymentFailed, cancellationToken);
+    }
+
+    public Task SendMissingPartnerReminderAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return SendRegistrationEmailAsync(registrationId, EmailTemplateKey.WaitingPartner, cancellationToken);
+    }
+
+    public Task SendCancellationAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return SendRegistrationEmailAsync(registrationId, EmailTemplateKey.RegistrationCancelled, cancellationToken);
+    }
 }

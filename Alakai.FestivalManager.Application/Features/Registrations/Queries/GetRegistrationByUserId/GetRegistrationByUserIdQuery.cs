@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationById;
+namespace Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationByUserId;
 
 public class GetRegistrationByUserIdQuery
 {

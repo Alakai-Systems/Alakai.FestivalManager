@@ -37,7 +37,6 @@
                         <tr class="text-left">
                             <th class="px-4 py-3 font-semibold">Recipient</th>
                             <th class="px-4 py-3 font-semibold">Template</th>
-                            <th class="px-4 py-3 font-semibold">Subject</th>
                             <th class="px-4 py-3 font-semibold">Status</th>
                             <th class="px-4 py-3 font-semibold">Sent At</th>
                             <th class="px-4 py-3 font-semibold">Error</th>
@@ -60,7 +59,6 @@
                                         <div class="text-xs text-black/50">@log.RecipientName</div>
                                     </td>
                                     <td class="px-4 py-3">@log.TemplateKey</td>
-                                    <td class="px-4 py-3">@log.Subject</td>
                                     <td class="px-4 py-3"><span class="@GetStatusClass(log.Status)">@log.Status</span></td>
                                     <td class="px-4 py-3">@(log.SentAt.HasValue ? log.SentAt.Value.ToString("dd/MM/yyyy HH:mm") : "-")</td>
                                     <td class="px-4 py-3">@log.ErrorMessage</td>

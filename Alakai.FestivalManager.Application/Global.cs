@@ -12,6 +12,7 @@ global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Requests
 global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Settings;
 global using Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrentUser;
+global using Alakai.FestivalManager.Application.Features.Auth.Services;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.DeleteCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
@@ -65,6 +66,7 @@ global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEm
 global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByRegistrationId;
 global using Alakai.FestivalManager.Application.Features.EmailLogs.Queries.GetEmailLogsByUserId;
 global using Alakai.FestivalManager.Application.Features.EmailLogs.Services;
+global using Alakai.FestivalManager.Application.Features.Emails.Services;
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.CreateEmailTemplate;
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.DeleteEmailTemplate;
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Commands.UpdateEmailTemplate;
@@ -111,6 +113,7 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Contracts
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationById;
+global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationByUserId;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrations;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
@@ -127,7 +130,6 @@ global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserBy
 global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;
 global using Alakai.FestivalManager.Application.Features.Users.Services;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
-global using Alakai.FestivalManager.Application.Features.Emails.Services;
 global using Alakai.FestivalManager.Application.Services.Security;
 global using Alakai.FestivalManager.Domain.Entities;
 global using Alakai.FestivalManager.Domain.Enums;
@@ -143,5 +145,4 @@ global using System.IdentityModel.Tokens.Jwt;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
-global using Alakai.FestivalManager.Application.Features.Emails.Contracts;
-
+global using Alakai.FestivalManager.Application.Features.Emails.Models;

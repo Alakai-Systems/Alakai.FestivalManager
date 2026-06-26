@@ -128,10 +128,7 @@ public class CreateRegistrationHandler
             }
         }
 
-        await _emailNotificationService.CreateEmailLogAsync(
-            EmailTemplateKey.RegistrationCreated,
-            registration.Id,
-            cancellationToken);
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.RegistrationCreated, registration.Id,cancellationToken);
 
         RegistrationDto dto = _mapper.Map<RegistrationDto>(registration);
 

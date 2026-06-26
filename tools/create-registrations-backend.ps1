@@ -1021,3 +1021,63 @@ Write-Host ""
 Write-Host "Auth backend files generated."
 Write-Host "Review AUTH_DI_TO_ADD.txt and add DI/JWT middleware manually."
 Write-Host "Run dotnet build after adding DI registrations."
+
+Alakai.FestivalManager.Admin
+│
+├── Components
+│   ├── Layout
+│   │   ├── MainLayout.razor
+│   │   ├── AuthLayout.razor
+│   │   └── PortalLayout.razor
+│   │
+│   └── Pages
+│       ├── Auth
+│       │   ├── Login.razor
+│       │   ├── ForgotPassword.razor
+│       │   └── ResetPassword.razor
+│       │
+│       └── Portal
+│           └── Dashboard.razor
+│
+├── Services
+│   └── Auth
+│       ├── IAuthApiClient.cs
+│       ├── AuthApiClient.cs
+│       ├── ITokenStorageService.cs
+│       ├── TokenStorageService.cs
+│       ├── PortalAuthenticationStateProvider.cs
+│       └── CurrentUserService.cs
+│
+├── Models
+│   └── Auth
+│       ├── LoginRequest.cs
+│       ├── LoginResponse.cs
+│       ├── ForgotPasswordRequest.cs
+│       ├── ResetPasswordRequest.cs
+│       └── AuthUserDto.cs
+
+
+eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2YzdiNWI4Ny02M2NmLTQ0MjQtOGI2Ni1jMDJjOTkxMGU4MDIiLCJlbWFpbCI6InJvc2VyQGdtYWlsLmNvbSIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWVpZGVudGlmaWVyIjoiNmM3YjViODctNjNjZi00NDI0LThiNjYtYzAyYzk5MTBlODAyIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZW1haWxhZGRyZXNzIjoicm9zZXJAZ21haWwuY29tIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiVXNlciIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJSb3NlciBSb3MiLCJleHAiOjE3ODIyMTk3ODksImlzcyI6IkFsYWthaUZlc3RpdmFsTWFuYWdlciIsImF1ZCI6IkFsYWthaUZlc3RpdmFsTWFuYWdlciJ9.sN6qAG0S3-MTGprGfx_bP5kNiSj8XBcK7t6yWfDHjZA
+
+{
+  "editionId": "6F705DAC-B15F-4E3D-8691-9099E57503DB",
+  "passTypeId": "EE3F5EF2-DED4-452C-B067-990FA9569148",
+  "levelId": "BDAE50D5-1690-4257-A15F-3660ED8F17DA",
+  "firstName": "Roser",
+  "lastName": "Ros",
+  "email": "roser@gmail.com",
+  "phone": "698521458",
+  "country": "Spain",
+  "city": "Barcelona",
+  "password": "Password123!",
+  "documentNumber": "254875235I",
+  "documentCountry": "Spain",
+  "danceRole": 1,
+  "partnerEmail": "mago@gmail.com",
+  "basePrice": 470,
+  "discountAmount": 0,
+  "finalPrice": 0,
+  "discountCodeValue": "SWIM",
+  "notes": "string",
+  "internalNotes": "string"
+}

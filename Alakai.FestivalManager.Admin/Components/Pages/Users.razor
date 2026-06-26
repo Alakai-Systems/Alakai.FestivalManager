@@ -52,15 +52,15 @@
                     <table class="w-full table-hover">
                         <thead class="bg-gray-50 dark:bg-dark">
                             <tr class="text-left">
-                                <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
-                                <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Email")'>Email @SortIcon("Email")</button></th>
-                                <th class="px-4 py-3 font-semibold">Phone</th>
-                                <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Country")'>Country @SortIcon("Country")</button></th>
-                                <th class="px-4 py-3 font-semibold">City</th>
-                                <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("CreatedAt")'>Created @SortIcon("CreatedAt")</button></th>
-                                <th class="px-4 py-3 font-semibold">Document</th>
-                                <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
-                                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                                <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                                <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Email")'>Email @SortIcon("Email")</button></th>
+                                <th class="px-3 py-3 font-semibold">Phone</th>
+                                <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Country")'>Country @SortIcon("Country")</button></th>
+                                <th class="px-3 py-3 font-semibold">City</th>
+                                <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("CreatedAt")'>Created @SortIcon("CreatedAt")</button></th>
+                                <th class="px-3 py-3 font-semibold">Document</th>
+                                <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
+                                <th class="px-3 py-3 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -82,15 +82,15 @@
                                                 <div class="text-xs text-warning">Must change password</div>
                                             }
                                         </td>
-                                        <td class="px-4 py-3 max-w-[180px] truncate">@user.Email</td>
-                                        <td class="px-4 py-3">@user.Phone</td>
-                                        <td class="px-4 py-3">@user.Country</td>
-                                        <td class="px-4 py-3">@user.City</td>
-                                        <td class="px-4 py-3">@FormatDate(user.CreatedAt)</td>
-                                        <td class="px-4 py-3">@GetDocumentFromRegistration(user.Id)</td>
-                                        <td class="px-4 py-3"><span class="@GetStatusClass(user.IsActive)">@(user.IsActive ? "Active" : "Inactive")</span></td>
-                                        <td class="px-4 py-3">
-                                            <div class="flex items-center justify-end gap-3">
+                                        <td class="px-3 py-3 max-w-[180px] truncate">@user.Email</td>
+                                        <td class="px-3 py-3">@user.Phone</td>
+                                        <td class="px-3 py-3">@user.Country</td>
+                                        <td class="px-3 py-3">@user.City</td>
+                                        <td class="px-3 py-3">@FormatDate(user.CreatedAt)</td>
+                                        <td class="px-3 py-3">@GetDocumentFromRegistration(user.Id)</td>
+                                        <td class="px-3 py-3"><span class="@GetStatusClass(user.IsActive)">@(user.IsActive ? "Active" : "Inactive")</span></td>
+                                        <td class="px-3 py-3">
+                                            <div class="flex items-center justify-end gap-2">
                                                 <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(user)"><i class="ri-pencil-line text-lg"></i></button>
                                                 <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(user)"><i class="ri-delete-bin-line text-lg"></i></button>
                                             </div>
