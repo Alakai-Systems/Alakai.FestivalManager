@@ -4,6 +4,7 @@ public class AuthService : IAuthService
 {
     private readonly IAuthRepository _authRepository;
     private readonly IPasswordService _passwordService;
+    private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
     private readonly IMapper _mapper;
     private readonly IValidator<LoginCommand> _loginValidator;
@@ -12,7 +13,9 @@ public class AuthService : IAuthService
     private readonly IValidator<ResetPasswordCommand> _resetPasswordValidator;
     private readonly IValidator<ChangePasswordCommand> _changePasswordValidator;
 
-    public AuthService(IAuthRepository authRepository, IPasswordService passwordService, IJwtService jwtService, IMapper mapper, IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator, IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator)
+    public AuthService(IAuthRepository authRepository, IPasswordService passwordService, IJwtService jwtService, IMapper mapper, 
+        IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator, 
+        IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator, IUserRepository userRepository)
     {
         _authRepository = authRepository;
         _passwordService = passwordService;
@@ -23,6 +26,7 @@ public class AuthService : IAuthService
         _forgotPasswordValidator = forgotPasswordValidator;
         _resetPasswordValidator = resetPasswordValidator;
         _changePasswordValidator = changePasswordValidator;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<LoginResponse>> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default)
@@ -197,100 +201,87 @@ public class AuthService : IAuthService
         return new ApiResponse<RefreshTokenResponse> { Success = true, Data = new RefreshTokenResponse { Auth = authResult }, Errors = [], Message = "Token refreshed successfully" };
     }
 
-    public async Task<ApiResponse<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
     {
-        ValidationResult validationResult = await _forgotPasswordValidator.ValidateAsync(command, cancellationToken);
+        string normalizedEmail = request.Email.Trim().ToLowerInvariant();
 
-        if (!validationResult.IsValid)
+        User? user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+
+        if (user is null || user.IsActive is false)
         {
-            ApiResponse<ForgotPasswordResponse> apiResponse = new()
+            return new ApiResponse<object>
             {
-                Success = false,
+                Success = true,
+                Message = "If the email exists, a password reset link has been sent.",
                 Data = null,
-                Errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList(),
-                Message = "Validation failed"
+                Errors = []
             };
-
-            return apiResponse;
         }
 
-        string normalizedEmail = command.Email.Trim().ToLowerInvariant();
-        User? user = await _authRepository.GetUserByEmailAsync(normalizedEmail, cancellationToken);
+        string token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(48));
 
-        if (user is not null && user.IsActive)
+        user.PasswordResetToken = token;
+        user.PasswordResetTokenExpiresAt = DateTime.UtcNow.AddHours(1);
+
+        await _userRepository.SaveChangesAsync(cancellationToken);
+
+        string encodedToken = Uri.EscapeDataString(token);
+        string resetPasswordUrl = $"https://localhost:7033/user-panel/reset-password?token={encodedToken}";
+
+        await _emailNotificationService.CreateAndSendPasswordResetEmailAsync(user.Id, resetPasswordUrl, cancellationToken);
+
+        return new ApiResponse<object>
         {
-            PasswordResetToken passwordResetToken = new()
-            {
-                UserId = user.Id,
-                Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-                ExpiresAt = DateTime.UtcNow.AddHours(2)
-            };
-
-            await _authRepository.AddPasswordResetTokenAsync(passwordResetToken, cancellationToken);
-            await _authRepository.SaveChangesAsync(cancellationToken);
-        }
-
-        return new ApiResponse<ForgotPasswordResponse> { Success = true, Data = new ForgotPasswordResponse { Sent = true }, Errors = [], Message = "If the email exists, a reset link has been generated" };
+            Success = true,
+            Message = "If the email exists, a password reset link has been sent.",
+            Data = null,
+            Errors = []
+        };
     }
 
-    public async Task<ApiResponse<ResetPasswordResponse>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<object>> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
     {
-        ValidationResult validationResult = await _resetPasswordValidator.ValidateAsync(command, cancellationToken);
-
-        if (!validationResult.IsValid)
+        if (request.NewPassword != request.ConfirmPassword)
         {
-            ApiResponse<ResetPasswordResponse> apiResponse = new()
+            return new ApiResponse<object>
             {
                 Success = false,
+                Message = "Password could not be reset.",
                 Data = null,
-                Errors = validationResult.Errors.Select(e => e.ErrorMessage).ToList(),
-                Message = "Validation failed"
+                Errors = ["New password and confirmation do not match."]
             };
-
-            return apiResponse;
         }
 
-        PasswordResetToken? passwordResetToken = await _authRepository.GetPasswordResetTokenAsync(command.Token, cancellationToken);
+        User? user = await _userRepository.GetByPasswordResetTokenAsync(request.Token, cancellationToken);
 
-        if (passwordResetToken is null || passwordResetToken.IsUsed || passwordResetToken.ExpiresAt <= DateTime.UtcNow)
+        if (user is null || user.PasswordResetTokenExpiresAt is null || user.PasswordResetTokenExpiresAt < DateTime.UtcNow)
         {
-            ApiResponse<ResetPasswordResponse> apiResponse = new()
+            return new ApiResponse<object>
             {
                 Success = false,
+                Message = "Password could not be reset.",
                 Data = null,
-                Errors = ["Invalid or expired reset token."],
-                Message = "Reset password failed"
+                Errors = ["Invalid or expired password reset token."]
             };
-
-            return apiResponse;
         }
 
-        User? user = await _authRepository.GetUserByIdAsync(passwordResetToken.UserId, cancellationToken);
-
-        if (user is null || !user.IsActive)
-        {
-            ApiResponse<ResetPasswordResponse> apiResponse = new()
-            {
-                Success = false,
-                Data = null,
-                Errors = ["User not found."],
-                Message = "Reset password failed"
-            };
-
-            return apiResponse;
-        }
-
-        user.PasswordHash = _passwordService.HashPassword(user, command.NewPassword);
+        user.PasswordHash = _passwordService.HashPassword(user, request.NewPassword);
         user.PasswordChangedAt = DateTime.UtcNow;
-        user.MustChangePassword = false;
+        user.PasswordResetToken = null;
+        user.PasswordResetTokenExpiresAt = null;
         user.FailedLoginAttempts = 0;
         user.IsLocked = false;
         user.LockoutEndAt = null;
-        passwordResetToken.UsedAt = DateTime.UtcNow;
 
-        await _authRepository.SaveChangesAsync(cancellationToken);
+        await _userRepository.SaveChangesAsync(cancellationToken);
 
-        return new ApiResponse<ResetPasswordResponse> { Success = true, Data = new ResetPasswordResponse { PasswordReset = true }, Errors = [], Message = "Password reset successfully" };
+        return new ApiResponse<object>
+        {
+            Success = true,
+            Message = "Password reset successfully.",
+            Data = null,
+            Errors = []
+        };
     }
 
     public async Task<ApiResponse<ChangePasswordResponse>> ChangePasswordAsync(ChangePasswordCommand command, CancellationToken cancellationToken = default)

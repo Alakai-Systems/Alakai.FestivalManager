@@ -44,4 +44,5 @@ global using System.Net.Http.Headers;
 global using System.Net.Http.Json;
 global using System.Text.Json;
 global using Alakai.FestivalManager.Admin.Contracts.UserPanel.Requests;
-
+global using Radzen;
+global using Radzen.Blazor;

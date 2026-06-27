@@ -9,5 +9,6 @@ public enum EmailTemplateKey
     WaitingPartner = 5,
     PartnerConfirmed = 6,
     CompetitionEntryConfirmed = 7,
-    CompetitionEntryCancelled = 8
+    CompetitionEntryCancelled = 8,
+    PasswordReset = 9
 }

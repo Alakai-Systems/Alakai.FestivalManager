@@ -1,3 +1,4 @@
+using Alakai.FestivalManager.Application.Interfaces.Repositories;
 using Alakai.FestivalManager.Infrastructure.Email;
 
 namespace Alakai.FestivalManager.Application.Features.Emails.Services;
@@ -132,5 +133,54 @@ public class EmailNotificationService : IEmailNotificationService
         await _emailLogRepository.SaveChangesAsync(cancellationToken);
 
         return _mapper.Map<EmailLogDto>(emailLog);
+    }
+
+    public async Task<EmailLogDto?> CreateAndSendPasswordResetEmailAsync(Guid userId, string resetPasswordUrl, CancellationToken cancellationToken = default)
+    {
+        User? user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return null;
+        }
+
+        EmailTemplate? template = await _emailTemplateRepository.GetByKeyAsync(EmailTemplateKey.PasswordReset, null, cancellationToken);
+
+        if (template is null)
+        {
+            return null;
+        }
+
+        Dictionary<string, string> variables = new()
+        {
+            ["FirstName"] = user.FirstName,
+            ["LastName"] = user.LastName,
+            ["FullName"] = $"{user.FirstName} {user.LastName}",
+            ["Email"] = user.Email,
+            ["ResetPasswordUrl"] = resetPasswordUrl
+        };
+
+        string subject = _emailTemplateRendererService.Render(template.Subject, variables);
+        string bodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
+        string? bodyText = string.IsNullOrWhiteSpace(template.BodyText) ? null : _emailTemplateRendererService.Render(template.BodyText, variables);
+
+        EmailLog emailLog = new()
+        {
+            UserId = user.Id,
+            TemplateKey = template.TemplateKey,
+            EmailTemplateId = template.Id,
+            RecipientEmail = user.Email,
+            RecipientName = $"{user.FirstName} {user.LastName}",
+            Subject = subject,
+            BodyHtml = bodyHtml,
+            BodyText = bodyText,
+            Status = EmailLogStatus.Pending,
+            IsActive = true
+        };
+
+        await _emailLogRepository.AddAsync(emailLog, cancellationToken);
+        await _emailLogRepository.SaveChangesAsync(cancellationToken);
+
+        return await SendExistingEmailLogAsync(emailLog.Id, cancellationToken);
     }
 }

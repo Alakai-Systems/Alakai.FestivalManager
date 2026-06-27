@@ -42,6 +42,11 @@ public class UserRepository : IUserRepository
         return await _context.Users.AnyAsync(user => user.Id != id && user.Email.ToLower() == normalizedEmail, cancellationToken);
     }
 
+    public async Task<User?> GetByPasswordResetTokenAsync(string token, CancellationToken cancellationToken = default)
+    {
+        return await _context.Users.FirstOrDefaultAsync(u => u.PasswordResetToken == token && u.IsActive, cancellationToken);
+    }
+
     public void Update(User user)
     {
         _context.Users.Update(user);

@@ -4,6 +4,8 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 
+builder.Services.AddRadzenComponents();
+
 builder.Services.AddMudServices();
 builder.Services.AddApiClients(builder.Configuration);
 

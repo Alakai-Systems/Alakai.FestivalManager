@@ -1,0 +1,125 @@
+﻿@using Radzen
+@using Radzen.Blazor
+
+<div class="email-rte-wrapper">
+    <RadzenHtmlEditor @ref="EditorRef"
+                       @bind-Value="Value"
+                       Change="@OnEditorChange"
+                       style="height: 320px;">
+        <RadzenHtmlEditorUndo />
+        <RadzenHtmlEditorRedo />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorBold />
+        <RadzenHtmlEditorItalic />
+        <RadzenHtmlEditorUnderline />
+        <RadzenHtmlEditorStrikeThrough />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorColor />
+        <RadzenHtmlEditorBackground />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorFormatBlock />
+        <RadzenHtmlEditorFontName />
+        <RadzenHtmlEditorFontSize />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorAlignLeft />
+        <RadzenHtmlEditorAlignCenter />
+        <RadzenHtmlEditorAlignRight />
+        <RadzenHtmlEditorJustify />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorOrderedList />
+        <RadzenHtmlEditorUnorderedList />
+        <RadzenHtmlEditorIndent />
+        <RadzenHtmlEditorOutdent />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorLink />
+        <RadzenHtmlEditorUnlink />
+        <RadzenHtmlEditorImage />
+        <RadzenHtmlEditorSeparator />
+        <RadzenHtmlEditorSource />
+        <RadzenHtmlEditorRemoveFormat />
+    </RadzenHtmlEditor>
+
+    @if (Variables is { Count: > 0 })
+    {
+        <div class="email-rte-variables">
+            <span class="email-rte-variables-label">Variables:</span>
+            @foreach (var variable in Variables)
+            {
+                <button type="button"
+                        class="email-rte-variable-chip"
+                        @onclick="() => InsertVariableAsync(variable)">
+                    {{@variable}}
+                </button>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public string Value { get; set; } = string.Empty;
+    [Parameter] public EventCallback<string> ValueChanged { get; set; }
+    [Parameter] public List<string>? Variables { get; set; }
+
+    // Component name: EmailTemplateEditor (renamed from the old Blazorise-based
+    // EmailRichTextEditor to avoid confusion now that this wraps Radzen instead).
+    private RadzenHtmlEditor EditorRef { get; set; } = default!;
+
+    private async Task OnEditorChange(string html)
+    {
+        Value = html;
+        await ValueChanged.InvokeAsync(html);
+    }
+
+    private async Task InsertVariableAsync(string variable)
+    {
+        if (EditorRef is null)
+        {
+            return;
+        }
+
+        // Real Radzen API: ExecuteCommandAsync(string name, string value),
+        // and the command list lives on the static HtmlEditorCommands class
+        // (NOT an enum called HtmlEditorCommandName).
+        await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, $"{{{{{variable}}}}}");
+
+        // RadzenHtmlEditor has no GetHtmlAsync(); the bound Value parameter is
+        // kept in sync via the Change callback (OnEditorChange above), which
+        // fires automatically after ExecuteCommandAsync mutates the content.
+    }
+
+    /// <summary>
+    /// Converts the current HTML value into a reasonably clean plain-text version,
+    /// suitable for populating BodyText for email clients that don't render HTML.
+    /// </summary>
+    public static string ConvertHtmlToPlainText(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return string.Empty;
+        }
+
+        string text = html;
+
+        // Line-break-producing tags -> newline
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)<\s*br\s*/?>", "\n");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*p\s*>", "\n");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*div\s*>", "\n");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*li\s*>", "\n");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*h[1-6]\s*>", "\n\n");
+
+        // List items -> dash prefix
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)<\s*li[^>]*>", "- ");
+
+        // Strip remaining tags
+        text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", string.Empty);
+
+        // Decode HTML entities (&amp;, &nbsp;, etc.)
+        text = System.Net.WebUtility.HtmlDecode(text);
+
+        // Collapse excessive blank lines and trim trailing spaces per line
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"[ \t]+\n", "\n");
+        text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
+
+        return text.Trim();
+    }
+}

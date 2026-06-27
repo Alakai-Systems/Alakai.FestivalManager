@@ -11,6 +11,8 @@ public class User : BaseEntity
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.User;
     public DateTime? LastLoginAt { get; set; }
+    public string? PasswordResetToken { get; set; }
+    public DateTime? PasswordResetTokenExpiresAt { get; set; }
     public DateTime? PasswordChangedAt { get; set; }
     public bool MustChangePassword { get; set; }
     public bool IsLocked { get; set; }

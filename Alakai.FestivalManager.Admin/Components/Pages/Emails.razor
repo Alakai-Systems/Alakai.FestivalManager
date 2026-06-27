@@ -1,6 +1,7 @@
 @page "/emails"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Radzen.Blazor
 @inject EmailTemplateApiClient EmailTemplateApiClient
 @inject EditionApiClient EditionApiClient
 
@@ -158,16 +159,17 @@
 
                         <div class="md:col-span-2">
                             <label class="block text-sm text-black/60 dark:text-white/60">Body HTML</label>
-                            <InputTextArea class="form-input font-mono" rows="8" @bind-Value="formModel.BodyHtml" />
+                            <EmailTemplateEditor @ref="bodyEditor"
+                                                 @bind-Value="formModel.BodyHtml"
+                                                 Variables="@(new List<string> {
+                                                                       "FestivalName", "EditionName", "FirstName", "LastName",
+                                                                       "FullName", "UserEmail", "PortalUrl", "PassTypeName",
+                                                                       "FinalPrice", "PartnerEmail" })" />
                         </div>
 
                         <div class="md:col-span-2">
                             <label class="block text-sm text-black/60 dark:text-white/60">Body Text</label>
                             <InputTextArea class="form-input" rows="4" @bind-Value="formModel.BodyText" />
-                        </div>
-
-                        <div class="md:col-span-2 text-xs text-black/50 dark:text-white/40">
-                            Variables: {{FestivalName}}, {{EditionName}}, {{FirstName}}, {{LastName}}, {{FullName}}, {{UserEmail}}, {{PortalUrl}}, {{PassTypeName}}, {{FinalPrice}}, {{PartnerEmail}}
                         </div>
 
                         <div class="flex items-center gap-4">
@@ -212,6 +214,7 @@
     private EmailTemplateDto? editingTemplate;
     private EmailTemplateDto? deletingTemplate;
     private EmailTemplateFormModel formModel = new();
+    private EmailTemplateEditor bodyEditor = default!;
     private string searchText = string.Empty;
     private bool isSaving;
     private string editionFilter = string.Empty;
@@ -435,6 +438,8 @@
     {
         try
         {
+            formModel.BodyText = EmailTemplateEditor.ConvertHtmlToPlainText(formModel.BodyHtml);
+
             if (editingTemplate is null)
             {
                 CreateEmailTemplateRequest request = new()

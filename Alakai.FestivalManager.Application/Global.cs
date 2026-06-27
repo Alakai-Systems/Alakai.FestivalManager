@@ -146,3 +146,4 @@ global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
 global using Alakai.FestivalManager.Application.Features.Emails.Models;
+global using System.Security.Cryptography;
