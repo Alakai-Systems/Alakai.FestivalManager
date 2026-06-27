@@ -3,7 +3,7 @@
 public interface IAuthApiClient
 {
     Task<LoginResponse?> LoginAsync(LoginRequest request);
-    Task ForgotPasswordAsync(string email);
-    Task ResetPasswordAsync(string token, string password);
+    Task<string?> ForgotPasswordAsync(string email, CancellationToken cancellationToken = default);
+    Task<string?> ResetPasswordAsync(string token, string newPassword, string confirmPassword, CancellationToken cancellationToken = default);
     Task<bool> ChangePasswordAsync(string currentPassword, string newPassword);
 }

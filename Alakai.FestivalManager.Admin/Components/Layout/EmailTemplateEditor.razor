@@ -3,9 +3,9 @@
 
 <div class="email-rte-wrapper">
     <RadzenHtmlEditor @ref="EditorRef"
-                       @bind-Value="Value"
-                       Change="@OnEditorChange"
-                       style="height: 320px;">
+                      @bind-Value="Value"
+                      Change="@OnEditorChange"
+                      style="height: 320px;">
         <RadzenHtmlEditorUndo />
         <RadzenHtmlEditorRedo />
         <RadzenHtmlEditorSeparator />
@@ -13,6 +13,8 @@
         <RadzenHtmlEditorItalic />
         <RadzenHtmlEditorUnderline />
         <RadzenHtmlEditorStrikeThrough />
+        <RadzenHtmlEditorSubscript />
+        <RadzenHtmlEditorSuperscript />
         <RadzenHtmlEditorSeparator />
         <RadzenHtmlEditorColor />
         <RadzenHtmlEditorBackground />
@@ -34,6 +36,7 @@
         <RadzenHtmlEditorLink />
         <RadzenHtmlEditorUnlink />
         <RadzenHtmlEditorImage />
+        <RadzenHtmlEditorTable />
         <RadzenHtmlEditorSeparator />
         <RadzenHtmlEditorSource />
         <RadzenHtmlEditorRemoveFormat />
@@ -55,13 +58,47 @@
     }
 </div>
 
+<style>
+    /* Only styling MY OWN markup (the variable chips below the editor).
+           Deliberately not touching any .rz-* class — Radzen's own CSS already
+           lays the toolbar out horizontally and positions popups correctly;
+           overriding it caused all the layout breakage we saw earlier. */
+
+    .email-rte-variables {
+        margin-top: 10px;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+    }
+
+    .email-rte-variables-label {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-right: 4px;
+    }
+
+    .email-rte-variable-chip {
+        background: #eef2ff;
+        color: #4338ca;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        font-size: 0.78rem;
+        padding: 2px 10px;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+        .email-rte-variable-chip:hover {
+            background: #e0e7ff;
+        }
+</style>
+
 @code {
     [Parameter] public string Value { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public List<string>? Variables { get; set; }
 
-    // Component name: EmailTemplateEditor (renamed from the old Blazorise-based
-    // EmailRichTextEditor to avoid confusion now that this wraps Radzen instead).
     private RadzenHtmlEditor EditorRef { get; set; } = default!;
 
     private async Task OnEditorChange(string html)
@@ -77,14 +114,7 @@
             return;
         }
 
-        // Real Radzen API: ExecuteCommandAsync(string name, string value),
-        // and the command list lives on the static HtmlEditorCommands class
-        // (NOT an enum called HtmlEditorCommandName).
         await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, $"{{{{{variable}}}}}");
-
-        // RadzenHtmlEditor has no GetHtmlAsync(); the bound Value parameter is
-        // kept in sync via the Change callback (OnEditorChange above), which
-        // fires automatically after ExecuteCommandAsync mutates the content.
     }
 
     /// <summary>
@@ -100,23 +130,14 @@
 
         string text = html;
 
-        // Line-break-producing tags -> newline
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)<\s*br\s*/?>", "\n");
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*p\s*>", "\n");
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*div\s*>", "\n");
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*li\s*>", "\n");
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)</\s*h[1-6]\s*>", "\n\n");
-
-        // List items -> dash prefix
         text = System.Text.RegularExpressions.Regex.Replace(text, @"(?i)<\s*li[^>]*>", "- ");
-
-        // Strip remaining tags
         text = System.Text.RegularExpressions.Regex.Replace(text, "<[^>]+>", string.Empty);
-
-        // Decode HTML entities (&amp;, &nbsp;, etc.)
         text = System.Net.WebUtility.HtmlDecode(text);
-
-        // Collapse excessive blank lines and trim trailing spaces per line
         text = System.Text.RegularExpressions.Regex.Replace(text, @"[ \t]+\n", "\n");
         text = System.Text.RegularExpressions.Regex.Replace(text, @"\n{3,}", "\n\n");
 

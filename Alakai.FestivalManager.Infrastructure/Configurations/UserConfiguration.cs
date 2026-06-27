@@ -32,6 +32,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(u => u.City)
             .HasMaxLength(100);
 
+        builder.Property(u => u.PasswordResetToken);
+
+        builder.Property(u => u.PasswordResetTokenExpiresAt);
+
         builder.Property(u => u.LastLoginAt);
 
         builder.Property(u => u.MustChangePassword);

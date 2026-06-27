@@ -7,9 +7,11 @@ public class UserPanelService : IUserPanelService
     private readonly ICompetitionEntryRepository _competitionEntryRepository;
     private readonly ICompetitionRepository _competitionRepository;
     private readonly ICompetitionCapacityRepository _competitionCapacityRepository;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly IMapper _mapper;
     public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper, 
-        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository, ICompetitionCapacityRepository competitionCapacityRepository)
+        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository, 
+        ICompetitionCapacityRepository competitionCapacityRepository, IEmailNotificationService emailNotificationService)
     {
         _userPanelRepository = userPanelRepository;
         _competitionEntryService = competitionEntryService;
@@ -17,6 +19,7 @@ public class UserPanelService : IUserPanelService
         _competitionEntryRepository = competitionEntryRepository;
         _competitionRepository = competitionRepository;
         _competitionCapacityRepository = competitionCapacityRepository;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> GetDashboardAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -166,6 +169,8 @@ public class UserPanelService : IUserPanelService
 
         await _competitionEntryService.CreateAsync(competitionCommand, cancellationToken);
 
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registration.Id, cancellationToken);
+
         return await GetDashboardAsync(userId, cancellationToken);
     }
 
@@ -184,12 +189,16 @@ public class UserPanelService : IUserPanelService
             };
         }
 
+        Guid registrationId = existing.RegistrationId;
+
         request.RegistrationId = existing.RegistrationId;
         request.InternalNotes = null;
 
         UpdateCompetitionEntryCommand competitionCommand = _mapper.Map<UpdateCompetitionEntryCommand>(request);
 
         await _competitionEntryService.UpdateAsync(competitionEntryId, competitionCommand, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registrationId, cancellationToken);
 
         return await GetDashboardAsync(userId, cancellationToken);
     }
@@ -209,7 +218,11 @@ public class UserPanelService : IUserPanelService
             };
         }
 
+        Guid registrationId = existing.RegistrationId;
+
         await _competitionEntryService.DeleteAsync(competitionEntryId, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, registrationId, cancellationToken);
 
         return await GetDashboardAsync(userId, cancellationToken);
     }

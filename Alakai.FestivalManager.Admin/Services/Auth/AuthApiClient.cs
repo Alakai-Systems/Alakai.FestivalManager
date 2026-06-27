@@ -42,15 +42,49 @@ public class AuthApiClient : IAuthApiClient
         return response.Data;
     }
 
-    public async Task ForgotPasswordAsync(string email)
+    public async Task<string?> ForgotPasswordAsync(string email, CancellationToken cancellationToken = default)
     {
-        await _httpClient.PostAsJsonAsync("api/auth/forgot-password",
-            new
-            {
-                Email = email
-            });
+        object request = new
+        {
+            Email = email
+        };
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/auth/forgot-password", request, cancellationToken);
+
+        ApiResponse<object>? response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<object>>(cancellationToken);
+
+        if (httpResponse.IsSuccessStatusCode && response?.Success is true)
+        {
+            return response.Message;
+        }
+
+        throw new Exception(response?.Errors?.FirstOrDefault()
+            ?? response?.Message
+            ?? "Password reset email could not be sent.");
     }
 
+    public async Task<string?> ResetPasswordAsync(string token, string newPassword, string confirmPassword, CancellationToken cancellationToken = default)
+    {
+        object request = new
+        {
+            Token = token,
+            NewPassword = newPassword,
+            ConfirmPassword = confirmPassword
+        };
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/auth/reset-password", request, cancellationToken);
+
+        ApiResponse<object>? response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<object>>(cancellationToken);
+
+        if (httpResponse.IsSuccessStatusCode && response?.Success is true)
+        {
+            return response.Message;
+        }
+
+        throw new Exception(response?.Errors?.FirstOrDefault()
+            ?? response?.Message
+            ?? "Password could not be reset.");
+    }
     public async Task<bool> ChangePasswordAsync(string currentPassword, string newPassword)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
@@ -71,15 +105,5 @@ public class AuthApiClient : IAuthApiClient
             });
 
         return httpResponse.IsSuccessStatusCode;
-    }
-
-    public async Task ResetPasswordAsync(string token, string password)
-    {
-        await _httpClient.PostAsJsonAsync("api/auth/reset-password",
-            new
-            {
-                Token = token,
-                Password = password
-            });
     }
 }

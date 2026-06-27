@@ -1,4 +1,3 @@
-using Alakai.FestivalManager.Application.Interfaces.Repositories;
 using Alakai.FestivalManager.Infrastructure.Email;
 
 namespace Alakai.FestivalManager.Application.Features.Emails.Services;
@@ -8,12 +7,14 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IEmailTemplateRepository _emailTemplateRepository;
     private readonly IEmailLogRepository _emailLogRepository;
     private readonly IRegistrationRepository _registrationRepository;
+    private readonly IUserRepository _userRepository;
     private readonly IEmailTemplateRendererService _emailTemplateRendererService;
     private readonly IEmailSender _emailSender;
     private readonly IMapper _mapper;
 
     public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
-        IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository, IEmailSender emailSender)
+        IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
+        IEmailSender emailSender, IUserRepository userRepository)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -21,6 +22,7 @@ public class EmailNotificationService : IEmailNotificationService
         _mapper = mapper;
         _registrationRepository = registrationRepository;
         _emailSender = emailSender;
+        _userRepository = userRepository;
     }
 
     public async Task<EmailLogDto?> CreateEmailLogAsync(EmailTemplateKey templateKey, Guid registrationId, CancellationToken cancellationToken = default)
@@ -182,5 +184,46 @@ public class EmailNotificationService : IEmailNotificationService
         await _emailLogRepository.SaveChangesAsync(cancellationToken);
 
         return await SendExistingEmailLogAsync(emailLog.Id, cancellationToken);
+    }
+
+    private async Task<EmailLogDto?> SendExistingEmailLogAsync(Guid emailLogId, CancellationToken cancellationToken = default)
+    {
+        EmailLog? emailLog = await _emailLogRepository.GetByIdAsync(emailLogId, cancellationToken);
+
+        if (emailLog is null)
+        {
+            return null;
+        }
+
+        try
+        {
+            EmailMessage message = new()
+            {
+                To = new EmailAddress
+                {
+                    Name = emailLog.RecipientName,
+                    Address = emailLog.RecipientEmail
+                },
+                Subject = emailLog.Subject,
+                HtmlBody = emailLog.BodyHtml,
+                TextBody = emailLog.BodyText ?? string.Empty
+            };
+
+            await _emailSender.SendAsync(message, cancellationToken);
+
+            emailLog.Status = EmailLogStatus.Sent;
+            emailLog.SentAt = DateTime.UtcNow;
+            emailLog.ErrorMessage = null;
+        }
+        catch (Exception ex)
+        {
+            emailLog.Status = EmailLogStatus.Failed;
+            emailLog.ErrorMessage = ex.Message;
+        }
+
+        _emailLogRepository.Update(emailLog);
+        await _emailLogRepository.SaveChangesAsync(cancellationToken);
+
+        return _mapper.Map<EmailLogDto>(emailLog);
     }
 }

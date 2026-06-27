@@ -1,3 +1,6 @@
+
+using Microsoft.Extensions.Logging;
+
 namespace Alakai.FestivalManager.Application.Features.Auth.Services;
 
 public class AuthService : IAuthService
@@ -6,16 +9,19 @@ public class AuthService : IAuthService
     private readonly IPasswordService _passwordService;
     private readonly IUserRepository _userRepository;
     private readonly IJwtService _jwtService;
+    private readonly IEmailNotificationService _emailNotificationService;
     private readonly IMapper _mapper;
     private readonly IValidator<LoginCommand> _loginValidator;
     private readonly IValidator<RefreshTokenCommand> _refreshTokenValidator;
     private readonly IValidator<ForgotPasswordCommand> _forgotPasswordValidator;
     private readonly IValidator<ResetPasswordCommand> _resetPasswordValidator;
     private readonly IValidator<ChangePasswordCommand> _changePasswordValidator;
+    private readonly ILogger<AuthService> _logger;
 
     public AuthService(IAuthRepository authRepository, IPasswordService passwordService, IJwtService jwtService, IMapper mapper, 
-        IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator, 
-        IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator, IUserRepository userRepository)
+        IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator,
+        IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator, IUserRepository userRepository, 
+        IEmailNotificationService emailNotificationService, ILogger<AuthService> logger)
     {
         _authRepository = authRepository;
         _passwordService = passwordService;
@@ -27,6 +33,8 @@ public class AuthService : IAuthService
         _resetPasswordValidator = resetPasswordValidator;
         _changePasswordValidator = changePasswordValidator;
         _userRepository = userRepository;
+        _emailNotificationService = emailNotificationService;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<LoginResponse>> LoginAsync(LoginCommand command, CancellationToken cancellationToken = default)
@@ -201,15 +209,17 @@ public class AuthService : IAuthService
         return new ApiResponse<RefreshTokenResponse> { Success = true, Data = new RefreshTokenResponse { Auth = authResult }, Errors = [], Message = "Token refreshed successfully" };
     }
 
-    public async Task<ApiResponse<object>> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<ForgotPasswordResponse>> ForgotPasswordAsync(ForgotPasswordCommand forgotPasswordCommand, CancellationToken cancellationToken = default)
     {
-        string normalizedEmail = request.Email.Trim().ToLowerInvariant();
+        string normalizedEmail = forgotPasswordCommand.Email.Trim().ToLowerInvariant();
 
         User? user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
 
         if (user is null || user.IsActive is false)
         {
-            return new ApiResponse<object>
+            _logger.LogInformation("Forgot-password requested for unknown or inactive email: {Email}", normalizedEmail);
+
+            return new ApiResponse<ForgotPasswordResponse>
             {
                 Success = true,
                 Message = "If the email exists, a password reset link has been sent.",
@@ -228,9 +238,23 @@ public class AuthService : IAuthService
         string encodedToken = Uri.EscapeDataString(token);
         string resetPasswordUrl = $"https://localhost:7033/user-panel/reset-password?token={encodedToken}";
 
-        await _emailNotificationService.CreateAndSendPasswordResetEmailAsync(user.Id, resetPasswordUrl, cancellationToken);
+        EmailLogDto? emailLogResult = await _emailNotificationService.CreateAndSendPasswordResetEmailAsync(user.Id, resetPasswordUrl, cancellationToken);
 
-        return new ApiResponse<object>
+        if (emailLogResult is null)
+        {
+            _logger.LogError(
+                "Password reset email could not be created/sent for UserId {UserId} ({Email}). " +
+                "Likely cause: missing or inactive 'PasswordReset' EmailTemplate (global or for the user's edition).",
+                user.Id, user.Email);
+        }
+        else if (emailLogResult.Status == EmailLogStatus.Failed)
+        {
+            _logger.LogError(
+                "Password reset email failed to send for UserId {UserId} ({Email}). Error: {Error}",
+                user.Id, user.Email, emailLogResult.ErrorMessage);
+        }
+
+        return new ApiResponse<ForgotPasswordResponse>
         {
             Success = true,
             Message = "If the email exists, a password reset link has been sent.",
@@ -239,11 +263,11 @@ public class AuthService : IAuthService
         };
     }
 
-    public async Task<ApiResponse<object>> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<ResetPasswordResponse>> ResetPasswordAsync(ResetPasswordCommand command, CancellationToken cancellationToken = default)
     {
-        if (request.NewPassword != request.ConfirmPassword)
+        if (command.NewPassword != command.ConfirmPassword)
         {
-            return new ApiResponse<object>
+            return new ApiResponse<ResetPasswordResponse>
             {
                 Success = false,
                 Message = "Password could not be reset.",
@@ -252,11 +276,11 @@ public class AuthService : IAuthService
             };
         }
 
-        User? user = await _userRepository.GetByPasswordResetTokenAsync(request.Token, cancellationToken);
+        User? user = await _userRepository.GetByPasswordResetTokenAsync(command.Token, cancellationToken);
 
         if (user is null || user.PasswordResetTokenExpiresAt is null || user.PasswordResetTokenExpiresAt < DateTime.UtcNow)
         {
-            return new ApiResponse<object>
+            return new ApiResponse<ResetPasswordResponse>
             {
                 Success = false,
                 Message = "Password could not be reset.",
@@ -265,7 +289,7 @@ public class AuthService : IAuthService
             };
         }
 
-        user.PasswordHash = _passwordService.HashPassword(user, request.NewPassword);
+        user.PasswordHash = _passwordService.HashPassword(user, command.NewPassword);
         user.PasswordChangedAt = DateTime.UtcNow;
         user.PasswordResetToken = null;
         user.PasswordResetTokenExpiresAt = null;
@@ -275,7 +299,7 @@ public class AuthService : IAuthService
 
         await _userRepository.SaveChangesAsync(cancellationToken);
 
-        return new ApiResponse<object>
+        return new ApiResponse<ResetPasswordResponse>
         {
             Success = true,
             Message = "Password reset successfully.",
