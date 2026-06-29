@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Admin.Services.Auth;
-
-namespace Alakai.FestivalManager.Application.Extensions;
+﻿namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApiCLientsDependencyInjectionExtension
 {
@@ -56,6 +54,21 @@ public static class ApiCLientsDependencyInjectionExtension
         });
 
         services.AddHttpClient<DiscountCodeApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+
+        services.AddHttpClient<DashboardApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<AnalyticsApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]
                 ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");

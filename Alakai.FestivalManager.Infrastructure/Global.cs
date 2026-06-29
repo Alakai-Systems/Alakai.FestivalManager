@@ -17,4 +17,6 @@ global using Microsoft.Extensions.Configuration;
 global using Microsoft.Extensions.DependencyInjection;
 global using Microsoft.Extensions.Options;
 global using MimeKit;
-
+global using Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Interfaces.Services;
+global using Alakai.FestivalManager.Infrastructure.Analytics;

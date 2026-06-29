@@ -1,6 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.EmailLayouts.Services;
-
-namespace Alakai.FestivalManager.Application.Extensions;
+﻿namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -96,6 +94,8 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<DeleteEmailTemplateHandler>();
         services.AddScoped<IEmailTemplateService, EmailTemplateService>();
         services.AddScoped<IEmailLayoutService, EmailLayoutService>();
+        services.AddScoped<IDashboardService, DashboardService>();
+        services.AddScoped<IAnalyticsService, AnalyticsService>();
 
         //EmailLogs
         services.AddScoped<CreateEmailLogHandler>();

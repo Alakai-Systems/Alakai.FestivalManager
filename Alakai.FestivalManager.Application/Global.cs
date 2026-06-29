@@ -34,6 +34,9 @@ global using Alakai.FestivalManager.Application.Features.Competitions.Queries.Ge
 global using Alakai.FestivalManager.Application.Features.Competitions.Queries.GetCompetitions;
 global using Alakai.FestivalManager.Application.Features.Competitions.Queries.GetCompetitionsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Competitions.Services;
+global using Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Dashboard.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Dashboard.Services;
 global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.CreateDiscountCode;
 global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.DeleteDiscountCode;
 global using Alakai.FestivalManager.Application.Features.DiscountCodes.Commands.UpdateDiscountCode;
@@ -150,3 +153,4 @@ global using System.IdentityModel.Tokens.Jwt;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
+global using Alakai.FestivalManager.Application.Interfaces.Services;
