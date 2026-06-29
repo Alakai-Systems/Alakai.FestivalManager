@@ -1,9 +1,11 @@
 ﻿global using Alakai.FestivalManager.Application.Contracts.Repositories;
 global using Alakai.FestivalManager.Application.Features.Emails.Models;
+global using Alakai.FestivalManager.Application.Features.Files.Services;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
 global using Alakai.FestivalManager.Domain.Entities;
 global using Alakai.FestivalManager.Domain.Enums;
 global using Alakai.FestivalManager.Infrastructure.Email;
+global using Alakai.FestivalManager.Infrastructure.Files;
 global using Alakai.FestivalManager.Infrastructure.Persistence;
 global using Alakai.FestivalManager.Infrastructure.Repositories;
 global using MailKit.Net.Smtp;

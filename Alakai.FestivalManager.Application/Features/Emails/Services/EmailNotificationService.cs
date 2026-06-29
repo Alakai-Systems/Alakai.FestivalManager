@@ -10,11 +10,12 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IUserRepository _userRepository;
     private readonly IEmailTemplateRendererService _emailTemplateRendererService;
     private readonly IEmailSender _emailSender;
+    private readonly IEmailLayoutRepository _emailLayoutRepository;
     private readonly IMapper _mapper;
 
     public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
         IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
-        IEmailSender emailSender, IUserRepository userRepository)
+        IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -23,6 +24,45 @@ public class EmailNotificationService : IEmailNotificationService
         _registrationRepository = registrationRepository;
         _emailSender = emailSender;
         _userRepository = userRepository;
+        _emailLayoutRepository = emailLayoutRepository;
+    }
+
+    private const int EmailShellWidth = 640;
+
+    private async Task<(string Html, string? Text)> ApplyLayoutAsync(string bodyHtml, string? bodyText, CancellationToken cancellationToken)
+    {
+        EmailLayout? layout = await _emailLayoutRepository.GetAsync(cancellationToken);
+
+        string headerHtml = layout?.HeaderHtml ?? string.Empty;
+        string footerHtml = layout?.FooterHtml ?? string.Empty;
+
+        string wrappedHtml = $@"
+        <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background:#f3f4f6; margin:0; padding:24px 0;"">
+          <tr>
+            <td align=""center"">
+              <table role=""presentation"" width=""{EmailShellWidth}"" cellpadding=""0"" cellspacing=""0"" style=""width:{EmailShellWidth}px; max-width:100%; background:#ffffff;"">
+                <tr>
+                  <td style=""overflow:auto;"">{headerHtml}</td>
+                </tr>
+                <tr>
+                  <td style=""padding:24px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111827;"">{bodyHtml}</td>
+                </tr>
+                <tr>
+                  <td style=""padding:0 24px;""><hr style=""border:none; border-top:1px solid #e5e7eb; margin:0;"" /></td>
+                </tr>
+                <tr>
+                  <td style=""overflow:auto; padding:20px 24px; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#6b7280;"">{footerHtml}</td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+        </table>";
+
+        string? wrappedText = bodyText is null
+            ? null
+            : $"{layout?.HeaderText}{Environment.NewLine}{bodyText}{Environment.NewLine}{layout?.FooterText}";
+
+        return (wrappedHtml, wrappedText);
     }
 
     public async Task<EmailLogDto?> CreateEmailLogAsync(EmailTemplateKey templateKey, Guid registrationId, CancellationToken cancellationToken = default)
@@ -60,10 +100,13 @@ public class EmailNotificationService : IEmailNotificationService
         };
 
         string subject = _emailTemplateRendererService.Render(template.Subject, variables);
-        string bodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
-        string? bodyText = string.IsNullOrWhiteSpace(template.BodyText)
+        string renderedBodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
+        string? renderedBodyText = string.IsNullOrWhiteSpace(template.BodyText)
             ? null
             : _emailTemplateRendererService.Render(template.BodyText, variables);
+
+        (string bodyHtml, string? bodyText) = await ApplyLayoutAsync(renderedBodyHtml, renderedBodyText, cancellationToken);
+
 
         EmailLog emailLog = new()
         {
@@ -163,8 +206,10 @@ public class EmailNotificationService : IEmailNotificationService
         };
 
         string subject = _emailTemplateRendererService.Render(template.Subject, variables);
-        string bodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
-        string? bodyText = string.IsNullOrWhiteSpace(template.BodyText) ? null : _emailTemplateRendererService.Render(template.BodyText, variables);
+        string renderedBodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
+        string? renderedBodyText = string.IsNullOrWhiteSpace(template.BodyText) ? null : _emailTemplateRendererService.Render(template.BodyText, variables);
+
+        (string bodyHtml, string? bodyText) = await ApplyLayoutAsync(renderedBodyHtml, renderedBodyText, cancellationToken);
 
         EmailLog emailLog = new()
         {

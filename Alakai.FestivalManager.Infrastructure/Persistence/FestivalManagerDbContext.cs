@@ -17,6 +17,7 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
+    public DbSet<EmailLayout> EmailLayouts => Set<EmailLayout>();
     public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();

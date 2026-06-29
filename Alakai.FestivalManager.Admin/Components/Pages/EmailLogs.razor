@@ -40,6 +40,7 @@
                             <th class="px-4 py-3 font-semibold">Status</th>
                             <th class="px-4 py-3 font-semibold">Sent At</th>
                             <th class="px-4 py-3 font-semibold">Error</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -62,6 +63,11 @@
                                     <td class="px-4 py-3"><span class="@GetStatusClass(log.Status)">@log.Status</span></td>
                                     <td class="px-4 py-3">@(log.SentAt.HasValue ? log.SentAt.Value.ToString("dd/MM/yyyy HH:mm") : "-")</td>
                                     <td class="px-4 py-3">@log.ErrorMessage</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
+                                            <i class="ri-eye-line text-lg"></i>
+                                        </button>
+                                    </td>
                                 </tr>
                             }
                         }
@@ -84,8 +90,30 @@
     </div>
 </div>
 
+@if (previewingLog is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width:760px; max-width:95vw;">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <div>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
+                        <p class="text-xs text-black/50 dark:text-white/40">@previewingLog.RecipientEmail — @previewingLog.TemplateKey</p>
+                    </div>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="p-2 flex justify-center bg-gray-100">
+                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:680px; max-width:100%; height:70vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private List<EmailLogDto> logs = [];
+    private EmailLogDto? previewingLog;
     private string searchText = string.Empty;
     private string statusFilter = string.Empty;
     private bool isLoading = true;
@@ -173,5 +201,15 @@
             EmailLogStatus.Failed => "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger",
             _ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
         };
+    }
+
+    private void OpenPreview(EmailLogDto log)
+    {
+        previewingLog = log;
+    }
+
+    private void ClosePreview()
+    {
+        previewingLog = null;
     }
 }

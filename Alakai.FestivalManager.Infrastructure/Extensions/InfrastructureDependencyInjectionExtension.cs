@@ -1,4 +1,6 @@
-﻿using Alakai.FestivalManager.Infrastructure.Email;
+﻿using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Infrastructure.Email;
+using Alakai.FestivalManager.Infrastructure.Files;
 
 namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
@@ -21,6 +23,9 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<ICompetitionCapacityRepository, CompetitionCapacityRepository>();
         services.AddScoped<IEmailTemplateRepository, EmailTemplateRepository>();
         services.AddScoped<IEmailLogRepository, EmailLogRepository>();
+        services.AddScoped<IEmailLayoutRepository, EmailLayoutRepository>();
+        services.Configure<FileStorageOptions>(configuration.GetSection("FileStorage"));
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IUserPanelRepository, UserPanelRepository>();

@@ -87,4 +87,7 @@ global using Alakai.FestivalManager.Application.Features.EmailLogs.Contracts.DTO
 global using Alakai.FestivalManager.Application.Features.Emails.Services;
 global using Alakai.FestivalManager.Domain.Enums;
 global using Alakai.FestivalManager.Infrastructure.Email;
-
+global using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.Requests;
+global using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.EmailLayouts.Services;
+global using Alakai.FestivalManager.Application.Features.Files.Services;

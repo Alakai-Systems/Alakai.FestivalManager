@@ -1,0 +1,116 @@
+﻿@page "/email-layout"
+@using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Services.Api
+@using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.DTOs
+@using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.Requests
+@inject EmailLayoutApiClient EmailLayoutApiClient
+
+<div class="p-6">
+    <MudText Typo="Typo.h1" Class="mb-4 text-2xl font-semibold">Email Header &amp; Footer</MudText>
+    <MudText Class="mb-6 text-muted">This header and footer are automatically added to every email sent by the system.</MudText>
+
+    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
+    {
+        <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@SuccessMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
+    {
+        <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@ErrorMessage</div>
+    }
+
+    @if (IsLoading)
+    {
+        <p>Loading...</p>
+    }
+    else
+    {
+        <div class="grid grid-cols-1 gap-8">
+            <div>
+                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Header (HTML)</MudText>
+                <EmailTemplateEditor @bind-Value="HeaderHtml" />
+            </div>
+
+            <div>
+                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Header (plain text)</MudText>
+                <textarea class="form-textarea w-full" rows="3" @bind="HeaderText"></textarea>
+            </div>
+
+            <div>
+                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Footer (HTML)</MudText>
+                <EmailTemplateEditor @bind-Value="FooterHtml" />
+            </div>
+
+            <div>
+                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Footer (plain text)</MudText>
+                <textarea class="form-textarea w-full" rows="3" @bind="FooterText"></textarea>
+            </div>
+
+            <div>
+                <button type="button" disabled="@IsSaving" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85]" @onclick="SaveAsync">
+                    @(IsSaving ? "Saving..." : "Save")
+                </button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string HeaderHtml { get; set; } = string.Empty;
+    private string? HeaderText { get; set; }
+    private string FooterHtml { get; set; } = string.Empty;
+    private string? FooterText { get; set; }
+
+    private bool IsLoading { get; set; } = true;
+    private bool IsSaving { get; set; }
+    private string? SuccessMessage { get; set; }
+    private string? ErrorMessage { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            EmailLayoutDto layout = await EmailLayoutApiClient.GetAsync();
+            HeaderHtml = layout.HeaderHtml;
+            HeaderText = layout.HeaderText;
+            FooterHtml = layout.FooterHtml;
+            FooterText = layout.FooterText;
+        }
+        catch (ApiClientException ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        SuccessMessage = null;
+        ErrorMessage = null;
+        IsSaving = true;
+
+        try
+        {
+            UpdateEmailLayoutRequest request = new()
+            {
+                HeaderHtml = HeaderHtml,
+                HeaderText = HeaderText,
+                FooterHtml = FooterHtml,
+                FooterText = FooterText
+            };
+
+            await EmailLayoutApiClient.UpdateAsync(request);
+            SuccessMessage = "Saved successfully.";
+        }
+        catch (ApiClientException ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+}

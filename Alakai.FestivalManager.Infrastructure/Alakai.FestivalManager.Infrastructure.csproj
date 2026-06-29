@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+	<PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
     <PackageReference Include="MailKit" Version="4.17.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.16" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="9.0.16">

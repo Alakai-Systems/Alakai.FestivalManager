@@ -1,5 +1,7 @@
 ﻿@using Radzen
 @using Radzen.Blazor
+@using Alakai.FestivalManager.Admin.Services.Api
+@inject UploadsApiClient UploadsApiClient
 
 <div class="email-rte-wrapper">
     <RadzenHtmlEditor @ref="EditorRef"
@@ -42,6 +44,13 @@
         <RadzenHtmlEditorRemoveFormat />
     </RadzenHtmlEditor>
 
+    <div class="email-rte-upload">
+        <InputFile OnChange="@OnImageSelectedAsync" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" id="@UploadInputId" />
+        <label for="@UploadInputId" class="email-rte-upload-button">
+            @(IsUploadingImage ? "Uploading..." : "📷 Upload image")
+        </label>
+    </div>
+
     @if (Variables is { Count: > 0 })
     {
         <div class="email-rte-variables">
@@ -63,6 +72,24 @@
            Deliberately not touching any .rz-* class — Radzen's own CSS already
            lays the toolbar out horizontally and positions popups correctly;
            overriding it caused all the layout breakage we saw earlier. */
+    .email-rte-upload {
+        margin-top: 10px;
+    }
+
+    .email-rte-upload-button {
+        display: inline-block;
+        background: #f3f4f6;
+        color: #374151;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.8rem;
+        padding: 5px 12px;
+        cursor: pointer;
+    }
+
+        .email-rte-upload-button:hover {
+            background: #e5e7eb;
+        }
 
     .email-rte-variables {
         margin-top: 10px;
@@ -100,6 +127,9 @@
     [Parameter] public List<string>? Variables { get; set; }
 
     private RadzenHtmlEditor EditorRef { get; set; } = default!;
+    private bool IsUploadingImage { get; set; }
+    private readonly string UploadInputId = $"email-rte-upload-{Guid.NewGuid():N}";
+    private int UploadImageWidth { get; set; } = 600;
 
     private async Task OnEditorChange(string html)
     {
@@ -115,6 +145,30 @@
         }
 
         await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, $"{{{{{variable}}}}}");
+    }
+
+    private async Task OnImageSelectedAsync(InputFileChangeEventArgs e)
+    {
+        if (EditorRef is null || IsUploadingImage)
+        {
+            return;
+        }
+
+        const long maxFileSize = 5 * 1024 * 1024; // 5 MB, debe coincidir con el límite del backend
+
+        IsUploadingImage = true;
+
+        try
+        {
+            using Stream stream = e.File.OpenReadStream(maxFileSize);
+            string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
+
+            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"max-width:100%;\" />");
+        }
+        finally
+        {
+            IsUploadingImage = false;
+        }
     }
 
     /// <summary>

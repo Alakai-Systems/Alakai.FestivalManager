@@ -11,8 +11,13 @@ public class CompetitionEntryService : ICompetitionEntryService
     private readonly DeleteCompetitionEntryHandler _deleteCompetitionEntryHandler;
     private readonly IValidator<CreateCompetitionEntryCommand> _createCompetitionEntryValidator;
     private readonly IValidator<UpdateCompetitionEntryCommand> _updateCompetitionEntryValidator;
+    private readonly IEmailNotificationService _emailNotificationService;
 
-    public CompetitionEntryService(CreateCompetitionEntryHandler createCompetitionEntryHandler, GetCompetitionEntryByIdHandler getCompetitionEntryByIdHandler, GetCompetitionEntriesHandler getCompetitionEntriesHandler, GetCompetitionEntriesByCompetitionIdHandler getCompetitionEntriesByCompetitionIdHandler, GetCompetitionEntriesByRegistrationIdHandler getCompetitionEntriesByRegistrationIdHandler, UpdateCompetitionEntryHandler updateCompetitionEntryHandler, DeleteCompetitionEntryHandler deleteCompetitionEntryHandler, IValidator<CreateCompetitionEntryCommand> createCompetitionEntryValidator, IValidator<UpdateCompetitionEntryCommand> updateCompetitionEntryValidator)
+    public CompetitionEntryService(CreateCompetitionEntryHandler createCompetitionEntryHandler, GetCompetitionEntryByIdHandler getCompetitionEntryByIdHandler, 
+        GetCompetitionEntriesHandler getCompetitionEntriesHandler, GetCompetitionEntriesByCompetitionIdHandler getCompetitionEntriesByCompetitionIdHandler, 
+        GetCompetitionEntriesByRegistrationIdHandler getCompetitionEntriesByRegistrationIdHandler, UpdateCompetitionEntryHandler updateCompetitionEntryHandler, 
+        DeleteCompetitionEntryHandler deleteCompetitionEntryHandler, IValidator<CreateCompetitionEntryCommand> createCompetitionEntryValidator, 
+        IValidator<UpdateCompetitionEntryCommand> updateCompetitionEntryValidator, IEmailNotificationService emailNotificationService)
     {
         _createCompetitionEntryHandler = createCompetitionEntryHandler;
         _getCompetitionEntryByIdHandler = getCompetitionEntryByIdHandler;
@@ -23,6 +28,7 @@ public class CompetitionEntryService : ICompetitionEntryService
         _deleteCompetitionEntryHandler = deleteCompetitionEntryHandler;
         _createCompetitionEntryValidator = createCompetitionEntryValidator;
         _updateCompetitionEntryValidator = updateCompetitionEntryValidator;
+        _emailNotificationService = emailNotificationService;
     }
 
     public async Task<ApiResponse<CreateCompetitionEntryResponse>> CreateAsync(CreateCompetitionEntryCommand command, CancellationToken cancellationToken = default)
@@ -33,7 +39,10 @@ public class CompetitionEntryService : ICompetitionEntryService
         {
             throw new ValidationException(validationResult.Errors);
         }
+
         CompetitionEntryDto competitionEntryDto = await _createCompetitionEntryHandler.HandleAsync(command, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, competitionEntryDto.RegistrationId, cancellationToken);
 
         ApiResponse<CreateCompetitionEntryResponse> response = new()
         {
@@ -134,6 +143,8 @@ public class CompetitionEntryService : ICompetitionEntryService
 
         CompetitionEntryDto competitionEntryDto = await _updateCompetitionEntryHandler.HandleAsync(command, cancellationToken);
 
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, competitionEntryDto.RegistrationId, cancellationToken);
+
         ApiResponse<UpdateCompetitionEntryResponse> response = new()
         {
             Success = true,
@@ -150,7 +161,11 @@ public class CompetitionEntryService : ICompetitionEntryService
 
     public async Task<ApiResponse<DeleteCompetitionEntryResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        CompetitionEntryDto existingEntryDto = await _getCompetitionEntryByIdHandler.HandleAsync(new GetCompetitionEntryByIdQuery { Id = id }, cancellationToken);
+
         await _deleteCompetitionEntryHandler.HandleAsync(new DeleteCompetitionEntryCommand { Id = id }, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, existingEntryDto.RegistrationId, cancellationToken);
 
         ApiResponse<DeleteCompetitionEntryResponse> response = new()
         {
