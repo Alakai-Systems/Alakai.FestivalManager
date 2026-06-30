@@ -1,4 +1,5 @@
 ﻿
+using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs;
 using System.Text.Json;
 
 
@@ -16,7 +17,6 @@ public class FestivalApiClient
     public async Task<IReadOnlyList<FestivalDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         ApiResponse<GetFestivalsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetFestivalsResponse>>("api/festivals", cancellationToken);
-
         if (response?.Success is not true)
         {
             throw new ApiClientException(response?.Message ?? "Could not load festivals.", response?.Errors);

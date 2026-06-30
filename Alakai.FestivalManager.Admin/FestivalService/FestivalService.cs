@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Admin.Services;
+﻿using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs;
+
+namespace Alakai.FestivalManager.Admin.Services;
 
 public class FestivalApiClient
 {

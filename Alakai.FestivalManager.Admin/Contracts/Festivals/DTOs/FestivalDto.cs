@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Admin.Contracts.Festivals;
+﻿namespace Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs;
 
 public class FestivalDto
 {

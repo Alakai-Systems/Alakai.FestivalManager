@@ -78,9 +78,11 @@ public class DashboardRepository : IDashboardRepository
             .OrderByDescending(g => g.Purchased)
             .ToList();
 
-        // --- Competitions: real breakdown by capacity level (Open/Advanced) + role ---
+        // --- Competitions: level list from configured CompetitionCapacity, so every
+        // configured level (e.g. Open AND Advanced) always shows, even with 0 entries. ---
         List<Competition> competitions = await _context.Competitions
             .Where(c => c.EditionId == editionId && c.IsActive)
+            .Include(c => c.Capacities)
             .OrderBy(c => c.SortOrder)
             .ToListAsync(cancellationToken);
 
@@ -100,17 +102,36 @@ public class DashboardRepository : IDashboardRepository
                 .Where(e => e.CompetitionId == competition.Id)
                 .ToList();
 
-            List<CompetitionLevelStatDto> levelStats = entries
-                .GroupBy(e => e.MixAndMatchLevel)
-                .Select(g => new CompetitionLevelStatDto
+            List<MixAndMatchLevel?> configuredLevels = competition.Capacities
+                .Where(c => c.IsActive)
+                .Select(c => c.MixAndMatchLevel)
+                .Distinct()
+                .OrderBy(l => l.HasValue ? (int)l.Value : -1)
+                .ToList();
+
+            if (configuredLevels.Count == 0)
+            {
+                configuredLevels = [null];
+            }
+
+            List<CompetitionLevelStatDto> levelStats = configuredLevels
+                .Select(levelKey =>
                 {
-                    LevelLabel = g.Key.HasValue ? g.Key.Value.ToString() : "All",
-                    Individual = g.Count(e => e.DanceRole == DanceRole.Individual),
-                    Follower = g.Count(e => e.DanceRole == DanceRole.Follower),
-                    Leader = g.Count(e => e.DanceRole == DanceRole.Leader)
+                    List<CompetitionEntry> levelEntries = entries.Where(e => e.MixAndMatchLevel == levelKey).ToList();
+
+                    int individual = levelEntries.Count(e => e.DanceRole == DanceRole.Individual);
+                    int follower = levelEntries.Count(e => e.DanceRole == DanceRole.Follower);
+                    int leader = levelEntries.Count(e => e.DanceRole == DanceRole.Leader);
+
+                    return new CompetitionLevelStatDto
+                    {
+                        LevelLabel = levelKey.HasValue ? levelKey.Value.ToString() : "All",
+                        Individual = individual,
+                        Follower = follower,
+                        Leader = leader,
+                        Total = competition.RequiresRole ? follower + leader : individual
+                    };
                 })
-                .OrderBy(l => l.LevelLabel == "All" ? 0 : 1)
-                .ThenBy(l => l.LevelLabel)
                 .ToList();
 
             competitionStats.Add(new CompetitionStatDto
@@ -134,11 +155,6 @@ public class DashboardRepository : IDashboardRepository
         };
     }
 
-    /// <summary>
-    /// "Sin pareja" matches RegistrationPartnerService.LinkPartnerAsync's definition of a
-    /// failed match: PartnerEmail was specified but PartnerRegistrationId ended up null.
-    /// RegistrationStatus.WaitingPartner is never assigned anywhere, so it is not used here.
-    /// </summary>
     private static LevelStatDto BuildLevelStat(Guid? levelId, string levelName, List<Registration> levelRegistrations)
     {
         bool IsWithoutPartner(Registration r) => !string.IsNullOrWhiteSpace(r.PartnerEmail) && r.PartnerRegistrationId is null;
@@ -157,10 +173,14 @@ public class DashboardRepository : IDashboardRepository
     }
 
     /// <summary>
-    /// Revenue is grouped by UpdatedAt as a proxy for "date paid", because the
-    /// Registration.PaidAt field exists in the schema but is never assigned by any
-    /// handler in the codebase. UpdatedAt is the closest reliable signal of when the
-    /// PaymentStatus last changed. This is a known limitation, not a perfect audit trail.
+    /// Returns a CUMULATIVE running total within the selected period (resets to 0 at
+    /// the start of the window), since revenue only ever adds and the chart is meant to
+    /// be ascending. Grouped by UpdatedAt as a proxy for "date paid" (Registration.PaidAt
+    /// exists in the schema but is never assigned anywhere in the codebase -- a known
+    /// limitation, not a perfect audit trail).
+    /// TODO: once the Redsys payment integration exists, this should be revisited to use
+    /// the real payment confirmation timestamp and to support true partial payments,
+    /// instead of the current Pending/Paid/Unpaid/Failed binary PaymentStatus model.
     /// </summary>
     public async Task<List<RevenuePointDto>> GetRevenueAsync(Guid editionId, string range, CancellationToken cancellationToken = default)
     {
@@ -169,6 +189,8 @@ public class DashboardRepository : IDashboardRepository
             .ToListAsync(cancellationToken);
 
         DateTime Effective(Registration r) => r.UpdatedAt ?? r.CreatedAt;
+
+        List<RevenuePointDto> dailyOrMonthlyPoints;
 
         if (string.Equals(range, "year", StringComparison.OrdinalIgnoreCase))
         {
@@ -183,31 +205,48 @@ public class DashboardRepository : IDashboardRepository
                     .Where(r => Effective(r) >= monthStart && Effective(r) < monthEnd)
                     .Sum(r => r.FinalPrice);
 
-                points.Add(new RevenuePointDto { Label = monthStart.ToString("MMM yyyy"), Amount = amount });
+                points.Add(new RevenuePointDto
+                {
+                    Label = monthStart.ToString("MMM yyyy", System.Globalization.CultureInfo.InvariantCulture),
+                    Amount = amount
+                });
             }
 
-            return points;
+            dailyOrMonthlyPoints = points;
         }
-
-        int days = string.Equals(range, "week", StringComparison.OrdinalIgnoreCase) ? 6 : 29;
-        DateOnly startDay = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-days));
-        DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
-
-        List<RevenuePointDto> dailyPoints = [];
-
-        for (DateOnly day = startDay; day <= today; day = day.AddDays(1))
+        else
         {
-            decimal amount = paidRegistrations
-                .Where(r => DateOnly.FromDateTime(Effective(r)) == day)
-                .Sum(r => r.FinalPrice);
+            int days = string.Equals(range, "week", StringComparison.OrdinalIgnoreCase) ? 6 : 29;
+            DateOnly startDay = DateOnly.FromDateTime(DateTime.UtcNow.AddDays(-days));
+            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
 
-            string label = string.Equals(range, "week", StringComparison.OrdinalIgnoreCase)
-                ? day.ToString("ddd")
-                : day.ToString("dd/MM");
+            List<RevenuePointDto> points = [];
 
-            dailyPoints.Add(new RevenuePointDto { Label = label, Amount = amount });
+            for (DateOnly day = startDay; day <= today; day = day.AddDays(1))
+            {
+                decimal amount = paidRegistrations
+                    .Where(r => DateOnly.FromDateTime(Effective(r)) == day)
+                    .Sum(r => r.FinalPrice);
+
+                string label = string.Equals(range, "week", StringComparison.OrdinalIgnoreCase)
+                    ? day.ToString("ddd", System.Globalization.CultureInfo.InvariantCulture)
+                    : day.ToString("dd/MM");
+
+                points.Add(new RevenuePointDto { Label = label, Amount = amount });
+            }
+
+            dailyOrMonthlyPoints = points;
         }
 
-        return dailyPoints;
+        decimal running = 0;
+        List<RevenuePointDto> cumulative = [];
+
+        foreach (RevenuePointDto point in dailyOrMonthlyPoints)
+        {
+            running += point.Amount;
+            cumulative.Add(new RevenuePointDto { Label = point.Label, Amount = running });
+        }
+
+        return cumulative;
     }
 }

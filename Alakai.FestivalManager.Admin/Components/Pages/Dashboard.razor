@@ -1,24 +1,39 @@
 @page "/"
+@using System.Globalization
+@using System.Text
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @using Alakai.FestivalManager.Admin.Services.Api
 @inject DashboardApiClient DashboardApiClient
 @inject AnalyticsApiClient AnalyticsApiClient
 @inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
 
 <PageHeader Title="Dashboard" pTitle="Overview"></PageHeader>
 
 <div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
 
     <div class="card shadow-sm">
-        <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-            <h2 class="text-lg font-semibold text-black dark:text-white">Edition</h2>
-            <select class="form-select md:w-72" @bind="selectedEditionId" @bind:after="LoadAllAsync">
-                @foreach (EditionDto edition in editions)
-                {
-                    <option value="@edition.Id">@edition.Name</option>
-                }
-            </select>
+        <div class="flex flex-col gap-4 md:flex-row md:items-end">
+            <div class="flex-1">
+                <label class="block mb-1 text-sm font-semibold text-black dark:text-white">Festival</label>
+                <select class="form-select w-full" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+                    @foreach (FestivalDto festival in festivals)
+                    {
+                        <option value="@festival.Id">@festival.Name</option>
+                    }
+                </select>
+            </div>
+            <div class="flex-1">
+                <label class="block mb-1 text-sm font-semibold text-black dark:text-white">Edition</label>
+                <select class="form-select w-full" @bind="selectedEditionId" @bind:after="LoadAllAsync">
+                    @foreach (EditionDto edition in editionsForSelectedFestival)
+                    {
+                        <option value="@edition.Id">@edition.Name</option>
+                    }
+                </select>
+            </div>
         </div>
     </div>
 
@@ -33,138 +48,114 @@
     }
     else if (stats is not null)
     {
-        <!-- Row 1: Google Analytics KPI cards -->
+        @if (analytics is { IsAvailable: true })
+        {
+            <p class="text-xs text-black/40 dark:text-white/40">Analytics period: @analytics.DateRangeLabel</p>
+        }
+
+        <!-- Row 1: Google Analytics KPI cards, full-width sparkline below value -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
             <div class="card shadow-sm">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center w-12 h-12 rounded bg-purple/10 text-purple">
-                        <i class="ri-eye-line text-2xl"></i>
+                <MudText Class="text-muted dark:text-darkmuted">Views</MudText>
+                @if (analytics is { IsAvailable: true })
+                {
+                    <div class="flex items-center gap-3 mt-1 mb-2">
+                        <span class="text-2xl font-bold text-black dark:text-white">@analytics.Overview.TotalViews</span>
+                        @PercentBadge(analytics.Overview.TotalViewsChangePercent)
                     </div>
-                    <div>
-                        <MudText Class="text-muted dark:text-darkmuted">Views</MudText>
-                        @if (analytics is { IsAvailable: true })
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@analytics.Overview.TotalViews</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
-                        }
-                    </div>
-                </div>
+                    <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%; height:48px;">
+                        @BuildSparkline(analytics.Overview.ViewsSparkline, analytics.Overview.TotalViewsChangePercent)
+                    </svg>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
+                }
             </div>
 
             <div class="card shadow-sm">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center w-12 h-12 rounded bg-success/10 text-success">
-                        <i class="ri-user-follow-line text-2xl"></i>
+                <MudText Class="text-muted dark:text-darkmuted">Active Users</MudText>
+                @if (analytics is { IsAvailable: true })
+                {
+                    <div class="flex items-center gap-3 mt-1 mb-2">
+                        <span class="text-2xl font-bold text-black dark:text-white">@analytics.Overview.ActiveUsers</span>
+                        @PercentBadge(analytics.Overview.ActiveUsersChangePercent)
                     </div>
-                    <div>
-                        <MudText Class="text-muted dark:text-darkmuted">Active Users</MudText>
-                        @if (analytics is { IsAvailable: true })
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@analytics.Overview.ActiveUsers</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
-                        }
-                    </div>
-                </div>
+                    <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%; height:48px;">
+                        @BuildSparkline(analytics.Overview.ActiveUsersSparkline, analytics.Overview.ActiveUsersChangePercent)
+                    </svg>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
+                }
             </div>
 
             <div class="card shadow-sm">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center w-12 h-12 rounded bg-warning/10 text-warning">
-                        <i class="ri-flashlight-line text-2xl"></i>
+                <MudText Class="text-muted dark:text-darkmuted">Event Count</MudText>
+                @if (analytics is { IsAvailable: true })
+                {
+                    <div class="flex items-center gap-3 mt-1 mb-2">
+                        <span class="text-2xl font-bold text-black dark:text-white">@analytics.Overview.EventCount</span>
+                        @PercentBadge(analytics.Overview.EventCountChangePercent)
                     </div>
-                    <div>
-                        <MudText Class="text-muted dark:text-darkmuted">Event Count</MudText>
-                        @if (analytics is { IsAvailable: true })
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@analytics.Overview.EventCount</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
-                        }
-                    </div>
-                </div>
+                    <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%; height:48px;">
+                        @BuildSparkline(analytics.Overview.EventCountSparkline, analytics.Overview.EventCountChangePercent)
+                    </svg>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
+                }
             </div>
 
             <div class="card shadow-sm">
-                <div class="flex items-center gap-4">
-                    <div class="flex items-center justify-center w-12 h-12 rounded bg-info/10 text-info">
-                        <i class="ri-user-add-line text-2xl"></i>
+                <MudText Class="text-muted dark:text-darkmuted">New Users</MudText>
+                @if (analytics is { IsAvailable: true })
+                {
+                    <div class="flex items-center gap-3 mt-1 mb-2">
+                        <span class="text-2xl font-bold text-black dark:text-white">@analytics.Overview.NewUsers</span>
+                        @PercentBadge(analytics.Overview.NewUsersChangePercent)
                     </div>
-                    <div>
-                        <MudText Class="text-muted dark:text-darkmuted">New Users</MudText>
-                        @if (analytics is { IsAvailable: true })
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@analytics.Overview.NewUsers</MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
-                        }
-                    </div>
-                </div>
+                    <svg viewBox="0 0 300 50" preserveAspectRatio="none" style="width:100%; height:48px;">
+                        @BuildSparkline(analytics.Overview.NewUsersSparkline, analytics.Overview.NewUsersChangePercent)
+                    </svg>
+                }
+                else
+                {
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold text-black/30 dark:text-white/30">N/A</MudText>
+                }
             </div>
         </div>
 
         @if (analytics is { IsAvailable: false })
         {
-            <div class="card shadow-sm text-sm text-black/40 dark:text-white/40">
-                Google Analytics data is not available: @analytics.ErrorMessage
+            <div class="card shadow-sm text-sm text-danger">
+                Google Analytics error: @analytics.ErrorMessage
             </div>
         }
 
         <!-- Row 2: Revenue 50% + Top Countries 25% + Top Pages 25% -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div class="card shadow-sm md:col-span-2">
-                <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center justify-between gap-3 mb-4">
                     <h2 class="text-lg font-bold text-black dark:text-white">REVENUE</h2>
-                    <select class="form-select w-32" @bind="revenueRange" @bind:after="LoadRevenueAsync">
+                    <select class="form-select w-auto min-w-[110px]" @bind="revenueRange" @bind:after="LoadRevenueAsync">
                         <option value="week">Weekly</option>
                         <option value="month">Monthly</option>
                         <option value="year">Yearly</option>
                     </select>
                 </div>
 
-                @if (revenuePoints.Count == 0)
+                @if (ChartPoints.Count == 0)
                 {
                     <p class="text-sm text-black/40 dark:text-white/40">No revenue data.</p>
                 }
                 else
                 {
-                    decimal maxAmount = Math.Max(1, revenuePoints.Max(p => p.Amount));
-
-                    <div class="flex gap-2" style="height:180px;">
-                        <div class="flex flex-col justify-between text-xs text-black/40 dark:text-white/40">
-                            <span>@maxAmount.ToString("0")</span>
-                            <span>@((maxAmount / 2).ToString("0"))</span>
-                            <span>0</span>
-                        </div>
-                        <div class="flex items-end flex-1 gap-1 overflow-x-auto border-l border-black/10 dark:border-darkborder pl-2">
-                            @foreach (RevenuePointDto point in revenuePoints)
-                            {
-                                double heightPercent = (double)(point.Amount / maxAmount) * 100;
-
-                                <div class="flex flex-col items-center justify-end flex-1 min-w-[18px] h-full" title="@point.Label: @point.Amount.ToString("0.00") &euro;">
-                                    <div class="w-full rounded-t bg-purple" style="height:@(heightPercent)%; min-height:@(point.Amount > 0 ? 2 : 0)px;"></div>
-                                </div>
-                            }
-                        </div>
-                    </div>
-                    <div class="flex gap-2 mt-2">
-                        <div style="width:28px;"></div>
-                        <div class="flex flex-1 gap-1 overflow-x-auto">
-                            @foreach (RevenuePointDto point in revenuePoints)
-                            {
-                                <span class="flex-1 min-w-[18px] text-[10px] text-center text-black/40 dark:text-white/40">@point.Label</span>
-                            }
-                        </div>
-                    </div>
+                    <svg viewBox="0 0 800 235" preserveAspectRatio="none" style="width:100%; height:235px;">
+                        @BuildSvgContent()
+                    </svg>
                 }
             </div>
 
@@ -172,19 +163,20 @@
                 <h2 class="mb-4 text-base font-bold text-black dark:text-white">Top Countries</h2>
                 @if (analytics is { IsAvailable: true } && analytics.TopCountries.Count > 0)
                 {
-                    long maxCountryUsers = analytics.TopCountries.Max(c => c.ActiveUsers);
+                    long totalUsers = Math.Max(1, analytics.Overview.ActiveUsers);
 
                     @foreach (AnalyticsCountryStatDto country in analytics.TopCountries)
                     {
-                        double pct = maxCountryUsers == 0 ? 0 : (double)country.ActiveUsers / maxCountryUsers * 100;
+                        double pct = (double)country.ActiveUsers / totalUsers * 100;
+                        string pctWidth = pct.ToString("0.0", CultureInfo.InvariantCulture);
 
                         <div class="mb-3">
                             <div class="flex items-center justify-between mb-1">
                                 <span class="text-sm">@country.Country</span>
-                                <span class="text-sm font-semibold">@country.ActiveUsers</span>
+                                <span class="text-sm font-semibold">@country.ActiveUsers (@pct.ToString("0.#")%)</span>
                             </div>
                             <div class="w-full h-2 rounded-full bg-black/10 dark:bg-white/10">
-                                <div class="h-2 rounded-full bg-purple" style="width:@(pct)%;"></div>
+                                <div class="h-2 rounded-full bg-purple" style="width:@(pctWidth)%;"></div>
                             </div>
                         </div>
                     }
@@ -199,19 +191,20 @@
                 <h2 class="mb-4 text-base font-bold text-black dark:text-white">Top Pages</h2>
                 @if (analytics is { IsAvailable: true } && analytics.TopPages.Count > 0)
                 {
-                    long maxPageViews = analytics.TopPages.Max(p => p.Views);
+                    long totalViews = Math.Max(1, analytics.Overview.TotalViews);
 
                     @foreach (AnalyticsPageStatDto pageStat in analytics.TopPages)
                     {
-                        double pct = maxPageViews == 0 ? 0 : (double)pageStat.Views / maxPageViews * 100;
+                        double pct = (double)pageStat.Views / totalViews * 100;
+                        string pctWidth = pct.ToString("0.0", CultureInfo.InvariantCulture);
 
                         <div class="mb-3">
                             <div class="flex items-center justify-between mb-1">
                                 <span class="text-sm truncate" title="@pageStat.PagePath">@pageStat.PagePath</span>
-                                <span class="text-sm font-semibold">@pageStat.Views</span>
+                                <span class="text-sm font-semibold whitespace-nowrap">@pageStat.Views (@pct.ToString("0.#")%)</span>
                             </div>
                             <div class="w-full h-2 rounded-full bg-black/10 dark:bg-white/10">
-                                <div class="h-2 rounded-full bg-info" style="width:@(pct)%;"></div>
+                                <div class="h-2 rounded-full bg-info" style="width:@(pctWidth)%;"></div>
                             </div>
                         </div>
                     }
@@ -223,57 +216,53 @@
             </div>
         </div>
 
-        <!-- Pass type purchases summary -->
-        <div class="card shadow-sm">
-            <h2 class="mb-4 text-lg font-bold text-black dark:text-white">PASS TYPE PURCHASES</h2>
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold">PASS TYPE</th>
-                            <th class="px-4 py-3 font-semibold text-right">Purchased</th>
-                            <th class="px-4 py-3 font-semibold text-right">Fully Paid</th>
-                            <th class="px-4 py-3 font-semibold text-right">Pending</th>
-                            <th class="px-4 py-3 font-semibold text-right">Unpaid</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (stats.PassTypes.Count == 0)
-                        {
-                            <tr>
-                                <td colspan="5" class="px-4 py-4 text-center text-black/40">No pass types found for this edition.</td>
+        <!-- Pass Type Purchases + Levels per pass type: one shared grid -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">PASS TYPE PURCHASES</h2>
+                <div class="overflow-x-auto">
+                    <table class="w-full table-hover">
+                        <thead class="bg-gray-50 dark:bg-dark">
+                            <tr class="text-left">
+                                <th class="px-4 py-3 font-semibold whitespace-nowrap">PASS TYPE</th>
+                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Purchased</th>
+                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Fully Paid</th>
+                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Pending</th>
+                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Unpaid</th>
                             </tr>
-                        }
-                        else
-                        {
-                            @foreach (PassTypeStatDto passType in stats.PassTypes)
+                        </thead>
+                        <tbody>
+                            @if (stats.PassTypes.Count == 0)
                             {
-                                <tr class="border-b border-black/10 dark:border-darkborder">
-                                    <td class="px-4 py-3">@passType.PassTypeName</td>
-                                    <td class="px-4 py-3 text-right">@passType.Purchased</td>
-                                    <td class="px-4 py-3 text-right">@passType.FullyPaid</td>
-                                    <td class="px-4 py-3 text-right">@passType.PendingPayment</td>
-                                    <td class="px-4 py-3 text-right">@passType.Unpaid</td>
+                                <tr>
+                                    <td colspan="5" class="px-4 py-3 text-center text-black/40">No pass types found for this edition.</td>
                                 </tr>
                             }
-                            <tr class="font-semibold border-t-2 border-black/10 dark:border-darkborder">
-                                <td class="px-4 py-3">TOTAL</td>
-                                <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.Purchased)</td>
-                                <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.FullyPaid)</td>
-                                <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.PendingPayment)</td>
-                                <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.Unpaid)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                            else
+                            {
+                                @foreach (PassTypeStatDto passType in stats.PassTypes)
+                                {
+                                    <tr class="border-b border-black/10 dark:border-darkborder">
+                                        <td class="px-4 py-3">@passType.PassTypeName</td>
+                                        <td class="px-4 py-3 text-right">@passType.Purchased</td>
+                                        <td class="px-4 py-3 text-right">@passType.FullyPaid</td>
+                                        <td class="px-4 py-3 text-right">@passType.PendingPayment</td>
+                                        <td class="px-4 py-3 text-right">@passType.Unpaid</td>
+                                    </tr>
+                                }
+                                <tr class="font-semibold border-t-2 border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">TOTAL</td>
+                                    <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.Purchased)</td>
+                                    <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.FullyPaid)</td>
+                                    <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.PendingPayment)</td>
+                                    <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.Unpaid)</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <p class="mt-2 text-xs text-black/40 dark:text-white/40">
-                "Pending" reflects registrations with PaymentStatus = Pending. The system does not currently track true partial payments.
-            </p>
-        </div>
 
-        <!-- Levels per pass type: 2 per row (md breakpoint, not xl) -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             @foreach (PassTypeStatDto passType in stats.PassTypes)
             {
                 <div class="card shadow-sm">
@@ -282,15 +271,15 @@
                         <table class="w-full table-hover">
                             <thead class="bg-gray-50 dark:bg-dark">
                                 <tr class="text-left">
-                                    <th class="px-3 py-2 font-semibold">LEVEL</th>
-                                    <th class="px-3 py-2 font-semibold text-right">Purchased</th>
+                                    <th class="px-4 py-3 font-semibold whitespace-nowrap">LEVEL</th>
+                                    <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Purchased</th>
                                     @if (passType.HasRoleBreakdown)
                                     {
-                                        <th class="px-3 py-2 font-semibold text-right">Ind.</th>
-                                        <th class="px-3 py-2 font-semibold text-right">Foll.</th>
-                                        <th class="px-3 py-2 font-semibold text-right">Lead.</th>
-                                        <th class="px-3 py-2 font-semibold text-right">Foll. (no partner)</th>
-                                        <th class="px-3 py-2 font-semibold text-right">Lead. (no partner)</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Ind.</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Foll.</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Lead.</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Foll. S/P</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Lead. S/P</th>
                                     }
                                 </tr>
                             </thead>
@@ -298,7 +287,7 @@
                                 @if (passType.Levels.Count == 0)
                                 {
                                     <tr>
-                                        <td colspan="@(passType.HasRoleBreakdown ? 7 : 2)" class="px-3 py-4 text-center text-black/40">No data.</td>
+                                        <td colspan="@(passType.HasRoleBreakdown ? 7 : 2)" class="px-4 py-3 text-center text-black/40">No data.</td>
                                     </tr>
                                 }
                                 else
@@ -306,28 +295,28 @@
                                     @foreach (LevelStatDto level in passType.Levels)
                                     {
                                         <tr class="border-b border-black/10 dark:border-darkborder">
-                                            <td class="px-3 py-2">@level.LevelName</td>
-                                            <td class="px-3 py-2 text-right">@level.Purchased</td>
+                                            <td class="px-4 py-3">@level.LevelName</td>
+                                            <td class="px-4 py-3 text-right">@level.Purchased</td>
                                             @if (passType.HasRoleBreakdown)
                                             {
-                                                <td class="px-3 py-2 text-right">@level.Individual</td>
-                                                <td class="px-3 py-2 text-right">@level.Follower</td>
-                                                <td class="px-3 py-2 text-right">@level.Leader</td>
-                                                <td class="px-3 py-2 text-right">@level.FollowerWithoutPartner</td>
-                                                <td class="px-3 py-2 text-right">@level.LeaderWithoutPartner</td>
+                                                <td class="px-4 py-3 text-right">@level.Individual</td>
+                                                <td class="px-4 py-3 text-right">@level.Follower</td>
+                                                <td class="px-4 py-3 text-right">@level.Leader</td>
+                                                <td class="px-4 py-3 text-right">@level.FollowerWithoutPartner</td>
+                                                <td class="px-4 py-3 text-right">@level.LeaderWithoutPartner</td>
                                             }
                                         </tr>
                                     }
                                     <tr class="font-semibold border-t-2 border-black/10 dark:border-darkborder">
-                                        <td class="px-3 py-2">TOTAL</td>
-                                        <td class="px-3 py-2 text-right">@passType.Levels.Sum(l => l.Purchased)</td>
+                                        <td class="px-4 py-3">TOTAL</td>
+                                        <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Purchased)</td>
                                         @if (passType.HasRoleBreakdown)
                                         {
-                                            <td class="px-3 py-2 text-right">@passType.Levels.Sum(l => l.Individual)</td>
-                                            <td class="px-3 py-2 text-right">@passType.Levels.Sum(l => l.Follower)</td>
-                                            <td class="px-3 py-2 text-right">@passType.Levels.Sum(l => l.Leader)</td>
-                                            <td class="px-3 py-2 text-right">@passType.Levels.Sum(l => l.FollowerWithoutPartner)</td>
-                                            <td class="px-3 py-2 text-right">@passType.Levels.Sum(l => l.LeaderWithoutPartner)</td>
+                                            <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Individual)</td>
+                                            <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Follower)</td>
+                                            <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Leader)</td>
+                                            <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.FollowerWithoutPartner)</td>
+                                            <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.LeaderWithoutPartner)</td>
                                         }
                                     </tr>
                                 }
@@ -338,7 +327,7 @@
             }
         </div>
 
-        <!-- Competitions: per-level/role breakdown, no "without partner" columns + Groups -->
+        <!-- Competitions + Groups -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div class="card shadow-sm">
                 <h2 class="mb-4 text-lg font-bold text-black dark:text-white">COMPETITIONS</h2>
@@ -351,35 +340,30 @@
                     @foreach (CompetitionStatDto competition in stats.Competitions)
                     {
                         <div class="mb-4 overflow-x-auto">
+                            <p class="mb-1 text-sm font-semibold text-black dark:text-white">@competition.CompetitionName</p>
                             <table class="w-full table-hover">
-                                <thead class="text-white bg-black/80">
+                                <thead class="bg-gray-50 dark:bg-dark">
                                     <tr class="text-left">
-                                        <th class="px-3 py-2 font-semibold">@competition.CompetitionName.ToUpper()</th>
+                                        <th class="px-4 py-3 font-semibold whitespace-nowrap">LEVEL</th>
                                         @if (competition.RequiresRole)
                                         {
-                                            <th class="px-3 py-2 font-semibold text-right">Follower</th>
-                                            <th class="px-3 py-2 font-semibold text-right">Leader</th>
+                                            <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Follower</th>
+                                            <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Leader</th>
                                         }
-                                        else
-                                        {
-                                            <th class="px-3 py-2 font-semibold text-right">Total</th>
-                                        }
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Total</th>
                                     </tr>
                                 </thead>
-                                <tbody class="bg-white dark:bg-darklight">
+                                <tbody>
                                     @foreach (CompetitionLevelStatDto level in competition.Levels)
                                     {
                                         <tr class="border-b border-black/10 dark:border-darkborder">
-                                            <td class="px-3 py-2">@level.LevelLabel</td>
+                                            <td class="px-4 py-3">@level.LevelLabel</td>
                                             @if (competition.RequiresRole)
                                             {
-                                                <td class="px-3 py-2 text-right">@level.Follower</td>
-                                                <td class="px-3 py-2 text-right">@level.Leader</td>
+                                                <td class="px-4 py-3 text-right">@level.Follower</td>
+                                                <td class="px-4 py-3 text-right">@level.Leader</td>
                                             }
-                                            else
-                                            {
-                                                <td class="px-3 py-2 text-right">@level.Individual</td>
-                                            }
+                                            <td class="px-4 py-3 text-right font-semibold">@level.Total</td>
                                         </tr>
                                     }
                                 </tbody>
@@ -395,15 +379,15 @@
                     <table class="w-full table-hover">
                         <thead class="bg-gray-50 dark:bg-dark">
                             <tr class="text-left">
-                                <th class="px-4 py-3 font-semibold">Group Name</th>
-                                <th class="px-4 py-3 font-semibold text-right">Purchased</th>
+                                <th class="px-4 py-3 font-semibold whitespace-nowrap">Group Name</th>
+                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Purchased</th>
                             </tr>
                         </thead>
                         <tbody>
                             @if (stats.Groups.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="2" class="px-4 py-4 text-center text-black/40">No groups found for this edition.</td>
+                                    <td colspan="2" class="px-4 py-3 text-center text-black/40">No groups found for this edition.</td>
                                 </tr>
                             }
                             else
@@ -425,8 +409,11 @@
 </div>
 
 @code {
-    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private List<EditionDto> allEditions = [];
+    private Guid selectedFestivalId;
     private Guid selectedEditionId;
+
     private DashboardStatsDto? stats;
     private AnalyticsStatsDto? analytics;
     private List<RevenuePointDto> revenuePoints = [];
@@ -434,13 +421,30 @@
     private bool isLoading = true;
     private string? errorMessage;
 
+    private List<RevenueChartPoint> ChartPoints { get; set; } = [];
+    private decimal axisMax = 200000m;
+
+    private const double ViewBoxWidth = 800;
+    private const double LeftPadding = 50;
+    private const double RightPadding = 20;
+    private const double ChartTop = 10;
+    private const double ChartHeight = 200;
+
+    private List<EditionDto> editionsForSelectedFestival =>
+        allEditions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            editions = (await EditionApiClient.GetAllAsync()).OrderByDescending(e => e.Year).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
+            allEditions = (await EditionApiClient.GetAllAsync()).ToList();
 
-            EditionDto? defaultEdition = editions.FirstOrDefault(e => e.IsActive) ?? editions.FirstOrDefault();
+            Guid? activeFestivalId = allEditions.FirstOrDefault(e => e.IsActive)?.FestivalId;
+            selectedFestivalId = activeFestivalId ?? festivals.FirstOrDefault()?.Id ?? Guid.Empty;
+
+            EditionDto? defaultEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+                ?? editionsForSelectedFestival.FirstOrDefault();
 
             if (defaultEdition is not null)
             {
@@ -456,6 +460,24 @@
         {
             errorMessage = ex.Message;
             isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalChangedAsync()
+    {
+        EditionDto? defaultEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+            ?? editionsForSelectedFestival.FirstOrDefault();
+
+        selectedEditionId = defaultEdition?.Id ?? Guid.Empty;
+
+        if (selectedEditionId != Guid.Empty)
+        {
+            await LoadAllAsync();
+        }
+        else
+        {
+            stats = null;
+            analytics = null;
         }
     }
 
@@ -475,19 +497,14 @@
         {
             stats = await DashboardApiClient.GetStatsAsync(selectedEditionId);
 
-            EditionDto? edition = editions.FirstOrDefault(e => e.Id == selectedEditionId);
+            EditionDto? edition = allEditions.FirstOrDefault(e => e.Id == selectedEditionId);
 
             if (edition is not null)
             {
-                DateOnly start = DateOnly.FromDateTime(edition.RegistrationOpenDate ?? edition.StartDate);
                 DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
-                DateOnly editionEnd = DateOnly.FromDateTime(edition.EndDate);
-                DateOnly end = editionEnd < today ? editionEnd : today;
-
-                if (end < start)
-                {
-                    end = start;
-                }
+                DateOnly candidateStart = DateOnly.FromDateTime(edition.RegistrationOpenDate ?? edition.StartDate);
+                DateOnly start = candidateStart > today ? today.AddDays(-30) : candidateStart;
+                DateOnly end = today;
 
                 analytics = await AnalyticsApiClient.GetAnalyticsAsync(start, end);
             }
@@ -514,10 +531,166 @@
         try
         {
             revenuePoints = await DashboardApiClient.GetRevenueAsync(selectedEditionId, revenueRange);
+            BuildChartGeometry();
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
         }
     }
+
+    private void BuildChartGeometry()
+    {
+        ChartPoints = [];
+
+        if (revenuePoints.Count == 0)
+        {
+            axisMax = 200000m;
+            return;
+        }
+
+        decimal rawMax = revenuePoints.Max(p => p.Amount);
+        decimal rounded = rawMax <= 0 ? 0 : Math.Ceiling(rawMax / 50000m) * 50000m;
+        axisMax = Math.Max(200000m, rounded);
+
+        double plotWidth = ViewBoxWidth - LeftPadding - RightPadding;
+        int count = revenuePoints.Count;
+
+        for (int i = 0; i < count; i++)
+        {
+            double x = count <= 1
+                ? LeftPadding + (plotWidth / 2)
+                : LeftPadding + (i * (plotWidth / (count - 1)));
+
+            double ratio = axisMax == 0 ? 0 : (double)(revenuePoints[i].Amount / axisMax);
+            double y = ChartTop + ((1 - ratio) * ChartHeight);
+
+            ChartPoints.Add(new RevenueChartPoint
+            {
+                X = x,
+                Y = y,
+                Label = revenuePoints[i].Label,
+                Amount = revenuePoints[i].Amount
+            });
+        }
+    }
+
+    private string PolylinePoints =>
+        string.Join(" ", ChartPoints.Select(p => $"{p.X.ToString(CultureInfo.InvariantCulture)},{p.Y.ToString(CultureInfo.InvariantCulture)}"));
+
+    private int LabelStep => ChartPoints.Count <= 10 ? 1 : (int)Math.Ceiling(ChartPoints.Count / 10.0);
+
+    private List<(double Y, decimal Value)> GridLines
+    {
+        get
+        {
+            List<(double Y, decimal Value)> lines = [];
+
+            for (int g = 0; g <= 4; g++)
+            {
+                double y = ChartTop + (g * ChartHeight / 4.0);
+                decimal value = axisMax - (axisMax * g / 4m);
+                lines.Add((y, value));
+            }
+
+            return lines;
+        }
+    }
+
+    private MarkupString BuildSvgContent()
+    {
+        StringBuilder sb = new();
+
+        foreach ((double Y, decimal Value) line in GridLines)
+        {
+            string y = line.Y.ToString(CultureInfo.InvariantCulture);
+            string width = ViewBoxWidth.ToString(CultureInfo.InvariantCulture);
+            string labelY = (line.Y + 4).ToString(CultureInfo.InvariantCulture);
+            string value = line.Value.ToString("0", CultureInfo.InvariantCulture);
+
+            sb.Append($"<line x1=\"{LeftPadding.ToString(CultureInfo.InvariantCulture)}\" y1=\"{y}\" x2=\"{width}\" y2=\"{y}\" stroke=\"#e5e7eb\" stroke-dasharray=\"4,4\" stroke-width=\"1\" vector-effect=\"non-scaling-stroke\" />");
+            sb.Append($"<text x=\"0\" y=\"{labelY}\" font-size=\"11\" fill=\"#9ca3af\">{value}</text>");
+        }
+
+        if (ChartPoints.Count > 1)
+        {
+            sb.Append($"<polyline points=\"{PolylinePoints}\" fill=\"none\" stroke=\"#7c3aed\" stroke-width=\"2\" vector-effect=\"non-scaling-stroke\" />");
+        }
+
+        for (int i = 0; i < ChartPoints.Count; i++)
+        {
+            RevenueChartPoint point = ChartPoints[i];
+            string x = point.X.ToString(CultureInfo.InvariantCulture);
+            string y = point.Y.ToString(CultureInfo.InvariantCulture);
+            string amount = point.Amount.ToString("0.00", CultureInfo.InvariantCulture);
+            string label = System.Net.WebUtility.HtmlEncode(point.Label);
+
+            sb.Append($"<circle cx=\"{x}\" cy=\"{y}\" r=\"3.5\" fill=\"#7c3aed\" vector-effect=\"non-scaling-stroke\"><title>{label}: {amount} &#8364;</title></circle>");
+
+            if (i % LabelStep == 0)
+            {
+                sb.Append($"<text x=\"{x}\" y=\"225\" font-size=\"11\" fill=\"#9ca3af\" text-anchor=\"middle\">{label}</text>");
+            }
+        }
+
+        return new MarkupString(sb.ToString());
+    }
+
+    private static MarkupString BuildSparkline(List<long> values, decimal? changePercent)
+    {
+        if (values is null || values.Count < 2)
+        {
+            return new MarkupString(string.Empty);
+        }
+
+        // Color follows the same sign as the percent-change badge: green for growth,
+        // red for decline, neutral gray when there is no previous-period baseline to compare against.
+        string color = changePercent switch
+        {
+            > 0 => "#16a34a",
+            < 0 => "#dc2626",
+            _ => "#9ca3af"
+        };
+
+        long max = Math.Max(1, values.Max());
+        double stepX = 300.0 / (values.Count - 1);
+
+        StringBuilder points = new();
+
+        for (int i = 0; i < values.Count; i++)
+        {
+            double x = i * stepX;
+            double y = 46 - ((double)values[i] / max * 40);
+            points.Append(x.ToString(CultureInfo.InvariantCulture));
+            points.Append(',');
+            points.Append(y.ToString(CultureInfo.InvariantCulture));
+            points.Append(' ');
+        }
+
+        return new MarkupString($"<polyline points=\"{points.ToString().Trim()}\" fill=\"none\" stroke=\"{color}\" stroke-width=\"2\" vector-effect=\"non-scaling-stroke\" />");
+    }
+
+    private static MarkupString PercentBadge(decimal? percent)
+    {
+        if (percent is null)
+        {
+            return new MarkupString(string.Empty);
+        }
+
+        bool isPositive = percent.Value >= 0;
+        string colorClass = isPositive ? "bg-success/10 text-success" : "bg-danger/10 text-danger";
+        string arrow = isPositive ? "+" : "";
+        string text = $"{arrow}{percent.Value.ToString("0.#", CultureInfo.InvariantCulture)}%";
+
+        return new MarkupString($"<span class=\"inline-block rounded-full px-2 py-0.5 text-xs font-semibold {colorClass}\">{text}</span>");
+    }
+
+    private class RevenueChartPoint
+    {
+        public double X { get; set; }
+        public double Y { get; set; }
+        public string Label { get; set; } = string.Empty;
+        public decimal Amount { get; set; }
+    }
 }
+

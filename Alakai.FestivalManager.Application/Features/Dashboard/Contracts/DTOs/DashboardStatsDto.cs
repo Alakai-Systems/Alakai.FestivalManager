@@ -30,17 +30,15 @@ public class GroupStatDto
     public int Purchased { get; set; }
 }
 
-/// <summary>
-/// Breakdown of a competition's entries by capacity level (e.g. Open / Advanced
-/// for Mix &amp; Match). For competitions without levels (e.g. Solo Jazz), a single
-/// entry with LevelLabel = "All" is returned.
-/// </summary>
 public class CompetitionLevelStatDto
 {
     public string LevelLabel { get; set; } = string.Empty;
     public int Individual { get; set; }
     public int Follower { get; set; }
     public int Leader { get; set; }
+
+    /// <summary>Follower + Leader combined (or Individual, for formats without roles).</summary>
+    public int Total { get; set; }
 }
 
 public class CompetitionStatDto

@@ -44,6 +44,7 @@ public class CompetitionLevelStatDto
     public int Individual { get; set; }
     public int Follower { get; set; }
     public int Leader { get; set; }
+    public int Total { get; set; }
 }
 
 public class CompetitionStatDto
