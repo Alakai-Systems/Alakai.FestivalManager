@@ -1,4 +1,7 @@
-﻿@inject IJSRuntime JsRuntime
+@implements IDisposable
+@inject IJSRuntime JsRuntime
+@inject UserApiClient UserApiClient
+@inject UserProfileState UserProfileState
 
 <!-- Start Topbar -->
 <div class="bg-white dark:bg-darklight dark:border-darkborder flex gap-4 lg:z-10 items-center justify-between px-4 h-[60px] border-b border-black/10 detached-topbar relative">
@@ -6,13 +9,6 @@
         <button type="button" class="flex items-center justify-center text-black dark:text-white/80" @onclick="ToggleSidebar">
             <i class="ri-menu-2-line"></i>
         </button>
-
-        <div class="relative hidden min-[420px]:block w-[180px] md:w-[350px]">
-            <input type="text" id="search" class="border-black/10 dark:text-white/80 dark:placeholder:text-white/30 dark:border-darkborder dark:bg-dark dark:focus:border-white/30 focus:border-black/30 placeholder:text-black/50 border text-black text-sm rounded block w-full ltr:pl-3 rtl:pr-3 ltr:pr-9 rtl:pl-9 h-10 bg-[#f9fbfd] focus:ring-0 focus:outline-0" placeholder="Search..." />
-            <button type="button" class="absolute inset-y-0 flex items-center text-black/60 ltr:right-0 rtl:left-0 ltr:pr-3 rtl:pl-3 dark:text-white/80">
-                <i class="ri-search-line text-base leading-none"></i>
-            </button>
-        </div>
     </div>
 
     <div class="flex items-center gap-4">
@@ -20,36 +16,100 @@
             <i class="ri-fullscreen-line text-xl leading-none"></i>
         </button>
 
-        <button type="button" class="text-black dark:text-white/80" @onclick="ToggleMode">
-            @if (Mode == "light")
-            {
-                <i class="ri-moon-line text-xl leading-none"></i>
-            }
-            else
-            {
-                <i class="ri-sun-line text-xl leading-none"></i>
-            }
-        </button>
+        <div>
+            <a href="javascript:;" class="text-black dark:text-white/80" x-cloak x-show="$store.app.mode === 'light'" x-on:click="$store.app.toggleMode('dark')">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5">
+                    <path d="M10 7C10 10.866 13.134 14 17 14C18.9584 14 20.729 13.1957 21.9995 11.8995C22 11.933 22 11.9665 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C12.0335 2 12.067 2 12.1005 2.00049C10.8043 3.27098 10 5.04157 10 7ZM4 12C4 16.4183 7.58172 20 12 20C15.0583 20 17.7158 18.2839 19.062 15.7621C18.3945 15.9187 17.7035 16 17 16C12.0294 16 8 11.9706 8 7C8 6.29648 8.08133 5.60547 8.2379 4.938C5.71611 6.28423 4 8.9417 4 12Z" fill="currentColor"></path>
+                </svg>
+            </a>
+            <a href="javascript:;" class="text-black dark:text-white/80" x-cloak x-show="$store.app.mode === 'dark'" x-on:click="$store.app.toggleMode('light')">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5">
+                    <path d="M12 18C8.68629 18 6 15.3137 6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12C18 15.3137 15.3137 18 12 18ZM12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16ZM11 1H13V4H11V1ZM11 20H13V23H11V20ZM3.51472 4.92893L4.92893 3.51472L7.05025 5.63604L5.63604 7.05025L3.51472 4.92893ZM16.9497 18.364L18.364 16.9497L20.4853 19.0711L19.0711 20.4853L16.9497 18.364ZM19.0711 3.51472L20.4853 4.92893L18.364 7.05025L16.9497 5.63604L19.0711 3.51472ZM5.63604 16.9497L7.05025 18.364L4.92893 20.4853L3.51472 19.0711L5.63604 16.9497ZM23 11V13H20V11H23ZM4 11V13H1V11H4Z" fill="currentColor"></path>
+                </svg>
+            </a>
+        </div>
 
-        <button type="button" class="text-black dark:text-white/80">
+        <a href="/settings" class="text-black dark:text-white/80">
             <i class="ri-settings-3-line text-xl leading-none"></i>
-        </button>
+        </a>
 
-        <button type="button" class="relative text-black dark:text-white/80">
-            <i class="ri-notification-3-line text-xl leading-none"></i>
-            <span class="absolute w-2 h-2 border border-white rounded-full -top-px ltr:right-px rtl:left-px bg-purple"></span>
-        </button>
+        <div class="relative" x-data="{ profileOpen: false }" x-on:click.outside="profileOpen = false">
+            <button type="button" class="flex items-center gap-1.5 xl:gap-0 dark:text-white/80" x-on:click="profileOpen = !profileOpen">
+                @if (!string.IsNullOrWhiteSpace(UserProfileState.PhotoUrl))
+                {
+                    <img src="@UserProfileState.PhotoUrl" alt="Header Avatar" class="object-cover rounded-full h-7 w-7 ltr:xl:mr-2 rtl:xl:ml-2" />
+                }
+                else
+                {
+                    <span class="flex items-center justify-center rounded-full h-7 w-7 ltr:xl:mr-2 rtl:xl:ml-2 bg-purple/10 text-purple"><i class="ri-user-3-fill text-base leading-none"></i></span>
+                }
+                <span class="hidden fw-medium xl:block dark:text-white/80">@DisplayName</span>
+                <i class="ri-arrow-down-s-line hidden xl:block text-lg leading-none"></i>
+            </button>
 
-        <div class="flex items-center gap-1.5 xl:gap-0 dark:text-white/80">
-            <img class="rounded-full h-7 w-7 ltr:xl:mr-2 rtl:xl:ml-2" src="assets/images/user.png" alt="Header Avatar" />
-            <span class="hidden fw-medium xl:block dark:text-white/80">Alakai Admin</span>
-            <i class="ri-arrow-down-s-line hidden xl:block text-lg leading-none"></i>
+            <div x-show="profileOpen" x-cloak class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-darklight border border-black/10 dark:border-darkborder rounded-lg shadow-lg py-2 z-30">
+                <a href="/profile" class="flex items-center gap-2 px-4 py-2 text-sm text-black hover:bg-light dark:text-white/80 dark:hover:bg-dark">
+                    <i class="ri-user-3-line"></i>
+                    Profile
+                </a>
+                <form method="post" action="/account/logout" data-enhance-nav="false">
+                    <AntiforgeryToken />
+                    <button type="submit" class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-danger hover:bg-light dark:hover:bg-dark">
+                        <i class="ri-logout-box-line"></i>
+                        Logout
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>
 <!-- End Topbar -->
 @code {
-    private string Mode { get; set; } = "light";
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private string DisplayName { get; set; } = "Admin";
+    private Guid _currentUserId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        UserProfileState.OnChange += HandleProfileChanged;
+
+        if (AuthenticationStateTask is not null)
+        {
+            AuthenticationState authState = await AuthenticationStateTask;
+            string? email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+
+            if (!string.IsNullOrWhiteSpace(email))
+            {
+                DisplayName = email;
+            }
+
+            if (Guid.TryParse(idClaim, out Guid userId))
+            {
+                _currentUserId = userId;
+            }
+        }
+
+        if (!UserProfileState.IsLoaded && _currentUserId != Guid.Empty)
+        {
+            try
+            {
+                UserDto user = await UserApiClient.GetByIdAsync(_currentUserId);
+                UserProfileState.SetPhoto(user.PhotoUrl);
+            }
+            catch
+            {
+                // Non-critical: fall back to the generic icon if this fails.
+            }
+        }
+    }
+
+    private void HandleProfileChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
 
     private async Task ToggleFullScreen()
     {
@@ -61,9 +121,8 @@
         await JsRuntime.InvokeVoidAsync("toggleSidebar");
     }
 
-    private async Task ToggleMode()
+    public void Dispose()
     {
-        Mode = Mode == "light" ? "dark" : "light";
-        await JsRuntime.InvokeVoidAsync("setBodyClass", Mode);
+        UserProfileState.OnChange -= HandleProfileChanged;
     }
 }

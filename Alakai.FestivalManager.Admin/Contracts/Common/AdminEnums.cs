@@ -83,3 +83,11 @@ public enum DiscountType
     Percentage = 2
 }
 
+
+public enum AdminUserRole
+{
+    SuperAdmin = 1,
+    Admin = 2,
+    User = 3
+}
+

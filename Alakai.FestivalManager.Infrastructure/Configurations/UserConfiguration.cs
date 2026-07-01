@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
 public class UserConfiguration : IEntityTypeConfiguration<User>
 {
@@ -31,6 +31,9 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
 
         builder.Property(u => u.City)
             .HasMaxLength(100);
+
+        builder.Property(u => u.PhotoUrl)
+            .HasMaxLength(500);
 
         builder.Property(u => u.PasswordResetToken);
 

@@ -46,3 +46,13 @@ global using System.Text.Json;
 global using Alakai.FestivalManager.Admin.Contracts.UserPanel.Requests;
 global using Radzen;
 global using Radzen.Blazor;
+
+global using Alakai.FestivalManager.Admin.Endpoints;
+global using Microsoft.AspNetCore.Authentication;
+global using Microsoft.AspNetCore.Authentication.Cookies;
+global using Microsoft.AspNetCore.Authorization;
+global using Microsoft.AspNetCore.Mvc;
+global using System.Security.Claims;
+
+
+global using Alakai.FestivalManager.Admin.Services;

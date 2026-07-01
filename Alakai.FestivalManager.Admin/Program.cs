@@ -13,6 +13,25 @@ builder.Services.AddRadzenComponents();
 builder.Services.AddMudServices();
 builder.Services.AddApiClients(builder.Configuration);
 
+builder.Services.AddCascadingAuthenticationState();
+
+builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.Cookie.Name = "AlakaiAdminAuth";
+        options.LoginPath = "/login";
+        options.AccessDeniedPath = "/login";
+        options.ExpireTimeSpan = TimeSpan.FromDays(7);
+        options.SlidingExpiration = true;
+    });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminAccess", policy => policy.RequireRole("SuperAdmin", "Admin"));
+    options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole("SuperAdmin"));
+
+});
+
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
@@ -24,9 +43,15 @@ if (!app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
+app.UseAuthentication();
+app.UseAuthorization();
+
 app.UseAntiforgery();
 
-app.MapStaticAssets();
+app.MapStaticAssets().AllowAnonymous();
+
+app.MapAdminAuthEndpoints();
+
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Admin.Services.Auth;
+namespace Alakai.FestivalManager.Admin.Services.Auth;
 
 public class AuthApiClient : IAuthApiClient
 {
@@ -85,9 +85,9 @@ public class AuthApiClient : IAuthApiClient
             ?? response?.Message
             ?? "Password could not be reset.");
     }
-    public async Task<bool> ChangePasswordAsync(string currentPassword, string newPassword)
+    public async Task<bool> ChangePasswordAsync(string currentPassword, string newPassword, string? accessToken = null)
     {
-        string? token = await _tokenStorageService.GetTokenAsync();
+        string? token = accessToken ?? await _tokenStorageService.GetTokenAsync();
 
         if (string.IsNullOrWhiteSpace(token))
         {
@@ -105,5 +105,30 @@ public class AuthApiClient : IAuthApiClient
             });
 
         return httpResponse.IsSuccessStatusCode;
+    }
+
+    public async Task<AuthResultDto?> RefreshTokenAsync(string accessToken, string refreshToken, CancellationToken cancellationToken = default)
+    {
+        RefreshTokenRequest request = new()
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken
+        };
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/auth/refresh-token", request, cancellationToken);
+
+        if (!httpResponse.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        ApiResponse<RefreshTokenResponse>? response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<RefreshTokenResponse>>(cancellationToken);
+
+        if (response?.Success is not true || response.Data?.Auth is null)
+        {
+            return null;
+        }
+
+        return response.Data.Auth;
     }
 }

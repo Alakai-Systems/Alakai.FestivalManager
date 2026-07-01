@@ -1,0 +1,56 @@
+@page "/login"
+@layout AuthLayout
+@attribute [AllowAnonymous]
+
+@using Alakai.FestivalManager.Admin.Components.Layout
+
+<PageTitle>Admin Sign In</PageTitle>
+
+<div class="min-h-[calc(100vh-134px)] py-4 px-4 sm:px-12 flex justify-center items-center max-w-[1440px] mx-auto bg-light/60 dark:bg-dark">
+    <div class="max-w-[550px] flex-none w-full bg-white border border-black/10 p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-darkborder">
+        <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Admin Sign In</MudText>
+        <MudText Class="text-center text-muted mb-7 dark:text-darkmuted">Enter your admin credentials to access the dashboard.</MudText>
+
+        @if (!string.IsNullOrWhiteSpace(Error))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">
+                @ErrorMessage
+            </div>
+        }
+
+        <form method="post" action="/account/login" data-enhance-nav="false" class="space-y-4">
+            <AntiforgeryToken />
+            <input type="hidden" name="returnUrl" value="@ReturnUrl" />
+
+            <div>
+                <input name="email" type="email" placeholder="Email" class="form-input" required />
+            </div>
+
+            <div>
+                <input name="password" type="password" placeholder="Password" class="form-input" required />
+            </div>
+
+            <div class="ltr:text-right rtl:text-left">
+                <MudLink Href="/forgot-password" Class="text-black dark:text-white">Forgot Password?</MudLink>
+            </div>
+
+            <button type="submit" class="btn w-full py-3.5 text-base bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">
+                Sign In
+            </button>
+        </form>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "error")]
+    public string? Error { get; set; }
+
+    [SupplyParameterFromQuery(Name = "returnUrl")]
+    public string? ReturnUrl { get; set; }
+
+    private string ErrorMessage => Error switch
+    {
+        "forbidden" => "This account does not have access to the admin panel.",
+        _ => "Invalid email or password."
+    };
+}

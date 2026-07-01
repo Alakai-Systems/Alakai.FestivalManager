@@ -139,7 +139,7 @@
         <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
             <div class="card shadow-sm md:col-span-2">
                 <div class="flex items-center justify-between gap-3 mb-4">
-                    <h2 class="text-lg font-bold text-black dark:text-white">REVENUE</h2>
+                    <h2 class="text-lg font-bold text-black dark:text-white">Revenue</h2>
                     <select class="form-select w-auto min-w-[110px]" @bind="revenueRange" @bind:after="LoadRevenueAsync">
                         <option value="week">Weekly</option>
                         <option value="month">Monthly</option>
@@ -219,7 +219,7 @@
         <!-- Pass Type Purchases + Levels per pass type: one shared grid -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div class="card shadow-sm">
-                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">PASS TYPE PURCHASES</h2>
+                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">Pass Type Purchases</h2>
                 <div class="overflow-x-auto">
                     <table class="w-full table-hover">
                         <thead class="bg-gray-50 dark:bg-dark">
@@ -275,11 +275,10 @@
                                     <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Purchased</th>
                                     @if (passType.HasRoleBreakdown)
                                     {
-                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Ind.</th>
-                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Foll.</th>
-                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Lead.</th>
-                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Foll. S/P</th>
-                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Lead. S/P</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Followers</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Leaders</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Foll. W/P</th>
+                                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Lead. W/P</th>
                                     }
                                 </tr>
                             </thead>
@@ -299,7 +298,6 @@
                                             <td class="px-4 py-3 text-right">@level.Purchased</td>
                                             @if (passType.HasRoleBreakdown)
                                             {
-                                                <td class="px-4 py-3 text-right">@level.Individual</td>
                                                 <td class="px-4 py-3 text-right">@level.Follower</td>
                                                 <td class="px-4 py-3 text-right">@level.Leader</td>
                                                 <td class="px-4 py-3 text-right">@level.FollowerWithoutPartner</td>
@@ -312,7 +310,6 @@
                                         <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Purchased)</td>
                                         @if (passType.HasRoleBreakdown)
                                         {
-                                            <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Individual)</td>
                                             <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Follower)</td>
                                             <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.Leader)</td>
                                             <td class="px-4 py-3 text-right">@passType.Levels.Sum(l => l.FollowerWithoutPartner)</td>
@@ -325,12 +322,8 @@
                     </div>
                 </div>
             }
-        </div>
-
-        <!-- Competitions + Groups -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div class="card shadow-sm">
-                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">COMPETITIONS</h2>
+                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">Competitions</h2>
                 @if (stats.Competitions.Count == 0)
                 {
                     <p class="text-sm text-black/40 dark:text-white/40">No competitions found for this edition.</p>
@@ -372,9 +365,13 @@
                     }
                 }
             </div>
+        </div>
+
+        <!-- Competitions + Groups -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
 
             <div class="card shadow-sm">
-                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">GROUPS</h2>
+                <h2 class="mb-4 text-lg font-bold text-black dark:text-white">Groups</h2>
                 <div class="overflow-x-auto">
                     <table class="w-full table-hover">
                         <thead class="bg-gray-50 dark:bg-dark">
@@ -693,6 +690,7 @@
         public decimal Amount { get; set; }
     }
 }
+
 
 
 

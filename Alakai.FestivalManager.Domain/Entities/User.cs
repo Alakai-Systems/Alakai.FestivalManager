@@ -8,6 +8,7 @@ public class User : BaseEntity
     public string? Phone { get; set; }
     public string? Country { get; set; }
     public string? City { get; set; }
+    public string? PhotoUrl { get; set; }
     public string PasswordHash { get; set; } = string.Empty;
     public UserRole Role { get; set; } = UserRole.User;
     public DateTime? LastLoginAt { get; set; }

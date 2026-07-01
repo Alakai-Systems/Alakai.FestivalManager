@@ -43,6 +43,14 @@ public class UserApiClient
         EnsureSuccess(httpResponse, response);
     }
 
+    public async Task CreateAdminAsync(CreateAdminUserRequest request, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/users/admins", request, cancellationToken);
+        ApiResponse<CreateUserResponse>? response = await ReadResponseAsync<CreateUserResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+    }
+
     public async Task UpdateAsync(Guid id, UpdateUserRequest request, CancellationToken cancellationToken = default)
     {
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/users/{id}", request, cancellationToken);

@@ -35,6 +35,12 @@ public class UsersController : ControllerBase
         return Ok(await _userService.CreateAsync(command, cancellationToken));
     }
 
+    [HttpPost("admins")]
+    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await _userService.CreateAdminAsync(command, cancellationToken));
+    }
+
     [HttpPut("{id:guid}")]
     public async Task<ActionResult<ApiResponse<UpdateUserResponse>>> Update(Guid id, [FromBody] UpdateUserCommand command, CancellationToken cancellationToken)
     {

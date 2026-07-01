@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
+
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
 {
@@ -59,6 +61,7 @@ public static class ApplicationDependencyInjectionExtension
 
         //Users
         services.AddScoped<CreateUserHandler>();
+        services.AddScoped<CreateAdminUserHandler>();
         services.AddScoped<GetUserByIdHandler>();
         services.AddScoped<GetUsersHandler>();
         services.AddScoped<GetUserByEmailHandler>();

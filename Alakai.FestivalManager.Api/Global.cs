@@ -94,3 +94,4 @@ global using Alakai.FestivalManager.Application.Features.Files.Services;
 global using Alakai.FestivalManager.Application.Features.Dashboard.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Dashboard.Services;
 global using Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;

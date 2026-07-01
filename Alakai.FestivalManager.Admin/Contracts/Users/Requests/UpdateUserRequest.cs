@@ -8,6 +8,8 @@ public class UpdateUserRequest
     public string? Phone { get; set; }
     public string? Country { get; set; }
     public string? City { get; set; }
+    public string? PhotoUrl { get; set; }
     public bool MustChangePassword { get; set; }
     public bool IsActive { get; set; }
+    public int Role { get; set; }
 }

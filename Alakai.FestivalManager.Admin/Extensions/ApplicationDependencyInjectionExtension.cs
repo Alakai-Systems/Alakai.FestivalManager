@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApiCLientsDependencyInjectionExtension
 {
@@ -130,6 +130,10 @@ public static class ApiCLientsDependencyInjectionExtension
         });
 
         services.AddScoped<ITokenStorageService, TokenStorageService>();
+
+        services.AddScoped<UserProfileState>();
+
+        services.AddScoped<IAdminTokenProvider, AdminTokenProvider>();
 
         services.AddScoped<ProtectedLocalStorage>();
 
