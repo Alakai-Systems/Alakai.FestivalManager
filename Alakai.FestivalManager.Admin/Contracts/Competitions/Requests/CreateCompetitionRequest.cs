@@ -12,5 +12,6 @@ public class CreateCompetitionRequest
     public DateTime? RegistrationOpenAt { get; set; }
     public DateTime? RegistrationCloseAt { get; set; }
     public int SortOrder { get; set; }
+    public IReadOnlyList<string> LevelNames { get; set; } = [];
     public IReadOnlyList<CreateCompetitionCapacityRequest> Capacities { get; set; } = [];
 }

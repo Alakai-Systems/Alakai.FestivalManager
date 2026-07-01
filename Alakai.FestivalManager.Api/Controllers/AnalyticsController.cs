@@ -12,9 +12,14 @@ public class AnalyticsController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] DateOnly startDate, [FromQuery] DateOnly endDate, CancellationToken cancellationToken)
+    public async Task<IActionResult> Get([FromQuery] Guid festivalId, [FromQuery] DateOnly startDate, [FromQuery] DateOnly endDate, CancellationToken cancellationToken)
     {
-        ApiResponse<AnalyticsStatsDto> response = await _analyticsService.GetAnalyticsAsync(startDate, endDate, cancellationToken);
+        if (festivalId == Guid.Empty)
+        {
+            return BadRequest(new { error = "festivalId is required." });
+        }
+
+        ApiResponse<AnalyticsStatsDto> response = await _analyticsService.GetAnalyticsAsync(festivalId, startDate, endDate, cancellationToken);
 
         return Ok(response);
     }

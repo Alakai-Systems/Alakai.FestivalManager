@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Admin.Contracts.Common;
+﻿namespace Alakai.FestivalManager.Admin.Contracts.Common;
 
 public enum DanceRole
 {
@@ -9,17 +9,12 @@ public enum DanceRole
 
 public enum CompetitionFormat
 {
-    SoloJazz = 1,
-    MixAndMatch = 2,
-    Strictly = 3
+    Individual = 1,
+    Partnered = 2,
+    Team = 3
 }
 
 
-public enum MixAndMatchLevel
-{
-    Open = 1,
-    Advanced = 2
-}
 
 public enum CompetitionEntryStatus
 {
@@ -87,3 +82,4 @@ public enum DiscountType
     FixedAmount = 1,
     Percentage = 2
 }
+

@@ -32,16 +32,11 @@ public class CompetitionCapacityRepository : ICompetitionCapacityRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<CompetitionCapacity?> GetByCompetitionLevelAndRoleAsync(Guid competitionId, MixAndMatchLevel? mixAndMatchLevel, DanceRole danceRole, CancellationToken cancellationToken = default)
-    {
-        return await _context.CompetitionCapacities.FirstOrDefaultAsync(c => c.CompetitionId == competitionId && c.MixAndMatchLevel == mixAndMatchLevel && c.DanceRole == danceRole && c.IsActive, cancellationToken);
-    }
-
     public async Task<IReadOnlyList<CompetitionCapacity>> GetByCompetitionIdsAsync(IReadOnlyList<Guid> competitionIds, CancellationToken cancellationToken = default)
     {
         return await _context.CompetitionCapacities
             .Where(c => competitionIds.Contains(c.CompetitionId) && c.IsActive)
-            .OrderBy(c => c.MixAndMatchLevel)
+            .OrderBy(c => c.SortOrder)
             .ToListAsync(cancellationToken);
     }
 

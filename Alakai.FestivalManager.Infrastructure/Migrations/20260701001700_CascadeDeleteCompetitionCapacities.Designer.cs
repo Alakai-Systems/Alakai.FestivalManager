@@ -4,6 +4,7 @@ using Alakai.FestivalManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    partial class FestivalManagerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260701001700_CascadeDeleteCompetitionCapacities")]
+    partial class CascadeDeleteCompetitionCapacities
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -513,10 +516,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("GoogleAnalyticsPropertyId")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");

@@ -7,6 +7,7 @@ public class CompetitionDto
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CompetitionFormat Format { get; set; }
+    public IReadOnlyList<CompetitionLevelDto> Levels { get; set; } = [];
     public IReadOnlyList<CompetitionCapacityDto> Capacities { get; set; } = [];
     public bool RequiresPartner { get; set; }
     public bool RequiresRole { get; set; }
@@ -18,4 +19,3 @@ public class CompetitionDto
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
-

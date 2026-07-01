@@ -13,5 +13,6 @@ public class UpdateCompetitionRequest
     public DateTime? RegistrationCloseAt { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+    public IReadOnlyList<string> LevelNames { get; set; } = [];
     public IReadOnlyList<UpdateCompetitionCapacityRequest> Capacities { get; set; } = [];
 }

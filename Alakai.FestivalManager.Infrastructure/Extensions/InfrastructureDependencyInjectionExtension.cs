@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Extensions;
+namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
 public static class InfrastructureDependencyInjectionExtension
 {
@@ -17,6 +17,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<ICompetitionRepository, CompetitionRepository>();
         services.AddScoped<ICompetitionEntryRepository, CompetitionEntryRepository>();
         services.AddScoped<ICompetitionCapacityRepository, CompetitionCapacityRepository>();
+        services.AddScoped<ICompetitionLevelRepository, CompetitionLevelRepository>();
         services.AddScoped<IEmailTemplateRepository, EmailTemplateRepository>();
         services.AddScoped<IEmailLogRepository, EmailLogRepository>();
         services.AddScoped<IEmailLayoutRepository, EmailLayoutRepository>();

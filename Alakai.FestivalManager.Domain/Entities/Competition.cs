@@ -24,4 +24,6 @@ public class Competition : BaseEntity
 
     public ICollection<CompetitionCapacity> Capacities { get; set; } = [];
     public ICollection<CompetitionEntry> Entries { get; set; } = [];
+    public ICollection<CompetitionLevel> Levels { get; set; } = [];
 }
+

@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
+﻿namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
 
 public class CreateCompetitionEntryHandler
 {
@@ -68,7 +68,6 @@ public class CreateCompetitionEntryHandler
         entry.IsActive = true;
         entry.CompetitionCapacityId = capacity.Id;
         entry.DanceRole = capacity.DanceRole;
-        entry.MixAndMatchLevel = capacity.MixAndMatchLevel;
 
         await _competitionEntryRepository.AddAsync(entry, cancellationToken);
         await _competitionEntryRepository.SaveChangesAsync(cancellationToken);
@@ -78,3 +77,5 @@ public class CreateCompetitionEntryHandler
         return dto;
     }
 }
+
+

@@ -11,6 +11,8 @@
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
 
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-64" placeholder="Search name or email..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
                 <select class="form-select md:w-56" @bind="competitionFilter" @bind:after="ResetPage">
                     <option value="@Guid.Empty">All competitions</option>
                     @foreach (CompetitionDto competition in competitions)
@@ -128,6 +130,42 @@
 
                 <div class="p-5 space-y-4">
                     <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Competition</label>
+                        <select class="form-select" @bind="editModel.CompetitionId" @bind:after="OnEditCompetitionChanged">
+                            @foreach (CompetitionDto competition in competitions)
+                            {
+                                <option value="@competition.Id">@competition.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (EditSelectedCompetitionHasLevels)
+                    {
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Level</label>
+                            <select class="form-select" @bind="editModel.SelectedLevelId">
+                                <option value="@Guid.Empty">Select level</option>
+                                @foreach (CompetitionLevelDto level in EditSelectedCompetitionLevels)
+                                {
+                                    <option value="@level.Id">@level.Name</option>
+                                }
+                            </select>
+                        </div>
+                    }
+
+                    @if (EditSelectedCompetitionRequiresRole)
+                    {
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Role</label>
+                            <select class="form-select" @bind="editModel.DanceRole">
+                                <option value="@DanceRole.Leader">Leader</option>
+                                <option value="@DanceRole.Follower">Follower</option>
+                                <option value="@DanceRole.Individual">Individual</option>
+                            </select>
+                        </div>
+                    }
+
+                    <div>
                         <label class="block text-sm text-black/60 dark:text-white/60">Status</label>
                         <select class="form-select" @bind="editModel.Status">
                             <option value="@CompetitionEntryStatus.Registered">Registered</option>
@@ -138,10 +176,14 @@
                     </div>
 
                     <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Internal Notes</label>
-                        <InputTextArea class="form-input" rows="3" @bind-Value="editModel.InternalNotes" />
+                        <label class="block text-sm text-black/60 dark:text-white/60">Notes</label>
+                        <InputTextArea class="form-input" rows="2" @bind-Value="editModel.Notes" />
                     </div>
 
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Internal Notes</label>
+                        <InputTextArea class="form-input" rows="2" @bind-Value="editModel.InternalNotes" />
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -185,6 +227,7 @@
     private string danceRoleFilter = string.Empty;
     private string activeFilter = string.Empty;
     private bool isLoading = true;
+    private string searchText = string.Empty;
     private string? successMessage;
     private string? errorMessage;
     private int currentPage = 1;
@@ -223,6 +266,11 @@
         get
         {
             IEnumerable<CompetitionEntryDto> query = entries;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(e => (e.FirstName + " " + e.LastName).Contains(searchText, StringComparison.OrdinalIgnoreCase) || e.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
 
             if (competitionFilter != Guid.Empty)
             {
@@ -341,15 +389,60 @@
         };
     }
 
+    private CompetitionDto? EditSelectedCompetition =>
+        competitions.FirstOrDefault(c => c.Id == editModel.CompetitionId);
+
+    private bool EditSelectedCompetitionRequiresRole =>
+        EditSelectedCompetition?.RequiresRole ?? false;
+
+    private IReadOnlyList<CompetitionLevelDto> EditSelectedCompetitionLevels =>
+        EditSelectedCompetition?.Levels.OrderBy(l => l.SortOrder).ToList() ?? [];
+
+    private bool EditSelectedCompetitionHasLevels =>
+        EditSelectedCompetitionLevels.Count > 0;
+
+    private void OnEditCompetitionChanged()
+    {
+        editModel.SelectedLevelId = Guid.Empty;
+        editModel.DanceRole = null;
+        ResolveEditCapacityId();
+    }
+
+    private void ResolveEditCapacityId()
+    {
+        CompetitionDto? comp = EditSelectedCompetition;
+
+        if (comp is null)
+        {
+            editModel.CompetitionCapacityId = Guid.Empty;
+            return;
+        }
+
+        Guid? levelId = editModel.SelectedLevelId != Guid.Empty ? editModel.SelectedLevelId : null;
+
+        CompetitionCapacityDto? cap = comp.Capacities.FirstOrDefault(c =>
+            c.IsActive &&
+            c.CompetitionLevelId == levelId &&
+            (!comp.RequiresRole || c.DanceRole == editModel.DanceRole));
+
+        editModel.CompetitionCapacityId = cap?.Id ?? Guid.Empty;
+    }
+
     private void OpenEditModal(CompetitionEntryDto entry)
     {
         editingEntry = entry;
+
+        CompetitionDto? comp = competitions.FirstOrDefault(c => c.Id == entry.CompetitionId);
+        CompetitionCapacityDto? cap = comp?.Capacities.FirstOrDefault(c => c.Id == entry.CompetitionCapacityId);
+        Guid levelId = cap?.CompetitionLevelId ?? Guid.Empty;
+
         editModel = new CompetitionEntryEditModel
         {
             CompetitionId = entry.CompetitionId,
             RegistrationId = entry.RegistrationId,
             PartnerRegistrationId = entry.PartnerRegistrationId,
             CompetitionCapacityId = entry.CompetitionCapacityId,
+            SelectedLevelId = levelId,
             DanceRole = entry.DanceRole,
             Notes = entry.Notes,
             InternalNotes = entry.InternalNotes,
@@ -397,6 +490,15 @@
 
         try
         {
+            // Resolve the correct capacity from the selected level + role before saving
+            ResolveEditCapacityId();
+
+            if (editModel.CompetitionCapacityId == Guid.Empty)
+            {
+                ShowError("Could not find a matching capacity for the selected level/role. Please check the competition configuration.");
+                return;
+            }
+
             UpdateCompetitionEntryRequest request = new()
             {
                 CompetitionId = editModel.CompetitionId,
@@ -464,6 +566,7 @@
         public Guid RegistrationId { get; set; }
         public Guid? PartnerRegistrationId { get; set; }
         public Guid CompetitionCapacityId { get; set; }
+        public Guid SelectedLevelId { get; set; }
         public DanceRole? DanceRole { get; set; }
         public string? Notes { get; set; }
         public string? InternalNotes { get; set; }
@@ -472,3 +575,7 @@
         public bool IsActive { get; set; }
     }
 }
+
+
+
+

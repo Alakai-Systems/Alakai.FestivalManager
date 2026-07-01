@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Competitions.Contracts.Requests;
+namespace Alakai.FestivalManager.Application.Features.Competitions.Contracts.Requests;
 
 public class CreateCompetitionRequest
 {
@@ -12,5 +12,9 @@ public class CreateCompetitionRequest
     public DateTime? RegistrationOpenAt { get; set; }
     public DateTime? RegistrationCloseAt { get; set; }
     public int SortOrder { get; set; }
+
+    /// <summary>Free-text level names to create for this competition (e.g. "Open", "Advanced"). Empty for competitions without levels.</summary>
+    public IReadOnlyList<string> LevelNames { get; set; } = [];
+
     public IReadOnlyList<CreateCompetitionCapacityCommand> Capacities { get; set; } = [];
 }

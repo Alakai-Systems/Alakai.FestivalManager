@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Competitions.Contracts.Requests;
+namespace Alakai.FestivalManager.Application.Features.Competitions.Contracts.Requests;
 
 public class UpdateCompetitionRequest
 {
@@ -13,5 +13,8 @@ public class UpdateCompetitionRequest
     public DateTime? RegistrationCloseAt { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+
+    public IReadOnlyList<string> LevelNames { get; set; } = [];
+
     public IReadOnlyList<UpdateCompetitionCapacityCommand> Capacities { get; set; } = [];
 }

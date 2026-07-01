@@ -18,6 +18,7 @@ public class CompetitionRepository : ICompetitionRepository
     {
         return await _context.Competitions
             .Include(c => c.Capacities)
+            .Include(c => c.Levels)
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
@@ -25,6 +26,7 @@ public class CompetitionRepository : ICompetitionRepository
     {
         return await _context.Competitions
             .Include(c => c.Capacities)
+            .Include(c => c.Levels)
             .OrderBy(c => c.SortOrder)
             .ThenBy(c => c.Name)
             .ToListAsync(cancellationToken);
@@ -34,6 +36,7 @@ public class CompetitionRepository : ICompetitionRepository
     {
         return await _context.Competitions
             .Include(c => c.Capacities)
+            .Include(c => c.Levels)
             .Where(c => c.EditionId == editionId)
             .OrderBy(c => c.SortOrder)
             .ThenBy(c => c.Name)

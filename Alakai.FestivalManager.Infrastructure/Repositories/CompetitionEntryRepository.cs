@@ -23,7 +23,7 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
 
     public async Task<IReadOnlyList<CompetitionEntry>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _context.CompetitionEntries.ToListAsync(cancellationToken);
+        return await _context.CompetitionEntries.Include(e => e.Registration).ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<CompetitionEntry>> GetByCompetitionIdAsync(Guid competitionId, CancellationToken cancellationToken = default)
@@ -36,10 +36,6 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
         return await _context.CompetitionEntries.Where(e => e.RegistrationId == registrationId).ToListAsync(cancellationToken);
     }
 
-    public async Task<int> CountActiveByCompetitionLevelAndRoleAsync(Guid competitionId, MixAndMatchLevel? mixAndMatchLevel, DanceRole danceRole, CancellationToken cancellationToken = default)
-    {
-        return await _context.CompetitionEntries.CountAsync(e => e.CompetitionId == competitionId && e.MixAndMatchLevel == mixAndMatchLevel && e.DanceRole == danceRole && e.IsActive, cancellationToken);
-    }
 
     public async Task<int> CountActiveByCapacityIdAsync(Guid competitionCapacityId, CancellationToken cancellationToken = default)
     {
@@ -71,3 +67,6 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
         await _context.SaveChangesAsync(cancellationToken);
     }
 }
+
+
+

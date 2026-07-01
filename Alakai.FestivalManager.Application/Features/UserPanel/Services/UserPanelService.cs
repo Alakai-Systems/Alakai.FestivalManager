@@ -112,11 +112,21 @@ public class UserPanelService : IUserPanelService
                 EditionId = c.EditionId,
                 Description = c.Description,
                 Format = c.Format,
+                Levels = c.Levels
+                                .Where(l => l.IsActive)
+                                .OrderBy(l => l.SortOrder)
+                                .Select(l => new CompetitionLevelDto
+                                {
+                                    Id = l.Id,
+                                    Name = l.Name,
+                                    SortOrder = l.SortOrder,
+                                    IsActive = l.IsActive
+                                }).ToList(),
                 Capacities = c.Capacities.Select(capacity => new CompetitionCapacityDto
                 {
                     Id = capacity.Id,
                     CompetitionId = capacity.CompetitionId,
-                    MixAndMatchLevel = capacity.MixAndMatchLevel,
+                    CompetitionLevelId = capacity.CompetitionLevelId,
                     DanceRole = capacity.DanceRole,
                     Capacity = capacity.Capacity,
                     SortOrder = capacity.SortOrder,
@@ -268,3 +278,4 @@ public class UserPanelService : IUserPanelService
         return await GetDashboardAsync(userId, cancellationToken);
     }
 }
+

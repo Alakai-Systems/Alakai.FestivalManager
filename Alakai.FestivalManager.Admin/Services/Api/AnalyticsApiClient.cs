@@ -55,13 +55,13 @@ public class AnalyticsApiClient
         _httpClient = httpClient;
     }
 
-    public async Task<AnalyticsStatsDto> GetAnalyticsAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
+    public async Task<AnalyticsStatsDto> GetAnalyticsAsync(Guid festivalId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
     {
         string start = startDate.ToString("yyyy-MM-dd");
         string end = endDate.ToString("yyyy-MM-dd");
 
         AnalyticsApiResponse? response = await _httpClient.GetFromJsonAsync<AnalyticsApiResponse>(
-            $"api/dashboard/analytics?startDate={start}&endDate={end}", cancellationToken);
+            $"api/dashboard/analytics?festivalId={festivalId}&startDate={start}&endDate={end}", cancellationToken);
 
         return response?.Data ?? new AnalyticsStatsDto { IsAvailable = false, ErrorMessage = "Empty response." };
     }

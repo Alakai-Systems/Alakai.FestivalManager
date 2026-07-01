@@ -1,4 +1,4 @@
-using Google.Analytics.Data.V1Beta;
+﻿using Google.Analytics.Data.V1Beta;
 using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Infrastructure.Analytics;
@@ -14,26 +14,8 @@ public class GoogleAnalyticsClient : IAnalyticsClient
         _logger = logger;
     }
 
-    public async Task<AnalyticsStatsDto> GetStatsAsync(DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
+    public async Task<AnalyticsStatsDto> GetStatsAsync(string propertyId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(_options.PropertyId))
-        {
-            return new AnalyticsStatsDto
-            {
-                IsAvailable = false,
-                ErrorMessage = "GoogleAnalytics:PropertyId is empty or missing from configuration."
-            };
-        }
-
-        if (string.IsNullOrWhiteSpace(_options.CredentialsPath))
-        {
-            return new AnalyticsStatsDto
-            {
-                IsAvailable = false,
-                ErrorMessage = "GoogleAnalytics:CredentialsPath is empty or missing from configuration."
-            };
-        }
-
         if (!File.Exists(_options.CredentialsPath))
         {
             return new AnalyticsStatsDto
@@ -50,7 +32,7 @@ public class GoogleAnalyticsClient : IAnalyticsClient
                 CredentialsPath = _options.CredentialsPath
             }.Build();
 
-            string property = $"properties/{_options.PropertyId}";
+            string property = $"properties/{propertyId}";
 
             int spanDays = (endDate.DayNumber - startDate.DayNumber) + 1;
             DateOnly previousEnd = startDate.AddDays(-1);
@@ -223,3 +205,5 @@ public class GoogleAnalyticsClient : IAnalyticsClient
 
     private static long ParseLong(string value) => long.TryParse(value, out long result) ? result : 0;
 }
+
+

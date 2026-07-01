@@ -78,11 +78,14 @@ public class DashboardRepository : IDashboardRepository
             .OrderByDescending(g => g.Purchased)
             .ToList();
 
-        // --- Competitions: level list from configured CompetitionCapacity, so every
-        // configured level (e.g. Open AND Advanced) always shows, even with 0 entries. ---
+        // --- Competitions: level list from configured CompetitionCapacity / CompetitionLevel,
+        // so every configured level (e.g. Open AND Advanced) always shows, even with 0 entries.
+        // Each entry's level is derived via its CompetitionCapacityId (entries no longer
+        // denormalize a level field of their own). ---
         List<Competition> competitions = await _context.Competitions
             .Where(c => c.EditionId == editionId && c.IsActive)
             .Include(c => c.Capacities)
+            .Include(c => c.Levels)
             .OrderBy(c => c.SortOrder)
             .ToListAsync(cancellationToken);
 
@@ -102,30 +105,44 @@ public class DashboardRepository : IDashboardRepository
                 .Where(e => e.CompetitionId == competition.Id)
                 .ToList();
 
-            List<MixAndMatchLevel?> configuredLevels = competition.Capacities
-                .Where(c => c.IsActive)
-                .Select(c => c.MixAndMatchLevel)
-                .Distinct()
-                .OrderBy(l => l.HasValue ? (int)l.Value : -1)
+            Dictionary<Guid, Guid?> capacityIdToLevelId = competition.Capacities
+                .ToDictionary(c => c.Id, c => c.CompetitionLevelId);
+
+            List<CompetitionLevel> orderedLevels = competition.Levels
+                .Where(l => l.IsActive)
+                .OrderBy(l => l.SortOrder)
                 .ToList();
 
-            if (configuredLevels.Count == 0)
+            List<Guid?> configuredLevelIds = competition.Capacities
+                .Where(c => c.IsActive)
+                .Select(c => c.CompetitionLevelId)
+                .Distinct()
+                .OrderBy(id => id.HasValue ? orderedLevels.FindIndex(l => l.Id == id.Value) : -1)
+                .ToList();
+
+            if (configuredLevelIds.Count == 0)
             {
-                configuredLevels = [null];
+                configuredLevelIds = [null];
             }
 
-            List<CompetitionLevelStatDto> levelStats = configuredLevels
+            List<CompetitionLevelStatDto> levelStats = configuredLevelIds
                 .Select(levelKey =>
                 {
-                    List<CompetitionEntry> levelEntries = entries.Where(e => e.MixAndMatchLevel == levelKey).ToList();
+                    List<CompetitionEntry> levelEntries = entries
+                        .Where(e => capacityIdToLevelId.TryGetValue(e.CompetitionCapacityId, out Guid? lvl) && lvl == levelKey)
+                        .ToList();
 
                     int individual = levelEntries.Count(e => e.DanceRole == DanceRole.Individual);
                     int follower = levelEntries.Count(e => e.DanceRole == DanceRole.Follower);
                     int leader = levelEntries.Count(e => e.DanceRole == DanceRole.Leader);
 
+                    string label = levelKey.HasValue
+                        ? orderedLevels.FirstOrDefault(l => l.Id == levelKey.Value)?.Name ?? "Unknown"
+                        : "All";
+
                     return new CompetitionLevelStatDto
                     {
-                        LevelLabel = levelKey.HasValue ? levelKey.Value.ToString() : "All",
+                        LevelLabel = label,
                         Individual = individual,
                         Follower = follower,
                         Leader = leader,

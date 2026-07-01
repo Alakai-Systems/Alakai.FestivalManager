@@ -4,6 +4,7 @@ using Alakai.FestivalManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    partial class FestivalManagerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630191809_RemoveMixAndMatchLevel")]
+    partial class RemoveMixAndMatchLevel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -514,10 +517,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
 
-                    b.Property<string>("GoogleAnalyticsPropertyId")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
@@ -967,7 +966,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Competition", "Competition")
                         .WithMany("Capacities")
                         .HasForeignKey("CompetitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.CompetitionLevel", "CompetitionLevel")
@@ -1019,7 +1018,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Competition", "Competition")
                         .WithMany("Levels")
                         .HasForeignKey("CompetitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Competition");

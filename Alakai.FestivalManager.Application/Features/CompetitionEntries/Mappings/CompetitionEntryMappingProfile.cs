@@ -8,7 +8,10 @@ public class CompetitionEntryMappingProfile : Profile
     public CompetitionEntryMappingProfile()
     {
         //Generics y Gets
-        CreateMap<CompetitionEntry, CompetitionEntryDto>();
+        CreateMap<CompetitionEntry, CompetitionEntryDto>()
+            .ForMember(dest => dest.FirstName, opt => opt.MapFrom(src => src.Registration != null ? src.Registration.FirstName : null))
+            .ForMember(dest => dest.LastName, opt => opt.MapFrom(src => src.Registration != null ? src.Registration.LastName : null))
+            .ForMember(dest => dest.Email, opt => opt.MapFrom(src => src.Registration != null ? src.Registration.Email : null));
         CreateMap<IReadOnlyList<CompetitionEntryDto>, IReadOnlyList<CompetitionEntry>>();
 
         //Create

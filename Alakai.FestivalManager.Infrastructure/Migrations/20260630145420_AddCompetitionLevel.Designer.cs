@@ -4,6 +4,7 @@ using Alakai.FestivalManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    partial class FestivalManagerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630145420_AddCompetitionLevel")]
+    partial class AddCompetitionLevel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -104,6 +107,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("MixAndMatchLevel")
+                        .HasColumnType("int");
+
                     b.Property<int>("SortOrder")
                         .HasColumnType("int");
 
@@ -116,9 +122,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.HasIndex("CompetitionLevelId");
 
-                    b.HasIndex("CompetitionId", "CompetitionLevelId", "DanceRole")
+                    b.HasIndex("CompetitionId", "MixAndMatchLevel", "DanceRole")
                         .IsUnique()
-                        .HasFilter("[CompetitionLevelId] IS NOT NULL");
+                        .HasFilter("[MixAndMatchLevel] IS NOT NULL");
 
                     b.ToTable("CompetitionCapacities", (string)null);
                 });
@@ -151,6 +157,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
 
+                    b.Property<int?>("MixAndMatchLevel")
+                        .HasColumnType("int");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -162,9 +171,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<int>("Status")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("TeamMemberCount")
                         .HasColumnType("int");
 
                     b.Property<string>("TeamName")
@@ -513,10 +519,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(1000)
                         .HasColumnType("nvarchar(1000)");
-
-                    b.Property<string>("GoogleAnalyticsPropertyId")
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
@@ -967,7 +969,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Competition", "Competition")
                         .WithMany("Capacities")
                         .HasForeignKey("CompetitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.CompetitionLevel", "CompetitionLevel")
@@ -1019,7 +1021,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.Competition", "Competition")
                         .WithMany("Levels")
                         .HasForeignKey("CompetitionId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Competition");

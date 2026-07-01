@@ -1,4 +1,4 @@
-﻿@page "/user-panel/dashboard"
+@page "/user-panel/dashboard"
 @layout UserPanelLayout
 
 @using Alakai.FestivalManager.Admin.Components.Layout
@@ -425,19 +425,22 @@
                     </select>
                 </div>
 
-                @if (IsMixAndMatchCompetition)
+                @if (SelectedCompetitionRequiresRole)
                 {
-                    <div class="space-y-2">
-                        <label class="block text-sm font-medium text-black dark:text-white">Level</label>
-                        <select class="form-select" @bind="CompetitionFormCompetitionCapacityId">
-                            <option value="@Guid.Empty">Select level</option>
+                    @if (SelectedCompetitionHasLevels)
+                    {
+                        <div class="space-y-2">
+                            <label class="block text-sm font-medium text-black dark:text-white">Level</label>
+                            <select class="form-select" @bind="CompetitionFormLevelId">
+                                <option value="@Guid.Empty">Select level</option>
 
-                            @foreach (CompetitionCapacityDto capacity in AvailableMixAndMatchCapacities)
-                            {
-                                <option value="@capacity.Id">@GetMixAndMatchLevelText(capacity.MixAndMatchLevel)</option>
-                            }
-                        </select>
-                    </div>
+                                @foreach (CompetitionLevelDto level in SelectedCompetitionLevels)
+                                {
+                                    <option value="@level.Id">@level.Name</option>
+                                }
+                            </select>
+                        </div>
+                    }
 
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-black dark:text-white">Role</label>
@@ -448,8 +451,7 @@
                         </select>
                     </div>
                 }
-
-                @if (IsSoloJazzCompetition)
+                else
                 {
                     <div class="space-y-2">
                         <label class="block text-sm font-medium text-black dark:text-white">Role</label>
@@ -546,22 +548,22 @@
     private string? CompetitionToDeleteName { get; set; }
     private Guid CompetitionFormCompetitionId { get; set; }
     private Guid CompetitionFormCompetitionCapacityId { get; set; }
+    private Guid CompetitionFormLevelId { get; set; }
     private string? CompetitionFormDanceRole { get; set; }
     private string? CompetitionFormNotes { get; set; }
     private CompetitionEntryStatus CompetitionFormStatus { get; set; }
     private bool CompetitionFormIsActive { get; set; } = true;
     private string SelectedCompetitionName => GetCompetitionName(CompetitionFormCompetitionId);
-    private bool IsSoloJazzCompetition => SelectedCompetitionName.Contains("Solo Jazz", StringComparison.OrdinalIgnoreCase);
-    private bool IsMixAndMatchCompetition => SelectedCompetitionName.Contains("Mix", StringComparison.OrdinalIgnoreCase);
     private CompetitionDto? SelectedCompetition => AvailableCompetitions.FirstOrDefault(c => c.Id == CompetitionFormCompetitionId);
-    private IReadOnlyList<CompetitionCapacityDto> AvailableMixAndMatchCapacities =>
-    SelectedCompetition?.Capacities?
-        .Where(c => c.IsActive)
-        .GroupBy(c => c.MixAndMatchLevel)
-        .Select(g => g.OrderBy(c => c.SortOrder).First())
-        .OrderBy(c => c.SortOrder)
-        .ToList()
-    ?? [];
+
+    // Data-driven replacements for the old name-based IsSoloJazzCompetition /
+    // IsMixAndMatchCompetition checks. A competition's display/validation behavior
+    // depends only on whether it requires a role and whether it has levels configured
+    // -- never on its Format or its name.
+    private bool SelectedCompetitionRequiresRole => SelectedCompetition?.RequiresRole ?? false;
+    private IReadOnlyList<CompetitionLevelDto> SelectedCompetitionLevels =>
+        SelectedCompetition?.Levels.OrderBy(l => l.SortOrder).ToList() ?? [];
+    private bool SelectedCompetitionHasLevels => SelectedCompetitionLevels.Count > 0;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -795,18 +797,11 @@
 
     private Guid GetSelectedCompetitionCapacityId()
     {
-        if (!IsMixAndMatchCompetition)
+        if (!SelectedCompetitionRequiresRole)
         {
             CompetitionCapacityDto? capacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
 
             return capacity?.Id ?? Guid.Empty;
-        }
-
-        CompetitionCapacityDto? selectedLevel = AvailableMixAndMatchCapacities.FirstOrDefault(c => c.Id == CompetitionFormCompetitionCapacityId);
-
-        if (selectedLevel is null)
-        {
-            return Guid.Empty;
         }
 
         bool parsed = Enum.TryParse(CompetitionFormDanceRole, out DanceRole selectedRole);
@@ -816,8 +811,12 @@
             return Guid.Empty;
         }
 
+        Guid? requiredLevelId = SelectedCompetitionHasLevels && CompetitionFormLevelId != Guid.Empty
+            ? CompetitionFormLevelId
+            : null;
+
         CompetitionCapacityDto? capacityByRole = SelectedCompetition?.Capacities?
-            .FirstOrDefault(c => c.IsActive && c.MixAndMatchLevel == selectedLevel.MixAndMatchLevel && c.DanceRole == selectedRole);
+            .FirstOrDefault(c => c.IsActive && c.CompetitionLevelId == requiredLevelId && c.DanceRole == selectedRole);
 
         return capacityByRole?.Id ?? Guid.Empty;
     }
@@ -830,6 +829,7 @@
         CompetitionModalSuccess = null;
         CompetitionFormCompetitionId = Guid.Empty;
         CompetitionFormCompetitionCapacityId = Guid.Empty;
+        CompetitionFormLevelId = Guid.Empty;
         CompetitionFormDanceRole = null;
         CompetitionFormNotes = null;
         CompetitionFormStatus = CompetitionEntryStatus.Registered;
@@ -851,7 +851,11 @@
         CompetitionFormStatus = competition.Status;
         CompetitionFormIsActive = competition.IsActive;
 
-        if (IsSoloJazzCompetition)
+        CompetitionCapacityDto? currentCapacity = SelectedCompetition?.Capacities?
+            .FirstOrDefault(c => c.Id == competition.CompetitionCapacityId);
+        CompetitionFormLevelId = currentCapacity?.CompetitionLevelId ?? Guid.Empty;
+
+        if (!SelectedCompetitionRequiresRole)
         {
             CompetitionFormDanceRole = "Individual";
         }
@@ -889,20 +893,22 @@
         {
             CompetitionFormCompetitionId = Guid.Empty;
             CompetitionFormCompetitionCapacityId = Guid.Empty;
+            CompetitionFormLevelId = Guid.Empty;
             CompetitionFormDanceRole = null;
             return;
         }
 
         CompetitionFormCompetitionId = competitionId;
         CompetitionFormCompetitionCapacityId = Guid.Empty;
+        CompetitionFormLevelId = Guid.Empty;
 
-        if (IsSoloJazzCompetition)
+        if (!SelectedCompetitionRequiresRole)
         {
-            CompetitionCapacityDto? soloCapacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
+            CompetitionCapacityDto? capacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
 
-            if (soloCapacity is not null)
+            if (capacity is not null)
             {
-                CompetitionFormCompetitionCapacityId = soloCapacity.Id;
+                CompetitionFormCompetitionCapacityId = capacity.Id;
             }
 
             CompetitionFormDanceRole = "Individual";
@@ -912,15 +918,6 @@
         CompetitionFormDanceRole = null;
     }
 
-    private string GetMixAndMatchLevelText(MixAndMatchLevel? level)
-    {
-        return level switch
-        {
-            MixAndMatchLevel.Open => "Open",
-            MixAndMatchLevel.Advanced => "Advanced",
-            _ => level?.ToString() ?? "-"
-        };
-    }
 
     private async Task SaveCompetitionEntryAsync()
     {
@@ -941,54 +938,39 @@
             return;
         }
 
-        if (IsSoloJazzCompetition)
+        if (!SelectedCompetitionRequiresRole)
         {
-            CompetitionCapacityDto? soloCapacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
-
-            if (soloCapacity is null)
-            {
-                CompetitionModalError = "Solo Jazz capacity is not configured.";
-                await ShowCompetitionErrorAsync(CompetitionModalError);
-                return;
-            }
-
-            CompetitionFormCompetitionCapacityId = soloCapacity.Id;
             CompetitionFormDanceRole = "Individual";
         }
-
-        if (IsMixAndMatchCompetition && CompetitionFormCompetitionCapacityId == Guid.Empty)
+        else
         {
-            CompetitionModalError = "Please select a level.";
-            await ShowCompetitionErrorAsync(CompetitionModalError);
-            return;
-        }
-
-        if (IsMixAndMatchCompetition && string.IsNullOrWhiteSpace(CompetitionFormDanceRole))
-        {
-            CompetitionModalError = "Please select a role.";
-            await ShowCompetitionErrorAsync(CompetitionModalError);
-            return;
-        }
-
-        Guid competitionCapacityId = CompetitionFormCompetitionCapacityId;
-
-        if (IsSoloJazzCompetition)
-        {
-            CompetitionCapacityDto? soloCapacity = SelectedCompetition?.Capacities?.FirstOrDefault(c => c.IsActive);
-
-            if (soloCapacity is null)
+            if (SelectedCompetitionHasLevels && CompetitionFormLevelId == Guid.Empty)
             {
-                CompetitionModalError = "Solo Jazz competition has no capacity configured. Please create a capacity for Solo Jazz in the admin panel.";
+                CompetitionModalError = "Please select a level.";
                 await ShowCompetitionErrorAsync(CompetitionModalError);
                 return;
             }
 
-            competitionCapacityId = soloCapacity.Id;
+            if (string.IsNullOrWhiteSpace(CompetitionFormDanceRole))
+            {
+                CompetitionModalError = "Please select a role.";
+                await ShowCompetitionErrorAsync(CompetitionModalError);
+                return;
+            }
         }
+
+        // BUGFIX: this used to read CompetitionFormCompetitionCapacityId directly, which
+        // for role-based competitions only ever held the LEVEL's placeholder capacity id
+        // (whichever role happened to sort first), ignoring the role the user actually
+        // picked. GetSelectedCompetitionCapacityId() resolves the real capacity that
+        // matches BOTH the selected level and the selected role.
+        Guid competitionCapacityId = GetSelectedCompetitionCapacityId();
 
         if (competitionCapacityId == Guid.Empty)
         {
-            CompetitionModalError = "Competition capacity could not be found.";
+            CompetitionModalError = !SelectedCompetitionRequiresRole
+                ? "This competition has no capacity configured. Please create one in the admin panel."
+                : "Competition capacity could not be found for the selected level/role.";
             await ShowCompetitionErrorAsync(CompetitionModalError);
             return;
         }
@@ -1096,19 +1078,24 @@
             return "-";
         }
 
-        if (competition.Format == CompetitionFormat.SoloJazz)
+        // Data-driven, no longer based on Format: a competition with no Levels configured
+        // simply has no level to show, regardless of whether it's Individual, Partnered or
+        // Team (Individual competitions CAN have levels, e.g. Beginner/Advanced Solo Jazz).
+        if (competition.Levels.Count == 0)
         {
             return "Open";
         }
 
         CompetitionCapacityDto? capacity = competition.Capacities.FirstOrDefault(c => c.Id == competitionEntry.CompetitionCapacityId);
 
-        if (capacity is null)
+        if (capacity is null || capacity.CompetitionLevelId is null)
         {
             return "-";
         }
 
-        return GetMixAndMatchLevelText(capacity.MixAndMatchLevel);
+        CompetitionLevelDto? level = competition.Levels.FirstOrDefault(l => l.Id == capacity.CompetitionLevelId);
+
+        return level?.Name ?? "-";
     }
 
     private DanceRole? ParseDanceRole(string? value)
@@ -1123,3 +1110,5 @@
         return parsed ? role : null;
     }
 }
+
+

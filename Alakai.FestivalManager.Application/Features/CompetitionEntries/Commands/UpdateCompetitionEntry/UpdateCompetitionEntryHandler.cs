@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
+﻿namespace Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
 
 public class UpdateCompetitionEntryHandler
 {
@@ -67,7 +67,6 @@ public class UpdateCompetitionEntryHandler
 
         entry.CompetitionCapacityId = capacity.Id;
         entry.DanceRole = capacity.DanceRole;
-        entry.MixAndMatchLevel = capacity.MixAndMatchLevel;
         entry.SetUpdated();
 
         await _competitionEntryRepository.SaveChangesAsync(cancellationToken);
@@ -77,3 +76,5 @@ public class UpdateCompetitionEntryHandler
         return dto;
     }
 }
+
+

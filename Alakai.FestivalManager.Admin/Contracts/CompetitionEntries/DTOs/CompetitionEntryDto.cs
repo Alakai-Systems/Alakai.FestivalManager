@@ -10,6 +10,9 @@ public class CompetitionEntryDto
     public DanceRole? DanceRole { get; set; }
     public CompetitionFormat Format { get; set; }
     public IReadOnlyList<CompetitionCapacityDto> Capacities { get; set; } = [];
+    public string? FirstName { get; set; }
+    public string? LastName { get; set; }
+    public string? Email { get; set; }
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }
     public CompetitionEntryStatus Status { get; set; }

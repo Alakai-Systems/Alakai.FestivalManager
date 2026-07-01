@@ -4,14 +4,17 @@ public class CompetitionCapacityConfiguration : IEntityTypeConfiguration<Competi
 {
     public void Configure(EntityTypeBuilder<CompetitionCapacity> builder)
     {
+        builder.HasOne(c => c.CompetitionLevel)
+            .WithMany()
+            .HasForeignKey(c => c.CompetitionLevelId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         builder.ToTable("CompetitionCapacities");
 
         builder.HasKey(c => c.Id);
 
         builder.Property(c => c.CompetitionId)
             .IsRequired();
-
-        builder.Property(c => c.MixAndMatchLevel);
 
         builder.Property(c => c.DanceRole)
             .IsRequired();
@@ -32,12 +35,13 @@ public class CompetitionCapacityConfiguration : IEntityTypeConfiguration<Competi
 
         builder.HasIndex(c => c.CompetitionId);
 
-        builder.HasIndex(c => new { c.CompetitionId, c.MixAndMatchLevel, c.DanceRole })
+        builder.HasIndex(c => new { c.CompetitionId, c.CompetitionLevelId, c.DanceRole })
             .IsUnique();
 
         builder.HasOne(c => c.Competition)
             .WithMany(c => c.Capacities)
             .HasForeignKey(c => c.CompetitionId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
+

@@ -5,7 +5,8 @@ public class CompetitionCapacity : BaseEntity
     public Guid CompetitionId { get; set; }
     public Competition Competition { get; set; } = default!;
 
-    public MixAndMatchLevel? MixAndMatchLevel { get; set; }
+    public Guid? CompetitionLevelId { get; set; }
+    public CompetitionLevel? CompetitionLevel { get; set; }
 
     public DanceRole DanceRole { get; set; }
 

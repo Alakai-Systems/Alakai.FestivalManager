@@ -266,7 +266,7 @@
             @foreach (PassTypeStatDto passType in stats.PassTypes)
             {
                 <div class="card shadow-sm">
-                    <h2 class="mb-4 text-lg font-bold text-black dark:text-white">@passType.PassTypeName.ToUpper()</h2>
+                    <h2 class="mb-4 text-lg font-bold text-black dark:text-white">@passType.PassTypeName</h2>
                     <div class="overflow-x-auto">
                         <table class="w-full table-hover">
                             <thead class="bg-gray-50 dark:bg-dark">
@@ -506,7 +506,7 @@
                 DateOnly start = candidateStart > today ? today.AddDays(-30) : candidateStart;
                 DateOnly end = today;
 
-                analytics = await AnalyticsApiClient.GetAnalyticsAsync(start, end);
+                analytics = await AnalyticsApiClient.GetAnalyticsAsync(selectedFestivalId, start, end);
             }
 
             await LoadRevenueAsync();
@@ -693,4 +693,7 @@
         public decimal Amount { get; set; }
     }
 }
+
+
+
 

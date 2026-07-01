@@ -7,17 +7,20 @@ public class UpdateCompetitionHandler
     private readonly ICompetitionRepository _competitionRepository;
     private readonly ICompetitionCapacityRepository _competitionCapacityRepository;
     private readonly ICompetitionEntryRepository _competitionEntryRepository;
+    private readonly ICompetitionLevelRepository _competitionLevelRepository;
     private readonly IEditionRepository _editionRepository;
     private readonly IMapper _mapper;
 
-    public UpdateCompetitionHandler(ICompetitionRepository competitionRepository, IEditionRepository editionRepository, IMapper mapper, 
-        ICompetitionCapacityRepository competitionCapacityRepository, ICompetitionEntryRepository competitionEntryRepository)
+    public UpdateCompetitionHandler(ICompetitionRepository competitionRepository, IEditionRepository editionRepository, IMapper mapper,
+        ICompetitionCapacityRepository competitionCapacityRepository, ICompetitionEntryRepository competitionEntryRepository,
+        ICompetitionLevelRepository competitionLevelRepository)
     {
         _competitionRepository = competitionRepository;
         _editionRepository = editionRepository;
         _mapper = mapper;
         _competitionCapacityRepository = competitionCapacityRepository;
         _competitionEntryRepository = competitionEntryRepository;
+        _competitionLevelRepository = competitionLevelRepository;
     }
 
     public async Task<CompetitionDto> HandleAsync(UpdateCompetitionCommand command, CancellationToken cancellationToken = default)
@@ -35,17 +38,45 @@ public class UpdateCompetitionHandler
         _mapper.Map(command, competition);
         competition.SetUpdated();
 
+        // --- Sync levels: create any new ones by name. Existing levels are never
+        // auto-deleted here (that would risk orphaning historical capacities/entries);
+        // removing a level is a deliberate separate action, out of scope for this save. ---
+        IReadOnlyList<CompetitionLevel> existingLevels = await _competitionLevelRepository.GetByCompetitionIdAsync(competition.Id, cancellationToken);
+        Dictionary<string, Guid> levelNameToId = existingLevels.ToDictionary(l => l.Name, l => l.Id, StringComparer.OrdinalIgnoreCase);
+
+        int nextSortOrder = existingLevels.Count + 1;
+
+        foreach (string levelName in command.LevelNames.Where(n => !string.IsNullOrWhiteSpace(n)).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            if (!levelNameToId.ContainsKey(levelName))
+            {
+                CompetitionLevel newLevel = new()
+                {
+                    CompetitionId = competition.Id,
+                    Name = levelName,
+                    SortOrder = nextSortOrder++,
+                    IsActive = true
+                };
+
+                await _competitionLevelRepository.AddAsync(newLevel, cancellationToken);
+                levelNameToId[levelName] = newLevel.Id;
+            }
+        }
+
+        await _competitionLevelRepository.SaveChangesAsync(cancellationToken);
+
+        Guid? ResolveLevelId(string? levelName) =>
+            !string.IsNullOrWhiteSpace(levelName) && levelNameToId.TryGetValue(levelName, out Guid id) ? id : null;
+
         IReadOnlyList<CompetitionCapacity> existingCapacities =
             await _competitionCapacityRepository.GetByCompetitionIdAsync(competition.Id, cancellationToken);
 
-        foreach (var existing in existingCapacities)
+        foreach (CompetitionCapacity existing in existingCapacities)
         {
-            var incoming = command.Capacities
-                .FirstOrDefault(c =>
-                    c.MixAndMatchLevel == existing.MixAndMatchLevel &&
-                    c.DanceRole == existing.DanceRole);
+            UpdateCompetitionCapacityCommand? incoming = command.Capacities
+                .FirstOrDefault(c => ResolveLevelId(c.LevelName) == existing.CompetitionLevelId && c.DanceRole == existing.DanceRole);
 
-            if (incoming != null)
+            if (incoming is not null)
             {
                 existing.Capacity = incoming.Capacity;
                 existing.SortOrder = incoming.SortOrder;
@@ -54,6 +85,7 @@ public class UpdateCompetitionHandler
             else
             {
                 bool hasEntries = await _competitionEntryRepository.ExistsByCapacityIdAsync(existing.Id, cancellationToken);
+
                 if (hasEntries)
                 {
                     existing.IsActive = false;
@@ -65,18 +97,19 @@ public class UpdateCompetitionHandler
             }
         }
 
-        foreach (var incoming in command.Capacities)
+        foreach (UpdateCompetitionCapacityCommand incoming in command.Capacities)
         {
-            bool exists = existingCapacities.Any(e =>
-                e.MixAndMatchLevel == incoming.MixAndMatchLevel &&
-                e.DanceRole == incoming.DanceRole);
+            Guid? incomingLevelId = ResolveLevelId(incoming.LevelName);
 
-            if (!exists)
+            bool alreadyExists = existingCapacities.Any(e =>
+                e.CompetitionLevelId == incomingLevelId && e.DanceRole == incoming.DanceRole);
+
+            if (!alreadyExists)
             {
                 CompetitionCapacity newCap = new()
                 {
                     CompetitionId = competition.Id,
-                    MixAndMatchLevel = incoming.MixAndMatchLevel,
+                    CompetitionLevelId = incomingLevelId,
                     DanceRole = incoming.DanceRole,
                     Capacity = incoming.Capacity,
                     SortOrder = incoming.SortOrder,
@@ -89,7 +122,8 @@ public class UpdateCompetitionHandler
 
         await _competitionRepository.SaveChangesAsync(cancellationToken);
 
-        return _mapper.Map<CompetitionDto>(competition);
-    }
+        Competition? reloaded = await _competitionRepository.GetByIdAsync(competition.Id, cancellationToken);
 
+        return _mapper.Map<CompetitionDto>(reloaded ?? competition);
+    }
 }

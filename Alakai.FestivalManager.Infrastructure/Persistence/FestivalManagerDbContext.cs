@@ -18,6 +18,7 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<EmailTemplate> EmailTemplates => Set<EmailTemplate>();
     public DbSet<EmailLog> EmailLogs => Set<EmailLog>();
     public DbSet<EmailLayout> EmailLayouts => Set<EmailLayout>();
+    public DbSet<CompetitionLevel> CompetitionLevels => Set<CompetitionLevel>();
     public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
@@ -30,6 +31,7 @@ public class FestivalManagerDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 }
+
 
 
 

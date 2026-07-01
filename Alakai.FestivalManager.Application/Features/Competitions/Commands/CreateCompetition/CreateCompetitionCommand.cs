@@ -6,7 +6,8 @@ public class CreateCompetitionCommand
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public CompetitionFormat Format { get; set; }
-    public ICollection<CompetitionCapacity> Capacities { get; set; } = [];
+    public IReadOnlyList<string> LevelNames { get; set; } = [];
+    public IReadOnlyList<CreateCompetitionCapacityCommand> Capacities { get; set; } = [];
     public int? MaxParticipants { get; set; }
     public bool RequiresPartner { get; set; }
     public bool RequiresRole { get; set; }
@@ -15,4 +16,3 @@ public class CreateCompetitionCommand
     public DateTime? RegistrationCloseAt { get; set; }
     public int SortOrder { get; set; }
 }
-

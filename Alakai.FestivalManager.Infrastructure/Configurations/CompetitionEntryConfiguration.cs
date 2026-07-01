@@ -19,8 +19,6 @@ public class CompetitionEntryConfiguration : IEntityTypeConfiguration<Competitio
 
         builder.Property(e => e.DanceRole);
 
-        builder.Property(e => e.MixAndMatchLevel);
-
         builder.Property(e => e.TeamName)
             .HasMaxLength(150);
 
