@@ -75,12 +75,18 @@
                 </li>
 
                 <li class="menu nav-item">
-                    <NavLink href="/settings" class="text-black nav-link group">
+                    <a href="javascript:;" class="items-center justify-between text-black nav-link group" x-bind:class="{ 'active': activeMenu === 'settings' }" x-on:click="activeMenu === 'settings' ? activeMenu = null : activeMenu = 'settings'">
                         <div class="flex items-center">
                             <i class="ri-equalizer-fill"></i>
                             <span class="ltr:pl-1.5 rtl:pr-1.5">Settings</span>
                         </div>
-                    </NavLink>
+                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'settings' }"></i>
+                    </a>
+
+                    <ul x-show="activeMenu === 'settings'" x-collapse class="flex flex-col gap-1 text-black sub-menu dark:text-white/60 group-data-[sidebar=dark]/item:text-white/60 group-data-[sidebar=brand]/item:text-sky-200/50">
+                        <li><NavLink href="/settings" Match="NavLinkMatch.All">Admin Users</NavLink></li>
+                        <li><NavLink href="/settings/invoice-templates">Invoice Templates</NavLink></li>
+                    </ul>
                 </li>
             </ul>
         </div>

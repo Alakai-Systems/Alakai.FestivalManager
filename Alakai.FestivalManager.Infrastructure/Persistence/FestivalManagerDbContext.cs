@@ -22,6 +22,9 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<DiscountCode> DiscountCodes => Set<DiscountCode>();
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
     public DbSet<PasswordResetToken> PasswordResetTokens => Set<PasswordResetToken>();
+    public DbSet<Invoice> Invoices => Set<Invoice>();
+    public DbSet<InvoiceSettings> InvoiceSettings => Set<InvoiceSettings>();
+    public DbSet<InvoiceTemplate> InvoiceTemplates => Set<InvoiceTemplate>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -31,9 +34,3 @@ public class FestivalManagerDbContext : DbContext
         base.OnModelCreating(modelBuilder);
     }
 }
-
-
-
-
-
-

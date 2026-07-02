@@ -1,28 +1,22 @@
 # =====================================================================
-# Alakai FestivalManager - Correcciones de UX en Settings/Profile/Topbar
-# PASO F
+# Alakai FestivalManager - Arreglo definitivo: Settings.razor + EmailLogs.razor
 #
-# Arregla, en este orden de importancia:
-#   1. CRITICO: el login redirigia a /dashboard, que no existe (la
-#      ruta real del dashboard es "/"). Por eso dabas 404 tras loguear
-#      y solo funcionaba poniendo la URL a mano.
-#   2. El engranaje del Topbar ya no abre ningun modal -- es un enlace
-#      directo a /settings.
-#   3. La foto de perfil se sincroniza entre /profile y el Topbar (via
-#      un servicio compartido nuevo, UserProfileState) sin necesidad
-#      de recargar la pagina.
-#   4. Los avisos de exito/error en Settings y Profile ahora usan el
-#      mismo patron ShowSuccess/ShowError de 3.5 segundos que ya usan
-#      el resto de paginas (Users.razor, etc.), en vez de quedarse fijos.
-#   5. Settings.razor rehecho: Create Admin User y Change My Password
-#      comparten fila (grid de 2 columnas), listado de Admins debajo.
-#      El boton Delete es un icono + modal de confirmacion identico al
-#      que ya usa Users.razor (no un simple texto). El boton Save por
-#      fila usa el mismo estilo que los botones "+ New X" del resto de
-#      listados. "This is you" es un badge, no texto plano.
+# Este script SOBRESCRIBE estos dos archivos por completo, sin
+# comprobacion de "ya esta actualizado" -- dado que los ultimos
+# parches se aplicaron sobre una version base incorrecta, prefiero
+# forzar el estado correcto de una vez que seguir arriesgando con
+# otro parche a ciegas.
 #
-# REQUIERE los pasos A a E aplicados antes.
-# USO: desde la raiz del repo -> .\tools\admin-ux-fixes-stepF.ps1
+# Settings.razor: grid de 2 columnas (Create Admin User / Change My
+# Password), listado de Admins con boton Save (estilo "+ New X") +
+# Delete (icono + modal), badge "This is you", PageHeader, avisos de
+# exito/error que desaparecen a los 3.5s.
+#
+# EmailLogs.razor: arreglo real de la paginacion -- el archivo
+# original nunca aplicaba Skip/Take, asi que "rows" era solo
+# cosmetico. Anadido selector de filas por pagina + PagedLogs.
+#
+# USO: desde la raiz del repo -> .\tools\fix-settings-and-emaillogs.ps1
 # =====================================================================
 
 $ErrorActionPreference = "Stop"
@@ -43,496 +37,23 @@ function Require-Path {
     }
 }
 
-function Write-FullFile {
+function Write-ForceFile {
     param(
         [string]$Path,
         [string]$Content,
-        [string]$IdempotencyMarker,
         [string]$Description
     )
 
     Require-Path (Split-Path $Path -Parent)
-
-    if (Test-Path $Path) {
-        $current = Get-Content $Path -Raw
-        if ($current.Contains($IdempotencyMarker)) {
-            Write-Host "  Ya actualizado: $Path ($Description)" -ForegroundColor Yellow
-            return
-        }
-    }
-
     $Content | Set-Content -Path $Path -Encoding UTF8 -NoNewline
-    Write-Host "  Escrito: $Path ($Description)" -ForegroundColor Green
-}
-
-function Write-NewFile {
-    param(
-        [string]$Path,
-        [string]$Content,
-        [string]$Description
-    )
-
-    $dir = Split-Path $Path -Parent
-    New-Item -ItemType Directory -Force -Path $dir | Out-Null
-
-    if (Test-Path $Path) {
-        Write-Host "  Ya existe: $Path, no se toca." -ForegroundColor Yellow
-        return
-    }
-
-    $Content | Set-Content -Path $Path -Encoding UTF8 -NoNewline
-    Write-Host "  Creado: $Path ($Description)" -ForegroundColor Green
+    Write-Host "  Sobrescrito: $Path ($Description)" -ForegroundColor Green
 }
 
 Write-Host ""
-Write-Host "--- 1. Archivos actualizados ---" -ForegroundColor Cyan
-
-$targetPath = Join-Path $adminRoot "Endpoints\AdminAuthEndpoints.cs"
-@'
-namespace Alakai.FestivalManager.Admin.Endpoints;
-
-public static class AdminAuthEndpoints
-{
-    public static void MapAdminAuthEndpoints(this WebApplication app)
-    {
-        app.MapPost("/account/login", async (
-            HttpContext httpContext,
-            IAuthApiClient authApiClient,
-            [FromForm] string email,
-            [FromForm] string password,
-            [FromForm] string? returnUrl) =>
-        {
-            try
-            {
-                LoginResponse? response = await authApiClient.LoginAsync(new LoginRequest { Email = email, Password = password });
-
-                if (response?.Auth is null)
-                {
-                    return Results.Redirect("/login?error=invalid");
-                }
-
-                AuthUserDto user = response.Auth.User;
-                AdminUserRole role = (AdminUserRole)user.Role;
-
-                if (role != AdminUserRole.SuperAdmin && role != AdminUserRole.Admin)
-                {
-                    return Results.Redirect("/login?error=forbidden");
-                }
-
-                List<Claim> claims =
-                [
-                    new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                    new(ClaimTypes.Email, user.Email),
-                    new(ClaimTypes.Role, role.ToString()),
-                    new("access_token", response.Auth.AccessToken),
-                    new("refresh_token", response.Auth.RefreshToken),
-                    new("access_token_expires", response.Auth.ExpiresAt.ToString("o"))
-                ];
-
-                ClaimsIdentity identity = new(claims, CookieAuthenticationDefaults.AuthenticationScheme);
-                ClaimsPrincipal principal = new(identity);
-
-                AuthenticationProperties authProperties = new()
-                {
-                    IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
-                };
-
-                await httpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
-
-                string redirectTo = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith('/')
-                    ? "/"
-                    : returnUrl;
-
-                return Results.Redirect(redirectTo);
-            }
-            catch (Exception)
-            {
-                return Results.Redirect("/login?error=invalid");
-            }
-        }).AllowAnonymous();
-
-        app.MapPost("/account/logout", async (HttpContext httpContext) =>
-        {
-            await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-            return Results.Redirect("/login");
-        }).AllowAnonymous();
-    }
-}
-'@ | ForEach-Object { Write-FullFile -Path $targetPath -Content $_ -IdempotencyMarker "? "/"
-                    : returnUrl" -Description "arregla redirect roto (/dashboard -> /)" }
-
-$targetPath = Join-Path $adminRoot "Components\Layout\Topbar.razor"
-@'
-@implements IDisposable
-@inject IJSRuntime JsRuntime
-@inject UserApiClient UserApiClient
-@inject UserProfileState UserProfileState
-
-<!-- Start Topbar -->
-<div class="bg-white dark:bg-darklight dark:border-darkborder flex gap-4 lg:z-10 items-center justify-between px-4 h-[60px] border-b border-black/10 detached-topbar relative">
-    <div class="flex items-center flex-1 gap-2 sm:gap-4">
-        <button type="button" class="flex items-center justify-center text-black dark:text-white/80" @onclick="ToggleSidebar">
-            <i class="ri-menu-2-line"></i>
-        </button>
-    </div>
-
-    <div class="flex items-center gap-4">
-        <button type="button" class="text-black dark:text-white/80" @onclick="ToggleFullScreen">
-            <i class="ri-fullscreen-line text-xl leading-none"></i>
-        </button>
-
-        <div>
-            <a href="javascript:;" class="text-black dark:text-white/80" x-cloak x-show="$store.app.mode === 'light'" x-on:click="$store.app.toggleMode('dark')">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5">
-                    <path d="M10 7C10 10.866 13.134 14 17 14C18.9584 14 20.729 13.1957 21.9995 11.8995C22 11.933 22 11.9665 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C12.0335 2 12.067 2 12.1005 2.00049C10.8043 3.27098 10 5.04157 10 7ZM4 12C4 16.4183 7.58172 20 12 20C15.0583 20 17.7158 18.2839 19.062 15.7621C18.3945 15.9187 17.7035 16 17 16C12.0294 16 8 11.9706 8 7C8 6.29648 8.08133 5.60547 8.2379 4.938C5.71611 6.28423 4 8.9417 4 12Z" fill="currentColor"></path>
-                </svg>
-            </a>
-            <a href="javascript:;" class="text-black dark:text-white/80" x-cloak x-show="$store.app.mode === 'dark'" x-on:click="$store.app.toggleMode('light')">
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="w-5 h-5">
-                    <path d="M12 18C8.68629 18 6 15.3137 6 12C6 8.68629 8.68629 6 12 6C15.3137 6 18 8.68629 18 12C18 15.3137 15.3137 18 12 18ZM12 16C14.2091 16 16 14.2091 16 12C16 9.79086 14.2091 8 12 8C9.79086 8 8 9.79086 8 12C8 14.2091 9.79086 16 12 16ZM11 1H13V4H11V1ZM11 20H13V23H11V20ZM3.51472 4.92893L4.92893 3.51472L7.05025 5.63604L5.63604 7.05025L3.51472 4.92893ZM16.9497 18.364L18.364 16.9497L20.4853 19.0711L19.0711 20.4853L16.9497 18.364ZM19.0711 3.51472L20.4853 4.92893L18.364 7.05025L16.9497 5.63604L19.0711 3.51472ZM5.63604 16.9497L7.05025 18.364L4.92893 20.4853L3.51472 19.0711L5.63604 16.9497ZM23 11V13H20V11H23ZM4 11V13H1V11H4Z" fill="currentColor"></path>
-                </svg>
-            </a>
-        </div>
-
-        <a href="/settings" class="text-black dark:text-white/80">
-            <i class="ri-settings-3-line text-xl leading-none"></i>
-        </a>
-
-        <div class="relative" x-data="{ profileOpen: false }" x-on:click.outside="profileOpen = false">
-            <button type="button" class="flex items-center gap-1.5 xl:gap-0 dark:text-white/80" x-on:click="profileOpen = !profileOpen">
-                @if (!string.IsNullOrWhiteSpace(UserProfileState.PhotoUrl))
-                {
-                    <img src="@UserProfileState.PhotoUrl" alt="Header Avatar" class="object-cover rounded-full h-7 w-7 ltr:xl:mr-2 rtl:xl:ml-2" />
-                }
-                else
-                {
-                    <span class="flex items-center justify-center rounded-full h-7 w-7 ltr:xl:mr-2 rtl:xl:ml-2 bg-purple/10 text-purple"><i class="ri-user-3-fill text-base leading-none"></i></span>
-                }
-                <span class="hidden fw-medium xl:block dark:text-white/80">@DisplayName</span>
-                <i class="ri-arrow-down-s-line hidden xl:block text-lg leading-none"></i>
-            </button>
-
-            <div x-show="profileOpen" x-cloak class="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-darklight border border-black/10 dark:border-darkborder rounded-lg shadow-lg py-2 z-30">
-                <a href="/profile" class="flex items-center gap-2 px-4 py-2 text-sm text-black hover:bg-light dark:text-white/80 dark:hover:bg-dark">
-                    <i class="ri-user-3-line"></i>
-                    Profile
-                </a>
-                <form method="post" action="/account/logout" data-enhance-nav="false">
-                    <AntiforgeryToken />
-                    <button type="submit" class="flex items-center gap-2 w-full text-left px-4 py-2 text-sm text-danger hover:bg-light dark:hover:bg-dark">
-                        <i class="ri-logout-box-line"></i>
-                        Logout
-                    </button>
-                </form>
-            </div>
-        </div>
-    </div>
-</div>
-<!-- End Topbar -->
-@code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
-
-    private string DisplayName { get; set; } = "Admin";
-    private Guid _currentUserId;
-
-    protected override async Task OnInitializedAsync()
-    {
-        UserProfileState.OnChange += HandleProfileChanged;
-
-        if (AuthenticationStateTask is not null)
-        {
-            AuthenticationState authState = await AuthenticationStateTask;
-            string? email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            if (!string.IsNullOrWhiteSpace(email))
-            {
-                DisplayName = email;
-            }
-
-            if (Guid.TryParse(idClaim, out Guid userId))
-            {
-                _currentUserId = userId;
-            }
-        }
-
-        if (!UserProfileState.IsLoaded && _currentUserId != Guid.Empty)
-        {
-            try
-            {
-                UserDto user = await UserApiClient.GetByIdAsync(_currentUserId);
-                UserProfileState.SetPhoto(user.PhotoUrl);
-            }
-            catch
-            {
-                // Non-critical: fall back to the generic icon if this fails.
-            }
-        }
-    }
-
-    private void HandleProfileChanged()
-    {
-        InvokeAsync(StateHasChanged);
-    }
-
-    private async Task ToggleFullScreen()
-    {
-        await JsRuntime.InvokeVoidAsync("toggleFullScreen");
-    }
-
-    private async Task ToggleSidebar()
-    {
-        await JsRuntime.InvokeVoidAsync("toggleSidebar");
-    }
-
-    public void Dispose()
-    {
-        UserProfileState.OnChange -= HandleProfileChanged;
-    }
-}
-'@ | ForEach-Object { Write-FullFile -Path $targetPath -Content $_ -IdempotencyMarker "UserProfileState" -Description "engranaje->/settings, foto sincronizada" }
-
-$targetPath = Join-Path $adminRoot "Components\Pages\Profile.razor"
-@'
-@page "/profile"
-
-@inject UserApiClient UserApiClient
-@inject UploadsApiClient UploadsApiClient
-@inject UserProfileState UserProfileState
-
-<PageTitle>My Profile</PageTitle>
-
-<h1 class="text-2xl font-semibold text-black dark:text-white">My Profile</h1>
-
-<div class="card mt-4 max-w-2xl">
-    @if (IsLoading)
-    {
-        <p class="text-black/60 dark:text-white/60">Loading...</p>
-    }
-    else
-    {
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-        }
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-
-        <div class="flex items-center gap-4 mb-6">
-            @if (!string.IsNullOrWhiteSpace(PhotoUrl))
-            {
-                <img src="@PhotoUrl" alt="Profile photo" class="object-cover rounded-full h-16 w-16" />
-            }
-            else
-            {
-                <span class="flex items-center justify-center rounded-full h-16 w-16 bg-purple/10 text-purple">
-                    <i class="text-2xl ri-user-3-fill leading-none"></i>
-                </span>
-            }
-
-            <div>
-                <InputFile OnChange="OnPhotoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
-                @if (IsUploadingPhoto)
-                {
-                    <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
-                }
-            </div>
-        </div>
-
-        <EditForm Model="@FormModel" OnValidSubmit="SaveAsync">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <div>
-                    <InputText @bind-Value="FormModel.FirstName" placeholder="First name" class="form-input" />
-                </div>
-                <div>
-                    <InputText @bind-Value="FormModel.LastName" placeholder="Last name" class="form-input" />
-                </div>
-                <div class="sm:col-span-2">
-                    <InputText @bind-Value="FormModel.Email" placeholder="Email" class="form-input" />
-                </div>
-            </div>
-            <button type="submit" disabled="@IsSaving" class="px-4 py-2 mt-4 text-sm text-white rounded-md bg-purple disabled:opacity-70">
-                @(IsSaving ? "Saving..." : "Save changes")
-            </button>
-        </EditForm>
-    }
-</div>
-
-@code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
-
-    private Guid CurrentUserId { get; set; }
-    private UserDto? CurrentUser { get; set; }
-
-    private ProfileFormModel FormModel { get; set; } = new();
-    private string? PhotoUrl { get; set; }
-
-    private bool IsLoading { get; set; } = true;
-    private bool IsSaving { get; set; }
-    private bool IsUploadingPhoto { get; set; }
-    private string? successMessage;
-    private string? errorMessage;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (AuthenticationStateTask is not null)
-        {
-            AuthenticationState authState = await AuthenticationStateTask;
-            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-
-            if (Guid.TryParse(idClaim, out Guid userId))
-            {
-                CurrentUserId = userId;
-            }
-        }
-
-        await LoadAsync();
-    }
-
-    private async Task LoadAsync()
-    {
-        IsLoading = true;
-
-        try
-        {
-            CurrentUser = await UserApiClient.GetByIdAsync(CurrentUserId);
-
-            FormModel = new ProfileFormModel
-            {
-                FirstName = CurrentUser.FirstName,
-                LastName = CurrentUser.LastName,
-                Email = CurrentUser.Email
-            };
-
-            PhotoUrl = CurrentUser.PhotoUrl;
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            IsLoading = false;
-        }
-    }
-
-    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
-    {
-        IsUploadingPhoto = true;
-
-        try
-        {
-            IBrowserFile file = e.File;
-            using Stream stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-
-            string url = await UploadsApiClient.UploadImageAsync(stream, file.Name, file.ContentType, width: 300);
-
-            PhotoUrl = url;
-
-            await SaveInternalAsync(showMessage: false);
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            IsUploadingPhoto = false;
-        }
-    }
-
-    private async Task SaveAsync()
-    {
-        await SaveInternalAsync(showMessage: true);
-    }
-
-    private async Task SaveInternalAsync(bool showMessage)
-    {
-        if (CurrentUser is null)
-        {
-            return;
-        }
-
-        IsSaving = true;
-
-        try
-        {
-            UpdateUserRequest request = new()
-            {
-                FirstName = FormModel.FirstName,
-                LastName = FormModel.LastName,
-                Email = FormModel.Email,
-                Phone = CurrentUser.Phone,
-                Country = CurrentUser.Country,
-                City = CurrentUser.City,
-                PhotoUrl = PhotoUrl,
-                MustChangePassword = CurrentUser.MustChangePassword,
-                IsActive = CurrentUser.IsActive,
-                Role = CurrentUser.Role
-            };
-
-            await UserApiClient.UpdateAsync(CurrentUserId, request);
-
-            UserProfileState.SetPhoto(PhotoUrl);
-
-            if (showMessage)
-            {
-                ShowSuccess("Profile updated successfully.");
-            }
-
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            IsSaving = false;
-        }
-    }
-
-    private void ShowSuccess(string message)
-    {
-        successMessage = message;
-        errorMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            successMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private void ShowError(string message)
-    {
-        errorMessage = message;
-        successMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            errorMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private class ProfileFormModel
-    {
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-    }
-}
-'@ | ForEach-Object { Write-FullFile -Path $targetPath -Content $_ -IdempotencyMarker "UserProfileState.SetPhoto" -Description "auto-dismiss + notifica foto" }
-
-$targetPath = Join-Path $adminRoot "Components\Pages\Settings.razor"
+$settingsPath = Join-Path $adminRoot "Components\Pages\Settings.razor"
 @'
 @page "/settings"
+@using Alakai.FestivalManager.Admin.Components.Layout
 
 @inject UserApiClient UserApiClient
 @inject IAuthApiClient AuthApiClient
@@ -540,7 +61,7 @@ $targetPath = Join-Path $adminRoot "Components\Pages\Settings.razor"
 
 <PageTitle>Settings</PageTitle>
 
-<h1 class="text-2xl font-semibold text-black dark:text-white">Settings</h1>
+<PageHeader Title="Settings" pTitle="Admin Users"></PageHeader>
 
 @if (!string.IsNullOrWhiteSpace(successMessage))
 {
@@ -925,11 +446,12 @@ else
     {
         successMessage = message;
         errorMessage = null;
+        StateHasChanged();
         InvokeAsync(async () =>
         {
             await Task.Delay(3500);
             successMessage = null;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         });
     }
 
@@ -937,11 +459,12 @@ else
     {
         errorMessage = message;
         successMessage = null;
+        StateHasChanged();
         InvokeAsync(async () =>
         {
             await Task.Delay(3500);
             errorMessage = null;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         });
     }
 
@@ -969,73 +492,241 @@ else
         public int Role { get; set; } = 2;
     }
 }
-'@ | ForEach-Object { Write-FullFile -Path $targetPath -Content $_ -IdempotencyMarker "ConfirmDeleteAsync" -Description "grid 2 columnas + delete modal + estilos consistentes" }
+'@ | ForEach-Object { Write-ForceFile -Path $settingsPath -Content $_ -Description "grid 2 columnas + delete icono/modal + PageHeader" }
 
-Write-Host ""
-Write-Host "--- 2. Servicio nuevo: UserProfileState ---" -ForegroundColor Cyan
-
-$targetPath = Join-Path $adminRoot "Services\UserProfileState.cs"
+$emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
 @'
-namespace Alakai.FestivalManager.Admin.Services;
+@page "/email-logs"
+@using Alakai.FestivalManager.Admin.Components.Layout
+@inject EmailLogApiClient EmailLogApiClient
 
-public class UserProfileState
+<PageHeader Title="Communication" pTitle="Email Logs"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-72" placeholder="Search recipient or subject..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+                <select class="form-select md:w-40" @bind="statusFilter" @bind:after="ResetPage">
+                    <option value="">All statuses</option>
+                    <option value="@EmailLogStatus.Pending">Pending</option>
+                    <option value="@EmailLogStatus.Sent">Sent</option>
+                    <option value="@EmailLogStatus.Failed">Failed</option>
+                    <option value="@EmailLogStatus.Skipped">Skipped</option>
+                </select>
+                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading email logs...</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Recipient</th>
+                            <th class="px-4 py-3 font-semibold">Template</th>
+                            <th class="px-4 py-3 font-semibold">Status</th>
+                            <th class="px-4 py-3 font-semibold">Sent At</th>
+                            <th class="px-4 py-3 font-semibold">Error</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (PagedLogs.Count == 0)
+                        {
+                            <tr>
+                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No email logs found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (EmailLogDto log in PagedLogs)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">
+                                        <div class="font-medium">@log.RecipientEmail</div>
+                                        <div class="text-xs text-black/50">@log.RecipientName</div>
+                                    </td>
+                                    <td class="px-4 py-3">@log.TemplateKey</td>
+                                    <td class="px-4 py-3"><span class="@GetStatusClass(log.Status)">@log.Status</span></td>
+                                    <td class="px-4 py-3">@(log.SentAt.HasValue ? log.SentAt.Value.ToString("dd/MM/yyyy HH:mm") : "-")</td>
+                                    <td class="px-4 py-3">@log.ErrorMessage</td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
+                                            <i class="ri-eye-line text-lg"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @ShowingFrom to @ShowingTo of @FilteredLogs.Count logs
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (previewingLog is not null)
 {
-    public string? PhotoUrl { get; private set; }
-    public bool IsLoaded { get; private set; }
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width:760px; max-width:95vw;">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <div>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
+                        <p class="text-xs text-black/50 dark:text-white/40">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
+                    </div>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                </div>
 
-    public event Action? OnChange;
+                <div class="p-2 flex justify-center bg-gray-100">
+                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:680px; max-width:100%; height:70vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
-    public void SetPhoto(string? photoUrl)
+@code {
+    private List<EmailLogDto> logs = [];
+    private EmailLogDto? previewingLog;
+    private string searchText = string.Empty;
+    private string statusFilter = string.Empty;
+    private bool isLoading = true;
+    private string? errorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    protected override async Task OnInitializedAsync()
     {
-        PhotoUrl = photoUrl;
-        IsLoaded = true;
-        OnChange?.Invoke();
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            logs = (await EmailLogApiClient.GetAllAsync()).OrderByDescending(l => l.SentAt).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<EmailLogDto> FilteredLogs
+    {
+        get
+        {
+            IEnumerable<EmailLogDto> query = logs;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(l => l.RecipientEmail.Contains(searchText, StringComparison.OrdinalIgnoreCase) || l.Subject.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (Enum.TryParse(statusFilter, out EmailLogStatus status))
+            {
+                query = query.Where(l => l.Status == status);
+            }
+
+            return query.ToList();
+        }
+    }
+
+    private List<EmailLogDto> PagedLogs => FilteredLogs.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredLogs.Count / pageSize));
+    private int ShowingFrom => FilteredLogs.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int ShowingTo => Math.Min(currentPage * pageSize, FilteredLogs.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+        NormalizePage();
+    }
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1) currentPage--;
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages) currentPage++;
+    }
+
+    private static string GetStatusClass(EmailLogStatus status)
+    {
+        return status switch
+        {
+            EmailLogStatus.Sent => "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success",
+            EmailLogStatus.Pending => "inline-block rounded text-xs px-2 py-1 bg-warning/10 text-warning",
+            EmailLogStatus.Failed => "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger",
+            _ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
+        };
+    }
+
+    private void OpenPreview(EmailLogDto log)
+    {
+        previewingLog = log;
+    }
+
+    private void ClosePreview()
+    {
+        previewingLog = null;
     }
 }
-'@ | ForEach-Object { Write-NewFile -Path $targetPath -Content $_ -Description "UserProfileState" }
+'@ | ForEach-Object { Write-ForceFile -Path $emailLogsPath -Content $_ -Description "paginacion real (Skip/Take) + filas por pagina" }
 
 Write-Host ""
-Write-Host "--- 3. DI: registrar UserProfileState ---" -ForegroundColor Cyan
-
-$diPath = Join-Path $adminRoot "Extensions\ApplicationDependencyInjectionExtension.cs"
-Require-Path $diPath
-
-$diContent = Get-Content $diPath -Raw
-$diOld = "services.AddScoped<ITokenStorageService, TokenStorageService>();"
-$diNew = "services.AddScoped<ITokenStorageService, TokenStorageService>();`r`n`r`n        services.AddScoped<UserProfileState>();"
-
-if ($diContent.Contains("AddScoped<UserProfileState>")) {
-    Write-Host "  Ya registrado en DI." -ForegroundColor Yellow
-} else {
-    $count = ([regex]::Matches($diContent, [regex]::Escape($diOld))).Count
-    if ($count -ne 1) {
-        Write-Host "ERROR: no se encontro una unica ocurrencia de la linea de ITokenStorageService en $diPath." -ForegroundColor Red
-        exit 1
-    }
-    $newDiContent = $diContent.Replace($diOld, $diNew)
-    Set-Content -Path $diPath -Value $newDiContent -Encoding UTF8 -NoNewline
-    Write-Host "  Modificado: $diPath (UserProfileState registrado)" -ForegroundColor Green
-}
-
-Write-Host ""
-Write-Host "--- 4. Global.cs: using para UserProfileState ---" -ForegroundColor Cyan
-
-$globalPath = Join-Path $adminRoot "Global.cs"
-Require-Path $globalPath
-
-$globalContent = Get-Content $globalPath -Raw
-$neededUsing = "global using Alakai.FestivalManager.Admin.Services;"
-
-if ($globalContent.Contains($neededUsing)) {
-    Write-Host "  Global.cs ya tiene el using." -ForegroundColor Yellow
-} else {
-    Add-Content -Path $globalPath -Value ("`r`n" + $neededUsing) -Encoding UTF8
-    Write-Host "  Modificado: $globalPath (using anadido)" -ForegroundColor Green
-}
-
-Write-Host ""
-Write-Host "Paso F completado." -ForegroundColor Cyan
-Write-Host "Reinicia el Admin (la Api no cambia en este paso)." -ForegroundColor Yellow
-Write-Host "Prueba: haz login -> deberia llevarte directo al dashboard sin 404." -ForegroundColor Cyan
-Write-Host "Sube una foto en /profile y comprueba que aparece en el Topbar sin recargar." -ForegroundColor Cyan
-Write-Host "El engranaje del Topbar ahora navega directo a /settings." -ForegroundColor Cyan
+Write-Host "Completado." -ForegroundColor Cyan
+Write-Host "Reinicia el Admin. Comprueba: Settings con el grid de 2 columnas, delete con modal," -ForegroundColor Cyan
+Write-Host "y en Email Logs que cambiar 'rows' realmente recorta las filas visibles." -ForegroundColor Cyan

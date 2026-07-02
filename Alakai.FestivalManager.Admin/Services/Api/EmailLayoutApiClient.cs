@@ -1,6 +1,6 @@
-﻿using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.Requests;
-using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.Responses;
+using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.DTOs;
+using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Requests;
+using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Responses;
 using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
@@ -14,26 +14,40 @@ public class EmailLayoutApiClient
         _httpClient = httpClient;
     }
 
-    public async Task<EmailLayoutDto> GetAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<EmailLayoutDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        ApiResponse<GetEmailLayoutResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEmailLayoutResponse>>("api/email-layout", cancellationToken);
+        ApiResponse<GetEmailLayoutsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEmailLayoutsResponse>>("api/email-layout", cancellationToken);
 
         if (response?.Success is not true)
         {
-            throw new ApiClientException(response?.Message ?? "Could not load email layout.", response?.Errors);
+            throw new ApiClientException(response?.Message ?? "Could not load email layouts.", response?.Errors);
         }
 
-        return response.Data?.EmailLayout ?? new EmailLayoutDto();
+        return response.Data?.EmailLayouts ?? [];
     }
 
-    public async Task<EmailLayoutDto> UpdateAsync(UpdateEmailLayoutRequest request, CancellationToken cancellationToken = default)
+    public async Task CreateAsync(CreateEmailLayoutRequest request, CancellationToken cancellationToken = default)
     {
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync("api/email-layout", request, cancellationToken);
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/email-layout", request, cancellationToken);
+        ApiResponse<CreateEmailLayoutResponse>? response = await ReadResponseAsync<CreateEmailLayoutResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+    }
+
+    public async Task UpdateAsync(Guid id, UpdateEmailLayoutRequest request, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/email-layout/{id}", request, cancellationToken);
         ApiResponse<UpdateEmailLayoutResponse>? response = await ReadResponseAsync<UpdateEmailLayoutResponse>(httpResponse, cancellationToken);
 
         EnsureSuccess(httpResponse, response);
+    }
 
-        return response!.Data!.EmailLayout;
+    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/email-layout/{id}", cancellationToken);
+        ApiResponse<DeleteEmailLayoutResponse>? response = await ReadResponseAsync<DeleteEmailLayoutResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
     }
 
     private static async Task<ApiResponse<T>?> ReadResponseAsync<T>(HttpResponseMessage httpResponse, CancellationToken cancellationToken)

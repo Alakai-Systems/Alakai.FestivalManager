@@ -1,4 +1,5 @@
 @page "/settings"
+@using Alakai.FestivalManager.Admin.Components.Layout
 
 @inject UserApiClient UserApiClient
 @inject IAuthApiClient AuthApiClient
@@ -6,7 +7,7 @@
 
 <PageTitle>Settings</PageTitle>
 
-<h1 class="text-2xl font-semibold text-black dark:text-white">Settings</h1>
+<PageHeader Title="Settings" pTitle="Admin Users"></PageHeader>
 
 @if (!string.IsNullOrWhiteSpace(successMessage))
 {
@@ -391,11 +392,12 @@ else
     {
         successMessage = message;
         errorMessage = null;
+        StateHasChanged();
         InvokeAsync(async () =>
         {
             await Task.Delay(3500);
             successMessage = null;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         });
     }
 
@@ -403,11 +405,12 @@ else
     {
         errorMessage = message;
         successMessage = null;
+        StateHasChanged();
         InvokeAsync(async () =>
         {
             await Task.Delay(3500);
             errorMessage = null;
-            StateHasChanged();
+            await InvokeAsync(StateHasChanged);
         });
     }
 

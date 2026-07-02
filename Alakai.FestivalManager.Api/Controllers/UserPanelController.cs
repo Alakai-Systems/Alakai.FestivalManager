@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Api.Controllers;
+namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/user-panel")]
@@ -83,6 +83,26 @@ public class UserPanelController : ControllerBase
         }
 
         ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.DeleteCompetitionEntryAsync(userId, id, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("invoices")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateInvoice([FromBody] CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateInvoiceAsync(userId, request, cancellationToken);
 
         if (!response.Success)
         {

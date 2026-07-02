@@ -29,9 +29,9 @@ public class EmailNotificationService : IEmailNotificationService
 
     private const int EmailShellWidth = 640;
 
-    private async Task<(string Html, string? Text)> ApplyLayoutAsync(string bodyHtml, string? bodyText, CancellationToken cancellationToken)
+    private async Task<(string Html, string? Text)> ApplyLayoutAsync(string bodyHtml, string? bodyText, Guid? editionId, CancellationToken cancellationToken)
     {
-        EmailLayout? layout = await _emailLayoutRepository.GetAsync(cancellationToken);
+        EmailLayout? layout = await _emailLayoutRepository.GetForEditionAsync(editionId, cancellationToken);
 
         string headerHtml = layout?.HeaderHtml ?? string.Empty;
         string footerHtml = layout?.FooterHtml ?? string.Empty;
@@ -105,7 +105,7 @@ public class EmailNotificationService : IEmailNotificationService
             ? null
             : _emailTemplateRendererService.Render(template.BodyText, variables);
 
-        (string bodyHtml, string? bodyText) = await ApplyLayoutAsync(renderedBodyHtml, renderedBodyText, cancellationToken);
+        (string bodyHtml, string? bodyText) = await ApplyLayoutAsync(renderedBodyHtml, renderedBodyText, registration.EditionId, cancellationToken);
 
 
         EmailLog emailLog = new()
@@ -209,7 +209,7 @@ public class EmailNotificationService : IEmailNotificationService
         string renderedBodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
         string? renderedBodyText = string.IsNullOrWhiteSpace(template.BodyText) ? null : _emailTemplateRendererService.Render(template.BodyText, variables);
 
-        (string bodyHtml, string? bodyText) = await ApplyLayoutAsync(renderedBodyHtml, renderedBodyText, cancellationToken);
+        (string bodyHtml, string? bodyText) = await ApplyLayoutAsync(renderedBodyHtml, renderedBodyText, null, cancellationToken);
 
         EmailLog emailLog = new()
         {

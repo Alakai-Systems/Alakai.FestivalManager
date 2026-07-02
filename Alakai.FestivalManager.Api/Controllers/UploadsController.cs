@@ -1,6 +1,12 @@
-﻿using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Application.Features.Files.Services;
 
 namespace Alakai.FestivalManager.Api.Controllers;
+
+public class UploadImageForm
+{
+    public IFormFile File { get; set; } = default!;
+    public int? Width { get; set; }
+}
 
 [ApiController]
 [Route("api/uploads")]
@@ -21,8 +27,11 @@ public class UploadsController : ControllerBase
     }
     [HttpPost("images")]
     [RequestSizeLimit(MaxFileSizeBytes)]
-    public async Task<IActionResult> UploadImage([FromForm] IFormFile file, [FromForm] int? width, CancellationToken cancellationToken)
+    public async Task<IActionResult> UploadImage([FromForm] UploadImageForm form, CancellationToken cancellationToken)
     {
+        IFormFile file = form.File;
+        int? width = form.Width;
+
         if (file is null || file.Length == 0)
         {
             return BadRequest(new { error = "No file was provided." });

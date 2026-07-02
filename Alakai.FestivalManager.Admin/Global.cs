@@ -56,3 +56,9 @@ global using System.Security.Claims;
 
 
 global using Alakai.FestivalManager.Admin.Services;
+
+global using Alakai.FestivalManager.Admin.Contracts.Invoices.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Invoices.Responses;
+
+
+global using Alakai.FestivalManager.Admin.Contracts.Invoices.Requests;

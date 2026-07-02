@@ -1,0 +1,175 @@
+@page "/settings/invoices"
+
+@inject InvoiceSettingsApiClient InvoiceSettingsApiClient
+@inject UploadsApiClient UploadsApiClient
+
+<PageTitle>Invoice Editor</PageTitle>
+
+<h1 class="text-2xl font-semibold text-black dark:text-white">Invoice Editor</h1>
+<p class="mt-1 text-sm text-black/60 dark:text-white/60">These details appear on every invoice PDF as the issuer.</p>
+
+<div class="card mt-4 max-w-2xl">
+    @if (IsLoading)
+    {
+        <p class="text-black/60 dark:text-white/60">Loading...</p>
+    }
+    else
+    {
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        <div class="flex items-center gap-4 mb-6">
+            @if (!string.IsNullOrWhiteSpace(Settings.LogoUrl))
+            {
+                <img src="@Settings.LogoUrl" alt="Company logo" class="object-contain h-16 w-16 rounded border border-black/10 dark:border-darkborder" />
+            }
+            else
+            {
+                <span class="flex items-center justify-center rounded h-16 w-16 border border-dashed border-black/20 text-black/30 dark:border-darkborder dark:text-white/30">
+                    <i class="text-2xl ri-image-line leading-none"></i>
+                </span>
+            }
+
+            <div>
+                <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
+                @if (IsUploadingLogo)
+                {
+                    <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
+                }
+            </div>
+        </div>
+
+        <EditForm Model="@Settings" OnValidSubmit="SaveAsync">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div class="sm:col-span-2">
+                    <InputText @bind-Value="Settings.CompanyName" placeholder="Company / fiscal name" class="form-input" />
+                </div>
+                <div>
+                    <InputText @bind-Value="Settings.TaxId" placeholder="Tax ID (NIF/CIF)" class="form-input" />
+                </div>
+                <div>
+                    <InputText @bind-Value="Settings.Address" placeholder="Address" class="form-input" />
+                </div>
+                <div>
+                    <InputText @bind-Value="Settings.City" placeholder="City" class="form-input" />
+                </div>
+                <div>
+                    <InputText @bind-Value="Settings.PostalCode" placeholder="Postal code" class="form-input" />
+                </div>
+                <div class="sm:col-span-2">
+                    <InputText @bind-Value="Settings.Country" placeholder="Country" class="form-input" />
+                </div>
+            </div>
+            <button type="submit" disabled="@IsSaving" class="px-4 py-2 mt-4 text-sm text-white rounded-md bg-purple disabled:opacity-70">
+                @(IsSaving ? "Saving..." : "Save changes")
+            </button>
+        </EditForm>
+    }
+</div>
+
+@code {
+    private InvoiceSettingsDto Settings { get; set; } = new();
+
+    private bool IsLoading { get; set; } = true;
+    private bool IsSaving { get; set; }
+    private bool IsUploadingLogo { get; set; }
+    private string? successMessage;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        IsLoading = true;
+
+        try
+        {
+            Settings = await InvoiceSettingsApiClient.GetAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
+    {
+        IsUploadingLogo = true;
+
+        try
+        {
+            IBrowserFile file = e.File;
+            using Stream stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+
+            string url = await UploadsApiClient.UploadImageAsync(stream, file.Name, file.ContentType, width: 300);
+
+            Settings.LogoUrl = url;
+
+            await InvoiceSettingsApiClient.UpdateAsync(Settings);
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            IsUploadingLogo = false;
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        IsSaving = true;
+
+        try
+        {
+            await InvoiceSettingsApiClient.UpdateAsync(Settings);
+            ShowSuccess("Invoice settings saved successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            IsSaving = false;
+        }
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+}

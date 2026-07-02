@@ -222,7 +222,7 @@
                 <div class="mb-5" id="invoices">
                     <h2 class="text-lg font-bold text-black dark:text-white">Invoices</h2>
                 </div>
-                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">Create invoice</button>
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="OpenInvoiceModal">Create invoice</button>
             </div>
 
             <div class="overflow-x-auto">
@@ -251,9 +251,9 @@
                                     <td class="px-4 py-3">@invoice.Date.ToString("dd/MM/yyyy")</td>
                                     <td class="px-4 py-3">@invoice.Amount.ToString("0.00") €</td>
                                     <td class="px-4 py-3 text-right">
-                                        <button type="button" class="text-black dark:text-white/80">
+                                        <a href="@invoice.PdfUrl" target="_blank" class="text-black dark:text-white/80">
                                             <i class="ri-download-line text-lg"></i>
-                                        </button>
+                                        </a>
                                     </td>
                                 </tr>
                             }
@@ -497,6 +497,75 @@
         </div>
     </div>
 }
+@if (ShowInvoiceModal)
+{
+    <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+        <div class="relative w-full max-w-lg overflow-hidden rounded-lg border border-black/10 bg-white shadow-3xl dark:border-darkborder dark:bg-darklight">
+
+            <div class="flex items-center justify-between border-b border-black/10 px-5 py-4 dark:border-darkborder">
+                <div>
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Create Invoice</h3>
+                    <p class="mt-1 text-sm text-muted dark:text-darkmuted">
+                        Enter your billing details.
+                    </p>
+                </div>
+
+                <button type="button" class="text-black/60 hover:text-black dark:text-white/60 dark:hover:text-white" @onclick="CloseInvoiceModal">
+                    <i class="ri-close-line text-2xl"></i>
+                </button>
+            </div>
+
+            <div class="space-y-4 px-5 py-5">
+                @if (!string.IsNullOrWhiteSpace(InvoiceModalError))
+                {
+                    <div class="rounded bg-danger/10 p-3 text-sm text-danger">
+                        @InvoiceModalError
+                    </div>
+                }
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-black dark:text-white">Full name / Company name</label>
+                    <input type="text" class="form-input" @bind="InvoiceFiscalName" />
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-black dark:text-white">Tax ID (NIF/CIF)</label>
+                    <input type="text" class="form-input" @bind="InvoiceTaxId" />
+                </div>
+
+                <div class="space-y-2">
+                    <label class="block text-sm font-medium text-black dark:text-white">Address</label>
+                    <input type="text" class="form-input" @bind="InvoiceAddress" />
+                </div>
+
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-black dark:text-white">City</label>
+                        <input type="text" class="form-input" @bind="InvoiceCity" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-black dark:text-white">Postal code</label>
+                        <input type="text" class="form-input" @bind="InvoicePostalCode" />
+                    </div>
+                    <div class="space-y-2">
+                        <label class="block text-sm font-medium text-black dark:text-white">Country</label>
+                        <input type="text" class="form-input" @bind="InvoiceCountry" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 border-t border-black/10 px-5 py-4 dark:border-darkborder">
+                <button type="button" class="btn bg-light border-light text-black hover:bg-light/[0.85] hover:border-light/[0.85]" @onclick="CloseInvoiceModal">
+                    Cancel
+                </button>
+
+                <button type="button" disabled="@IsCreatingInvoice" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-70" @onclick="CreateInvoiceAsync">
+                    @(IsCreatingInvoice ? "Creating..." : "Create Invoice")
+                </button>
+            </div>
+        </div>
+    </div>
+}
 <!-- End All Card -->
 @code {
     private UserPanelDashboardDto? Dashboard { get; set; }
@@ -525,6 +594,63 @@
     private IReadOnlyList<CompetitionEntryDto> Competitions => Dashboard?.Competitions ?? [];
     private IReadOnlyList<UserPanelInvoiceDto> Invoices => Dashboard?.Invoices ?? [];
     private IReadOnlyList<CompetitionDto> AvailableCompetitions => Dashboard?.AvailableCompetitions ?? [];
+
+    private bool ShowInvoiceModal { get; set; }
+    private bool IsCreatingInvoice { get; set; }
+    private string? InvoiceModalError { get; set; }
+    private string InvoiceFiscalName { get; set; } = string.Empty;
+    private string InvoiceTaxId { get; set; } = string.Empty;
+    private string InvoiceAddress { get; set; } = string.Empty;
+    private string InvoiceCity { get; set; } = string.Empty;
+    private string InvoicePostalCode { get; set; } = string.Empty;
+    private string InvoiceCountry { get; set; } = string.Empty;
+
+    private void OpenInvoiceModal()
+    {
+        InvoiceModalError = null;
+        InvoiceFiscalName = $"{FirstName} {LastName}".Trim();
+        InvoiceTaxId = DocumentNumber ?? string.Empty;
+        InvoiceAddress = string.Empty;
+        InvoiceCity = City ?? string.Empty;
+        InvoicePostalCode = string.Empty;
+        InvoiceCountry = Country ?? string.Empty;
+        ShowInvoiceModal = true;
+    }
+
+    private void CloseInvoiceModal()
+    {
+        ShowInvoiceModal = false;
+    }
+
+    private async Task CreateInvoiceAsync()
+    {
+        InvoiceModalError = null;
+        IsCreatingInvoice = true;
+
+        try
+        {
+            CreateUserPanelInvoiceRequest request = new()
+            {
+                FiscalName = InvoiceFiscalName,
+                TaxId = InvoiceTaxId,
+                Address = InvoiceAddress,
+                City = InvoiceCity,
+                PostalCode = InvoicePostalCode,
+                Country = InvoiceCountry
+            };
+
+            Dashboard = await UserPanelApiClient.CreateInvoiceAsync(request);
+            ShowInvoiceModal = false;
+        }
+        catch (Exception ex)
+        {
+            InvoiceModalError = ex.Message;
+        }
+        finally
+        {
+            IsCreatingInvoice = false;
+        }
+    }
 
     private string CurrentPassword { get; set; } = string.Empty;
     private string NewPassword { get; set; } = string.Empty;

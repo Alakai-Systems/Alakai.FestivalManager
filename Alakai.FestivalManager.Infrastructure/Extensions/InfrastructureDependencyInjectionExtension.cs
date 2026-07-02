@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Application.Features.Invoices.Services;
+
 namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
 public static class InfrastructureDependencyInjectionExtension
@@ -29,6 +31,10 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IUserPanelRepository, UserPanelRepository>();
+        services.AddScoped<IInvoiceRepository, InvoiceRepository>();
+        services.AddScoped<IInvoiceSettingsRepository, InvoiceSettingsRepository>();
+        services.AddScoped<IInvoiceTemplateRepository, InvoiceTemplateRepository>();
+        services.AddScoped<IInvoicePdfService, QuestPdfInvoiceService>();
         services.Configure<EmailOptions>(configuration.GetSection("Email"));
         services.AddScoped<IEmailSender, MailKitEmailSender>();
 

@@ -1,5 +1,3 @@
-using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
-
 namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
@@ -68,6 +66,15 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateUserHandler>();
         services.AddScoped<DeleteUserHandler>();
         services.AddScoped<IUserService, UserService>();
+
+        //Invoices
+        services.AddScoped<CreateInvoiceHandler>();
+        services.AddScoped<IInvoiceService, InvoiceService>();
+        services.AddScoped<UpdateInvoiceSettingsHandler>();
+        services.AddScoped<IInvoiceSettingsService, InvoiceSettingsService>();
+        services.AddScoped<CreateInvoiceTemplateHandler>();
+        services.AddScoped<UpdateInvoiceTemplateHandler>();
+        services.AddScoped<IInvoiceTemplateService, InvoiceTemplateService>();
 
         //Competitions
         services.AddScoped<CreateCompetitionHandler>();

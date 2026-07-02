@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Admin.Services.Api;
+namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class UserPanelApiClient
 {
@@ -54,5 +54,30 @@ public class UserPanelApiClient
         }
 
         return response.Data?.Dashboard;
+    }
+
+    public async Task<UserPanelDashboardDto> CreateInvoiceAsync(CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/invoices", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true || response.Data?.Dashboard is null)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Invoice could not be created.";
+            throw new Exception(message);
+        }
+
+        return response.Data.Dashboard;
     }
 }

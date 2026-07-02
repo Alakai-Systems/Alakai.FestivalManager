@@ -1,4 +1,7 @@
-﻿namespace Alakai.FestivalManager.Application.Features.UserPanel.Services;
+using Alakai.FestivalManager.Application.Features.Invoices.Commands.CreateInvoice;
+using Alakai.FestivalManager.Application.Features.Invoices.Services;
+
+namespace Alakai.FestivalManager.Application.Features.UserPanel.Services;
 
 public class UserPanelService : IUserPanelService
 {
@@ -8,10 +11,12 @@ public class UserPanelService : IUserPanelService
     private readonly ICompetitionRepository _competitionRepository;
     private readonly ICompetitionCapacityRepository _competitionCapacityRepository;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IInvoiceService _invoiceService;
     private readonly IMapper _mapper;
     public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper, 
         ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository, 
-        ICompetitionCapacityRepository competitionCapacityRepository, IEmailNotificationService emailNotificationService)
+        ICompetitionCapacityRepository competitionCapacityRepository, IEmailNotificationService emailNotificationService,
+        IInvoiceService invoiceService)
     {
         _userPanelRepository = userPanelRepository;
         _competitionEntryService = competitionEntryService;
@@ -20,6 +25,7 @@ public class UserPanelService : IUserPanelService
         _competitionRepository = competitionRepository;
         _competitionCapacityRepository = competitionCapacityRepository;
         _emailNotificationService = emailNotificationService;
+        _invoiceService = invoiceService;
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> GetDashboardAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -59,6 +65,10 @@ public class UserPanelService : IUserPanelService
         IReadOnlyList<CompetitionEntry> competitionEntries = registrationIds.Count == 0
             ? []
             : await _userPanelRepository.GetCompetitionEntriesByRegistrationIdsAsync(registrationIds, cancellationToken);
+
+        IReadOnlyList<Invoice> invoices = registrationIds.Count == 0
+            ? []
+            : await _userPanelRepository.GetInvoicesByRegistrationIdsAsync(registrationIds, cancellationToken);
 
         IReadOnlyList<Competition> availableCompetitions = await _competitionRepository.GetByEditionIdAsync(registration.EditionId, cancellationToken);
 
@@ -142,7 +152,14 @@ public class UserPanelService : IUserPanelService
                 CreatedAt = c.CreatedAt,
                 UpdatedAt = c.UpdatedAt
             }).ToList(),
-            Invoices = []
+            Invoices = invoices.Select(i => new UserPanelInvoiceDto
+            {
+                Id = i.Id,
+                Number = i.Number,
+                Date = i.IssuedAt,
+                Amount = i.Amount,
+                PdfUrl = i.PdfUrl
+            }).ToList()
         };
 
         return new ApiResponse<GetUserPanelDashboardResponse>
@@ -277,5 +294,35 @@ public class UserPanelService : IUserPanelService
 
         return await GetDashboardAsync(userId, cancellationToken);
     }
-}
 
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Invoice could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        CreateInvoiceCommand command = new()
+        {
+            RegistrationId = registration.Id,
+            FiscalName = request.FiscalName,
+            TaxId = request.TaxId,
+            Address = request.Address,
+            City = request.City,
+            PostalCode = request.PostalCode,
+            Country = request.Country
+        };
+
+        await _invoiceService.CreateAsync(command, cancellationToken);
+
+        return await GetDashboardAsync(userId, cancellationToken);
+    }
+}

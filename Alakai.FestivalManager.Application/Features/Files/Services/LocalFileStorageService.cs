@@ -1,7 +1,6 @@
-﻿using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Application.Features.Files.Services;
 using SixLabors.ImageSharp;
 using SixLabors.ImageSharp.Processing;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace Alakai.FestivalManager.Infrastructure.Files;
 
@@ -52,5 +51,43 @@ public class LocalFileStorageService : IFileStorageService
         }
 
         return $"{_options.PublicBaseUrl.TrimEnd('/')}/{uniqueFileName}";
+    }
+
+    public async Task<string> SaveFileAsync(Stream content, string fileName, CancellationToken cancellationToken = default)
+    {
+        string extension = Path.GetExtension(fileName);
+        string uniqueFileName = $"{Guid.NewGuid()}{extension}";
+        string physicalFolder = Path.Combine(Directory.GetCurrentDirectory(), _options.RootPath);
+
+        Directory.CreateDirectory(physicalFolder);
+
+        string physicalPath = Path.Combine(physicalFolder, uniqueFileName);
+
+        using (FileStream fileStream = new(physicalPath, FileMode.Create, FileAccess.Write))
+        {
+            await content.CopyToAsync(fileStream, cancellationToken);
+        }
+
+        return $"{_options.PublicBaseUrl.TrimEnd('/')}/{uniqueFileName}";
+    }
+
+    public string? ResolveLocalPath(string publicUrl)
+    {
+        if (string.IsNullOrWhiteSpace(publicUrl))
+        {
+            return null;
+        }
+
+        string prefix = _options.PublicBaseUrl.TrimEnd('/') + "/";
+
+        if (!publicUrl.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        string fileName = publicUrl[prefix.Length..];
+        string physicalFolder = Path.Combine(Directory.GetCurrentDirectory(), _options.RootPath);
+
+        return Path.Combine(physicalFolder, fileName);
     }
 }

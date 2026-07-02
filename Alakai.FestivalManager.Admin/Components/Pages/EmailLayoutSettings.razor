@@ -1,116 +1,472 @@
-﻿@page "/email-layout"
+@page "/email-layout"
 @using Alakai.FestivalManager.Admin.Components.Layout
-@using Alakai.FestivalManager.Admin.Services.Api
-@using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.DTOs
-@using Alakai.FestivalManager.Application.Features.EmailLayouts.Contracts.Requests
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Requests
+
 @inject EmailLayoutApiClient EmailLayoutApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
 
-<div class="p-6">
-    <MudText Typo="Typo.h1" Class="mb-4 text-2xl font-semibold">Email Header &amp; Footer</MudText>
-    <MudText Class="mb-6 text-muted">This header and footer are automatically added to every email sent by the system.</MudText>
+<PageHeader Title="Communication" pTitle="Header &amp; Footer"></PageHeader>
 
-    @if (!string.IsNullOrWhiteSpace(SuccessMessage))
-    {
-        <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@SuccessMessage</div>
-    }
-    @if (!string.IsNullOrWhiteSpace(ErrorMessage))
-    {
-        <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@ErrorMessage</div>
-    }
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-64" placeholder="Search layouts..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
-    @if (IsLoading)
-    {
-        <p>Loading...</p>
-    }
-    else
-    {
-        <div class="grid grid-cols-1 gap-8">
-            <div>
-                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Header (HTML)</MudText>
-                <EmailTemplateEditor @bind-Value="HeaderHtml" />
-            </div>
+                <select class="form-select md:w-48" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto festival in festivals)
+                    {
+                        <option value="@festival.Id">@festival.Name</option>
+                    }
+                </select>
 
-            <div>
-                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Header (plain text)</MudText>
-                <textarea class="form-textarea w-full" rows="3" @bind="HeaderText"></textarea>
-            </div>
+                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="">All editions</option>
+                    @foreach (EditionDto edition in FilteredEditionOptions)
+                    {
+                        <option value="@edition.Id">@edition.Name</option>
+                    }
+                </select>
 
-            <div>
-                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Footer (HTML)</MudText>
-                <EmailTemplateEditor @bind-Value="FooterHtml" />
-            </div>
+                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
 
-            <div>
-                <MudText Typo="Typo.h2" Class="mb-2 text-lg font-medium">Footer (plain text)</MudText>
-                <textarea class="form-textarea w-full" rows="3" @bind="FooterText"></textarea>
-            </div>
-
-            <div>
-                <button type="button" disabled="@IsSaving" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85]" @onclick="SaveAsync">
-                    @(IsSaving ? "Saving..." : "Save")
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Layout
                 </button>
             </div>
         </div>
-    }
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading layouts...</p>
+        }
+        else if (FilteredLayouts.Count == 0)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">No email layouts found.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-3 py-3 font-semibold">Name</th>
+                            <th class="px-3 py-3 font-semibold">Edition</th>
+                            <th class="px-3 py-3 font-semibold">Active</th>
+                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (EmailLayoutDto layout in PagedLayouts)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3 font-medium">@(layout.Name)</td>
+                                <td class="px-3 py-3">@(layout.EditionId is null ? "Global" : layout.EditionName)</td>
+                                <td class="px-3 py-3"><span class="@GetStatusClass(layout.IsActive)">@(layout.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(layout)"><i class="ri-pencil-line text-lg"></i></button>
+                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(layout)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">
+                    Showing @StartRow to @EndRow of @FilteredLayouts.Count layouts
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
 </div>
 
-@code {
-    private string HeaderHtml { get; set; } = string.Empty;
-    private string? HeaderText { get; set; }
-    private string FooterHtml { get; set; } = string.Empty;
-    private string? FooterText { get; set; }
+@if (showModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 900px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingLayout is null ? "New Email Layout" : "Edit Email Layout")</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
 
-    private bool IsLoading { get; set; } = true;
-    private bool IsSaving { get; set; }
-    private string? SuccessMessage { get; set; }
-    private string? ErrorMessage { get; set; }
+                <div class="p-5 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                            <InputText class="form-input" @bind-Value="formModel.Name" placeholder="e.g. La Jam Barcelona, or Default" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Edition</label>
+                            <select class="form-select" @bind="formModel.EditionId">
+                                <option value="">Global (default)</option>
+                                @foreach (EditionDto edition in editions)
+                                {
+                                    <option value="@edition.Id">@edition.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Header (HTML)</label>
+                            <EmailTemplateEditor @bind-Value="formModel.HeaderHtml" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Header (plain text)</label>
+                            <textarea class="form-textarea w-full" rows="3" @bind="formModel.HeaderText"></textarea>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Footer (HTML)</label>
+                            <EmailTemplateEditor @bind-Value="formModel.FooterHtml" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Footer (plain text)</label>
+                            <textarea class="form-textarea w-full" rows="3" @bind="formModel.FooterText"></textarea>
+                        </div>
+
+                        <div>
+                            <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingLayout is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Email Layout</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingLayout.Name?</p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync"> @(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<EmailLayoutDto> layouts = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private EmailLayoutDto? editingLayout;
+    private EmailLayoutDto? deletingLayout;
+    private EmailLayoutFormModel formModel = new();
+    private string searchText = string.Empty;
+    private string festivalFilter = string.Empty;
+    private string editionFilter = string.Empty;
+    private int pageSize = 10;
+    private int currentPage = 1;
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool showModal;
+    private string? successMessage;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
         try
         {
-            EmailLayoutDto layout = await EmailLayoutApiClient.GetAsync();
-            HeaderHtml = layout.HeaderHtml;
-            HeaderText = layout.HeaderText;
-            FooterHtml = layout.FooterHtml;
-            FooterText = layout.FooterText;
+            layouts = (await EmailLayoutApiClient.GetAllAsync()).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
         }
-        catch (ApiClientException ex)
+        catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            errorMessage = ex.Message;
         }
         finally
         {
-            IsLoading = false;
+            isLoading = false;
         }
+    }
+
+    private List<EditionDto> FilteredEditionOptions
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid festivalId))
+            {
+                return editions;
+            }
+
+            return editions.Where(e => e.FestivalId == festivalId).ToList();
+        }
+    }
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        ResetPage();
+    }
+
+    private List<EmailLayoutDto> FilteredLayouts
+    {
+        get
+        {
+            IEnumerable<EmailLayoutDto> query = layouts;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                string term = searchText.Trim();
+                query = query.Where(l => l.Name.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(editionFilter) && Guid.TryParse(editionFilter, out Guid editionId))
+            {
+                query = query.Where(l => l.EditionId == editionId);
+            }
+            else if (!string.IsNullOrWhiteSpace(festivalFilter) && Guid.TryParse(festivalFilter, out Guid festivalId))
+            {
+                HashSet<Guid> editionIdsForFestival = editions.Where(e => e.FestivalId == festivalId).Select(e => e.Id).ToHashSet();
+                query = query.Where(l => l.EditionId.HasValue && editionIdsForFestival.Contains(l.EditionId.Value));
+            }
+
+            return query.OrderBy(l => l.Name).ToList();
+        }
+    }
+
+    private IEnumerable<EmailLayoutDto> PagedLayouts => FilteredLayouts.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredLayouts.Count / (double)pageSize));
+    private int StartRow => FilteredLayouts.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredLayouts.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+        NormalizePage();
+    }
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingLayout = null;
+        formModel = new EmailLayoutFormModel { IsActive = true };
+        showModal = true;
+    }
+
+    private void OpenEditModal(EmailLayoutDto layout)
+    {
+        editingLayout = layout;
+        formModel = new EmailLayoutFormModel
+        {
+            EditionId = layout.EditionId,
+            Name = layout.Name,
+            HeaderHtml = layout.HeaderHtml,
+            HeaderText = layout.HeaderText,
+            FooterHtml = layout.FooterHtml,
+            FooterText = layout.FooterText,
+            IsActive = layout.IsActive
+        };
+        showModal = true;
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
     }
 
     private async Task SaveAsync()
     {
-        SuccessMessage = null;
-        ErrorMessage = null;
-        IsSaving = true;
+        try
+        {
+            if (editingLayout is null)
+            {
+                CreateEmailLayoutRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Name = formModel.Name,
+                    HeaderHtml = formModel.HeaderHtml,
+                    HeaderText = formModel.HeaderText,
+                    FooterHtml = formModel.FooterHtml,
+                    FooterText = formModel.FooterText,
+                    IsActive = formModel.IsActive
+                };
+
+                await EmailLayoutApiClient.CreateAsync(request);
+                ShowSuccess("Email layout created successfully.");
+            }
+            else
+            {
+                UpdateEmailLayoutRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Name = formModel.Name,
+                    HeaderHtml = formModel.HeaderHtml,
+                    HeaderText = formModel.HeaderText,
+                    FooterHtml = formModel.FooterHtml,
+                    FooterText = formModel.FooterText,
+                    IsActive = formModel.IsActive
+                };
+
+                await EmailLayoutApiClient.UpdateAsync(editingLayout.Id, request);
+                ShowSuccess("Email layout updated successfully.");
+            }
+
+            showModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenDeleteModal(EmailLayoutDto layout)
+    {
+        deletingLayout = layout;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deletingLayout = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deletingLayout is null)
+        {
+            return;
+        }
+
+        isSaving = true;
 
         try
         {
-            UpdateEmailLayoutRequest request = new()
-            {
-                HeaderHtml = HeaderHtml,
-                HeaderText = HeaderText,
-                FooterHtml = FooterHtml,
-                FooterText = FooterText
-            };
-
-            await EmailLayoutApiClient.UpdateAsync(request);
-            SuccessMessage = "Saved successfully.";
+            await EmailLayoutApiClient.DeleteAsync(deletingLayout.Id);
+            ShowSuccess("Email layout deleted successfully.");
+            deletingLayout = null;
+            await LoadDataAsync();
         }
-        catch (ApiClientException ex)
+        catch (Exception ex)
         {
-            ErrorMessage = ex.Message;
+            ShowError(ex.Message);
         }
         finally
         {
-            IsSaving = false;
+            isSaving = false;
         }
+    }
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+
+    private class EmailLayoutFormModel
+    {
+        public Guid? EditionId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string HeaderHtml { get; set; } = string.Empty;
+        public string? HeaderText { get; set; }
+        public string FooterHtml { get; set; } = string.Empty;
+        public string? FooterText { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }
