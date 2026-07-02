@@ -43,7 +43,6 @@
                     New Template
                 </button>
             </div>
-
         </div>
 
         @if (!string.IsNullOrWhiteSpace(successMessage))
@@ -210,10 +209,10 @@
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Invoice Template</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingTemplate.Name?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete <strong>@deletingTemplate.Name </strong>template?</p>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">

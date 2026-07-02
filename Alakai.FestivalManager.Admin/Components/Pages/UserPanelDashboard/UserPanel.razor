@@ -573,8 +573,18 @@
     private bool IsLoading { get; set; } = true;
     private bool isSaving;
 
-    private string RegistrationStatus => Dashboard?.Registration?.RegistrationStatus ?? "-";
-    private string PaymentStatus => Dashboard?.Registration?.PaymentStatus ?? "-";
+    private string RegistrationStatus => Humanize(Dashboard?.Registration?.RegistrationStatus);
+    private string PaymentStatus => Humanize(Dashboard?.Registration?.PaymentStatus);
+
+    private static string Humanize(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return "-";
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(value, "(?<!^)([A-Z])", " $1");
+    }
 
     private string FirstName { get; set; } = string.Empty;
     private string LastName { get; set; } = string.Empty;

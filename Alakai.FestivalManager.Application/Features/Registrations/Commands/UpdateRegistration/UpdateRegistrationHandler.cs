@@ -102,11 +102,16 @@ public class UpdateRegistrationHandler
         existing.DiscountStatus = discount.DiscountStatus;
         existing.PaymentStatus = command.PaymentStatus;
 
+        if (command.PaymentStatus == PaymentStatus.Paid && existing.Status == RegistrationStatus.PendingPayment)
+        {
+            existing.Status = RegistrationStatus.Confirmed;
+        }
+
         existing.SetUpdated();
         await _registrationRepository.SaveChangesAsync(cancellationToken);
         await _registrationPartnerService.LinkPartnerAsync(existing.Id, cancellationToken);
 
-        // 1) Recalcular usos del código NUEVO (si hay)
+        // 1) Recalcular usos del cï¿½digo NUEVO (si hay)
         if (existing.DiscountCodeId.HasValue)
         {
             Guid newCodeId = existing.DiscountCodeId.Value;
@@ -125,7 +130,7 @@ public class UpdateRegistrationHandler
             }
         }
 
-        // 2) Recalcular usos del código ANTIGUO si ha cambiado
+        // 2) Recalcular usos del cï¿½digo ANTIGUO si ha cambiado
         if (oldCodeId.HasValue && oldCodeId != existing.DiscountCodeId)
         {
             int oldUses = await _registrationRepository.CountByDiscountCodeAsync(oldCodeId.Value, cancellationToken);

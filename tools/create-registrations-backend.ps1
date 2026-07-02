@@ -1,32 +1,32 @@
 # =====================================================================
-# Alakai FestivalManager - Arreglo definitivo: Settings.razor + EmailLogs.razor
+# Alakai FestivalManager - Varios arreglos pequenos
 #
-# Este script SOBRESCRIBE estos dos archivos por completo, sin
-# comprobacion de "ya esta actualizado" -- dado que los ultimos
-# parches se aplicaron sobre una version base incorrecta, prefiero
-# forzar el estado correcto de una vez que seguir arriesgando con
-# otro parche a ciegas.
+#   1. Al marcar un registro como Paid, el Registration Status pasa
+#      automaticamente de PendingPayment a Confirmed (antes se quedaban
+#      desincronizados).
+#   2. User Panel: "PendingPayment" ahora se muestra "Pending Payment"
+#      (con espacio), igual con el resto de estados.
+#   3. Modo oscuro: email bajo el nombre y las etiquetas de estado que
+#      caian en el caso "default" (gris sin variante dark:) ahora se
+#      ven bien en oscuro. Afecta a Registrations, CompetitionEntries
+#      y Email Logs.
+#   4. Invoice Templates: el modal de borrar ahora es mas ancho
+#      (380px -> 480px).
 #
-# Settings.razor: grid de 2 columnas (Create Admin User / Change My
-# Password), listado de Admins con boton Save (estilo "+ New X") +
-# Delete (icono + modal), badge "This is you", PageHeader, avisos de
-# exito/error que desaparecen a los 3.5s.
-#
-# EmailLogs.razor: arreglo real de la paginacion -- el archivo
-# original nunca aplicaba Skip/Take, asi que "rows" era solo
-# cosmetico. Anadido selector de filas por pagina + PagedLogs.
-#
-# USO: desde la raiz del repo -> .\tools\fix-settings-and-emaillogs.ps1
+# USO: desde la raiz del repo -> .\tools\small-fixes-batch1.ps1
 # =====================================================================
 
 $ErrorActionPreference = "Stop"
 Write-Host "Trabajando en: $(Get-Location)" -ForegroundColor Cyan
 
+$appRoot = "Alakai.FestivalManager.Application"
 $adminRoot = "Alakai.FestivalManager.Admin"
 
-if (-not (Test-Path $adminRoot)) {
-    Write-Host "ERROR: no se encontro la carpeta '$adminRoot'. Ejecuta este script desde la raiz del repo." -ForegroundColor Red
-    exit 1
+foreach ($root in @($appRoot, $adminRoot)) {
+    if (-not (Test-Path $root)) {
+        Write-Host "ERROR: no se encontro la carpeta '$root'. Ejecuta este script desde la raiz del repo." -ForegroundColor Red
+        exit 1
+    }
 }
 
 function Require-Path {
@@ -37,106 +37,217 @@ function Require-Path {
     }
 }
 
-function Write-ForceFile {
+function Patch-SingleOccurrence {
     param(
         [string]$Path,
-        [string]$Content,
+        [string]$OldText,
+        [string]$NewText,
         [string]$Description
     )
 
-    Require-Path (Split-Path $Path -Parent)
-    $Content | Set-Content -Path $Path -Encoding UTF8 -NoNewline
-    Write-Host "  Sobrescrito: $Path ($Description)" -ForegroundColor Green
+    Require-Path $Path
+    $content = Get-Content $Path -Raw
+
+    if ($content.Contains($NewText)) {
+        Write-Host "  Ya aplicado: $Path ($Description)" -ForegroundColor Yellow
+        return
+    }
+
+    $count = ([regex]::Matches($content, [regex]::Escape($OldText))).Count
+
+    if ($count -ne 1) {
+        Write-Host "ERROR: '$Description' -> se esperaba 1 coincidencia en $Path, se encontraron $count. No se modifico nada." -ForegroundColor Red
+        exit 1
+    }
+
+    $newContent = $content.Replace($OldText, $NewText)
+    Set-Content -Path $Path -Value $newContent -Encoding UTF8 -NoNewline
+    Write-Host "  Modificado: $Path ($Description)" -ForegroundColor Green
 }
 
 Write-Host ""
-$settingsPath = Join-Path $adminRoot "Components\Pages\Settings.razor"
-@'
-@page "/settings"
-@using Alakai.FestivalManager.Admin.Components.Layout
+Write-Host "--- 1. Sincronizar Registration Status al marcar Paid ---" -ForegroundColor Cyan
 
-@inject UserApiClient UserApiClient
-@inject IAuthApiClient AuthApiClient
-@inject IAdminTokenProvider AdminTokenProvider
+$handlerPath = Join-Path $appRoot "Features\Registrations\Commands\UpdateRegistration\UpdateRegistrationHandler.cs"
+$handlerOld = @'
+existing.PaymentStatus = command.PaymentStatus;
+'@
+$handlerNew = @'
+existing.PaymentStatus = command.PaymentStatus;
 
-<PageTitle>Settings</PageTitle>
-
-<PageHeader Title="Settings" pTitle="Admin Users"></PageHeader>
-
-@if (!string.IsNullOrWhiteSpace(successMessage))
-{
-    <div class="p-3 mt-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-}
-@if (!string.IsNullOrWhiteSpace(errorMessage))
-{
-    <div class="p-3 mt-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-}
-
-@if (IsSuperAdmin)
-{
-    <div class="grid grid-cols-1 gap-4 mt-4 lg:grid-cols-2">
-        <div class="card">
-            <h2 class="mb-4 text-lg font-semibold text-black dark:text-white">Create Admin User</h2>
-
-            <EditForm Model="@CreateModel" OnValidSubmit="CreateAdminAsync">
-                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                    <div>
-                        <InputText @bind-Value="CreateModel.FirstName" placeholder="First name" class="form-input" />
-                    </div>
-                    <div>
-                        <InputText @bind-Value="CreateModel.LastName" placeholder="Last name" class="form-input" />
-                    </div>
-                    <div class="sm:col-span-2">
-                        <InputText @bind-Value="CreateModel.Email" placeholder="Email" class="form-input" />
-                    </div>
-                    <div>
-                        <InputText @bind-Value="CreateModel.Password" type="password" placeholder="Password" class="form-input" />
-                    </div>
-                    <div>
-                        <select class="form-select" @bind="CreateModel.Role">
-                            <option value="2">Admin</option>
-                            <option value="1">SuperAdmin</option>
-                        </select>
-                    </div>
-                </div>
-                <button type="submit" disabled="@IsCreating" class="px-4 py-2 mt-4 text-sm text-white rounded-md bg-purple disabled:opacity-70">
-                    @(IsCreating ? "Creating..." : "Create Admin")
-                </button>
-            </EditForm>
-        </div>
-
-        <div class="card">
-            <h2 class="mb-4 text-lg font-semibold text-black dark:text-white">Change My Password</h2>
-
-            <EditForm Model="@PasswordModel" OnValidSubmit="ChangePasswordAsync">
-                <div class="grid grid-cols-1 gap-4">
-                    <div>
-                        <InputText @bind-Value="PasswordModel.CurrentPassword" type="password" placeholder="Current password" class="form-input" />
-                    </div>
-                    <div>
-                        <InputText @bind-Value="PasswordModel.NewPassword" type="password" placeholder="New password" class="form-input" />
-                    </div>
-                    <div>
-                        <InputText @bind-Value="PasswordModel.ConfirmPassword" type="password" placeholder="Confirm new password" class="form-input" />
-                    </div>
-                </div>
-                <button type="submit" disabled="@IsChangingPassword" class="px-4 py-2 mt-4 text-sm text-white rounded-md bg-purple disabled:opacity-70">
-                    @(IsChangingPassword ? "Saving..." : "Change Password")
-                </button>
-            </EditForm>
-        </div>
-    </div>
-
-    <div class="card mt-4">
-        <h2 class="mb-4 text-lg font-semibold text-black dark:text-white">Admin Users</h2>
-
-        @if (IsLoadingUsers)
+        if (command.PaymentStatus == PaymentStatus.Paid && existing.Status == RegistrationStatus.PendingPayment)
         {
-            <p class="text-black/60 dark:text-white/60">Loading...</p>
+            existing.Status = RegistrationStatus.Confirmed;
         }
-        else if (AdminUsers.Count == 0)
+'@
+
+Patch-SingleOccurrence -Path $handlerPath -OldText $handlerOld.TrimEnd() -NewText $handlerNew.TrimEnd() -Description "auto-confirmar al marcar Paid"
+
+Write-Host ""
+Write-Host "--- 2. User Panel: espacios en los estados (Pending Payment, etc.) ---" -ForegroundColor Cyan
+
+$userPanelPath = Join-Path $adminRoot "Components\Pages\UserPanelDashboard\UserPanel.razor"
+$upOld1 = @'
+private string RegistrationStatus => Dashboard?.Registration?.RegistrationStatus ?? "-";
+'@
+$upNew1 = @'
+private string RegistrationStatus => Humanize(Dashboard?.Registration?.RegistrationStatus);
+'@
+
+Patch-SingleOccurrence -Path $userPanelPath -OldText $upOld1.TrimEnd() -NewText $upNew1.TrimEnd() -Description "RegistrationStatus humanizado"
+
+$upOld2 = @'
+private string PaymentStatus => Dashboard?.Registration?.PaymentStatus ?? "-";
+'@
+$upNew2 = @'
+private string PaymentStatus => Humanize(Dashboard?.Registration?.PaymentStatus);
+
+    private static string Humanize(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
         {
-            <p class="text-black/60 dark:text-white/60">No admin users found.</p>
+            return "-";
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(value, "(?<!^)([A-Z])", " $1");
+    }
+'@
+
+Patch-SingleOccurrence -Path $userPanelPath -OldText $upOld2.TrimEnd() -NewText $upNew2.TrimEnd() -Description "PaymentStatus humanizado + helper Humanize"
+
+Write-Host ""
+Write-Host "--- 3. Modo oscuro: contraste en textos grises y badges por defecto ---" -ForegroundColor Cyan
+
+$darkPath = Join-Path $adminRoot "Components\\Pages\\Registrations.razor"
+$darkOld = @'
+<div class="text-xs text-black/50 truncate">@registration.Email</div>
+'@
+$darkNew = @'
+<div class="text-xs text-black/50 dark:text-white/40 truncate">@registration.Email</div>
+'@
+Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en Registrations.razor"
+
+$darkPath = Join-Path $adminRoot "Components\\Pages\\Registrations.razor"
+$darkOld = @'
+<div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
+'@
+$darkNew = @'
+<div class="text-xs text-black/50 dark:text-white/40">Base @registration.BasePrice.ToString("0.##") €</div>
+'@
+Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en Registrations.razor"
+
+$darkPath = Join-Path $adminRoot "Components\\Pages\\Registrations.razor"
+$darkOld = @'
+_ => "px-2 py-1 text-xs rounded bg-black/10 text-black"
+'@
+$darkNew = @'
+_ => "px-2 py-1 text-xs rounded bg-black/10 text-black dark:bg-white/10 dark:text-white"
+'@
+Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en Registrations.razor"
+
+$darkPath = Join-Path $adminRoot "Components\\Pages\\CompetitionEntries.razor"
+$darkOld = @'
+_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
+'@
+$darkNew = @'
+_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black dark:bg-white/10 dark:text-white"
+'@
+Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en CompetitionEntries.razor"
+
+$darkPath = Join-Path $adminRoot "Components\\Pages\\EmailLogs.razor"
+$darkOld = @'
+_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
+'@
+$darkNew = @'
+_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black dark:bg-white/10 dark:text-white"
+'@
+Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en EmailLogs.razor"
+
+$darkPath = Join-Path $adminRoot "Components\\Pages\\EmailLogs.razor"
+$darkOld = @'
+<div class="text-xs text-black/50">@log.RecipientName</div>
+'@
+$darkNew = @'
+<div class="text-xs text-black/50 dark:text-white/40">@log.RecipientName</div>
+'@
+Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en EmailLogs.razor"
+
+Write-Host ""
+Write-Host "--- 4. Invoice Templates: modal de borrar mas ancho ---" -ForegroundColor Cyan
+
+$invoiceTemplatesPath = Join-Path $adminRoot "Components\Pages\InvoiceTemplates.razor"
+
+if (-not (Test-Path $invoiceTemplatesPath)) {
+    Write-Host "  AVISO: no se encontro InvoiceTemplates.razor (¿ejecutaste invoices-templates-frontend-step2c.ps1?). Se omite este paso." -ForegroundColor Yellow
+} else {
+    $itContent = Get-Content $invoiceTemplatesPath -Raw
+
+    if ($itContent.Contains("w-[92vw] md:w-[480px]")) {
+        Write-Host "  Ya esta actualizado, no se toca." -ForegroundColor Yellow
+    } else {
+@'
+@page "/settings/invoice-templates"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+
+@inject InvoiceTemplateApiClient InvoiceTemplateApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject UploadsApiClient UploadsApiClient
+
+<PageHeader Title="Settings" pTitle="Invoice Templates"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-64" placeholder="Search templates..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select md:w-48" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto festival in festivals)
+                    {
+                        <option value="@festival.Id">@festival.Name</option>
+                    }
+                </select>
+
+                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="">All editions</option>
+                    @foreach (EditionDto edition in FilteredEditionOptions)
+                    {
+                        <option value="@edition.Id">@edition.Name</option>
+                    }
+                </select>
+
+                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+            </div>
+
+            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                New Template
+            </button>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading templates...</p>
+        }
+        else if (FilteredTemplates.Count == 0)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">No invoice templates found.</p>
         }
         else
         {
@@ -145,45 +256,26 @@ $settingsPath = Join-Path $adminRoot "Components\Pages\Settings.razor"
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
                             <th class="px-3 py-3 font-semibold">Name</th>
-                            <th class="px-3 py-3 font-semibold">Email</th>
-                            <th class="px-3 py-3 font-semibold">Role</th>
+                            <th class="px-3 py-3 font-semibold">Edition</th>
+                            <th class="px-3 py-3 font-semibold">Company</th>
+                            <th class="px-3 py-3 font-semibold">Tax ID</th>
                             <th class="px-3 py-3 font-semibold">Active</th>
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (AdminUserRow row in AdminUsers)
+                        @foreach (InvoiceTemplateDto template in PagedTemplates)
                         {
-                            bool isSelf = row.User.Email.Equals(CurrentUserEmail, StringComparison.OrdinalIgnoreCase);
-
                             <tr class="border-b border-black/10 dark:border-darkborder">
-                                <td class="px-4 py-3">@row.User.FullName</td>
-                                <td class="px-3 py-3">@row.User.Email</td>
-                                <td class="px-3 py-3">
-                                    <select class="form-select" @bind="row.SelectedRole" disabled="@isSelf">
-                                        <option value="2">Admin</option>
-                                        <option value="1">SuperAdmin</option>
-                                    </select>
-                                </td>
-                                <td class="px-3 py-3">
-                                    <input type="checkbox" class="form-checkbox" @bind="row.IsActive" disabled="@isSelf" />
-                                </td>
+                                <td class="px-4 py-3 font-medium">@template.Name</td>
+                                <td class="px-3 py-3">@(template.EditionId is null ? "Global" : template.EditionName)</td>
+                                <td class="px-3 py-3">@template.CompanyName</td>
+                                <td class="px-3 py-3">@template.TaxId</td>
+                                <td class="px-3 py-3"><span class="@GetStatusClass(template.IsActive)">@(template.IsActive ? "Active" : "Inactive")</span></td>
                                 <td class="px-3 py-3">
                                     <div class="flex items-center justify-end gap-2">
-                                        @if (isSelf)
-                                        {
-                                            <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs font-medium rounded-full bg-purple/10 text-purple">
-                                                <i class="ri-star-smile-line"></i>
-                                                This is you
-                                            </span>
-                                        }
-                                        else
-                                        {
-                                            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" disabled="@row.IsSaving" @onclick="() => SaveUserAsync(row)">
-                                                @(row.IsSaving ? "Saving..." : "Save")
-                                            </button>
-                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(row.User)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                        }
+                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(template)"><i class="ri-pencil-line text-lg"></i></button>
+                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(template)"><i class="ri-delete-bin-line text-lg"></i></button>
                                     </div>
                                 </td>
                             </tr>
@@ -191,396 +283,10 @@ $settingsPath = Join-Path $adminRoot "Components\Pages\Settings.razor"
                     </tbody>
                 </table>
             </div>
-        }
-    </div>
-}
-else
-{
-    <div class="card mt-4 max-w-2xl">
-        <h2 class="mb-4 text-lg font-semibold text-black dark:text-white">Change My Password</h2>
-
-        <EditForm Model="@PasswordModel" OnValidSubmit="ChangePasswordAsync">
-            <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-                <div>
-                    <InputText @bind-Value="PasswordModel.CurrentPassword" type="password" placeholder="Current password" class="form-input" />
-                </div>
-                <div>
-                    <InputText @bind-Value="PasswordModel.NewPassword" type="password" placeholder="New password" class="form-input" />
-                </div>
-                <div>
-                    <InputText @bind-Value="PasswordModel.ConfirmPassword" type="password" placeholder="Confirm new password" class="form-input" />
-                </div>
-            </div>
-            <button type="submit" disabled="@IsChangingPassword" class="px-4 py-2 mt-4 text-sm text-white rounded-md bg-purple disabled:opacity-70">
-                @(IsChangingPassword ? "Saving..." : "Change Password")
-            </button>
-        </EditForm>
-    </div>
-}
-
-@if (deletingUser is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Admin</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingUser.FullName?</p>
-                    <p class="mt-2 text-sm text-danger">This cannot be undone.</p>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@isDeleting" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isDeleting" @onclick="ConfirmDeleteAsync">@(isDeleting ? "Deleting..." : "Delete")</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@code {
-    [CascadingParameter]
-    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
-
-    private string? CurrentUserEmail { get; set; }
-    private bool IsSuperAdmin { get; set; }
-
-    private ChangePasswordFormModel PasswordModel { get; set; } = new();
-    private bool IsChangingPassword { get; set; }
-
-    private List<AdminUserRow> AdminUsers { get; set; } = new();
-    private bool IsLoadingUsers { get; set; } = true;
-
-    private CreateAdminFormModel CreateModel { get; set; } = new();
-    private bool IsCreating { get; set; }
-
-    private UserDto? deletingUser;
-    private bool isDeleting;
-
-    private string? successMessage;
-    private string? errorMessage;
-
-    protected override async Task OnInitializedAsync()
-    {
-        if (AuthenticationStateTask is not null)
-        {
-            AuthenticationState authState = await AuthenticationStateTask;
-            CurrentUserEmail = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            IsSuperAdmin = authState.User.IsInRole("SuperAdmin");
-        }
-
-        if (IsSuperAdmin)
-        {
-            await LoadAdminUsersAsync();
-        }
-        else
-        {
-            IsLoadingUsers = false;
-        }
-    }
-
-    private async Task LoadAdminUsersAsync()
-    {
-        IsLoadingUsers = true;
-
-        try
-        {
-            IReadOnlyList<UserDto> allUsers = await UserApiClient.GetAllAsync();
-
-            AdminUsers = allUsers
-                .Where(u => u.Role == 1 || u.Role == 2)
-                .Select(u => new AdminUserRow
-                {
-                    User = u,
-                    SelectedRole = u.Role,
-                    IsActive = u.IsActive
-                })
-                .ToList();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            IsLoadingUsers = false;
-        }
-    }
-
-    private async Task SaveUserAsync(AdminUserRow row)
-    {
-        row.IsSaving = true;
-
-        try
-        {
-            UpdateUserRequest request = new()
-            {
-                FirstName = row.User.FirstName,
-                LastName = row.User.LastName,
-                Email = row.User.Email,
-                Phone = row.User.Phone,
-                Country = row.User.Country,
-                City = row.User.City,
-                PhotoUrl = row.User.PhotoUrl,
-                MustChangePassword = row.User.MustChangePassword,
-                IsActive = row.IsActive,
-                Role = row.SelectedRole
-            };
-
-            await UserApiClient.UpdateAsync(row.User.Id, request);
-            ShowSuccess($"{row.User.Email} updated successfully.");
-            await LoadAdminUsersAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            row.IsSaving = false;
-        }
-    }
-
-    private void OpenDeleteModal(UserDto user)
-    {
-        deletingUser = user;
-    }
-
-    private void CloseDeleteModal()
-    {
-        deletingUser = null;
-    }
-
-    private async Task ConfirmDeleteAsync()
-    {
-        if (deletingUser is null)
-        {
-            return;
-        }
-
-        isDeleting = true;
-
-        try
-        {
-            await UserApiClient.DeleteAsync(deletingUser.Id);
-            ShowSuccess($"{deletingUser.Email} deleted successfully.");
-            deletingUser = null;
-            await LoadAdminUsersAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            isDeleting = false;
-        }
-    }
-
-    private async Task ChangePasswordAsync()
-    {
-        if (PasswordModel.NewPassword != PasswordModel.ConfirmPassword)
-        {
-            ShowError("New password and confirmation do not match.");
-            return;
-        }
-
-        IsChangingPassword = true;
-
-        try
-        {
-            string? accessToken = await AdminTokenProvider.GetValidAccessTokenAsync();
-            bool success = await AuthApiClient.ChangePasswordAsync(PasswordModel.CurrentPassword, PasswordModel.NewPassword, accessToken);
-
-            if (success)
-            {
-                ShowSuccess("Password changed successfully.");
-                PasswordModel = new();
-            }
-            else
-            {
-                ShowError("Current password is incorrect, or your session token has expired (try logging out and back in).");
-            }
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            IsChangingPassword = false;
-        }
-    }
-
-    private async Task CreateAdminAsync()
-    {
-        IsCreating = true;
-
-        try
-        {
-            CreateAdminUserRequest request = new()
-            {
-                FirstName = CreateModel.FirstName,
-                LastName = CreateModel.LastName,
-                Email = CreateModel.Email,
-                Password = CreateModel.Password,
-                Role = CreateModel.Role
-            };
-
-            await UserApiClient.CreateAdminAsync(request);
-
-            ShowSuccess($"{CreateModel.Email} created successfully.");
-            CreateModel = new();
-            await LoadAdminUsersAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            IsCreating = false;
-        }
-    }
-
-    private void ShowSuccess(string message)
-    {
-        successMessage = message;
-        errorMessage = null;
-        StateHasChanged();
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            successMessage = null;
-            await InvokeAsync(StateHasChanged);
-        });
-    }
-
-    private void ShowError(string message)
-    {
-        errorMessage = message;
-        successMessage = null;
-        StateHasChanged();
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            errorMessage = null;
-            await InvokeAsync(StateHasChanged);
-        });
-    }
-
-    private class AdminUserRow
-    {
-        public UserDto User { get; set; } = default!;
-        public int SelectedRole { get; set; }
-        public bool IsActive { get; set; }
-        public bool IsSaving { get; set; }
-    }
-
-    private class ChangePasswordFormModel
-    {
-        public string CurrentPassword { get; set; } = string.Empty;
-        public string NewPassword { get; set; } = string.Empty;
-        public string ConfirmPassword { get; set; } = string.Empty;
-    }
-
-    private class CreateAdminFormModel
-    {
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string Password { get; set; } = string.Empty;
-        public int Role { get; set; } = 2;
-    }
-}
-'@ | ForEach-Object { Write-ForceFile -Path $settingsPath -Content $_ -Description "grid 2 columnas + delete icono/modal + PageHeader" }
-
-$emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
-@'
-@page "/email-logs"
-@using Alakai.FestivalManager.Admin.Components.Layout
-@inject EmailLogApiClient EmailLogApiClient
-
-<PageHeader Title="Communication" pTitle="Email Logs"></PageHeader>
-
-<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
-    <div class="card">
-        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input md:w-72" placeholder="Search recipient or subject..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
-                <select class="form-select md:w-40" @bind="statusFilter" @bind:after="ResetPage">
-                    <option value="">All statuses</option>
-                    <option value="@EmailLogStatus.Pending">Pending</option>
-                    <option value="@EmailLogStatus.Sent">Sent</option>
-                    <option value="@EmailLogStatus.Failed">Failed</option>
-                    <option value="@EmailLogStatus.Skipped">Skipped</option>
-                </select>
-                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                    <option value="10">10 rows</option>
-                    <option value="25">25 rows</option>
-                    <option value="50">50 rows</option>
-                </select>
-            </div>
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-
-        @if (isLoading)
-        {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading email logs...</p>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold">Recipient</th>
-                            <th class="px-4 py-3 font-semibold">Template</th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
-                            <th class="px-4 py-3 font-semibold">Sent At</th>
-                            <th class="px-4 py-3 font-semibold">Error</th>
-                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @if (PagedLogs.Count == 0)
-                        {
-                            <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No email logs found.</td>
-                            </tr>
-                        }
-                        else
-                        {
-                            @foreach (EmailLogDto log in PagedLogs)
-                            {
-                                <tr class="border-b border-black/10 dark:border-darkborder">
-                                    <td class="px-4 py-3">
-                                        <div class="font-medium">@log.RecipientEmail</div>
-                                        <div class="text-xs text-black/50">@log.RecipientName</div>
-                                    </td>
-                                    <td class="px-4 py-3">@log.TemplateKey</td>
-                                    <td class="px-4 py-3"><span class="@GetStatusClass(log.Status)">@log.Status</span></td>
-                                    <td class="px-4 py-3">@(log.SentAt.HasValue ? log.SentAt.Value.ToString("dd/MM/yyyy HH:mm") : "-")</td>
-                                    <td class="px-4 py-3">@log.ErrorMessage</td>
-                                    <td class="px-4 py-3 text-right">
-                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
-                                            <i class="ri-eye-line text-lg"></i>
-                                        </button>
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-            </div>
 
             <div class="flex items-center justify-between mt-4">
                 <p class="text-sm text-black/50 dark:text-white/40">
-                    Showing @ShowingFrom to @ShowingTo of @FilteredLogs.Count logs
+                    Showing @StartRow to @EndRow of @FilteredTemplates.Count templates
                 </p>
 
                 <div class="flex items-center gap-2">
@@ -593,21 +299,112 @@ $emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
     </div>
 </div>
 
-@if (previewingLog is not null)
+@if (showModal)
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width:760px; max-width:95vw;">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 700px);">
                 <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <div>
-                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
-                        <p class="text-xs text-black/50 dark:text-white/40">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
-                    </div>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingTemplate is null ? "New Invoice Template" : "Edit Invoice Template")</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
                 </div>
 
-                <div class="p-2 flex justify-center bg-gray-100">
-                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:680px; max-width:100%; height:70vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                <div class="p-5 space-y-4">
+                    <div class="flex items-center gap-4">
+                        @if (!string.IsNullOrWhiteSpace(formModel.LogoUrl))
+                        {
+                            <img src="@formModel.LogoUrl" alt="Logo" class="object-contain h-14 w-14 rounded border border-black/10 dark:border-darkborder" />
+                        }
+                        else
+                        {
+                            <span class="flex items-center justify-center rounded h-14 w-14 border border-dashed border-black/20 text-black/30 dark:border-darkborder dark:text-white/30">
+                                <i class="text-xl ri-image-line leading-none"></i>
+                            </span>
+                        }
+                        <div>
+                            <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
+                            @if (isUploadingLogo)
+                            {
+                                <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
+                            }
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Template Name</label>
+                            <InputText class="form-input" @bind-Value="formModel.Name" placeholder="e.g. La Jam Barcelona, or Default" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Edition</label>
+                            <select class="form-select" @bind="formModel.EditionId">
+                                <option value="">Global (default)</option>
+                                @foreach (EditionDto edition in editions)
+                                {
+                                    <option value="@edition.Id">@edition.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Company / fiscal name</label>
+                            <InputText class="form-input" @bind-Value="formModel.CompanyName" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Tax ID (NIF/CIF)</label>
+                            <InputText class="form-input" @bind-Value="formModel.TaxId" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Address</label>
+                            <InputText class="form-input" @bind-Value="formModel.Address" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">City</label>
+                            <InputText class="form-input" @bind-Value="formModel.City" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Postal code</label>
+                            <InputText class="form-input" @bind-Value="formModel.PostalCode" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Country</label>
+                            <InputText class="form-input" @bind-Value="formModel.Country" />
+                        </div>
+
+                        <div>
+                            <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingTemplate is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Invoice Template</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingTemplate.Name?</p>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync"> @(isSaving ? "Deleting..." : "Delete")</button>
                 </div>
             </div>
         </div>
@@ -615,14 +412,23 @@ $emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
 }
 
 @code {
-    private List<EmailLogDto> logs = [];
-    private EmailLogDto? previewingLog;
+    private List<InvoiceTemplateDto> templates = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private InvoiceTemplateDto? editingTemplate;
+    private InvoiceTemplateDto? deletingTemplate;
+    private InvoiceTemplateFormModel formModel = new();
     private string searchText = string.Empty;
-    private string statusFilter = string.Empty;
-    private bool isLoading = true;
-    private string? errorMessage;
+    private string festivalFilter = string.Empty;
+    private string editionFilter = string.Empty;
     private int pageSize = 10;
     private int currentPage = 1;
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool isUploadingLogo;
+    private bool showModal;
+    private string? successMessage;
+    private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -636,7 +442,9 @@ $emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
 
         try
         {
-            logs = (await EmailLogApiClient.GetAllAsync()).OrderByDescending(l => l.SentAt).ToList();
+            templates = (await InvoiceTemplateApiClient.GetAllAsync()).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
         }
         catch (Exception ex)
         {
@@ -648,31 +456,57 @@ $emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
         }
     }
 
-    private List<EmailLogDto> FilteredLogs
+    private List<EditionDto> FilteredEditionOptions
     {
         get
         {
-            IEnumerable<EmailLogDto> query = logs;
-
-            if (!string.IsNullOrWhiteSpace(searchText))
+            if (string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid festivalId))
             {
-                query = query.Where(l => l.RecipientEmail.Contains(searchText, StringComparison.OrdinalIgnoreCase) || l.Subject.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+                return editions;
             }
 
-            if (Enum.TryParse(statusFilter, out EmailLogStatus status))
-            {
-                query = query.Where(l => l.Status == status);
-            }
-
-            return query.ToList();
+            return editions.Where(e => e.FestivalId == festivalId).ToList();
         }
     }
 
-    private List<EmailLogDto> PagedLogs => FilteredLogs.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        ResetPage();
+    }
 
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling((double)FilteredLogs.Count / pageSize));
-    private int ShowingFrom => FilteredLogs.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-    private int ShowingTo => Math.Min(currentPage * pageSize, FilteredLogs.Count);
+    private List<InvoiceTemplateDto> FilteredTemplates
+    {
+        get
+        {
+            IEnumerable<InvoiceTemplateDto> query = templates;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                string term = searchText.Trim();
+                query = query.Where(t =>
+                    t.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                    t.CompanyName.Contains(term, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (!string.IsNullOrWhiteSpace(editionFilter) && Guid.TryParse(editionFilter, out Guid editionId))
+            {
+                query = query.Where(t => t.EditionId == editionId);
+            }
+            else if (!string.IsNullOrWhiteSpace(festivalFilter) && Guid.TryParse(festivalFilter, out Guid festivalId))
+            {
+                HashSet<Guid> editionIdsForFestival = editions.Where(e => e.FestivalId == festivalId).Select(e => e.Id).ToHashSet();
+                query = query.Where(t => t.EditionId.HasValue && editionIdsForFestival.Contains(t.EditionId.Value));
+            }
+
+            return query.OrderBy(t => t.Name).ToList();
+        }
+    }
+
+    private IEnumerable<InvoiceTemplateDto> PagedTemplates => FilteredTemplates.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredTemplates.Count / (double)pageSize));
+    private int StartRow => FilteredTemplates.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredTemplates.Count);
 
     private void ResetPage()
     {
@@ -695,38 +529,210 @@ $emailLogsPath = Join-Path $adminRoot "Components\Pages\EmailLogs.razor"
 
     private void PreviousPage()
     {
-        if (currentPage > 1) currentPage--;
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
     }
 
     private void NextPage()
     {
-        if (currentPage < TotalPages) currentPage++;
-    }
-
-    private static string GetStatusClass(EmailLogStatus status)
-    {
-        return status switch
+        if (currentPage < TotalPages)
         {
-            EmailLogStatus.Sent => "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success",
-            EmailLogStatus.Pending => "inline-block rounded text-xs px-2 py-1 bg-warning/10 text-warning",
-            EmailLogStatus.Failed => "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger",
-            _ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingTemplate = null;
+        formModel = new InvoiceTemplateFormModel { IsActive = true };
+        showModal = true;
+    }
+
+    private void OpenEditModal(InvoiceTemplateDto template)
+    {
+        editingTemplate = template;
+        formModel = new InvoiceTemplateFormModel
+        {
+            EditionId = template.EditionId,
+            Name = template.Name,
+            CompanyName = template.CompanyName,
+            TaxId = template.TaxId,
+            Address = template.Address,
+            City = template.City,
+            PostalCode = template.PostalCode,
+            Country = template.Country,
+            LogoUrl = template.LogoUrl,
+            IsActive = template.IsActive
         };
+        showModal = true;
     }
 
-    private void OpenPreview(EmailLogDto log)
+    private void CloseModal()
     {
-        previewingLog = log;
+        showModal = false;
     }
 
-    private void ClosePreview()
+    private async Task OnLogoSelected(InputFileChangeEventArgs e)
     {
-        previewingLog = null;
+        isUploadingLogo = true;
+
+        try
+        {
+            IBrowserFile file = e.File;
+            using Stream stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
+
+            string url = await UploadsApiClient.UploadImageAsync(stream, file.Name, file.ContentType, width: 300);
+
+            formModel.LogoUrl = url;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isUploadingLogo = false;
+        }
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            if (editingTemplate is null)
+            {
+                CreateInvoiceTemplateRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Name = formModel.Name,
+                    CompanyName = formModel.CompanyName,
+                    TaxId = formModel.TaxId,
+                    Address = formModel.Address,
+                    City = formModel.City,
+                    PostalCode = formModel.PostalCode,
+                    Country = formModel.Country,
+                    LogoUrl = formModel.LogoUrl,
+                    IsActive = formModel.IsActive
+                };
+
+                await InvoiceTemplateApiClient.CreateAsync(request);
+                ShowSuccess("Invoice template created successfully.");
+            }
+            else
+            {
+                UpdateInvoiceTemplateRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Name = formModel.Name,
+                    CompanyName = formModel.CompanyName,
+                    TaxId = formModel.TaxId,
+                    Address = formModel.Address,
+                    City = formModel.City,
+                    PostalCode = formModel.PostalCode,
+                    Country = formModel.Country,
+                    LogoUrl = formModel.LogoUrl,
+                    IsActive = formModel.IsActive
+                };
+
+                await InvoiceTemplateApiClient.UpdateAsync(editingTemplate.Id, request);
+                ShowSuccess("Invoice template updated successfully.");
+            }
+
+            showModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenDeleteModal(InvoiceTemplateDto template)
+    {
+        deletingTemplate = template;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deletingTemplate = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deletingTemplate is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await InvoiceTemplateApiClient.DeleteAsync(deletingTemplate.Id);
+            ShowSuccess("Invoice template deleted successfully.");
+            deletingTemplate = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+
+    private class InvoiceTemplateFormModel
+    {
+        public Guid? EditionId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string CompanyName { get; set; } = string.Empty;
+        public string TaxId { get; set; } = string.Empty;
+        public string Address { get; set; } = string.Empty;
+        public string City { get; set; } = string.Empty;
+        public string PostalCode { get; set; } = string.Empty;
+        public string Country { get; set; } = string.Empty;
+        public string? LogoUrl { get; set; }
+        public bool IsActive { get; set; } = true;
     }
 }
-'@ | ForEach-Object { Write-ForceFile -Path $emailLogsPath -Content $_ -Description "paginacion real (Skip/Take) + filas por pagina" }
+'@ | Set-Content -Path $invoiceTemplatesPath -Encoding UTF8 -NoNewline
+        Write-Host "  Modificado: $invoiceTemplatesPath (modal de borrar mas ancho)" -ForegroundColor Green
+    }
+}
 
 Write-Host ""
 Write-Host "Completado." -ForegroundColor Cyan
-Write-Host "Reinicia el Admin. Comprueba: Settings con el grid de 2 columnas, delete con modal," -ForegroundColor Cyan
-Write-Host "y en Email Logs que cambiar 'rows' realmente recorta las filas visibles." -ForegroundColor Cyan
+Write-Host "RECUERDA: recompila/reinicia la Api (paso 1) Y el Admin (pasos 2-4)." -ForegroundColor Yellow

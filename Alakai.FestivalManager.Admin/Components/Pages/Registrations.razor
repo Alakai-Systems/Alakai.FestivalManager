@@ -105,7 +105,7 @@
                                 <tr class="@GetRowClass(registration)">
                                     <td class="px-2 py-2 max-w-[180px]">
                                         <div class="font-medium truncate">@registration.FullName</div>
-                                        <div class="text-xs text-black/50 truncate">@registration.Email</div>
+                                        <div class="text-xs text-black/50 dark:text-white/40 truncate">@registration.Email</div>
                                     </td>
                                     <td class="px-2 py-2 whitespace-nowrap">@GetPassTypeName(registration.PassTypeId)</td>
                                     <td class="px-2 py-2 whitespace-nowrap">@GetLevelName(registration.LevelId)</td>
@@ -114,7 +114,7 @@
                                         <div>@registration.FinalPrice.ToString("0.##") €</div>
                                         @if (registration.FinalPrice != registration.BasePrice)
                                         {
-                                            <div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
+                                            <div class="text-xs text-black/50 dark:text-white/40">Base @registration.BasePrice.ToString("0.##") €</div>
                                         }
                                     </td>
                                     <td class="px-2 py-2 whitespace-nowrap">@registration.DiscountCodeValue</td>
@@ -544,7 +544,7 @@
             PaymentStatus.Pending => "px-2 py-1 text-xs rounded bg-warning/10 text-warning",
             PaymentStatus.Unpaid => "px-2 py-1 text-xs rounded bg-danger/10 text-danger",
             PaymentStatus.Failed => "px-2 py-1 text-xs rounded bg-danger/10 text-danger",
-            _ => "px-2 py-1 text-xs rounded bg-black/10 text-black"
+            _ => "px-2 py-1 text-xs rounded bg-black/10 text-black dark:bg-white/10 dark:text-white"
         };
     }
 
