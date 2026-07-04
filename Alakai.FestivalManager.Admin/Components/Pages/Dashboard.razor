@@ -9,6 +9,8 @@
 @inject AnalyticsApiClient AnalyticsApiClient
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@inject IJSRuntime JsRuntime
 
 <PageHeader Title="Dashboard" pTitle="Overview"></PageHeader>
 
@@ -405,6 +407,9 @@
     }
 </div>
 
+
+<BusesSummaryWidget EditionId="@selectedEditionId" />
+
 @code {
     private List<FestivalDto> festivals = [];
     private List<EditionDto> allEditions = [];
@@ -438,7 +443,16 @@
             allEditions = (await EditionApiClient.GetAllAsync()).ToList();
 
             Guid? activeFestivalId = allEditions.FirstOrDefault(e => e.IsActive)?.FestivalId;
-            selectedFestivalId = activeFestivalId ?? festivals.FirstOrDefault()?.Id ?? Guid.Empty;
+            if (ActiveFestivalState.IsInitialized && ActiveFestivalState.Active is not null && festivals.Any(f => f.Id == ActiveFestivalState.Active.Id))
+            {
+                selectedFestivalId = ActiveFestivalState.Active.Id;
+            }
+            else
+            {
+                selectedFestivalId = activeFestivalId ?? festivals.FirstOrDefault()?.Id ?? Guid.Empty;
+            }
+
+            await SyncActiveFestivalStateAsync();
 
             EditionDto? defaultEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
                 ?? editionsForSelectedFestival.FirstOrDefault();
@@ -462,6 +476,8 @@
 
     private async Task OnFestivalChangedAsync()
     {
+        await SyncActiveFestivalStateAsync();
+
         EditionDto? defaultEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
             ?? editionsForSelectedFestival.FirstOrDefault();
 
@@ -475,6 +491,34 @@
         {
             stats = null;
             analytics = null;
+        }
+    }
+
+    private async Task SyncActiveFestivalStateAsync()
+    {
+        FestivalDto? festival = festivals.FirstOrDefault(f => f.Id == selectedFestivalId);
+
+        if (festival is null)
+        {
+            return;
+        }
+
+        if (!ActiveFestivalState.IsInitialized)
+        {
+            ActiveFestivalState.Initialize(festivals, festival.Id);
+        }
+        else
+        {
+            ActiveFestivalState.SetActive(festival);
+        }
+
+        try
+        {
+            await JsRuntime.InvokeVoidAsync("setActiveFestivalId", festival.Id.ToString());
+        }
+        catch
+        {
+            // Non-critical: the Sidebar just won't remember the choice across reloads if this fails.
         }
     }
 

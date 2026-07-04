@@ -1,4 +1,4 @@
-﻿@page "/levels"
+@page "/levels"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Levels
@@ -7,8 +7,11 @@
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes
 @using Alakai.FestivalManager.Admin.Contracts.Editions
 @using Alakai.FestivalManager.Admin.Services.Api
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @inject LevelApiClient LevelApiClient
 @inject PassTypeApiClient PassTypeApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 @inject EditionApiClient EditionApiClient
 
 <PageHeader Title="Event Setup" pTitle="Levels"></PageHeader>
@@ -23,9 +26,17 @@
                         <input class="form-input" placeholder="Search levels..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
                     </div>
 
+                    <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChangedAsync">
+                        <option value="@Guid.Empty">All festivals</option>
+                        @foreach (FestivalDto f in festivals)
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+
                     <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
                         <option value="@Guid.Empty">All editions</option>
-                        @foreach (EditionDto ed in editions)
+                        @foreach (EditionDto ed in EditionsForSelectedFestival)
                         {
                             <option value="@ed.Id">@($"{ed.Year} - {ed.Name}")</option>
                         }
@@ -433,6 +444,25 @@
     private IReadOnlyList<LevelDto> allLevels = [];
     private List<PassTypeDto> passTypes = new();
     private List<EditionDto> editions = new();
+    private List<FestivalDto> festivals = new();
+    private Guid? festivalFilter;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        festivalFilter is null || festivalFilter == Guid.Empty
+            ? editions
+            : editions.Where(e => e.FestivalId == festivalFilter).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = null;
+        ResetPage();
+    }
+
+    private async Task OnFestivalFilterChangedAsync()
+    {
+        OnFestivalFilterChanged();
+        await Task.CompletedTask;
+    }
     private bool showDeleteModal;
     private LevelDto? selectedLevel;
     private CreateLevelRequest createRequest = new();
@@ -537,6 +567,19 @@
         {
             // use injected instance (EditionApiClient) rather than the type name
             editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && (festivalFilter is null || festivalFilter == Guid.Empty))
+            {
+                festivalFilter = ActiveFestivalState.Active.Id;
+            }
+
+            if (ActiveFestivalState.Active is not null && (editionFilter is null || editionFilter == Guid.Empty))
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+                editionFilter = preferred?.Id;
+            }
         }
         catch
         {

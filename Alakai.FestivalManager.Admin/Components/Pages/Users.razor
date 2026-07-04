@@ -1,7 +1,11 @@
 @page "/users"
 @using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @inject UserApiClient UserApiClient
 @inject RegistrationApiClient RegistrationApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
 
 <PageHeader Title="Operations" pTitle="Users"></PageHeader>
 
@@ -11,6 +15,14 @@
             <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
                 <div class="flex flex-col gap-3 md:flex-row md:items-center">
                     <input class="form-input md:w-72" placeholder="Search users..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                    <select class="form-select md:w-48" @bind="festivalFilter" @bind:after="ResetPage">
+                        <option value="@Guid.Empty">All festivals</option>
+                        @foreach (FestivalDto f in festivals)
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
 
                     <select class="form-select md:w-40" @bind="statusFilter" @bind:after="ResetPage">
                         <option value="">All statuses</option>
@@ -209,11 +221,15 @@
 
 @code {
     private List<UserDto> users = [];
+    private List<RegistrationDto> allRegistrations = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
     private UserDto? editingUser;
     private UserDto? deletingUser;
     private UserFormModel formModel = new();
     private string searchText = string.Empty;
     private string statusFilter = string.Empty;
+    private Guid festivalFilter = Guid.Empty;
     private string sortColumn = "Name";
     private bool sortAscending = true;
     private bool isLoading = true;
@@ -238,6 +254,9 @@
         try
         {
             users = (await UserApiClient.GetAllAsync()).ToList();
+            allRegistrations = (await RegistrationApiClient.GetAllAsync()).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
             await LoadDocumentsAsync();
         }
         catch (Exception ex)
@@ -263,7 +282,7 @@
             }
             catch (ApiClientException)
             {
-                // El usuario no tiene registration asociada, o el backend devolvió error controlado
+                // El usuario no tiene registration asociada, o el backend devolviï¿½ error controlado
                 documentsByUserId[user.Id] = "-";
             }
         }
@@ -283,6 +302,13 @@
             if (!string.IsNullOrWhiteSpace(searchText))
             {
                 query = query.Where(u => u.FullName.Contains(searchText, StringComparison.OrdinalIgnoreCase) || u.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (festivalFilter != Guid.Empty)
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == festivalFilter).Select(e => e.Id).ToHashSet();
+                HashSet<Guid> userIdsInFestival = allRegistrations.Where(r => editionIds.Contains(r.EditionId)).Select(r => r.UserId).ToHashSet();
+                query = query.Where(u => userIdsInFestival.Contains(u.Id));
             }
 
             if (statusFilter == "active")

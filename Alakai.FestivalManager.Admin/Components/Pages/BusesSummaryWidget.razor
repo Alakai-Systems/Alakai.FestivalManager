@@ -1,0 +1,65 @@
+@using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
+@inject BusApiClient BusApiClient
+
+@if (busId != Guid.Empty && buses.Count > 0)
+{
+    <div class="card shadow-sm">
+        <h2 class="mb-4 text-lg font-bold text-black dark:text-white">BUSES BY SCHEDULE</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full table-hover">
+                <thead class="bg-gray-50 dark:bg-dark">
+                    <tr class="text-left">
+                        <th class="px-4 py-3 font-semibold whitespace-nowrap">Direction</th>
+                        <th class="px-4 py-3 font-semibold whitespace-nowrap">Departure</th>
+                        <th class="px-4 py-3 font-semibold whitespace-nowrap">Route</th>
+                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Seats</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (BusDto bus in buses.OrderBy(b => b.DepartureTime))
+                    {
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">@(bus.Direction == 1 ? "Outbound" : "Return")</td>
+                            <td class="px-4 py-3">@bus.DepartureTime.ToString("dd/MM/yyyy HH:mm")</td>
+                            <td class="px-4 py-3">@bus.PickupLocation → @bus.DestinationLocation</td>
+                            <td class="px-4 py-3 text-right">@bus.OccupiedCount / @bus.Capacity</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid EditionId { get; set; }
+
+    private Guid busId = Guid.Empty;
+    private List<BusDto> buses = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EditionId == busId)
+        {
+            return;
+        }
+
+        busId = EditionId;
+
+        if (EditionId == Guid.Empty)
+        {
+            buses = [];
+            return;
+        }
+
+        try
+        {
+            buses = (await BusApiClient.GetAllAsync(EditionId)).ToList();
+        }
+        catch
+        {
+            buses = [];
+        }
+    }
+}

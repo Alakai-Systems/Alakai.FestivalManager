@@ -8,6 +8,7 @@
 @using Alakai.FestivalManager.Admin.Services.Api
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Event Setup" pTitle="Editions"></PageHeader>
 
@@ -381,6 +382,14 @@
         try
         {
             festivals = await FestivalApiClient.GetAllAsync();
+
+            if (ActiveFestivalState.Active is not null && (festivalFilter is null || festivalFilter == Guid.Empty))
+            {
+                if (festivals.Any(f => f.Id == ActiveFestivalState.Active.Id))
+                {
+                    festivalFilter = ActiveFestivalState.Active.Id;
+                }
+            }
         }
         catch (ApiClientException)
         {

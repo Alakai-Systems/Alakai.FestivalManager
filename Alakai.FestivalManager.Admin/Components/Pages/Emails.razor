@@ -2,8 +2,11 @@
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Radzen.Blazor
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @inject EmailTemplateApiClient EmailTemplateApiClient
 @inject EditionApiClient EditionApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@inject FestivalApiClient FestivalApiClient
 
 <PageHeader Title="Communication" pTitle="Email Templates"></PageHeader>
 
@@ -13,9 +16,17 @@
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <input class="form-input md:w-72" placeholder="Search email templates..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
+                <select class="form-select md:w-56" @bind="festivalFilter" @bind:after="OnFestivalFilterChangedAsync">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
                 <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
                     <option value="@Guid.Empty">All editions</option>
-                    @foreach (EditionDto edition in editions)
+                    @foreach (EditionDto edition in EditionsForSelectedFestival)
                     {
                         <option value="@edition.Id">@edition.Name</option>
                     }
@@ -210,6 +221,25 @@
 @code {
     private List<EmailTemplateDto> templates = [];
     private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private string festivalFilter = string.Empty;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+            ? editions
+            : editions.Where(e => e.FestivalId == fid).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        ResetPage();
+    }
+
+    private async Task OnFestivalFilterChangedAsync()
+    {
+        OnFestivalFilterChanged();
+        await Task.CompletedTask;
+    }
     private EmailTemplateDto? editingTemplate;
     private EmailTemplateDto? deletingTemplate;
     private EmailTemplateFormModel formModel = new();
@@ -241,6 +271,23 @@
         {
             editions = (await EditionApiClient.GetAllAsync()).ToList();
             templates = (await EmailTemplateApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
+            {
+                festivalFilter = ActiveFestivalState.Active.Id.ToString();
+            }
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(editionFilter))
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                if (preferred is not null)
+                {
+                    editionFilter = preferred.Id.ToString();
+                }
+            }
         }
         catch (Exception ex)
         {

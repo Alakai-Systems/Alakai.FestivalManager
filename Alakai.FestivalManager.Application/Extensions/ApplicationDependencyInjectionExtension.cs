@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Application.Features.Buses.Services;
+
 namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApplicationDependencyInjectionExtension
@@ -66,6 +68,15 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<UpdateUserHandler>();
         services.AddScoped<DeleteUserHandler>();
         services.AddScoped<IUserService, UserService>();
+
+        //Accommodation
+        services.AddScoped<IAccommodationBuildingService, AccommodationBuildingService>();
+        services.AddScoped<IAccommodationZoneService, AccommodationZoneService>();
+        services.AddScoped<IAccommodationService, AccommodationService>();
+        services.AddScoped<IAccommodationReservationService, AccommodationReservationService>();
+        services.AddScoped<IRegistrationFestivalInfoService, RegistrationFestivalInfoService>();
+        services.AddScoped<IBusService, BusService>();
+        services.AddScoped<IBusReservationService, BusReservationService>();
 
         //Invoices
         services.AddScoped<CreateInvoiceHandler>();

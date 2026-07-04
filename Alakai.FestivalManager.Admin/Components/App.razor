@@ -1,4 +1,4 @@
-﻿@using Radzen.Blazor
+@using Radzen.Blazor
 <!DOCTYPE html>
 <html lang="en" x-data="{ direction: $store.app.direction }" x-bind:dir="$store.app.direction" class="group/item" x-bind:data-mode="$store.app.mode" x-bind:data-sidebar="$store.app.sidebarMode">
 
@@ -61,6 +61,14 @@
 
         window.removeToggleSidebarClass = function () {
             document.body.classList.remove('toggle-sidebar');
+        };
+
+        window.getActiveFestivalId = function () {
+            return localStorage.getItem('activeFestivalId');
+        };
+
+        window.setActiveFestivalId = function (id) {
+            localStorage.setItem('activeFestivalId', id);
         };
 
         window.changeDirection = function (direction) {

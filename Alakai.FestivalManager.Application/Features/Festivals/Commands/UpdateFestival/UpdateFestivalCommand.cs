@@ -1,4 +1,6 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Commands.UpdateFestival;
+using Alakai.FestivalManager.Domain.Enums;
+
+namespace Alakai.FestivalManager.Application.Features.Festivals.Commands.UpdateFestival;
 
 public class UpdateFestivalCommand
 {
@@ -9,4 +11,5 @@ public class UpdateFestivalCommand
     public string? Website { get; set; }
     public string? LogoUrl { get; set; }
     public bool IsActive { get; set; }
+    public FestivalModule EnabledModules { get; set; }
 }

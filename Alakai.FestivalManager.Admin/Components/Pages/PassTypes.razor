@@ -7,8 +7,11 @@
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes.Responses
 @using Alakai.FestivalManager.Admin.Contracts.Editions
 @using Alakai.FestivalManager.Admin.Services.Api
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @inject PassTypeApiClient PassTypeApiClient
+@inject FestivalApiClient FestivalApiClient
 @inject EditionApiClient EditionApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Event Setup" pTitle="Pass Types"></PageHeader>
 
@@ -22,10 +25,18 @@
                         <input class="form-input" placeholder="Search pass types..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
                     </div>
 
+                    <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChangedAsync">
+                        <option value="@Guid.Empty">All festivals</option>
+                        @foreach (FestivalDto f in festivals)
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+
                     <!-- Edition filter (fits same line) -->
                     <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
                         <option value="@Guid.Empty">All editions</option>
-                        @foreach (EditionDto edition in editions)
+                        @foreach (EditionDto edition in EditionsForSelectedFestival)
                         {
                             <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
                         }
@@ -279,6 +290,25 @@
 @code {
     private IReadOnlyList<PassTypeDto> allPassTypes = [];
     private List<EditionDto> editions = new();
+    private List<FestivalDto> festivals = new();
+    private Guid? festivalFilter;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        festivalFilter is null || festivalFilter == Guid.Empty
+            ? editions
+            : editions.Where(e => e.FestivalId == festivalFilter).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = null;
+        ResetPage();
+    }
+
+    private async Task OnFestivalFilterChangedAsync()
+    {
+        OnFestivalFilterChanged();
+        await Task.CompletedTask;
+    }
 
     private PassTypeDto? selectedPassType;
     private CreatePassTypeRequest createRequest = new();
@@ -361,6 +391,19 @@
         try
         {
             editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && (festivalFilter is null || festivalFilter == Guid.Empty))
+            {
+                festivalFilter = ActiveFestivalState.Active.Id;
+            }
+
+            if (ActiveFestivalState.Active is not null && (editionFilter is null || editionFilter == Guid.Empty))
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+                editionFilter = preferred?.Id;
+            }
         }
         catch
         {

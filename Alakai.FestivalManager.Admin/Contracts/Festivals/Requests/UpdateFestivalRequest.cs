@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Admin.Contracts.Festivals.Requests;
+namespace Alakai.FestivalManager.Admin.Contracts.Festivals.Requests;
 
 public class UpdateFestivalRequest
 {
@@ -8,4 +8,5 @@ public class UpdateFestivalRequest
     public string? Website { get; set; }
     public string? LogoUrl { get; set; }
     public bool IsActive { get; set; }
+    public int EnabledModules { get; set; }
 }

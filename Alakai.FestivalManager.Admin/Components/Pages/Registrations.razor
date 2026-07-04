@@ -1,10 +1,15 @@
 @page "/registrations"
 @using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 
 @inject EmailNotificationApiClient EmailNotificationApiClient
 @inject RegistrationApiClient RegistrationApiClient
 @inject PassTypeApiClient PassTypeApiClient
 @inject LevelApiClient LevelApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Operations" pTitle="Registrations"></PageHeader>
 
@@ -17,6 +22,22 @@
                     <input class="form-input" placeholder="Search by name or email..."
                            @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
                 </div>
+
+                <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="@Guid.Empty">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="@Guid.Empty">All editions</option>
+                    @foreach (EditionDto ed in EditionsForSelectedFestival)
+                    {
+                        <option value="@ed.Id">@ed.Name</option>
+                    }
+                </select>
 
                 <select class="form-select w-full md:w-40" @bind="paymentFilter" @bind:after="ResetPage">
                     <option value="">All payment statuses</option>
@@ -123,11 +144,11 @@
                                     <td class="px-2 py-2 whitespace-nowrap">@FormatDate(registration.CreatedAt)</td>
                                     <td class="px-2 py-2">
                                         <div class="flex justify-end gap-1">
-                                            <button type="button" class="text-black hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
-                                            <button type="button" class="text-black hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
-                                            <button type="button" class="text-black hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
-                                            <button type="button" class="text-black hover:text-purple" title="Missing partner email" @onclick='() => EmailAction("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
-                                            <button type="button" class="text-black hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Missing partner email" @onclick='() => EmailAction("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
                                             <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
                                         </div>
                                     </td>
@@ -295,11 +316,26 @@
     private List<RegistrationDto> registrations = [];
     private List<PassTypeDto> passTypes = [];
     private List<LevelDto> levels = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
     private RegistrationDto? editingRegistration;
     private RegistrationDto? deleteRegistration;
     private string searchText = string.Empty;
     private string paymentFilter = string.Empty;
     private string partnerFilter = string.Empty;
+    private Guid festivalFilter = Guid.Empty;
+    private Guid editionFilter = Guid.Empty;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        festivalFilter == Guid.Empty
+            ? editions
+            : editions.Where(e => e.FestivalId == festivalFilter).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = Guid.Empty;
+        ResetPage();
+    }
     private string passTypeFilter = string.Empty;
     private string levelFilter = string.Empty;
     private string groupFilter = string.Empty;
@@ -327,6 +363,18 @@
             registrations = (await RegistrationApiClient.GetAllAsync()).ToList();
             passTypes = (await PassTypeApiClient.GetAllAsync()).ToList();
             levels = (await LevelApiClient.GetAllAsync()).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null)
+            {
+                festivalFilter = ActiveFestivalState.Active.Id;
+
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                editionFilter = preferred?.Id ?? Guid.Empty;
+            }
         }
         catch (Exception ex)
         {
@@ -354,6 +402,16 @@
             if (Enum.TryParse(paymentFilter, out PaymentStatus paymentStatus))
             {
                 query = query.Where(r => r.PaymentStatus == paymentStatus);
+            }
+
+            if (editionFilter != Guid.Empty)
+            {
+                query = query.Where(r => r.EditionId == editionFilter);
+            }
+            else if (festivalFilter != Guid.Empty)
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == festivalFilter).Select(e => e.Id).ToHashSet();
+                query = query.Where(r => editionIds.Contains(r.EditionId));
             }
 
             if (partnerFilter == "complete")

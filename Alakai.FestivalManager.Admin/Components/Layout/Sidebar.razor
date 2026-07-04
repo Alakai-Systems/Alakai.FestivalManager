@@ -1,3 +1,6 @@
+@implements IDisposable
+@inject ActiveFestivalState ActiveFestivalState
+
 <!-- Start Sidebar -->
 <nav class="sidebar lg:z-[9] z-[10]">
     <div class="h-full bg-white dark:bg-darklight group-data-[sidebar=dark]/item:bg-darklight group-data-[sidebar=brand]/item:bg-sky-950">
@@ -38,6 +41,14 @@
                         <li><NavLink href="/levels">Levels</NavLink></li>
                         <li><NavLink href="/discount-codes">Discount Codes</NavLink></li>
                         <li><NavLink href="/competitions">Competitions</NavLink></li>
+                        @if (ActiveFestivalState.HasModule(FestivalModule.Accommodation))
+                        {
+                            <li><NavLink href="/accommodation-buildings">Accommodation</NavLink></li>
+                        }
+                        @if (ActiveFestivalState.HasModule(FestivalModule.Transport))
+                        {
+                            <li><NavLink href="/buses">Buses</NavLink></li>
+                        }
                     </ul>
                 </li>
 
@@ -54,6 +65,14 @@
                         <li><NavLink href="/users">Users</NavLink></li>
                         <li><NavLink href="/registrations">Registrations</NavLink></li>
                         <li><NavLink href="/competition-entries">Competition Entries</NavLink></li>
+                        @if (ActiveFestivalState.HasModule(FestivalModule.Accommodation))
+                        {
+                            <li><NavLink href="/accommodation-operations">Accommodation</NavLink></li>
+                        }
+                        @if (ActiveFestivalState.HasModule(FestivalModule.Transport))
+                        {
+                            <li><NavLink href="/bus-operations">Buses</NavLink></li>
+                        }
                         <li><NavLink href="/invoices">Invoices</NavLink></li>
                     </ul>
                 </li>
@@ -93,3 +112,20 @@
     </div>
 </nav>
 <!-- End Sidebar -->
+
+@code {
+    protected override void OnInitialized()
+    {
+        ActiveFestivalState.OnChange += HandleFestivalChanged;
+    }
+
+    private void HandleFestivalChanged()
+    {
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalChanged;
+    }
+}

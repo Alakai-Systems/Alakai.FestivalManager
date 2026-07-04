@@ -3,11 +3,18 @@
 
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
+@using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Buses.Requests
 @using Alakai.FestivalManager.Admin.Services.Api
 
 @inject UserPanelApiClient UserPanelApiClient
 @inject RegistrationApiClient RegistrationApiClient
 @inject CompetitionEntryApiClient CompetitionEntryApiClient
+@inject AccommodationApiClient AccommodationApiClient
+@inject FestivalModuleApiClient FestivalModuleApiClient
+@inject BusApiClient BusApiClient
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
 
@@ -334,6 +341,375 @@
             </div>
         </div>
 
+@if (HasAccommodationModule)
+{
+<div class="card shadow-sm">
+            <div class="mb-5" id="accommodation">
+                <h2 class="text-lg font-bold text-black dark:text-white">Accommodation</h2>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(AccommodationSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@AccommodationSuccessMessage</div>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(AccommodationErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@AccommodationErrorMessage</div>
+            }
+
+            @if (IsLoadingAccommodation)
+            {
+                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+            }
+            else if (ExistingReservation is not null)
+            {
+                <p class="mb-3 text-sm text-muted dark:text-darkmuted">
+                    You are booked in <strong>@ExistingReservation.BuildingName</strong>.
+                </p>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full table-hover">
+                        <thead class="bg-gray-50 dark:bg-dark">
+                            <tr class="text-left">
+                                <th class="px-4 py-3 font-semibold">Occupant</th>
+                                <th class="px-4 py-3 font-semibold">Unit</th>
+                                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (AccommodationReservationOccupantDto occupant in ExistingReservation.Occupants)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3">
+                                        @occupant.Email
+                                        @if (occupant.IsResponsible)
+                                        {
+                                            <span class="ml-2 text-xs text-purple">(responsible)</span>
+                                        }
+                                    </td>
+                                    <td class="px-4 py-3">@occupant.ZoneName - @occupant.AccommodationName</td>
+                                    <td class="px-4 py-3 text-right">
+                                        @if (occupant.IsResponsible && IsResponsibleForExistingReservation)
+                                        {
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="OpenEditAccommodationModal"><i class="ri-pencil-line text-lg"></i></button>
+                                            <button type="button" class="ml-2 text-danger" title="Cancel" @onclick="OpenCancelAccommodationModal"><i class="ri-delete-bin-line text-lg"></i></button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                @if (!IsResponsibleForExistingReservation)
+                {
+                    <p class="mt-3 text-xs text-muted dark:text-darkmuted">To modify this reservation, contact the person responsible for it.</p>
+                }
+            }
+            else if (AvailableAccommodationBuildings.Count == 0)
+            {
+                <p class="text-sm text-muted dark:text-darkmuted">No accommodation is available for your pass right now.</p>
+            }
+            else
+            {
+                <div class="space-y-4">
+                    <div>
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Choose your accommodation</label>
+                        <select class="form-select" @bind="SelectedAccommodationBuildingId" @bind:after="OnAccommodationBuildingChangedAsync">
+                            <option value="@Guid.Empty">-</option>
+                            @foreach (AccommodationBuildingSummaryDto building in AvailableAccommodationBuildings)
+                            {
+                                <option value="@building.Id">@building.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    @if (SelectedAccommodationBuildingId != Guid.Empty && SelectedBuildingType == 1)
+                    {
+                        <div>
+                            <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Number of occupants (max 12)</label>
+                            <input type="number" min="1" max="12" class="form-input" @bind="OccupantCount" @bind:after="RebuildOccupantRows" />
+                        </div>
+                    }
+
+                    @if (SelectedAccommodationBuildingId != Guid.Empty && SelectedBuildingType != 1)
+                    {
+                        <div>
+                            <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Number of occupants</label>
+                            @if (AvailableCapacities.Count == 0)
+                            {
+                                <p class="text-sm text-danger">No units available right now for this accommodation.</p>
+                            }
+                            else
+                            {
+                                <select class="form-select" @bind="OccupantCount" @bind:after="RebuildOccupantRows">
+                                    <option value="0">-</option>
+                                    @foreach (int capacity in AvailableCapacities)
+                                    {
+                                        <option value="@capacity">@capacity</option>
+                                    }
+                                </select>
+                            }
+                        </div>
+                    }
+
+                    @if (OccupantRows.Count > 0)
+                    {
+                        <div class="space-y-3">
+                            <h3 class="text-sm font-semibold text-black dark:text-white">Data of the occupants</h3>
+
+                            @for (int i = 0; i < OccupantRows.Count; i++)
+                            {
+                                int rowIndex = i;
+                                <div class="grid grid-cols-1 gap-3 p-3 border rounded-md border-black/10 dark:border-darkborder md:grid-cols-3">
+                                    <div>
+                                        <label class="block mb-1 text-xs text-muted dark:text-darkmuted">
+                                            Email @(rowIndex == 0 ? "(you)" : $"(occupant {rowIndex + 1})")
+                                        </label>
+                                        <input class="form-input" @bind="OccupantRows[rowIndex].Email" disabled="@(rowIndex == 0)" />
+                                    </div>
+
+                                    @if (SelectedBuildingType != 1)
+                                    {
+                                        <div>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">Birth date</label>
+                                            <input type="date" class="form-input" @bind="OccupantRows[rowIndex].BirthDate" />
+                                        </div>
+                                        <div>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">ID/Passport expiry date</label>
+                                            <input type="date" class="form-input" @bind="OccupantRows[rowIndex].DocumentExpiryDate" />
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+
+                        <div class="flex justify-end">
+                            <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@IsSavingAccommodation" @onclick="SaveAccommodationReservationAsync">
+                                @(IsSavingAccommodation ? "Saving..." : "Save")
+                            </button>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (ShowEditAccommodationModal)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 600px); max-height: 90vh;">
+                    <div class="overflow-y-auto" style="max-height: 90vh;">
+                        <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                            <h3 class="text-lg font-semibold text-black dark:text-white">Edit Accommodation</h3>
+                            <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditAccommodationModal"><i class="ri-close-line text-2xl"></i></button>
+                        </div>
+                        <div class="p-5 space-y-4">
+                            @if (SelectedBuildingType == 1)
+                            {
+                                <div>
+                                    <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Number of occupants (max 12)</label>
+                                    <input type="number" min="1" max="12" class="form-input" @bind="OccupantCount" @bind:after="RebuildOccupantRows" />
+                                </div>
+                            }
+
+                            @for (int i = 0; i < OccupantRows.Count; i++)
+                            {
+                                int rowIndex = i;
+                                <div class="grid grid-cols-1 gap-3 p-3 border rounded-md border-black/10 dark:border-darkborder md:grid-cols-3">
+                                    <div>
+                                        <label class="block mb-1 text-xs text-muted dark:text-darkmuted">
+                                            Email @(rowIndex == 0 ? "(you)" : $"(occupant {rowIndex + 1})")
+                                        </label>
+                                        <input class="form-input" @bind="OccupantRows[rowIndex].Email" disabled="@(rowIndex == 0)" />
+                                    </div>
+
+                                    @if (SelectedBuildingType != 1)
+                                    {
+                                        <div>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">Birth date</label>
+                                            <input type="date" class="form-input" @bind="OccupantRows[rowIndex].BirthDate" />
+                                        </div>
+                                        <div>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">ID/Passport expiry date</label>
+                                            <input type="date" class="form-input" @bind="OccupantRows[rowIndex].DocumentExpiryDate" />
+                                        </div>
+                                    }
+                                </div>
+                            }
+                        </div>
+                        <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditAccommodationModal">Cancel</button>
+                            <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@IsSavingAccommodation" @onclick="SaveEditedAccommodationReservationAsync">
+                                @(IsSavingAccommodation ? "Saving..." : "Save changes")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (ShowCancelAccommodationModal)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                    <div class="px-5 py-4">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Cancel reservation</h3>
+                        <p class="mt-2 text-sm text-muted dark:text-darkmuted">Are you sure you want to cancel this accommodation reservation? This cannot be undone.</p>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelAccommodationModal">Keep it</button>
+                        <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@IsSavingAccommodation" @onclick="CancelAccommodationReservationAsync">
+                            @(IsSavingAccommodation ? "Cancelling..." : "Cancel reservation")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+}
+
+        @if (HasTransportModule)
+{
+<div class="card shadow-sm">
+            <div class="mb-5" id="buses">
+                <h2 class="text-lg font-bold text-black dark:text-white">Buses</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Choose your departure and/or return bus, then save.</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(BusSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@BusSuccessMessage</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(BusErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@BusErrorMessage</div>
+            }
+
+            @if (IsLoadingBuses)
+            {
+                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    @foreach (int direction in new[] { 1, 2 })
+                    {
+                        BusReservationDto? existing = BusReservations.FirstOrDefault(r => r.Direction == direction);
+
+                        <div class="p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="ri-bus-2-fill text-lg @(direction == 1 ? "text-purple" : "text-warning")"></i>
+                                <h3 class="text-sm font-semibold text-black dark:text-white">@GetDirectionLabel(direction)</h3>
+                            </div>
+
+                            @if (existing is not null)
+                            {
+                                <div class="space-y-1 text-sm">
+                                    <p class="text-black dark:text-white">@existing.DepartureTime.ToString("dd/MM/yyyy HH:mm")</p>
+                                    @if (direction == 1)
+                                    {
+                                        <p class="text-muted dark:text-darkmuted">
+                                            <a href="@GetMapsUrl(existing.PickupLocation)" target="_blank" class="text-purple hover:underline">@existing.PickupLocation</a>
+                                            <i class="mx-1 ri-arrow-right-line"></i>@existing.DestinationLocation
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted dark:text-darkmuted">
+                                            @existing.PickupLocation<i class="mx-1 ri-arrow-right-line"></i>
+                                            <a href="@GetMapsUrl(existing.DestinationLocation)" target="_blank" class="text-purple hover:underline">@existing.DestinationLocation</a>
+                                        </p>
+                                    }
+                                </div>
+                                <div class="flex items-center gap-3 mt-3">
+                                    <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditBusModal(existing)"><i class="ri-pencil-line"></i></button>
+                                    <button type="button" class="text-danger" title="Cancel" @onclick="() => OpenCancelBusModal(existing)"><i class="ri-delete-bin-line"></i></button>
+                                </div>
+                            }
+                            else
+                            {
+                                List<BusDto> options = AvailableBuses.Where(b => b.Direction == direction).ToList();
+
+                                @if (options.Count == 0)
+                                {
+                                    <p class="text-sm text-muted dark:text-darkmuted">No @(direction == 1 ? "departure" : "return") buses available for your pass right now.</p>
+                                }
+                                else
+                                {
+                                    <select class="form-select" @bind="PendingBusSelection[direction]">
+                                        <option value="@Guid.Empty">-</option>
+                                        @foreach (BusDto bus in options)
+                                        {
+                                            <option value="@bus.Id" disabled="@(bus.OccupiedCount >= bus.Capacity)">
+                                                @bus.DepartureTime.ToString("dd/MM HH:mm") - @bus.PickupLocation → @bus.DestinationLocation (@bus.OccupiedCount/@bus.Capacity)@(bus.OccupiedCount >= bus.Capacity ? " - FULL" : "")
+                                            </option>
+                                        }
+                                    </select>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (HasPendingBusSelection)
+                {
+                    <div class="flex justify-end mt-4">
+                        <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@IsSavingBus" @onclick="SaveBusSelectionAsync">
+                            @(IsSavingBus ? "Saving..." : "Save")
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+
+        @if (editingBusReservation is not null)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 480px);">
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Edit Bus</h3>
+                        <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditBusModal"><i class="ri-close-line text-2xl"></i></button>
+                    </div>
+                    <div class="p-5">
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Bus</label>
+                        <select class="form-select" @bind="editBusNewId">
+                            @foreach (BusDto bus in AvailableBuses.Where(b => b.Direction == editingBusReservation.Direction))
+                            {
+                                <option value="@bus.Id" disabled="@(bus.OccupiedCount >= bus.Capacity && bus.Id != editingBusReservation.BusId)">
+                                    @bus.DepartureTime.ToString("dd/MM HH:mm") - @bus.PickupLocation → @bus.DestinationLocation (@bus.OccupiedCount/@bus.Capacity)
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditBusModal">Cancel</button>
+                        <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@IsSavingBus" @onclick="SaveEditedBusAsync">@(IsSavingBus ? "Saving..." : "Save changes")</button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (cancellingBusReservation is not null)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                    <div class="px-5 py-4">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Cancel bus reservation</h3>
+                        <p class="mt-2 text-sm text-muted dark:text-darkmuted">Are you sure you want to cancel this bus reservation?</p>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelBusModal">Keep it</button>
+                        <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@IsSavingBus" @onclick="CancelBusReservationAsync">
+                            @(IsSavingBus ? "Cancelling..." : "Cancel reservation")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+
+}
+
         <div class="card shadow-sm">
             <div class="mb-5" id="change-password">
                 <h2 class="text-lg font-bold text-black dark:text-white">Change password</h2>
@@ -568,6 +944,530 @@
 }
 <!-- End All Card -->
 @code {
+    // ==================== Buses ====================
+    private const int TransportModuleFlag = 4;
+    private bool HasTransportModule => (EnabledFestivalModules & TransportModuleFlag) != 0;
+
+    private List<BusDto> AvailableBuses { get; set; } = [];
+    private List<BusReservationDto> BusReservations { get; set; } = [];
+    private Dictionary<int, Guid> PendingBusSelection { get; set; } = new() { [1] = Guid.Empty, [2] = Guid.Empty };
+    private bool IsLoadingBuses { get; set; } = true;
+    private bool IsSavingBus { get; set; }
+    private string? BusSuccessMessage { get; set; }
+    private string? BusErrorMessage { get; set; }
+
+    private BusReservationDto? editingBusReservation;
+    private Guid editBusNewId;
+    private BusReservationDto? cancellingBusReservation;
+
+    private bool HasPendingBusSelection =>
+        PendingBusSelection.Any(kv => kv.Value != Guid.Empty && !BusReservations.Any(r => r.Direction == kv.Key));
+
+    private static string GetDirectionLabel(int direction) => direction switch
+    {
+        1 => "Departure",
+        2 => "Return",
+        _ => "-"
+    };
+
+    private static string GetMapsUrl(string location)
+    {
+        return $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(location)}";
+    }
+
+    private void ShowBusSuccess(string message)
+    {
+        BusSuccessMessage = message;
+        BusErrorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            BusSuccessMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowBusError(string message)
+    {
+        BusErrorMessage = message;
+        BusSuccessMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            BusErrorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadBusDataAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            IsLoadingBuses = false;
+            return;
+        }
+
+        IsLoadingBuses = true;
+
+        try
+        {
+            BusReservations = (await BusApiClient.GetReservationsByRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            AvailableBuses = (await BusApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            PendingBusSelection = new() { [1] = Guid.Empty, [2] = Guid.Empty };
+        }
+        catch
+        {
+            // Non-critical: the buses section just stays empty if this fails.
+        }
+        finally
+        {
+            IsLoadingBuses = false;
+        }
+    }
+
+    private async Task SaveBusSelectionAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        List<Guid> busIds = PendingBusSelection
+            .Where(kv => kv.Value != Guid.Empty && !BusReservations.Any(r => r.Direction == kv.Key))
+            .Select(kv => kv.Value)
+            .ToList();
+
+        if (busIds.Count == 0)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            CreateBusReservationsRequest request = new()
+            {
+                RegistrationId = Dashboard.Registration.Id,
+                BusIds = busIds
+            };
+
+            await BusApiClient.CreateReservationsAsync(request);
+            ShowBusSuccess(busIds.Count > 1 ? "Bus reservations created successfully." : "Bus reservation created successfully.");
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+
+    private void OpenEditBusModal(BusReservationDto reservation)
+    {
+        editingBusReservation = reservation;
+        editBusNewId = reservation.BusId;
+    }
+
+    private void CloseEditBusModal()
+    {
+        editingBusReservation = null;
+    }
+
+    private async Task SaveEditedBusAsync()
+    {
+        if (editingBusReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            UpdateBusReservationRequest request = new()
+            {
+                NewBusId = editBusNewId,
+                RequestingRegistrationId = Dashboard.Registration.Id
+            };
+
+            await BusApiClient.UpdateReservationAsync(editingBusReservation.Id, request, isAdmin: false);
+            ShowBusSuccess("Bus reservation updated successfully.");
+            editingBusReservation = null;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+
+    private void OpenCancelBusModal(BusReservationDto reservation)
+    {
+        cancellingBusReservation = reservation;
+    }
+
+    private void CloseCancelBusModal()
+    {
+        cancellingBusReservation = null;
+    }
+
+    private async Task CancelBusReservationAsync()
+    {
+        if (cancellingBusReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            await BusApiClient.DeleteReservationAsync(cancellingBusReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+            ShowBusSuccess("Bus reservation cancelled successfully.");
+            cancellingBusReservation = null;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+
+    // ==================== Accommodation ====================
+    private const int AccommodationModuleFlag = 2;
+    private int EnabledFestivalModules { get; set; }
+    private bool HasAccommodationModule => (EnabledFestivalModules & AccommodationModuleFlag) != 0;
+
+    private List<AccommodationBuildingSummaryDto> AvailableAccommodationBuildings { get; set; } = [];
+    private AccommodationReservationDto? ExistingReservation { get; set; }
+    private AccommodationBuildingDto? SelectedBuildingDetail { get; set; }
+    private Guid SelectedAccommodationBuildingId { get; set; } = Guid.Empty;
+    private int OccupantCount { get; set; }
+    private List<AccommodationOccupantFormRow> OccupantRows { get; set; } = [];
+    private bool IsLoadingAccommodation { get; set; } = true;
+    private bool IsSavingAccommodation { get; set; }
+    private string? AccommodationSuccessMessage { get; set; }
+    private string? AccommodationErrorMessage { get; set; }
+    private bool ShowEditAccommodationModal { get; set; }
+    private bool ShowCancelAccommodationModal { get; set; }
+
+    private bool IsResponsibleForExistingReservation =>
+        ExistingReservation is not null && Dashboard?.Registration is not null && ExistingReservation.ResponsibleRegistrationId == Dashboard.Registration.Id;
+
+    private int SelectedBuildingType =>
+        AvailableAccommodationBuildings.FirstOrDefault(b => b.Id == SelectedAccommodationBuildingId)?.Type
+            ?? SelectedBuildingDetail?.Type
+            ?? 0;
+
+    private List<int> AvailableCapacities =>
+        SelectedBuildingDetail?.Zones
+            .SelectMany(z => z.Accommodations)
+            .Where(a => a.IsActive && a.OccupiedCount == 0)
+            .Select(a => a.Capacity)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToList() ?? [];
+
+    private void ShowAccommodationSuccess(string message)
+    {
+        AccommodationSuccessMessage = message;
+        AccommodationErrorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            AccommodationSuccessMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowAccommodationError(string message)
+    {
+        AccommodationErrorMessage = message;
+        AccommodationSuccessMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            AccommodationErrorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadFestivalModulesAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        try
+        {
+            EnabledFestivalModules = await FestivalModuleApiClient.GetEnabledModulesForRegistrationAsync(Dashboard.Registration.Id);
+        }
+        catch
+        {
+            // Non-critical: if this fails, module-gated sections just stay hidden.
+        }
+    }
+
+    private async Task LoadAccommodationDataAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            IsLoadingAccommodation = false;
+            return;
+        }
+
+        IsLoadingAccommodation = true;
+
+        try
+        {
+            ExistingReservation = await AccommodationApiClient.GetReservationByRegistrationAsync(Dashboard.Registration.Id);
+
+            if (ExistingReservation is null)
+            {
+                AvailableAccommodationBuildings = (await AccommodationApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            }
+            else
+            {
+                SelectedBuildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(ExistingReservation.AccommodationBuildingId);
+            }
+        }
+        catch
+        {
+            // Non-critical: the accommodation section just stays empty if this fails.
+        }
+        finally
+        {
+            IsLoadingAccommodation = false;
+        }
+    }
+
+    private async Task OnAccommodationBuildingChangedAsync()
+    {
+        SelectedBuildingDetail = null;
+        OccupantCount = 0;
+        OccupantRows = [];
+
+        if (SelectedAccommodationBuildingId == Guid.Empty)
+        {
+            return;
+        }
+
+        try
+        {
+            SelectedBuildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(SelectedAccommodationBuildingId);
+        }
+        catch (Exception ex)
+        {
+            ShowAccommodationError(ex.Message);
+        }
+
+        if (SelectedBuildingType == 1)
+        {
+            OccupantCount = 1;
+            RebuildOccupantRows();
+        }
+    }
+
+    private void RebuildOccupantRows()
+    {
+        List<AccommodationOccupantFormRow> newRows = [];
+
+        for (int i = 0; i < OccupantCount; i++)
+        {
+            if (i < OccupantRows.Count)
+            {
+                newRows.Add(OccupantRows[i]);
+            }
+            else if (i == 0)
+            {
+                newRows.Add(new AccommodationOccupantFormRow { Email = Dashboard?.User.Email ?? string.Empty });
+            }
+            else
+            {
+                newRows.Add(new AccommodationOccupantFormRow());
+            }
+        }
+
+        OccupantRows = newRows;
+    }
+
+    private async Task SaveAccommodationReservationAsync()
+    {
+        if (Dashboard?.Registration is null || SelectedAccommodationBuildingId == Guid.Empty)
+        {
+            return;
+        }
+
+        IsSavingAccommodation = true;
+
+        try
+        {
+            CreateAccommodationReservationRequest request = new()
+            {
+                AccommodationBuildingId = SelectedAccommodationBuildingId,
+                ResponsibleRegistrationId = Dashboard.Registration.Id,
+                Occupants = OccupantRows.Select(r => new AccommodationOccupantInput
+                {
+                    Email = r.Email,
+                    BirthDate = r.BirthDate,
+                    DocumentExpiryDate = r.DocumentExpiryDate
+                }).ToList()
+            };
+
+            await AccommodationApiClient.CreateReservationAsync(request);
+
+            ShowAccommodationSuccess("Accommodation reservation created successfully.");
+            SelectedAccommodationBuildingId = Guid.Empty;
+            SelectedBuildingDetail = null;
+            OccupantRows = [];
+            await LoadAccommodationDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowAccommodationError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowAccommodationError(ex.Message);
+        }
+        finally
+        {
+            IsSavingAccommodation = false;
+        }
+    }
+
+    private void OpenEditAccommodationModal()
+    {
+        if (ExistingReservation is null)
+        {
+            return;
+        }
+
+        OccupantCount = ExistingReservation.Occupants.Count;
+        OccupantRows = ExistingReservation.Occupants
+            .OrderByDescending(o => o.IsResponsible)
+            .Select(o => new AccommodationOccupantFormRow
+            {
+                Email = o.Email,
+                BirthDate = o.BirthDate,
+                DocumentExpiryDate = o.DocumentExpiryDate
+            }).ToList();
+
+        ShowEditAccommodationModal = true;
+    }
+
+    private void CloseEditAccommodationModal()
+    {
+        ShowEditAccommodationModal = false;
+    }
+
+    private async Task SaveEditedAccommodationReservationAsync()
+    {
+        if (ExistingReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingAccommodation = true;
+
+        try
+        {
+            UpdateAccommodationReservationRequest request = new()
+            {
+                RequestingRegistrationId = Dashboard.Registration.Id,
+                Occupants = OccupantRows.Select(r => new AccommodationOccupantInput
+                {
+                    Email = r.Email,
+                    BirthDate = r.BirthDate,
+                    DocumentExpiryDate = r.DocumentExpiryDate
+                }).ToList()
+            };
+
+            await AccommodationApiClient.UpdateReservationAsync(ExistingReservation.Id, request, isAdmin: false);
+
+            ShowAccommodationSuccess("Accommodation reservation updated successfully.");
+            ShowEditAccommodationModal = false;
+            await LoadAccommodationDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowAccommodationError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowAccommodationError(ex.Message);
+        }
+        finally
+        {
+            IsSavingAccommodation = false;
+        }
+    }
+
+    private void OpenCancelAccommodationModal()
+    {
+        ShowCancelAccommodationModal = true;
+    }
+
+    private void CloseCancelAccommodationModal()
+    {
+        ShowCancelAccommodationModal = false;
+    }
+
+    private async Task CancelAccommodationReservationAsync()
+    {
+        if (ExistingReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingAccommodation = true;
+
+        try
+        {
+            await AccommodationApiClient.DeleteReservationAsync(ExistingReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+            ShowAccommodationSuccess("Reservation cancelled successfully.");
+            ExistingReservation = null;
+            ShowCancelAccommodationModal = false;
+            await LoadAccommodationDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowAccommodationError(ex.Message);
+        }
+        finally
+        {
+            IsSavingAccommodation = false;
+        }
+    }
+
+    private class AccommodationOccupantFormRow
+    {
+        public string Email { get; set; } = string.Empty;
+        public DateTime? BirthDate { get; set; }
+        public DateTime? DocumentExpiryDate { get; set; }
+    }
+
     private UserPanelDashboardDto? Dashboard { get; set; }
 
     private bool IsLoading { get; set; } = true;
@@ -706,6 +1606,17 @@
         if (firstRender)
         {
             await LoadDashboardAsync();
+            await LoadFestivalModulesAsync();
+
+            if (HasAccommodationModule)
+            {
+                await LoadAccommodationDataAsync();
+            }
+
+            if (HasTransportModule)
+            {
+                await LoadBusDataAsync();
+            }
 
             StateHasChanged();
         }
@@ -1246,5 +2157,4 @@
         return parsed ? role : null;
     }
 }
-
 

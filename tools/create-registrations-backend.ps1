@@ -1,32 +1,27 @@
 # =====================================================================
-# Alakai FestivalManager - Varios arreglos pequenos
+# Alakai FestivalManager - User Panel: rediseno de la seccion de Buses
 #
-#   1. Al marcar un registro como Paid, el Registration Status pasa
-#      automaticamente de PendingPayment a Confirmed (antes se quedaban
-#      desincronizados).
-#   2. User Panel: "PendingPayment" ahora se muestra "Pending Payment"
-#      (con espacio), igual con el resto de estados.
-#   3. Modo oscuro: email bajo el nombre y las etiquetas de estado que
-#      caian en el caso "default" (gris sin variante dark:) ahora se
-#      ven bien en oscuro. Afecta a Registrations, CompetitionEntries
-#      y Email Logs.
-#   4. Invoice Templates: el modal de borrar ahora es mas ancho
-#      (380px -> 480px).
+#   - Ida y vuelta en un solo formulario, un solo boton Save.
+#   - Al guardar ambas (o una) se dispara un UNICO email de
+#     confirmacion (CreateManyAsync en el backend).
+#   - "Outbound" pasa a llamarse "Departure".
+#   - En Departure, el origen es un link a Google Maps; en Return, el
+#     destino lo es (donde te recogen yendo, donde te dejan volviendo).
 #
-# USO: desde la raiz del repo -> .\tools\small-fixes-batch1.ps1
+# REQUIERE que ya tengas aplicado fix-userpanel-buses-only.ps1
+# (reemplaza esa seccion, no la duplica).
+#
+# USO: desde la raiz del repo -> .\tools\userpanel-bus-redesign.ps1
 # =====================================================================
 
 $ErrorActionPreference = "Stop"
 Write-Host "Trabajando en: $(Get-Location)" -ForegroundColor Cyan
 
-$appRoot = "Alakai.FestivalManager.Application"
 $adminRoot = "Alakai.FestivalManager.Admin"
 
-foreach ($root in @($appRoot, $adminRoot)) {
-    if (-not (Test-Path $root)) {
-        Write-Host "ERROR: no se encontro la carpeta '$root'. Ejecuta este script desde la raiz del repo." -ForegroundColor Red
-        exit 1
-    }
+if (-not (Test-Path $adminRoot)) {
+    Write-Host "ERROR: no se encontro la carpeta '$adminRoot'. Ejecuta este script desde la raiz del repo." -ForegroundColor Red
+    exit 1
 }
 
 function Require-Path {
@@ -37,702 +32,691 @@ function Require-Path {
     }
 }
 
-function Patch-SingleOccurrence {
-    param(
-        [string]$Path,
-        [string]$OldText,
-        [string]$NewText,
-        [string]$Description
-    )
+function Patch-Normalized {
+    param([string]$Path, [string]$OldText, [string]$NewText, [string]$Description)
 
     Require-Path $Path
-    $content = Get-Content $Path -Raw
+    $raw = Get-Content $Path -Raw
+    $content = $raw -replace "`r`n", "`n"
+    $old = ($OldText -replace "`r`n", "`n").TrimEnd()
+    $new = ($NewText -replace "`r`n", "`n").TrimEnd()
 
-    if ($content.Contains($NewText)) {
-        Write-Host "  Ya aplicado: $Path ($Description)" -ForegroundColor Yellow
+    if ($content.Contains($new)) {
+        Write-Host "  Ya aplicado: $Description" -ForegroundColor Yellow
         return
     }
 
-    $count = ([regex]::Matches($content, [regex]::Escape($OldText))).Count
-
+    $count = ([regex]::Matches($content, [regex]::Escape($old))).Count
     if ($count -ne 1) {
-        Write-Host "ERROR: '$Description' -> se esperaba 1 coincidencia en $Path, se encontraron $count. No se modifico nada." -ForegroundColor Red
+        Write-Host "ERROR: '$Description' -> se esperaba 1 coincidencia, se encontraron $count. No se modifico nada." -ForegroundColor Red
+        Write-Host "Puede que tu archivo haya cambiado desde el ultimo script. Pegamelo de nuevo si sigue fallando." -ForegroundColor Yellow
         exit 1
     }
 
-    $newContent = $content.Replace($OldText, $NewText)
+    $newContent = $content.Replace($old, $new)
     Set-Content -Path $Path -Value $newContent -Encoding UTF8 -NoNewline
-    Write-Host "  Modificado: $Path ($Description)" -ForegroundColor Green
+    Write-Host "  Modificado: $Description" -ForegroundColor Green
 }
 
-Write-Host ""
-Write-Host "--- 1. Sincronizar Registration Status al marcar Paid ---" -ForegroundColor Cyan
-
-$handlerPath = Join-Path $appRoot "Features\Registrations\Commands\UpdateRegistration\UpdateRegistrationHandler.cs"
-$handlerOld = @'
-existing.PaymentStatus = command.PaymentStatus;
-'@
-$handlerNew = @'
-existing.PaymentStatus = command.PaymentStatus;
-
-        if (command.PaymentStatus == PaymentStatus.Paid && existing.Status == RegistrationStatus.PendingPayment)
-        {
-            existing.Status = RegistrationStatus.Confirmed;
-        }
-'@
-
-Patch-SingleOccurrence -Path $handlerPath -OldText $handlerOld.TrimEnd() -NewText $handlerNew.TrimEnd() -Description "auto-confirmar al marcar Paid"
+$upPath = Join-Path $adminRoot "Components\Pages\UserPanelDashboard\UserPanel.razor"
+Require-Path $upPath
 
 Write-Host ""
-Write-Host "--- 2. User Panel: espacios en los estados (Pending Payment, etc.) ---" -ForegroundColor Cyan
-
-$userPanelPath = Join-Path $adminRoot "Components\Pages\UserPanelDashboard\UserPanel.razor"
-$upOld1 = @'
-private string RegistrationStatus => Dashboard?.Registration?.RegistrationStatus ?? "-";
-'@
-$upNew1 = @'
-private string RegistrationStatus => Humanize(Dashboard?.Registration?.RegistrationStatus);
-'@
-
-Patch-SingleOccurrence -Path $userPanelPath -OldText $upOld1.TrimEnd() -NewText $upNew1.TrimEnd() -Description "RegistrationStatus humanizado"
-
-$upOld2 = @'
-private string PaymentStatus => Dashboard?.Registration?.PaymentStatus ?? "-";
-'@
-$upNew2 = @'
-private string PaymentStatus => Humanize(Dashboard?.Registration?.PaymentStatus);
-
-    private static string Humanize(string? value)
-    {
-        if (string.IsNullOrWhiteSpace(value))
-        {
-            return "-";
-        }
-
-        return System.Text.RegularExpressions.Regex.Replace(value, "(?<!^)([A-Z])", " $1");
-    }
-'@
-
-Patch-SingleOccurrence -Path $userPanelPath -OldText $upOld2.TrimEnd() -NewText $upNew2.TrimEnd() -Description "PaymentStatus humanizado + helper Humanize"
-
-Write-Host ""
-Write-Host "--- 3. Modo oscuro: contraste en textos grises y badges por defecto ---" -ForegroundColor Cyan
-
-$darkPath = Join-Path $adminRoot "Components\\Pages\\Registrations.razor"
-$darkOld = @'
-<div class="text-xs text-black/50 truncate">@registration.Email</div>
-'@
-$darkNew = @'
-<div class="text-xs text-black/50 dark:text-white/40 truncate">@registration.Email</div>
-'@
-Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en Registrations.razor"
-
-$darkPath = Join-Path $adminRoot "Components\\Pages\\Registrations.razor"
-$darkOld = @'
-<div class="text-xs text-black/50">Base @registration.BasePrice.ToString("0.##") €</div>
-'@
-$darkNew = @'
-<div class="text-xs text-black/50 dark:text-white/40">Base @registration.BasePrice.ToString("0.##") €</div>
-'@
-Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en Registrations.razor"
-
-$darkPath = Join-Path $adminRoot "Components\\Pages\\Registrations.razor"
-$darkOld = @'
-_ => "px-2 py-1 text-xs rounded bg-black/10 text-black"
-'@
-$darkNew = @'
-_ => "px-2 py-1 text-xs rounded bg-black/10 text-black dark:bg-white/10 dark:text-white"
-'@
-Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en Registrations.razor"
-
-$darkPath = Join-Path $adminRoot "Components\\Pages\\CompetitionEntries.razor"
-$darkOld = @'
-_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
-'@
-$darkNew = @'
-_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black dark:bg-white/10 dark:text-white"
-'@
-Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en CompetitionEntries.razor"
-
-$darkPath = Join-Path $adminRoot "Components\\Pages\\EmailLogs.razor"
-$darkOld = @'
-_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
-'@
-$darkNew = @'
-_ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black dark:bg-white/10 dark:text-white"
-'@
-Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en EmailLogs.razor"
-
-$darkPath = Join-Path $adminRoot "Components\\Pages\\EmailLogs.razor"
-$darkOld = @'
-<div class="text-xs text-black/50">@log.RecipientName</div>
-'@
-$darkNew = @'
-<div class="text-xs text-black/50 dark:text-white/40">@log.RecipientName</div>
-'@
-Patch-SingleOccurrence -Path $darkPath -OldText $darkOld.TrimEnd() -NewText $darkNew.TrimEnd() -Description "contraste oscuro en EmailLogs.razor"
-
-Write-Host ""
-Write-Host "--- 4. Invoice Templates: modal de borrar mas ancho ---" -ForegroundColor Cyan
-
-$invoiceTemplatesPath = Join-Path $adminRoot "Components\Pages\InvoiceTemplates.razor"
-
-if (-not (Test-Path $invoiceTemplatesPath)) {
-    Write-Host "  AVISO: no se encontro InvoiceTemplates.razor (¿ejecutaste invoices-templates-frontend-step2c.ps1?). Se omite este paso." -ForegroundColor Yellow
-} else {
-    $itContent = Get-Content $invoiceTemplatesPath -Raw
-
-    if ($itContent.Contains("w-[92vw] md:w-[480px]")) {
-        Write-Host "  Ya esta actualizado, no se toca." -ForegroundColor Yellow
-    } else {
-@'
-@page "/settings/invoice-templates"
-@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
-@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
-
-@inject InvoiceTemplateApiClient InvoiceTemplateApiClient
-@inject EditionApiClient EditionApiClient
-@inject FestivalApiClient FestivalApiClient
-@inject UploadsApiClient UploadsApiClient
-
-<PageHeader Title="Settings" pTitle="Invoice Templates"></PageHeader>
-
-<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
-    <div class="card">
-        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input md:w-64" placeholder="Search templates..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
-
-                <select class="form-select md:w-48" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
-                    <option value="">All festivals</option>
-                    @foreach (FestivalDto festival in festivals)
-                    {
-                        <option value="@festival.Id">@festival.Name</option>
-                    }
-                </select>
-
-                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
-                    <option value="">All editions</option>
-                    @foreach (EditionDto edition in FilteredEditionOptions)
-                    {
-                        <option value="@edition.Id">@edition.Name</option>
-                    }
-                </select>
-
-                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                    <option value="10">10 rows</option>
-                    <option value="25">25 rows</option>
-                    <option value="50">50 rows</option>
-                </select>
+$sectionOld = @'
+<div class="card shadow-sm">
+            <div class="mb-5" id="buses">
+                <h2 class="text-lg font-bold text-black dark:text-white">Buses</h2>
             </div>
 
-            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
-                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                New Template
-            </button>
-        </div>
-
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-        }
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-
-        @if (isLoading)
-        {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading templates...</p>
-        }
-        else if (FilteredTemplates.Count == 0)
-        {
-            <p class="text-sm text-black/50 dark:text-white/40">No invoice templates found.</p>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-3 py-3 font-semibold">Name</th>
-                            <th class="px-3 py-3 font-semibold">Edition</th>
-                            <th class="px-3 py-3 font-semibold">Company</th>
-                            <th class="px-3 py-3 font-semibold">Tax ID</th>
-                            <th class="px-3 py-3 font-semibold">Active</th>
-                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (InvoiceTemplateDto template in PagedTemplates)
-                        {
-                            <tr class="border-b border-black/10 dark:border-darkborder">
-                                <td class="px-4 py-3 font-medium">@template.Name</td>
-                                <td class="px-3 py-3">@(template.EditionId is null ? "Global" : template.EditionName)</td>
-                                <td class="px-3 py-3">@template.CompanyName</td>
-                                <td class="px-3 py-3">@template.TaxId</td>
-                                <td class="px-3 py-3"><span class="@GetStatusClass(template.IsActive)">@(template.IsActive ? "Active" : "Inactive")</span></td>
-                                <td class="px-3 py-3">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(template)"><i class="ri-pencil-line text-lg"></i></button>
-                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(template)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
-                    Showing @StartRow to @EndRow of @FilteredTemplates.Count templates
-                </p>
-
-                <div class="flex items-center gap-2">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
-                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
-                </div>
-            </div>
-        }
-    </div>
-</div>
-
-@if (showModal)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 700px);">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingTemplate is null ? "New Invoice Template" : "Edit Invoice Template")</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-
-                <div class="p-5 space-y-4">
-                    <div class="flex items-center gap-4">
-                        @if (!string.IsNullOrWhiteSpace(formModel.LogoUrl))
-                        {
-                            <img src="@formModel.LogoUrl" alt="Logo" class="object-contain h-14 w-14 rounded border border-black/10 dark:border-darkborder" />
-                        }
-                        else
-                        {
-                            <span class="flex items-center justify-center rounded h-14 w-14 border border-dashed border-black/20 text-black/30 dark:border-darkborder dark:text-white/30">
-                                <i class="text-xl ri-image-line leading-none"></i>
-                            </span>
-                        }
-                        <div>
-                            <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
-                            @if (isUploadingLogo)
-                            {
-                                <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
-                            }
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-sm text-black/60 dark:text-white/60">Template Name</label>
-                            <InputText class="form-input" @bind-Value="formModel.Name" placeholder="e.g. La Jam Barcelona, or Default" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm text-black/60 dark:text-white/60">Edition</label>
-                            <select class="form-select" @bind="formModel.EditionId">
-                                <option value="">Global (default)</option>
-                                @foreach (EditionDto edition in editions)
-                                {
-                                    <option value="@edition.Id">@edition.Name</option>
-                                }
-                            </select>
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="block text-sm text-black/60 dark:text-white/60">Company / fiscal name</label>
-                            <InputText class="form-input" @bind-Value="formModel.CompanyName" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm text-black/60 dark:text-white/60">Tax ID (NIF/CIF)</label>
-                            <InputText class="form-input" @bind-Value="formModel.TaxId" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm text-black/60 dark:text-white/60">Address</label>
-                            <InputText class="form-input" @bind-Value="formModel.Address" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm text-black/60 dark:text-white/60">City</label>
-                            <InputText class="form-input" @bind-Value="formModel.City" />
-                        </div>
-
-                        <div>
-                            <label class="block text-sm text-black/60 dark:text-white/60">Postal code</label>
-                            <InputText class="form-input" @bind-Value="formModel.PostalCode" />
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="block text-sm text-black/60 dark:text-white/60">Country</label>
-                            <InputText class="form-input" @bind-Value="formModel.Country" />
-                        </div>
-
-                        <div>
-                            <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveAsync">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (deletingTemplate is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Invoice Template</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingTemplate.Name?</p>
-                </div>
-
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync"> @(isSaving ? "Deleting..." : "Delete")</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@code {
-    private List<InvoiceTemplateDto> templates = [];
-    private List<EditionDto> editions = [];
-    private List<FestivalDto> festivals = [];
-    private InvoiceTemplateDto? editingTemplate;
-    private InvoiceTemplateDto? deletingTemplate;
-    private InvoiceTemplateFormModel formModel = new();
-    private string searchText = string.Empty;
-    private string festivalFilter = string.Empty;
-    private string editionFilter = string.Empty;
-    private int pageSize = 10;
-    private int currentPage = 1;
-    private bool isLoading = true;
-    private bool isSaving;
-    private bool isUploadingLogo;
-    private bool showModal;
-    private string? successMessage;
-    private string? errorMessage;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadDataAsync();
-    }
-
-    private async Task LoadDataAsync()
-    {
-        isLoading = true;
-        errorMessage = null;
-
-        try
-        {
-            templates = (await InvoiceTemplateApiClient.GetAllAsync()).ToList();
-            editions = (await EditionApiClient.GetAllAsync()).ToList();
-            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
-
-    private List<EditionDto> FilteredEditionOptions
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid festivalId))
+            @if (!string.IsNullOrWhiteSpace(BusSuccessMessage))
             {
-                return editions;
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@BusSuccessMessage</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(BusErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@BusErrorMessage</div>
             }
 
-            return editions.Where(e => e.FestivalId == festivalId).ToList();
-        }
-    }
-
-    private void OnFestivalFilterChanged()
-    {
-        editionFilter = string.Empty;
-        ResetPage();
-    }
-
-    private List<InvoiceTemplateDto> FilteredTemplates
-    {
-        get
-        {
-            IEnumerable<InvoiceTemplateDto> query = templates;
-
-            if (!string.IsNullOrWhiteSpace(searchText))
+            @if (IsLoadingBuses)
             {
-                string term = searchText.Trim();
-                query = query.Where(t =>
-                    t.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
-                    t.CompanyName.Contains(term, StringComparison.OrdinalIgnoreCase));
-            }
-
-            if (!string.IsNullOrWhiteSpace(editionFilter) && Guid.TryParse(editionFilter, out Guid editionId))
-            {
-                query = query.Where(t => t.EditionId == editionId);
-            }
-            else if (!string.IsNullOrWhiteSpace(festivalFilter) && Guid.TryParse(festivalFilter, out Guid festivalId))
-            {
-                HashSet<Guid> editionIdsForFestival = editions.Where(e => e.FestivalId == festivalId).Select(e => e.Id).ToHashSet();
-                query = query.Where(t => t.EditionId.HasValue && editionIdsForFestival.Contains(t.EditionId.Value));
-            }
-
-            return query.OrderBy(t => t.Name).ToList();
-        }
-    }
-
-    private IEnumerable<InvoiceTemplateDto> PagedTemplates => FilteredTemplates.Skip((currentPage - 1) * pageSize).Take(pageSize);
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredTemplates.Count / (double)pageSize));
-    private int StartRow => FilteredTemplates.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-    private int EndRow => Math.Min(currentPage * pageSize, FilteredTemplates.Count);
-
-    private void ResetPage()
-    {
-        currentPage = 1;
-        NormalizePage();
-    }
-
-    private void NormalizePage()
-    {
-        if (currentPage > TotalPages)
-        {
-            currentPage = TotalPages;
-        }
-
-        if (currentPage < 1)
-        {
-            currentPage = 1;
-        }
-    }
-
-    private void PreviousPage()
-    {
-        if (currentPage > 1)
-        {
-            currentPage--;
-        }
-    }
-
-    private void NextPage()
-    {
-        if (currentPage < TotalPages)
-        {
-            currentPage++;
-        }
-    }
-
-    private void OpenCreateModal()
-    {
-        editingTemplate = null;
-        formModel = new InvoiceTemplateFormModel { IsActive = true };
-        showModal = true;
-    }
-
-    private void OpenEditModal(InvoiceTemplateDto template)
-    {
-        editingTemplate = template;
-        formModel = new InvoiceTemplateFormModel
-        {
-            EditionId = template.EditionId,
-            Name = template.Name,
-            CompanyName = template.CompanyName,
-            TaxId = template.TaxId,
-            Address = template.Address,
-            City = template.City,
-            PostalCode = template.PostalCode,
-            Country = template.Country,
-            LogoUrl = template.LogoUrl,
-            IsActive = template.IsActive
-        };
-        showModal = true;
-    }
-
-    private void CloseModal()
-    {
-        showModal = false;
-    }
-
-    private async Task OnLogoSelected(InputFileChangeEventArgs e)
-    {
-        isUploadingLogo = true;
-
-        try
-        {
-            IBrowserFile file = e.File;
-            using Stream stream = file.OpenReadStream(maxAllowedSize: 5 * 1024 * 1024);
-
-            string url = await UploadsApiClient.UploadImageAsync(stream, file.Name, file.ContentType, width: 300);
-
-            formModel.LogoUrl = url;
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isUploadingLogo = false;
-        }
-    }
-
-    private void ShowSuccess(string message)
-    {
-        successMessage = message;
-        errorMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            successMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private void ShowError(string message)
-    {
-        errorMessage = message;
-        successMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            errorMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private async Task SaveAsync()
-    {
-        try
-        {
-            if (editingTemplate is null)
-            {
-                CreateInvoiceTemplateRequest request = new()
-                {
-                    EditionId = formModel.EditionId,
-                    Name = formModel.Name,
-                    CompanyName = formModel.CompanyName,
-                    TaxId = formModel.TaxId,
-                    Address = formModel.Address,
-                    City = formModel.City,
-                    PostalCode = formModel.PostalCode,
-                    Country = formModel.Country,
-                    LogoUrl = formModel.LogoUrl,
-                    IsActive = formModel.IsActive
-                };
-
-                await InvoiceTemplateApiClient.CreateAsync(request);
-                ShowSuccess("Invoice template created successfully.");
+                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
             }
             else
             {
-                UpdateInvoiceTemplateRequest request = new()
-                {
-                    EditionId = formModel.EditionId,
-                    Name = formModel.Name,
-                    CompanyName = formModel.CompanyName,
-                    TaxId = formModel.TaxId,
-                    Address = formModel.Address,
-                    City = formModel.City,
-                    PostalCode = formModel.PostalCode,
-                    Country = formModel.Country,
-                    LogoUrl = formModel.LogoUrl,
-                    IsActive = formModel.IsActive
-                };
+                <div class="space-y-6">
+                    @foreach (int direction in new[] { 1, 2 })
+                    {
+                        BusReservationDto? existing = BusReservations.FirstOrDefault(r => r.Direction == direction);
 
-                await InvoiceTemplateApiClient.UpdateAsync(editingTemplate.Id, request);
-                ShowSuccess("Invoice template updated successfully.");
+                        <div>
+                            <h3 class="mb-2 text-sm font-semibold text-black dark:text-white">@(direction == 1 ? "Outbound" : "Return")</h3>
+
+                            @if (existing is not null)
+                            {
+                                <div class="flex items-center justify-between p-3 border rounded-md border-black/10 dark:border-darkborder">
+                                    <div class="text-sm">
+                                        <p class="text-black dark:text-white">@existing.DepartureTime.ToString("dd/MM/yyyy HH:mm")</p>
+                                        <p class="text-muted dark:text-darkmuted">@existing.PickupLocation → @existing.DestinationLocation</p>
+                                    </div>
+                                    <div class="flex items-center gap-2">
+                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditBusModal(existing)"><i class="ri-pencil-line"></i></button>
+                                        <button type="button" class="text-danger" title="Cancel" @onclick="() => OpenCancelBusModal(existing)"><i class="ri-delete-bin-line"></i></button>
+                                    </div>
+                                </div>
+                            }
+                            else
+                            {
+                                List<BusDto> options = AvailableBuses.Where(b => b.Direction == direction).ToList();
+
+                                @if (options.Count == 0)
+                                {
+                                    <p class="text-sm text-muted dark:text-darkmuted">No @(direction == 1 ? "outbound" : "return") buses available for your pass right now.</p>
+                                }
+                                else
+                                {
+                                    <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                                        <select class="form-select" @bind="SelectedBusId[direction]">
+                                            <option value="@Guid.Empty">-</option>
+                                            @foreach (BusDto bus in options)
+                                            {
+                                                <option value="@bus.Id" disabled="@(bus.OccupiedCount >= bus.Capacity)">
+                                                    @bus.DepartureTime.ToString("dd/MM HH:mm") - @bus.PickupLocation → @bus.DestinationLocation (@bus.OccupiedCount/@bus.Capacity)@(bus.OccupiedCount >= bus.Capacity ? " - FULL" : "")
+                                                </option>
+                                            }
+                                        </select>
+                                        <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap disabled:opacity-50" disabled="@(!SelectedBusId.ContainsKey(direction) || SelectedBusId[direction] == Guid.Empty || IsSavingBus)" @onclick="() => BookBusAsync(direction)">
+                                            @(IsSavingBus ? "Booking..." : "Book")
+                                        </button>
+                                    </div>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @if (editingBusReservation is not null)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 480px);">
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Edit Bus</h3>
+                        <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditBusModal"><i class="ri-close-line text-2xl"></i></button>
+                    </div>
+                    <div class="p-5">
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Bus</label>
+                        <select class="form-select" @bind="editBusNewId">
+                            @foreach (BusDto bus in AvailableBuses.Where(b => b.Direction == editingBusReservation.Direction))
+                            {
+                                <option value="@bus.Id" disabled="@(bus.OccupiedCount >= bus.Capacity && bus.Id != editingBusReservation.BusId)">
+                                    @bus.DepartureTime.ToString("dd/MM HH:mm") - @bus.PickupLocation → @bus.DestinationLocation (@bus.OccupiedCount/@bus.Capacity)
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditBusModal">Cancel</button>
+                        <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@IsSavingBus" @onclick="SaveEditedBusAsync">@(IsSavingBus ? "Saving..." : "Save changes")</button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (cancellingBusReservation is not null)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                    <div class="px-5 py-4">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Cancel bus reservation</h3>
+                        <p class="mt-2 text-sm text-muted dark:text-darkmuted">Are you sure you want to cancel this bus reservation?</p>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelBusModal">Keep it</button>
+                        <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@IsSavingBus" @onclick="CancelBusReservationAsync">
+                            @(IsSavingBus ? "Cancelling..." : "Cancel reservation")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+'@
+$sectionNew = @'
+<div class="card shadow-sm">
+            <div class="mb-5" id="buses">
+                <h2 class="text-lg font-bold text-black dark:text-white">Buses</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Choose your departure and/or return bus, then save.</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(BusSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@BusSuccessMessage</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(BusErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@BusErrorMessage</div>
             }
 
-            showModal = false;
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
+            @if (IsLoadingBuses)
+            {
+                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+            }
+            else
+            {
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    @foreach (int direction in new[] { 1, 2 })
+                    {
+                        BusReservationDto? existing = BusReservations.FirstOrDefault(r => r.Direction == direction);
+
+                        <div class="p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                            <div class="flex items-center gap-2 mb-3">
+                                <i class="ri-bus-2-fill text-lg @(direction == 1 ? "text-purple" : "text-warning")"></i>
+                                <h3 class="text-sm font-semibold text-black dark:text-white">@GetDirectionLabel(direction)</h3>
+                            </div>
+
+                            @if (existing is not null)
+                            {
+                                <div class="space-y-1 text-sm">
+                                    <p class="text-black dark:text-white">@existing.DepartureTime.ToString("dd/MM/yyyy HH:mm")</p>
+                                    @if (direction == 1)
+                                    {
+                                        <p class="text-muted dark:text-darkmuted">
+                                            <a href="@GetMapsUrl(existing.PickupLocation)" target="_blank" class="text-purple hover:underline">@existing.PickupLocation</a>
+                                            <i class="mx-1 ri-arrow-right-line"></i>@existing.DestinationLocation
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <p class="text-muted dark:text-darkmuted">
+                                            @existing.PickupLocation<i class="mx-1 ri-arrow-right-line"></i>
+                                            <a href="@GetMapsUrl(existing.DestinationLocation)" target="_blank" class="text-purple hover:underline">@existing.DestinationLocation</a>
+                                        </p>
+                                    }
+                                </div>
+                                <div class="flex items-center gap-3 mt-3">
+                                    <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditBusModal(existing)"><i class="ri-pencil-line"></i></button>
+                                    <button type="button" class="text-danger" title="Cancel" @onclick="() => OpenCancelBusModal(existing)"><i class="ri-delete-bin-line"></i></button>
+                                </div>
+                            }
+                            else
+                            {
+                                List<BusDto> options = AvailableBuses.Where(b => b.Direction == direction).ToList();
+
+                                @if (options.Count == 0)
+                                {
+                                    <p class="text-sm text-muted dark:text-darkmuted">No @(direction == 1 ? "departure" : "return") buses available for your pass right now.</p>
+                                }
+                                else
+                                {
+                                    <select class="form-select" @bind="PendingBusSelection[direction]">
+                                        <option value="@Guid.Empty">-</option>
+                                        @foreach (BusDto bus in options)
+                                        {
+                                            <option value="@bus.Id" disabled="@(bus.OccupiedCount >= bus.Capacity)">
+                                                @bus.DepartureTime.ToString("dd/MM HH:mm") - @bus.PickupLocation → @bus.DestinationLocation (@bus.OccupiedCount/@bus.Capacity)@(bus.OccupiedCount >= bus.Capacity ? " - FULL" : "")
+                                            </option>
+                                        }
+                                    </select>
+                                }
+                            }
+                        </div>
+                    }
+                </div>
+
+                @if (HasPendingBusSelection)
+                {
+                    <div class="flex justify-end mt-4">
+                        <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@IsSavingBus" @onclick="SaveBusSelectionAsync">
+                            @(IsSavingBus ? "Saving..." : "Save")
+                        </button>
+                    </div>
+                }
+            }
+        </div>
+
+        @if (editingBusReservation is not null)
         {
-            ShowError(ex.Message);
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 480px);">
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Edit Bus</h3>
+                        <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditBusModal"><i class="ri-close-line text-2xl"></i></button>
+                    </div>
+                    <div class="p-5">
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Bus</label>
+                        <select class="form-select" @bind="editBusNewId">
+                            @foreach (BusDto bus in AvailableBuses.Where(b => b.Direction == editingBusReservation.Direction))
+                            {
+                                <option value="@bus.Id" disabled="@(bus.OccupiedCount >= bus.Capacity && bus.Id != editingBusReservation.BusId)">
+                                    @bus.DepartureTime.ToString("dd/MM HH:mm") - @bus.PickupLocation → @bus.DestinationLocation (@bus.OccupiedCount/@bus.Capacity)
+                                </option>
+                            }
+                        </select>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditBusModal">Cancel</button>
+                        <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@IsSavingBus" @onclick="SaveEditedBusAsync">@(IsSavingBus ? "Saving..." : "Save changes")</button>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (cancellingBusReservation is not null)
+        {
+            <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
+                <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                    <div class="px-5 py-4">
+                        <h3 class="text-lg font-semibold text-black dark:text-white">Cancel bus reservation</h3>
+                        <p class="mt-2 text-sm text-muted dark:text-darkmuted">Are you sure you want to cancel this bus reservation?</p>
+                    </div>
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelBusModal">Keep it</button>
+                        <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@IsSavingBus" @onclick="CancelBusReservationAsync">
+                            @(IsSavingBus ? "Cancelling..." : "Cancel reservation")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        }
+'@
+Patch-Normalized -Path $upPath -OldText $sectionOld -NewText $sectionNew -Description "seccion de Buses (markup)"
+
+$codeOld = @'
+    // ==================== Buses ====================
+    private const int TransportModuleFlag = 4;
+    private bool HasTransportModule => (EnabledFestivalModules & TransportModuleFlag) != 0;
+
+    private List<BusDto> AvailableBuses { get; set; } = [];
+    private List<BusReservationDto> BusReservations { get; set; } = [];
+    private Dictionary<int, Guid> SelectedBusId { get; set; } = new() { [1] = Guid.Empty, [2] = Guid.Empty };
+    private bool IsLoadingBuses { get; set; } = true;
+    private bool IsSavingBus { get; set; }
+    private string? BusSuccessMessage { get; set; }
+    private string? BusErrorMessage { get; set; }
+
+    private BusReservationDto? editingBusReservation;
+    private Guid editBusNewId;
+    private BusReservationDto? cancellingBusReservation;
+
+    private void ShowBusSuccess(string message)
+    {
+        BusSuccessMessage = message;
+        BusErrorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            BusSuccessMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowBusError(string message)
+    {
+        BusErrorMessage = message;
+        BusSuccessMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            BusErrorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadBusDataAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            IsLoadingBuses = false;
+            return;
+        }
+
+        IsLoadingBuses = true;
+
+        try
+        {
+            BusReservations = (await BusApiClient.GetReservationsByRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            AvailableBuses = (await BusApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+        }
+        catch
+        {
+            // Non-critical: the buses section just stays empty if this fails.
+        }
+        finally
+        {
+            IsLoadingBuses = false;
         }
     }
 
-    private void OpenDeleteModal(InvoiceTemplateDto template)
+    private async Task BookBusAsync(int direction)
     {
-        deletingTemplate = template;
-    }
-
-    private void CloseDeleteModal()
-    {
-        deletingTemplate = null;
-    }
-
-    private async Task DeleteAsync()
-    {
-        if (deletingTemplate is null)
+        if (Dashboard?.Registration is null || !SelectedBusId.TryGetValue(direction, out Guid busId) || busId == Guid.Empty)
         {
             return;
         }
 
-        isSaving = true;
+        IsSavingBus = true;
 
         try
         {
-            await InvoiceTemplateApiClient.DeleteAsync(deletingTemplate.Id);
-            ShowSuccess("Invoice template deleted successfully.");
-            deletingTemplate = null;
-            await LoadDataAsync();
+            CreateBusReservationRequest request = new()
+            {
+                BusId = busId,
+                RegistrationId = Dashboard.Registration.Id
+            };
+
+            await BusApiClient.CreateReservationAsync(request);
+            ShowBusSuccess("Bus reservation created successfully.");
+            SelectedBusId[direction] = Guid.Empty;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
         }
         catch (Exception ex)
         {
-            ShowError(ex.Message);
+            ShowBusError(ex.Message);
         }
         finally
         {
-            isSaving = false;
+            IsSavingBus = false;
         }
     }
 
-    private static string GetStatusClass(bool isActive)
+    private void OpenEditBusModal(BusReservationDto reservation)
     {
-        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+        editingBusReservation = reservation;
+        editBusNewId = reservation.BusId;
     }
 
-    private class InvoiceTemplateFormModel
+    private void CloseEditBusModal()
     {
-        public Guid? EditionId { get; set; }
-        public string Name { get; set; } = string.Empty;
-        public string CompanyName { get; set; } = string.Empty;
-        public string TaxId { get; set; } = string.Empty;
-        public string Address { get; set; } = string.Empty;
-        public string City { get; set; } = string.Empty;
-        public string PostalCode { get; set; } = string.Empty;
-        public string Country { get; set; } = string.Empty;
-        public string? LogoUrl { get; set; }
-        public bool IsActive { get; set; } = true;
+        editingBusReservation = null;
     }
-}
-'@ | Set-Content -Path $invoiceTemplatesPath -Encoding UTF8 -NoNewline
-        Write-Host "  Modificado: $invoiceTemplatesPath (modal de borrar mas ancho)" -ForegroundColor Green
+
+    private async Task SaveEditedBusAsync()
+    {
+        if (editingBusReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            UpdateBusReservationRequest request = new()
+            {
+                NewBusId = editBusNewId,
+                RequestingRegistrationId = Dashboard.Registration.Id
+            };
+
+            await BusApiClient.UpdateReservationAsync(editingBusReservation.Id, request, isAdmin: false);
+            ShowBusSuccess("Bus reservation updated successfully.");
+            editingBusReservation = null;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
     }
-}
+
+    private void OpenCancelBusModal(BusReservationDto reservation)
+    {
+        cancellingBusReservation = reservation;
+    }
+
+    private void CloseCancelBusModal()
+    {
+        cancellingBusReservation = null;
+    }
+
+    private async Task CancelBusReservationAsync()
+    {
+        if (cancellingBusReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            await BusApiClient.DeleteReservationAsync(cancellingBusReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+            ShowBusSuccess("Bus reservation cancelled successfully.");
+            cancellingBusReservation = null;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+'@
+$codeNew = @'
+    // ==================== Buses ====================
+    private const int TransportModuleFlag = 4;
+    private bool HasTransportModule => (EnabledFestivalModules & TransportModuleFlag) != 0;
+
+    private List<BusDto> AvailableBuses { get; set; } = [];
+    private List<BusReservationDto> BusReservations { get; set; } = [];
+    private Dictionary<int, Guid> PendingBusSelection { get; set; } = new() { [1] = Guid.Empty, [2] = Guid.Empty };
+    private bool IsLoadingBuses { get; set; } = true;
+    private bool IsSavingBus { get; set; }
+    private string? BusSuccessMessage { get; set; }
+    private string? BusErrorMessage { get; set; }
+
+    private BusReservationDto? editingBusReservation;
+    private Guid editBusNewId;
+    private BusReservationDto? cancellingBusReservation;
+
+    private bool HasPendingBusSelection =>
+        PendingBusSelection.Any(kv => kv.Value != Guid.Empty && !BusReservations.Any(r => r.Direction == kv.Key));
+
+    private static string GetDirectionLabel(int direction) => direction switch
+    {
+        1 => "Departure",
+        2 => "Return",
+        _ => "-"
+    };
+
+    private static string GetMapsUrl(string location)
+    {
+        return $"https://www.google.com/maps/search/?api=1&query={Uri.EscapeDataString(location)}";
+    }
+
+    private void ShowBusSuccess(string message)
+    {
+        BusSuccessMessage = message;
+        BusErrorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            BusSuccessMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowBusError(string message)
+    {
+        BusErrorMessage = message;
+        BusSuccessMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            BusErrorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadBusDataAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            IsLoadingBuses = false;
+            return;
+        }
+
+        IsLoadingBuses = true;
+
+        try
+        {
+            BusReservations = (await BusApiClient.GetReservationsByRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            AvailableBuses = (await BusApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            PendingBusSelection = new() { [1] = Guid.Empty, [2] = Guid.Empty };
+        }
+        catch
+        {
+            // Non-critical: the buses section just stays empty if this fails.
+        }
+        finally
+        {
+            IsLoadingBuses = false;
+        }
+    }
+
+    private async Task SaveBusSelectionAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        List<Guid> busIds = PendingBusSelection
+            .Where(kv => kv.Value != Guid.Empty && !BusReservations.Any(r => r.Direction == kv.Key))
+            .Select(kv => kv.Value)
+            .ToList();
+
+        if (busIds.Count == 0)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            CreateBusReservationsRequest request = new()
+            {
+                RegistrationId = Dashboard.Registration.Id,
+                BusIds = busIds
+            };
+
+            await BusApiClient.CreateReservationsAsync(request);
+            ShowBusSuccess(busIds.Count > 1 ? "Bus reservations created successfully." : "Bus reservation created successfully.");
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+
+    private void OpenEditBusModal(BusReservationDto reservation)
+    {
+        editingBusReservation = reservation;
+        editBusNewId = reservation.BusId;
+    }
+
+    private void CloseEditBusModal()
+    {
+        editingBusReservation = null;
+    }
+
+    private async Task SaveEditedBusAsync()
+    {
+        if (editingBusReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            UpdateBusReservationRequest request = new()
+            {
+                NewBusId = editBusNewId,
+                RequestingRegistrationId = Dashboard.Registration.Id
+            };
+
+            await BusApiClient.UpdateReservationAsync(editingBusReservation.Id, request, isAdmin: false);
+            ShowBusSuccess("Bus reservation updated successfully.");
+            editingBusReservation = null;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+
+    private void OpenCancelBusModal(BusReservationDto reservation)
+    {
+        cancellingBusReservation = reservation;
+    }
+
+    private void CloseCancelBusModal()
+    {
+        cancellingBusReservation = null;
+    }
+
+    private async Task CancelBusReservationAsync()
+    {
+        if (cancellingBusReservation is null || Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingBus = true;
+
+        try
+        {
+            await BusApiClient.DeleteReservationAsync(cancellingBusReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+            ShowBusSuccess("Bus reservation cancelled successfully.");
+            cancellingBusReservation = null;
+            await LoadBusDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            ShowBusError(ex.Message);
+        }
+        finally
+        {
+            IsSavingBus = false;
+        }
+    }
+'@
+Patch-Normalized -Path $upPath -OldText $codeOld -NewText $codeNew -Description "codigo de Buses"
 
 Write-Host ""
-Write-Host "Completado." -ForegroundColor Cyan
-Write-Host "RECUERDA: recompila/reinicia la Api (paso 1) Y el Admin (pasos 2-4)." -ForegroundColor Yellow
+Write-Host "Completado. Reinicia el Admin." -ForegroundColor Cyan

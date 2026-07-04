@@ -31,6 +31,12 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IUserPanelRepository, UserPanelRepository>();
+        services.AddScoped<IAccommodationBuildingRepository, AccommodationBuildingRepository>();
+        services.AddScoped<IAccommodationZoneRepository, AccommodationZoneRepository>();
+        services.AddScoped<IAccommodationRepository, AccommodationRepository>();
+        services.AddScoped<IAccommodationReservationRepository, AccommodationReservationRepository>();
+        services.AddScoped<IBusRepository, BusRepository>();
+        services.AddScoped<IBusReservationRepository, BusReservationRepository>();
         services.AddScoped<IInvoiceRepository, InvoiceRepository>();
         services.AddScoped<IInvoiceSettingsRepository, InvoiceSettingsRepository>();
         services.AddScoped<IInvoiceTemplateRepository, InvoiceTemplateRepository>();

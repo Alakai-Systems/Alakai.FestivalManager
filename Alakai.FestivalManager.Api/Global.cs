@@ -99,3 +99,13 @@ global using System.Net;
 global using System.Security.Claims;
 global using System.Text;
 global using System.Text.Json;
+global using Alakai.FestivalManager.Application.Features.Accommodations.Commands;
+global using Alakai.FestivalManager.Application.Features.Accommodations.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Accommodations.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Accommodations.Services;
+global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Buses.Commands;
+global using Alakai.FestivalManager.Application.Features.Buses.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Buses.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Buses.Services;
+

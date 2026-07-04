@@ -1,4 +1,4 @@
-﻿@page "/festivals"
+@page "/festivals"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Festivals
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -220,6 +220,23 @@
 
                     <label class="block text-sm text-black/60 dark:text-white/60">Description</label>
                     <textarea class="form-input" placeholder="Description" rows="3" @bind="updateRequest.Description"></textarea>
+                    <div>
+                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateHasAccommodation" />
+                                Accommodation
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateHasTransport" />
+                                Transport
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateHasMeals" />
+                                Meals
+                            </label>
+                        </div>
+                    </div>
 
                     <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                         <input type="checkbox" @bind="updateRequest.IsActive" />
@@ -265,6 +282,29 @@
 }
 
 @code {
+    private bool UpdateHasCompetitions
+    {
+        get => (updateRequest.EnabledModules & (int)FestivalModule.Competitions) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | (int)FestivalModule.Competitions : updateRequest.EnabledModules & ~(int)FestivalModule.Competitions;
+    }
+
+    private bool UpdateHasAccommodation
+    {
+        get => (updateRequest.EnabledModules & (int)FestivalModule.Accommodation) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | (int)FestivalModule.Accommodation : updateRequest.EnabledModules & ~(int)FestivalModule.Accommodation;
+    }
+
+    private bool UpdateHasTransport
+    {
+        get => (updateRequest.EnabledModules & (int)FestivalModule.Transport) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | (int)FestivalModule.Transport : updateRequest.EnabledModules & ~(int)FestivalModule.Transport;
+    }
+
+    private bool UpdateHasMeals
+    {
+        get => (updateRequest.EnabledModules & (int)FestivalModule.Meals) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | (int)FestivalModule.Meals : updateRequest.EnabledModules & ~(int)FestivalModule.Meals;
+    }
     private IReadOnlyList<FestivalDto> allFestivals = [];
     private FestivalDto? selectedFestival;
     private CreateFestivalRequest createRequest = new();
@@ -446,7 +486,8 @@
             Description = festival.Description,
             Website = festival.Website,
             LogoUrl = festival.LogoUrl,
-            IsActive = festival.IsActive
+            IsActive = festival.IsActive,
+            EnabledModules = festival.EnabledModules
         };
         showEditModal = true;
     }

@@ -1,8 +1,12 @@
 @page "/invoices"
+@using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 
 @inject InvoiceApiClient InvoiceApiClient
 @inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Operations" pTitle="Invoices"></PageHeader>
 
@@ -12,9 +16,17 @@
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <input class="form-input md:w-72" placeholder="Search number, customer, email..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
+                <select class="form-select md:w-48" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
                 <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
                     <option value="">All editions</option>
-                    @foreach (EditionDto edition in editions)
+                    @foreach (EditionDto edition in EditionsForSelectedFestival)
                     {
                         <option value="@edition.Id">@edition.Name</option>
                     }
@@ -97,8 +109,21 @@
 @code {
     private List<InvoiceDto> invoices = [];
     private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
     private string searchText = string.Empty;
+    private string festivalFilter = string.Empty;
     private string editionFilter = string.Empty;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+            ? editions
+            : editions.Where(e => e.FestivalId == fid).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        ResetPage();
+    }
     private int pageSize = 10;
     private int currentPage = 1;
     private bool isLoading = true;
@@ -112,6 +137,20 @@
         {
             invoices = (await InvoiceApiClient.GetAllAsync()).ToList();
             editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null)
+            {
+                festivalFilter = ActiveFestivalState.Active.Id.ToString();
+
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                if (preferred is not null)
+                {
+                    editionFilter = preferred.Id.ToString();
+                }
+            }
         }
         catch (Exception ex)
         {
@@ -141,6 +180,11 @@
             if (!string.IsNullOrWhiteSpace(editionFilter) && Guid.TryParse(editionFilter, out Guid editionId))
             {
                 query = query.Where(i => i.EditionId == editionId);
+            }
+            else if (!string.IsNullOrWhiteSpace(festivalFilter) && Guid.TryParse(festivalFilter, out Guid fid))
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == fid).Select(e => e.Id).ToHashSet();
+                query = query.Where(i => editionIds.Contains(i.EditionId ?? Guid.Empty));
             }
 
             return query.OrderByDescending(i => i.IssuedAt).ToList();

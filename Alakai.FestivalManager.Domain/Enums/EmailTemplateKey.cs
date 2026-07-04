@@ -10,5 +10,11 @@ public enum EmailTemplateKey
     PartnerConfirmed = 6,
     CompetitionEntryConfirmed = 7,
     CompetitionEntryCancelled = 8,
-    PasswordReset = 9
+    PasswordReset = 9,
+    AccommodationConfirmed = 10,
+    AccommodationCancelled = 11,
+    BusConfirmed = 12,
+    BusCancelled = 13,
+    MenuConfirmed = 14,
+    MenuCancelled = 15
 }

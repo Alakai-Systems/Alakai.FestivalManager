@@ -17,5 +17,7 @@ public class Festival : BaseEntity
     /// <summary>GA4 Property ID for this festival (e.g. "368043001"). Overrides the global PropertyId in appsettings when set.</summary>
     public string? GoogleAnalyticsPropertyId { get; set; }
 
+    public FestivalModule EnabledModules { get; set; } = FestivalModule.Competitions;
+
     public ICollection<Edition> Editions { get; set; } = new List<Edition>();
 }

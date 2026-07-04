@@ -1,0 +1,541 @@
+@page "/accommodation-buildings"
+@using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.PassTypes.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
+
+@inject AccommodationApiClient AccommodationApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject PassTypeApiClient PassTypeApiClient
+@inject ActiveFestivalState ActiveFestivalState
+
+<PageHeader Title="Event Setup" pTitle="Accommodation Buildings"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-56" placeholder="Search buildings..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+                <select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+                    @foreach (FestivalDto festival in festivals)
+                    {
+                        <option value="@festival.Id">@festival.Name</option>
+                    }
+                </select>
+                <select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
+                    @foreach (EditionDto edition in editionsForSelectedFestival)
+                    {
+                        <option value="@edition.Id">@edition.Name</option>
+                    }
+                </select>
+                <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal" disabled="@(selectedEditionId == Guid.Empty)">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Building
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading buildings...</p>
+        }
+        else if (FilteredBuildings.Count == 0)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">No accommodation buildings for this edition yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-3 py-3 font-semibold">Name</th>
+                            <th class="px-3 py-3 font-semibold">Type</th>
+                            <th class="px-3 py-3 font-semibold">Locked</th>
+                            <th class="px-3 py-3 font-semibold">Zones</th>
+                            <th class="px-3 py-3 font-semibold">Units</th>
+                            <th class="px-3 py-3 font-semibold">Capacity</th>
+                            <th class="px-3 py-3 font-semibold">Active</th>
+                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (AccommodationBuildingSummaryDto building in PagedBuildings)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3 font-medium">
+                                    <a href="/accommodation-buildings/@building.Id" class="text-purple hover:underline">@building.Name</a>
+                                </td>
+                                <td class="px-3 py-3">@GetTypeLabel(building.Type)</td>
+                                <td class="px-3 py-3">
+                                    @if (building.IsLocked)
+                                    {
+                                        <i class="ri-lock-fill text-danger"></i>
+                                    }
+                                    else
+                                    {
+                                        <i class="ri-lock-unlock-line text-success"></i>
+                                    }
+                                </td>
+                                <td class="px-3 py-3">@building.ZoneCount</td>
+                                <td class="px-3 py-3">@building.UnitCount</td>
+                                <td class="px-3 py-3">@building.TotalCapacity</td>
+                                <td class="px-3 py-3"><span class="@GetStatusClass(building.IsActive)">@(building.IsActive ? "Active" : "Inactive")</span></td>
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <a href="/accommodation-buildings/@building.Id" class="text-black dark:text-white/80" title="Manage"><i class="ri-settings-4-line text-lg"></i></a>
+                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(building)"><i class="ri-pencil-line text-lg"></i></button>
+                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(building)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredBuildings.Count buildings</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (showModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 600px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@(editingBuilding is null ? "New Building" : "Edit Building")</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                        <input class="form-input" placeholder="e.g. Albatros" @bind="formName" />
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm text-black/60 dark:text-white/60">Type</label>
+                            <select class="form-select" @bind="formType">
+                                <option value="1">Room</option>
+                                <option value="2">Bungalow</option>
+                                <option value="3">Camping</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end pb-2">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="formIsLocked" />
+                                Locked (blocks new reservations)
+                            </label>
+                        </div>
+                    </div>
+
+                    @if (editingBuilding is not null)
+                    {
+                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                            <input type="checkbox" @bind="formIsActive" />
+                            Active
+                        </label>
+                    }
+
+                    <div>
+                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Allowed pass types</label>
+                        <div class="flex flex-wrap gap-3">
+                            @foreach (PassTypeDto passType in passTypes)
+                            {
+                                <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                    <input type="checkbox" checked="@formAllowedPassTypeIds.Contains(passType.Id)" @onchange="e => TogglePassType(passType.Id, (bool)e.Value!)" />
+                                    @passType.Name
+                                </label>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingBuilding is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Building</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingBuilding.Name? This also deletes all its zones and units.</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<FestivalDto> festivals = [];
+    private List<EditionDto> editions = [];
+    private List<PassTypeDto> passTypes = [];
+    private List<AccommodationBuildingSummaryDto> buildings = [];
+    private Guid selectedFestivalId;
+    private Guid selectedEditionId;
+    private string searchText = string.Empty;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private List<EditionDto> editionsForSelectedFestival =>
+        editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private bool showModal;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private AccommodationBuildingSummaryDto? editingBuilding;
+    private AccommodationBuildingSummaryDto? deletingBuilding;
+
+    private string formName = string.Empty;
+    private int formType = 1;
+    private bool formIsLocked;
+    private bool formIsActive = true;
+    private List<Guid> formAllowedPassTypeIds = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+
+            FestivalDto? preferredFestival = ActiveFestivalState.Active is not null
+                ? festivals.FirstOrDefault(f => f.Id == ActiveFestivalState.Active.Id)
+                : null;
+
+            selectedFestivalId = preferredFestival?.Id
+                ?? editions.FirstOrDefault(e => e.IsActive)?.FestivalId
+                ?? festivals.FirstOrDefault()?.Id
+                ?? Guid.Empty;
+
+            EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+                ?? editionsForSelectedFestival.FirstOrDefault();
+
+            selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+            if (selectedEditionId != Guid.Empty)
+            {
+                await LoadDataAsync();
+            }
+            else
+            {
+                isLoading = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalChangedAsync()
+    {
+        EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+            ?? editionsForSelectedFestival.FirstOrDefault();
+
+        selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+        if (selectedEditionId != Guid.Empty)
+        {
+            await LoadDataAsync();
+        }
+        else
+        {
+            buildings = [];
+        }
+    }
+
+    private async Task OnEditionChangedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            buildings = (await AccommodationApiClient.GetBuildingsAsync(selectedEditionId)).ToList();
+            passTypes = (await PassTypeApiClient.GetByEditionIdAsync(selectedEditionId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<AccommodationBuildingSummaryDto> FilteredBuildings
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(searchText))
+            {
+                return buildings;
+            }
+
+            return buildings.Where(b => b.Name.Contains(searchText, StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+    }
+
+    private List<AccommodationBuildingSummaryDto> PagedBuildings => FilteredBuildings.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredBuildings.Count / (double)pageSize));
+    private int StartRow => FilteredBuildings.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredBuildings.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+        NormalizePage();
+    }
+
+    private void NormalizePage()
+    {
+        if (currentPage > TotalPages)
+        {
+            currentPage = TotalPages;
+        }
+
+        if (currentPage < 1)
+        {
+            currentPage = 1;
+        }
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingBuilding = null;
+        formName = string.Empty;
+        formType = 1;
+        formIsLocked = false;
+        formIsActive = true;
+        formAllowedPassTypeIds = [];
+        showModal = true;
+    }
+
+    private void OpenEditModal(AccommodationBuildingSummaryDto building)
+    {
+        editingBuilding = building;
+        formName = building.Name;
+        formType = building.Type;
+        formIsLocked = building.IsLocked;
+        formIsActive = building.IsActive;
+        formAllowedPassTypeIds = [];
+
+        _ = LoadFullBuildingForEditAsync(building.Id);
+
+        showModal = true;
+    }
+
+    private async Task LoadFullBuildingForEditAsync(Guid id)
+    {
+        try
+        {
+            AccommodationBuildingDto full = await AccommodationApiClient.GetBuildingByIdAsync(id);
+            formAllowedPassTypeIds = full.AllowedPassTypeIds.ToList();
+            StateHasChanged();
+        }
+        catch
+        {
+            // Non-critical: the pass type checkboxes just start empty if this fails.
+        }
+    }
+
+    private void TogglePassType(Guid passTypeId, bool isChecked)
+    {
+        if (isChecked && !formAllowedPassTypeIds.Contains(passTypeId))
+        {
+            formAllowedPassTypeIds.Add(passTypeId);
+        }
+        else if (!isChecked)
+        {
+            formAllowedPassTypeIds.Remove(passTypeId);
+        }
+    }
+
+    private void CloseModal()
+    {
+        showModal = false;
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task SaveAsync()
+    {
+        try
+        {
+            if (editingBuilding is null)
+            {
+                CreateAccommodationBuildingRequest request = new()
+                {
+                    EditionId = selectedEditionId,
+                    Name = formName,
+                    Type = formType,
+                    IsLocked = formIsLocked,
+                    SortOrder = buildings.Count,
+                    AllowedPassTypeIds = formAllowedPassTypeIds
+                };
+
+                await AccommodationApiClient.CreateBuildingAsync(request);
+                ShowSuccess("Building created successfully.");
+            }
+            else
+            {
+                UpdateAccommodationBuildingRequest request = new()
+                {
+                    Name = formName,
+                    Type = formType,
+                    IsLocked = formIsLocked,
+                    IsActive = formIsActive,
+                    SortOrder = 0,
+                    AllowedPassTypeIds = formAllowedPassTypeIds
+                };
+
+                await AccommodationApiClient.UpdateBuildingAsync(editingBuilding.Id, request);
+                ShowSuccess("Building updated successfully.");
+            }
+
+            showModal = false;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenDeleteModal(AccommodationBuildingSummaryDto building)
+    {
+        deletingBuilding = building;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deletingBuilding = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deletingBuilding is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await AccommodationApiClient.DeleteBuildingAsync(deletingBuilding.Id);
+            ShowSuccess("Building deleted successfully.");
+            deletingBuilding = null;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetTypeLabel(int type) => type switch
+    {
+        1 => "Room",
+        2 => "Bungalow",
+        3 => "Camping",
+        _ => "-"
+    };
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+}

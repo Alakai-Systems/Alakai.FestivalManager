@@ -8,6 +8,7 @@
 @inject EmailLayoutApiClient EmailLayoutApiClient
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Communication" pTitle="Header &amp; Footer"></PageHeader>
 
@@ -224,6 +225,14 @@
             layouts = (await EmailLayoutApiClient.GetAllAsync()).ToList();
             editions = (await EditionApiClient.GetAllAsync()).ToList();
             festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
+            {
+                if (festivals.Any(f => f.Id == ActiveFestivalState.Active.Id))
+                {
+                    festivalFilter = ActiveFestivalState.Active.Id.ToString();
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -7,6 +7,7 @@
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
 @inject UploadsApiClient UploadsApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Settings" pTitle="Invoice Templates"></PageHeader>
 
@@ -212,7 +213,7 @@
             <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Invoice Template</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete <strong>@deletingTemplate.Name </strong>template?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingTemplate.Name?</p>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -258,6 +259,14 @@
             templates = (await InvoiceTemplateApiClient.GetAllAsync()).ToList();
             editions = (await EditionApiClient.GetAllAsync()).ToList();
             festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
+            {
+                if (festivals.Any(f => f.Id == ActiveFestivalState.Active.Id))
+                {
+                    festivalFilter = ActiveFestivalState.Active.Id.ToString();
+                }
+            }
         }
         catch (Exception ex)
         {

@@ -1,8 +1,11 @@
 @page "/competitions"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @inject CompetitionApiClient CompetitionApiClient
 @inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Event Setup" pTitle="Competitions"></PageHeader>
 
@@ -14,9 +17,17 @@
                 <div class="flex flex-col gap-3 md:flex-row md:items-center">
                     <input class="form-input md:w-64" placeholder="Search competitions..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
+                    <select class="form-select md:w-48" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                        <option value="@Guid.Empty">All festivals</option>
+                        @foreach (FestivalDto f in festivals)
+                        {
+                            <option value="@f.Id">@f.Name</option>
+                        }
+                    </select>
+
                     <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
                         <option value="@Guid.Empty">All editions</option>
-                        @foreach (EditionDto edition in editions)
+                        @foreach (EditionDto edition in EditionsForSelectedFestival)
                         {
                             <option value="@edition.Id">@edition.Name</option>
                         }
@@ -29,6 +40,13 @@
                             <option value="@competition.Id">@competition.Name</option>
                         }
                     </select>
+
+                    <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                        <option value="10">10 rows</option>
+                        <option value="25">25 rows</option>
+                        <option value="50">50 rows</option>
+                    </select>
+
                     <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
                         <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
                         New Competition
@@ -240,8 +258,6 @@
                             <InputTextArea class="form-input" rows="3" @bind-Value="formModel.Description" />
                         </div>
                     </div>
-
-                    {
                         <div class="border rounded-lg border-black/10 dark:border-darkborder p-4">
                             <div class="flex items-center justify-between mb-3">
                                 <h4 class="text-sm font-semibold text-black dark:text-white">Levels (optional)</h4>
@@ -355,12 +371,24 @@
 @code {
     private List<CompetitionDto> competitions = [];
     private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
     private CompetitionDto? editingCompetition;
     private CompetitionDto? deletingCompetition;
     private CompetitionFormModel formModel = new();
 
     private string searchText = string.Empty;
+    private Guid festivalFilter = Guid.Empty;
     private Guid editionFilter = Guid.Empty;
+    private List<EditionDto> EditionsForSelectedFestival =>
+        festivalFilter == Guid.Empty
+            ? editions
+            : editions.Where(e => e.FestivalId == festivalFilter).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = Guid.Empty;
+        ResetPage();
+    }
     private Guid competitionNameFilter = Guid.Empty;
 
     private bool isLoading = true;
@@ -399,6 +427,20 @@
         try
         {
             editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && festivalFilter == Guid.Empty)
+            {
+                festivalFilter = ActiveFestivalState.Active.Id;
+            }
+
+            if (ActiveFestivalState.Active is not null && editionFilter == Guid.Empty)
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+                editionFilter = preferred?.Id ?? Guid.Empty;
+            }
+
             competitions = (await CompetitionApiClient.GetAllAsync()).ToList();
         }
         catch (Exception ex)
@@ -431,6 +473,11 @@
             if (editionFilter != Guid.Empty)
             {
                 query = query.Where(c => c.EditionId == editionFilter);
+            }
+            else if (festivalFilter != Guid.Empty)
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == festivalFilter).Select(e => e.Id).ToHashSet();
+                query = query.Where(c => editionIds.Contains(c.EditionId));
             }
 
             query = sortColumn switch

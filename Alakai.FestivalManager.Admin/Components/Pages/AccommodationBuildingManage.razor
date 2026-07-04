@@ -1,0 +1,699 @@
+@page "/accommodation-buildings/{Id:guid}"
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
+
+@inject AccommodationApiClient AccommodationApiClient
+
+<PageHeader Title="Event Setup" pTitle="@(building?.Name ?? "Building")"></PageHeader>
+
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="p-3 mt-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="p-3 mt-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+}
+
+@if (isLoading)
+{
+    <p class="mt-4 text-sm text-black/50 dark:text-white/40">Loading...</p>
+}
+else if (building is null)
+{
+    <p class="mt-4 text-sm text-black/50 dark:text-white/40">Building not found.</p>
+}
+else
+{
+    <div class="flex items-center justify-between mt-4 card">
+        <div class="flex items-center gap-3">
+            <h2 class="text-xl font-semibold text-black dark:text-white">@building.Name</h2>
+            <span class="inline-block rounded text-xs px-2 py-1 bg-purple/10 text-purple">@GetTypeLabel(building.Type)</span>
+            @if (building.AllowedPassTypeNames.Count > 0)
+            {
+                <span class="text-sm text-black/50 dark:text-white/40">Allowed: @string.Join(", ", building.AllowedPassTypeNames)</span>
+            }
+        </div>
+        <button type="button" class="transition-all duration-300 border rounded-md btn whitespace-nowrap @(building.IsLocked ? "text-danger border-danger hover:bg-danger hover:text-white" : "text-success border-success hover:bg-success hover:text-white")" @onclick="ToggleLockAsync">
+            <i class="@(building.IsLocked ? "ri-lock-fill" : "ri-lock-unlock-line") ltr:mr-1 rtl:ml-1"></i>
+            @(building.IsLocked ? "Locked" : "Open")
+        </button>
+    </div>
+
+    <div class="mt-4 card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input md:w-56" placeholder="Search zones..." @bind="zoneSearchText" @bind:event="oninput" @bind:after="ResetZonePage" />
+                <select class="form-select md:w-32" @bind="zonePageSize" @bind:after="ResetZonePage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+            </div>
+
+            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenAddZoneModal">
+                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                Add Zone
+            </button>
+        </div>
+
+        @if (PagedZones.Count == 0)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">No zones yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-3 py-3 font-semibold">Order</th>
+                            <th class="px-3 py-3 font-semibold">Zone</th>
+                            <th class="px-3 py-3 font-semibold">Units</th>
+                            <th class="px-3 py-3 font-semibold">Total Capacity</th>
+                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (AccommodationZoneDto zone in PagedZones)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-3 py-3 text-black/50 dark:text-white/40">@zone.SortOrder</td>
+                                <td class="px-4 py-3 font-medium">@zone.Name</td>
+                                <td class="px-3 py-3">@zone.Accommodations.Count</td>
+                                <td class="px-3 py-3">@zone.Accommodations.Sum(a => a.Capacity)</td>
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button type="button" class="text-black dark:text-white/80" title="@(expandedZoneId == zone.Id ? "Collapse" : "Manage units")" @onclick="() => ToggleZoneExpanded(zone.Id)">
+                                            <i class="@(expandedZoneId == zone.Id ? "ri-arrow-up-s-line" : "ri-arrow-down-s-line") text-lg"></i>
+                                        </button>
+                                        <button type="button" class="text-black dark:text-white/80" title="Rename zone" @onclick="() => OpenEditZoneModal(zone)"><i class="ri-pencil-line text-lg"></i></button>
+                                        <button type="button" class="text-danger" title="Delete zone" @onclick="() => OpenDeleteZoneModal(zone)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                            @if (expandedZoneId == zone.Id)
+                            {
+                                <tr>
+                                    <td colspan="5" class="px-4 py-4 bg-gray-50 dark:bg-dark">
+                                        @if (zone.Accommodations.Count == 0)
+                                        {
+                                            <p class="mb-3 text-sm text-black/50 dark:text-white/40">No units in this zone yet.</p>
+                                        }
+                                        else
+                                        {
+                                            <table class="w-full mb-4 table-hover">
+                                                <thead>
+                                                    <tr class="text-left">
+                                                        <th class="px-3 py-2 text-xs font-semibold">Name</th>
+                                                        <th class="px-3 py-2 text-xs font-semibold">Capacity</th>
+                                                        <th class="px-3 py-2 text-xs font-semibold">Active</th>
+                                                        <th class="px-3 py-2 text-xs font-semibold text-right">Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody>
+                                                    @foreach (AccommodationDto unit in NaturalSort(zone.Accommodations))
+                                                    {
+                                                        <tr class="border-b border-black/10 dark:border-darkborder">
+                                                            <td class="px-3 py-2">@unit.Name</td>
+                                                            <td class="px-3 py-2">@unit.Capacity</td>
+                                                            <td class="px-3 py-2"><span class="@GetStatusClass(unit.IsActive)">@(unit.IsActive ? "Active" : "Inactive")</span></td>
+                                                            <td class="px-3 py-2 text-right">
+                                                                <div class="flex items-center justify-end gap-2">
+                                                                    <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditUnitModal(unit)"><i class="ri-pencil-line text-lg"></i></button>
+                                                                    <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteUnitModal(unit)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                                                </div>
+                                                            </td>
+                                                        </tr>
+                                                    }
+                                                </tbody>
+                                            </table>
+                                        }
+
+                                        <div class="flex flex-col gap-3 pt-4 border-t border-black/10 dark:border-darkborder md:flex-row md:items-end md:justify-end">
+                                            <div class="md:w-56">
+                                                <label class="block text-xs text-black/60 dark:text-white/60">Names (comma separated)</label>
+                                                <input class="form-input" placeholder="101,102,103" @bind="zoneInputs[zone.Id].Names" />
+                                            </div>
+                                            <div class="md:w-24">
+                                                <label class="block text-xs text-black/60 dark:text-white/60">Capacity (each)</label>
+                                                <input type="number" min="1" class="form-input" @bind="zoneInputs[zone.Id].Capacity" />
+                                            </div>
+                                            <div>
+                                                <label class="block text-xs invisible">Add</label>
+                                                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap disabled:opacity-50" disabled="@string.IsNullOrWhiteSpace(zoneInputs[zone.Id].Names)" @onclick="() => AddUnitsAsync(zone)">
+                                                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                                                    Add Units
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">Showing @ZoneStartRow to @ZoneEndRow of @building.Zones.Count zones</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(zonePage == 1)" @onclick="PreviousZonePage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@zonePage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(zonePage >= ZoneTotalPages)" @onclick="NextZonePage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (showAddZoneModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Add Zone</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseAddZoneModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                        <input class="form-input" placeholder="e.g. Recepció - Llevant" @bind="newZoneName" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Sort order</label>
+                        <input type="number" class="form-input" @bind="newZoneSortOrder" />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseAddZoneModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@string.IsNullOrWhiteSpace(newZoneName)" @onclick="AddZoneAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (editingZone is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Rename Zone</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditZoneModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                        <input class="form-input" @bind="editZoneName" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Sort order</label>
+                        <input type="number" class="form-input" @bind="editZoneSortOrder" />
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditZoneModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveZoneAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingZone is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Zone</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingZone.Name? This also deletes its @deletingZone.Accommodations.Count unit(s).</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteZoneModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isDeleting" @onclick="ConfirmDeleteZoneAsync">@(isDeleting ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (editingUnit is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Unit</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditUnitModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                        <input class="form-input" @bind="editUnitName" />
+                    </div>
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Capacity</label>
+                        <input type="number" min="1" class="form-input" @bind="editUnitCapacity" />
+                    </div>
+                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                        <input type="checkbox" @bind="editUnitIsActive" />
+                        Active
+                    </label>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditUnitModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveUnitAsync">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingUnit is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Unit</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingUnit.Name?</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteUnitModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isDeleting" @onclick="ConfirmDeleteUnitAsync">@(isDeleting ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid Id { get; set; }
+
+    private AccommodationBuildingDto? building;
+    private bool isLoading = true;
+    private bool isDeleting;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private string newZoneName = string.Empty;
+    private int newZoneSortOrder;
+    private bool showAddZoneModal;
+
+    private void OpenAddZoneModal()
+    {
+        newZoneName = string.Empty;
+        newZoneSortOrder = building?.Zones.Count ?? 0;
+        showAddZoneModal = true;
+    }
+
+    private void CloseAddZoneModal()
+    {
+        showAddZoneModal = false;
+    }
+    private Dictionary<Guid, ZoneInput> zoneInputs = [];
+    private Guid? expandedZoneId;
+    private int zonePageSize = 10;
+    private int zonePage = 1;
+    private string zoneSearchText = string.Empty;
+
+    private void ResetZonePage()
+    {
+        zonePage = 1;
+    }
+
+    private AccommodationZoneDto? editingZone;
+    private string editZoneName = string.Empty;
+    private int editZoneSortOrder;
+    private AccommodationZoneDto? deletingZone;
+
+    private AccommodationDto? editingUnit;
+    private string editUnitName = string.Empty;
+    private int editUnitCapacity = 1;
+    private bool editUnitIsActive = true;
+    private AccommodationDto? deletingUnit;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            building = await AccommodationApiClient.GetBuildingByIdAsync(Id);
+
+            foreach (AccommodationZoneDto zone in building.Zones)
+            {
+                if (!zoneInputs.ContainsKey(zone.Id))
+                {
+                    zoneInputs[zone.Id] = new ZoneInput();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<AccommodationZoneDto> OrderedZones
+    {
+        get
+        {
+            IEnumerable<AccommodationZoneDto> query = building?.Zones ?? [];
+
+            if (!string.IsNullOrWhiteSpace(zoneSearchText))
+            {
+                query = query.Where(z => z.Name.Contains(zoneSearchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return query.OrderBy(z => z.SortOrder).ToList();
+        }
+    }
+    private List<AccommodationZoneDto> PagedZones => OrderedZones.Skip((zonePage - 1) * zonePageSize).Take(zonePageSize).ToList();
+    private int ZoneTotalPages => Math.Max(1, (int)Math.Ceiling(OrderedZones.Count / (double)zonePageSize));
+    private int ZoneStartRow => OrderedZones.Count == 0 ? 0 : ((zonePage - 1) * zonePageSize) + 1;
+    private int ZoneEndRow => Math.Min(zonePage * zonePageSize, OrderedZones.Count);
+
+    private void PreviousZonePage()
+    {
+        if (zonePage > 1)
+        {
+            zonePage--;
+        }
+    }
+
+    private void NextZonePage()
+    {
+        if (zonePage < ZoneTotalPages)
+        {
+            zonePage++;
+        }
+    }
+
+    private void ToggleZoneExpanded(Guid zoneId)
+    {
+        expandedZoneId = expandedZoneId == zoneId ? null : zoneId;
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task ToggleLockAsync()
+    {
+        if (building is null)
+        {
+            return;
+        }
+
+        try
+        {
+            UpdateAccommodationBuildingRequest request = new()
+            {
+                Name = building.Name,
+                Type = building.Type,
+                IsLocked = !building.IsLocked,
+                IsActive = building.IsActive,
+                SortOrder = building.SortOrder,
+                AllowedPassTypeIds = building.AllowedPassTypeIds
+            };
+
+            await AccommodationApiClient.UpdateBuildingAsync(building.Id, request);
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private async Task AddZoneAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newZoneName) || building is null)
+        {
+            return;
+        }
+
+        try
+        {
+            CreateAccommodationZoneRequest request = new()
+            {
+                AccommodationBuildingId = building.Id,
+                Name = newZoneName,
+                SortOrder = newZoneSortOrder
+            };
+
+            await AccommodationApiClient.CreateZoneAsync(request);
+            newZoneName = string.Empty;
+            newZoneSortOrder = 0;
+            showAddZoneModal = false;
+            ShowSuccess("Zone added successfully.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenEditZoneModal(AccommodationZoneDto zone)
+    {
+        editingZone = zone;
+        editZoneName = zone.Name;
+        editZoneSortOrder = zone.SortOrder;
+    }
+
+    private void CloseEditZoneModal()
+    {
+        editingZone = null;
+    }
+
+    private async Task SaveZoneAsync()
+    {
+        if (editingZone is null)
+        {
+            return;
+        }
+
+        try
+        {
+            UpdateAccommodationZoneRequest request = new()
+            {
+                Name = editZoneName,
+                SortOrder = editZoneSortOrder
+            };
+
+            await AccommodationApiClient.UpdateZoneAsync(editingZone.Id, request);
+            editingZone = null;
+            ShowSuccess("Zone renamed successfully.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenDeleteZoneModal(AccommodationZoneDto zone)
+    {
+        deletingZone = zone;
+    }
+
+    private void CloseDeleteZoneModal()
+    {
+        deletingZone = null;
+    }
+
+    private async Task ConfirmDeleteZoneAsync()
+    {
+        if (deletingZone is null)
+        {
+            return;
+        }
+
+        isDeleting = true;
+
+        try
+        {
+            await AccommodationApiClient.DeleteZoneAsync(deletingZone.Id);
+            ShowSuccess("Zone deleted successfully.");
+            deletingZone = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private async Task AddUnitsAsync(AccommodationZoneDto zone)
+    {
+        if (!zoneInputs.TryGetValue(zone.Id, out ZoneInput? input) || string.IsNullOrWhiteSpace(input.Names))
+        {
+            return;
+        }
+
+        try
+        {
+            CreateAccommodationRequest request = new()
+            {
+                AccommodationZoneId = zone.Id,
+                Names = input.Names,
+                Capacity = input.Capacity,
+                SortOrder = zone.Accommodations.Count
+            };
+
+            await AccommodationApiClient.CreateAccommodationsAsync(request);
+            ShowSuccess("Units added successfully.");
+            expandedZoneId = zone.Id;
+            await LoadAsync();
+            zoneInputs[zone.Id].Names = string.Empty;
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenEditUnitModal(AccommodationDto unit)
+    {
+        editingUnit = unit;
+        editUnitName = unit.Name;
+        editUnitCapacity = unit.Capacity;
+        editUnitIsActive = unit.IsActive;
+    }
+
+    private void CloseEditUnitModal()
+    {
+        editingUnit = null;
+    }
+
+    private async Task SaveUnitAsync()
+    {
+        if (editingUnit is null)
+        {
+            return;
+        }
+
+        try
+        {
+            UpdateAccommodationRequest request = new()
+            {
+                Name = editUnitName,
+                Capacity = editUnitCapacity,
+                SortOrder = editingUnit.SortOrder,
+                IsActive = editUnitIsActive
+            };
+
+            await AccommodationApiClient.UpdateAccommodationAsync(editingUnit.Id, request);
+            editingUnit = null;
+            ShowSuccess("Unit updated successfully.");
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenDeleteUnitModal(AccommodationDto unit)
+    {
+        deletingUnit = unit;
+    }
+
+    private void CloseDeleteUnitModal()
+    {
+        deletingUnit = null;
+    }
+
+    private async Task ConfirmDeleteUnitAsync()
+    {
+        if (deletingUnit is null)
+        {
+            return;
+        }
+
+        isDeleting = true;
+
+        try
+        {
+            await AccommodationApiClient.DeleteAccommodationAsync(deletingUnit.Id);
+            ShowSuccess("Unit deleted successfully.");
+            deletingUnit = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isDeleting = false;
+        }
+    }
+
+    private static IEnumerable<AccommodationDto> NaturalSort(IEnumerable<AccommodationDto> units)
+    {
+        return units
+            .OrderBy(u => int.TryParse(u.Name, out int n) ? n : int.MaxValue)
+            .ThenBy(u => u.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string GetTypeLabel(int type) => type switch
+    {
+        1 => "Room",
+        2 => "Bungalow",
+        3 => "Camping",
+        _ => "-"
+    };
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+
+    private class ZoneInput
+    {
+        public string Names { get; set; } = string.Empty;
+        public int Capacity { get; set; } = 4;
+    }
+}

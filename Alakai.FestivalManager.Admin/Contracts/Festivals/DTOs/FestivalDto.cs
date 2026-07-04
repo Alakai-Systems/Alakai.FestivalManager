@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs;
+namespace Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs;
 
 public class FestivalDto
 {
@@ -9,4 +9,5 @@ public class FestivalDto
     public string? Website { get; set; }
     public string? LogoUrl { get; set; }
     public bool IsActive { get; set; }
+    public int EnabledModules { get; set; }
 }

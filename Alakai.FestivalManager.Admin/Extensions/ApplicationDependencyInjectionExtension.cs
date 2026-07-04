@@ -138,6 +138,20 @@ public static class ApiCLientsDependencyInjectionExtension
             client.BaseAddress = new Uri(baseUrl);
         });
 
+        services.AddHttpClient<BusApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<AccommodationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
         services.AddHttpClient<InvoiceTemplateApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]
@@ -151,6 +165,14 @@ public static class ApiCLientsDependencyInjectionExtension
         });
 
         services.AddScoped<ITokenStorageService, TokenStorageService>();
+
+        services.AddHttpClient<FestivalModuleApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+        services.AddScoped<ActiveFestivalState>();
 
         services.AddScoped<UserProfileState>();
 

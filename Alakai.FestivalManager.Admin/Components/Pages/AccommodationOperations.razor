@@ -1,0 +1,541 @@
+@page "/accommodation-operations"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
+
+@inject AccommodationApiClient AccommodationApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+
+<PageHeader Title="Operations" pTitle="Accommodation"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <input class="form-input md:w-56" placeholder="Search unit or occupant..." @bind="searchText" @bind:event="oninput" />
+            <select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+                @foreach (FestivalDto festival in festivals)
+                {
+                    <option value="@festival.Id">@festival.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
+                @foreach (EditionDto edition in editionsForSelectedFestival)
+                {
+                    <option value="@edition.Id">@edition.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-64" @bind="selectedBuildingId" @bind:after="OnBuildingChangedAsync">
+                <option value="@Guid.Empty">Select a building</option>
+                @foreach (AccommodationBuildingSummaryDto building in buildings)
+                {
+                    <option value="@building.Id">@building.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="p-3 text-sm rounded bg-success/10 text-success">@successMessage</div>
+    }
+
+    @if (isLoading)
+    {
+        <div class="card"><p class="text-sm text-black/50 dark:text-white/40">Loading...</p></div>
+    }
+    else if (selectedBuildingId == Guid.Empty)
+    {
+        <div class="card"><p class="text-sm text-black/50 dark:text-white/40">Select a building above to see its occupancy.</p></div>
+    }
+    else if (buildingDetail is not null)
+    {
+        <div class="flex items-center justify-between card">
+            <div class="flex items-center gap-3">
+                <h2 class="text-xl font-semibold text-black dark:text-white">@buildingDetail.Name</h2>
+                <span class="inline-block rounded text-xs px-2 py-1 bg-purple/10 text-purple">@GetTypeLabel(buildingDetail.Type)</span>
+            </div>
+            <button type="button" class="transition-all duration-300 border rounded-md btn whitespace-nowrap @(buildingDetail.IsLocked ? "text-danger border-danger hover:bg-danger hover:text-white" : "text-success border-success hover:bg-success hover:text-white")" @onclick="ToggleLockAsync">
+                <i class="@(buildingDetail.IsLocked ? "ri-lock-fill" : "ri-lock-unlock-line") ltr:mr-1 rtl:ml-1"></i>
+                @(buildingDetail.IsLocked ? "Locked" : "Open")
+            </button>
+        </div>
+
+        @foreach (AccommodationZoneDto zone in buildingDetail.Zones.OrderBy(z => z.SortOrder))
+        {
+            List<AccommodationDto> visibleUnits = GetVisibleUnits(zone);
+
+            @if (visibleUnits.Count > 0)
+            {
+                <div class="card">
+                    <h3 class="mb-4 font-semibold text-black dark:text-white">@zone.Name</h3>
+
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                        @foreach (AccommodationDto unit in visibleUnits)
+                        {
+                            List<AccommodationReservationOccupantDto> unitOccupants = GetOccupantsForUnit(unit.Id);
+
+                            <div class="overflow-hidden border rounded-lg border-black/10 dark:border-darkborder">
+                                <div class="flex items-center justify-between px-3 py-2 @(unit.OccupiedCount >= unit.Capacity ? "bg-danger/10" : "bg-purple/10")">
+                                    <span class="font-semibold @(unit.OccupiedCount >= unit.Capacity ? "text-danger" : "text-purple")">@unit.Name</span>
+                                    <span class="flex items-center gap-1 text-xs text-black/60 dark:text-white/50">
+                                        <i class="ri-team-line"></i>@unit.OccupiedCount / @unit.Capacity
+                                    </span>
+                                </div>
+
+                                @if (unitOccupants.Count == 0)
+                                {
+                                    <p class="p-3 text-xs text-black/40 dark:text-white/30">Empty</p>
+                                }
+                                else
+                                {
+                                    <div>
+                                        @foreach (AccommodationReservationOccupantDto occupant in unitOccupants)
+                                        {
+                                            <div class="flex items-center justify-between gap-2 px-3 py-2 text-xs border-t border-black/5 dark:border-white/5 @(occupant.IsResponsible ? "bg-black/5 dark:bg-white/5 font-semibold" : "")">
+                                                <span class="truncate">@GetDisplayName(occupant)</span>
+                                                @if (occupant.IsResponsible)
+                                                {
+                                                    <div class="flex items-center gap-2 shrink-0">
+                                                        <button type="button" class="text-black dark:text-white/80" title="Edit reservation" @onclick="() => OpenEditModal(occupant)"><i class="ri-pencil-line"></i></button>
+                                                        <button type="button" class="text-danger" title="Cancel reservation" @onclick="() => OpenCancelModal(occupant)"><i class="ri-delete-bin-line"></i></button>
+                                                    </div>
+                                                }
+                                            </div>
+                                        }
+                                    </div>
+                                }
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    }
+</div>
+
+@if (cancellingOccupant is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Cancel Reservation</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Cancel the accommodation reservation responsible by @GetDisplayName(cancellingOccupant)? This removes all its occupants from their units.</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ConfirmCancelAsync">@(isSaving ? "Cancelling..." : "Cancel Reservation")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (editingReservation is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 600px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Reservation</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    @if (buildingDetail?.Type == 1)
+                    {
+                        <div>
+                            <label class="block mb-1 text-sm text-black/60 dark:text-white/60">Number of occupants (max 12)</label>
+                            <input type="number" min="1" max="12" class="form-input" @bind="editOccupantCount" @bind:after="RebuildEditRows" />
+                        </div>
+                    }
+
+                    @for (int i = 0; i < editOccupantRows.Count; i++)
+                    {
+                        int rowIndex = i;
+                        <div class="grid grid-cols-1 gap-3 p-3 border rounded-md border-black/10 dark:border-darkborder md:grid-cols-3">
+                            <div>
+                                <label class="block mb-1 text-xs text-black/60 dark:text-white/60">Email @(rowIndex == 0 ? "(responsible)" : $"(occupant {rowIndex + 1})")</label>
+                                <input class="form-input" @bind="editOccupantRows[rowIndex].Email" />
+                            </div>
+
+                            @if (buildingDetail?.Type != 1)
+                            {
+                                <div>
+                                    <label class="block mb-1 text-xs text-black/60 dark:text-white/60">Birth date</label>
+                                    <input type="date" class="form-input" @bind="editOccupantRows[rowIndex].BirthDate" />
+                                </div>
+                                <div>
+                                    <label class="block mb-1 text-xs text-black/60 dark:text-white/60">ID/Passport expiry date</label>
+                                    <input type="date" class="form-input" @bind="editOccupantRows[rowIndex].DocumentExpiryDate" />
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@isSaving" @onclick="SaveEditAsync">@(isSaving ? "Saving..." : "Save changes")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<FestivalDto> festivals = [];
+    private List<EditionDto> editions = [];
+    private List<AccommodationBuildingSummaryDto> buildings = [];
+    private AccommodationBuildingDto? buildingDetail;
+    private List<AccommodationReservationDto> reservations = [];
+
+    private Guid selectedFestivalId;
+    private Guid selectedEditionId;
+    private Guid selectedBuildingId = Guid.Empty;
+    private string searchText = string.Empty;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private AccommodationReservationOccupantDto? cancellingOccupant;
+    private AccommodationReservationDto? cancellingReservation;
+
+    private AccommodationReservationDto? editingReservation;
+    private int editOccupantCount;
+    private List<EditOccupantRow> editOccupantRows = [];
+
+    private List<EditionDto> editionsForSelectedFestival =>
+        editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+
+            FestivalDto? preferredFestival = ActiveFestivalState.Active is not null
+                ? festivals.FirstOrDefault(f => f.Id == ActiveFestivalState.Active.Id)
+                : null;
+
+            selectedFestivalId = preferredFestival?.Id
+                ?? editions.FirstOrDefault(e => e.IsActive)?.FestivalId
+                ?? festivals.FirstOrDefault()?.Id
+                ?? Guid.Empty;
+
+            EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+                ?? editionsForSelectedFestival.FirstOrDefault();
+
+            selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+            if (selectedEditionId != Guid.Empty)
+            {
+                await LoadBuildingsAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalChangedAsync()
+    {
+        EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+            ?? editionsForSelectedFestival.FirstOrDefault();
+
+        selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+        selectedBuildingId = Guid.Empty;
+        buildingDetail = null;
+
+        if (selectedEditionId != Guid.Empty)
+        {
+            await LoadBuildingsAsync();
+        }
+        else
+        {
+            buildings = [];
+        }
+    }
+
+    private async Task OnEditionChangedAsync()
+    {
+        selectedBuildingId = Guid.Empty;
+        buildingDetail = null;
+        await LoadBuildingsAsync();
+    }
+
+    private async Task LoadBuildingsAsync()
+    {
+        try
+        {
+            buildings = (await AccommodationApiClient.GetBuildingsAsync(selectedEditionId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private async Task OnBuildingChangedAsync()
+    {
+        buildingDetail = null;
+        reservations = [];
+
+        if (selectedBuildingId == Guid.Empty)
+        {
+            return;
+        }
+
+        await LoadBuildingDataAsync();
+    }
+
+    private async Task LoadBuildingDataAsync()
+    {
+        isLoading = true;
+
+        try
+        {
+            buildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(selectedBuildingId);
+            reservations = (await AccommodationApiClient.GetReservationsByBuildingAsync(selectedBuildingId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<AccommodationReservationOccupantDto> GetOccupantsForUnit(Guid accommodationId)
+    {
+        return reservations
+            .SelectMany(r => r.Occupants)
+            .Where(o => o.AccommodationId == accommodationId)
+            .OrderByDescending(o => o.IsResponsible)
+            .ToList();
+    }
+
+    private List<AccommodationDto> GetVisibleUnits(AccommodationZoneDto zone)
+    {
+        IEnumerable<AccommodationDto> units = NaturalSort(zone.Accommodations);
+
+        if (string.IsNullOrWhiteSpace(searchText))
+        {
+            return units.ToList();
+        }
+
+        string term = searchText.Trim();
+
+        return units.Where(u =>
+            u.Name.Contains(term, StringComparison.OrdinalIgnoreCase) ||
+            GetOccupantsForUnit(u.Id).Any(o =>
+                (o.RegistrationName ?? string.Empty).Contains(term, StringComparison.OrdinalIgnoreCase) ||
+                o.Email.Contains(term, StringComparison.OrdinalIgnoreCase))
+        ).ToList();
+    }
+
+    private static string GetDisplayName(AccommodationReservationOccupantDto occupant)
+    {
+        return string.IsNullOrWhiteSpace(occupant.RegistrationName) ? occupant.Email : occupant.RegistrationName;
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task ToggleLockAsync()
+    {
+        if (buildingDetail is null)
+        {
+            return;
+        }
+
+        try
+        {
+            UpdateAccommodationBuildingRequest request = new()
+            {
+                Name = buildingDetail.Name,
+                Type = buildingDetail.Type,
+                IsLocked = !buildingDetail.IsLocked,
+                IsActive = buildingDetail.IsActive,
+                SortOrder = buildingDetail.SortOrder,
+                AllowedPassTypeIds = buildingDetail.AllowedPassTypeIds
+            };
+
+            await AccommodationApiClient.UpdateBuildingAsync(buildingDetail.Id, request);
+            await LoadBuildingDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+
+    private void OpenCancelModal(AccommodationReservationOccupantDto responsibleOccupant)
+    {
+        cancellingOccupant = responsibleOccupant;
+        cancellingReservation = reservations.FirstOrDefault(r => r.Occupants.Any(o => o.Id == responsibleOccupant.Id));
+    }
+
+    private void CloseCancelModal()
+    {
+        cancellingOccupant = null;
+        cancellingReservation = null;
+    }
+
+    private async Task ConfirmCancelAsync()
+    {
+        if (cancellingReservation is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await AccommodationApiClient.DeleteReservationAsync(cancellingReservation.Id, cancellingReservation.ResponsibleRegistrationId, isAdmin: true);
+            ShowSuccess("Reservation cancelled successfully.");
+            CloseCancelModal();
+            await LoadBuildingDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenEditModal(AccommodationReservationOccupantDto responsibleOccupant)
+    {
+        AccommodationReservationDto? reservation = reservations.FirstOrDefault(r => r.Occupants.Any(o => o.Id == responsibleOccupant.Id));
+
+        if (reservation is null)
+        {
+            return;
+        }
+
+        editingReservation = reservation;
+        editOccupantCount = reservation.Occupants.Count;
+        editOccupantRows = reservation.Occupants
+            .OrderByDescending(o => o.IsResponsible)
+            .Select(o => new EditOccupantRow { Email = o.Email, BirthDate = o.BirthDate, DocumentExpiryDate = o.DocumentExpiryDate })
+            .ToList();
+    }
+
+    private void CloseEditModal()
+    {
+        editingReservation = null;
+        editOccupantRows = [];
+    }
+
+    private void RebuildEditRows()
+    {
+        List<EditOccupantRow> newRows = [];
+
+        for (int i = 0; i < editOccupantCount; i++)
+        {
+            newRows.Add(i < editOccupantRows.Count ? editOccupantRows[i] : new EditOccupantRow());
+        }
+
+        editOccupantRows = newRows;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editingReservation is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            UpdateAccommodationReservationRequest request = new()
+            {
+                RequestingRegistrationId = editingReservation.ResponsibleRegistrationId,
+                Occupants = editOccupantRows.Select(r => new AccommodationOccupantInput
+                {
+                    Email = r.Email,
+                    BirthDate = r.BirthDate,
+                    DocumentExpiryDate = r.DocumentExpiryDate
+                }).ToList()
+            };
+
+            await AccommodationApiClient.UpdateReservationAsync(editingReservation.Id, request, isAdmin: true);
+            ShowSuccess("Reservation updated successfully.");
+            CloseEditModal();
+            await LoadBuildingDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static IEnumerable<AccommodationDto> NaturalSort(IEnumerable<AccommodationDto> units)
+    {
+        return units
+            .OrderBy(u => int.TryParse(u.Name, out int n) ? n : int.MaxValue)
+            .ThenBy(u => u.Name, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private static string GetTypeLabel(int type) => type switch
+    {
+        1 => "Room",
+        2 => "Bungalow",
+        3 => "Camping",
+        _ => "-"
+    };
+
+    private class EditOccupantRow
+    {
+        public string Email { get; set; } = string.Empty;
+        public DateTime? BirthDate { get; set; }
+        public DateTime? DocumentExpiryDate { get; set; }
+    }
+}

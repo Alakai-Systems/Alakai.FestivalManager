@@ -1,8 +1,13 @@
 @page "/competition-entries"
 @using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @inject CompetitionEntryApiClient CompetitionEntryApiClient
 @inject CompetitionApiClient CompetitionApiClient
 @inject RegistrationApiClient RegistrationApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
 
 <PageHeader Title="Operations" pTitle="Competition Entries"></PageHeader>
 
@@ -12,6 +17,22 @@
 
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
                 <input class="form-input md:w-64" placeholder="Search name or email..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select md:w-56" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="@Guid.Empty">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
+                <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="@Guid.Empty">All editions</option>
+                    @foreach (EditionDto ed in EditionsForSelectedFestival)
+                    {
+                        <option value="@ed.Id">@ed.Name</option>
+                    }
+                </select>
 
                 <select class="form-select md:w-56" @bind="competitionFilter" @bind:after="ResetPage">
                     <option value="@Guid.Empty">All competitions</option>
@@ -218,6 +239,21 @@
     private List<CompetitionEntryDto> entries = [];
     private List<CompetitionDto> competitions = [];
     private List<RegistrationDto> registrations = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private Guid festivalFilter = Guid.Empty;
+    private Guid editionFilter = Guid.Empty;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        festivalFilter == Guid.Empty
+            ? editions
+            : editions.Where(e => e.FestivalId == festivalFilter).ToList();
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = Guid.Empty;
+        ResetPage();
+    }
     private CompetitionEntryDto? editingEntry;
     private CompetitionEntryDto? deletingEntry;
     private CompetitionEntryEditModel editModel = new();
@@ -250,6 +286,18 @@
             entries = (await CompetitionEntryApiClient.GetAllAsync()).ToList();
             competitions = (await CompetitionApiClient.GetAllAsync()).ToList();
             registrations = (await RegistrationApiClient.GetAllAsync()).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null)
+            {
+                festivalFilter = ActiveFestivalState.Active.Id;
+
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                editionFilter = preferred?.Id ?? Guid.Empty;
+            }
         }
         catch (Exception ex)
         {
@@ -275,6 +323,17 @@
             if (competitionFilter != Guid.Empty)
             {
                 query = query.Where(e => e.CompetitionId == competitionFilter);
+            }
+            else if (editionFilter != Guid.Empty)
+            {
+                HashSet<Guid> competitionIds = competitions.Where(c => c.EditionId == editionFilter).Select(c => c.Id).ToHashSet();
+                query = query.Where(e => competitionIds.Contains(e.CompetitionId));
+            }
+            else if (festivalFilter != Guid.Empty)
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == festivalFilter).Select(e => e.Id).ToHashSet();
+                HashSet<Guid> competitionIds = competitions.Where(c => editionIds.Contains(c.EditionId)).Select(c => c.Id).ToHashSet();
+                query = query.Where(e => competitionIds.Contains(e.CompetitionId));
             }
 
             if (registrationFilter != Guid.Empty)

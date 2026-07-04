@@ -1,7 +1,11 @@
+@using FestivalDto = Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs.FestivalDto
+@using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 @inject IJSRuntime JsRuntime
 @inject UserApiClient UserApiClient
 @inject UserProfileState UserProfileState
+@inject ActiveFestivalState ActiveFestivalState
+@inject FestivalApiClient FestivalApiClient
 
 <!-- Start Topbar -->
 <div class="bg-white dark:bg-darklight dark:border-darkborder flex gap-4 lg:z-10 items-center justify-between px-4 h-[60px] border-b border-black/10 detached-topbar relative">
@@ -9,6 +13,14 @@
         <button type="button" class="flex items-center justify-center text-black dark:text-white/80" @onclick="ToggleSidebar">
             <i class="ri-menu-2-line"></i>
         </button>
+
+        @if (ActiveFestivalState.Active is not null)
+        {
+            <div class="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium border rounded-md border-black/10 dark:border-darkborder text-black dark:text-white/80">
+                <i class="text-base leading-none ri-flag-2-fill text-purple"></i>
+                <span>@ActiveFestivalState.Active.Name</span>
+            </div>
+        }
     </div>
 
     <div class="flex items-center gap-4">
@@ -74,6 +86,7 @@
     protected override async Task OnInitializedAsync()
     {
         UserProfileState.OnChange += HandleProfileChanged;
+        ActiveFestivalState.OnChange += HandleProfileChanged;
 
         if (AuthenticationStateTask is not null)
         {
@@ -104,7 +117,25 @@
                 // Non-critical: fall back to the generic icon if this fails.
             }
         }
+
+        if (!ActiveFestivalState.IsInitialized)
+        {
+            try
+            {
+                IReadOnlyList<FestivalDto> festivals = await FestivalApiClient.GetAllAsync();
+                string? savedId = await JsRuntime.InvokeAsync<string?>("getActiveFestivalId");
+                Guid? preferredId = Guid.TryParse(savedId, out Guid parsed) ? parsed : null;
+
+                ActiveFestivalState.Initialize(festivals, preferredId);
+            }
+            catch
+            {
+                // Non-critical: the festival switcher just stays empty if this fails.
+            }
+        }
     }
+
+
 
     private void HandleProfileChanged()
     {
@@ -124,5 +155,6 @@
     public void Dispose()
     {
         UserProfileState.OnChange -= HandleProfileChanged;
+        ActiveFestivalState.OnChange -= HandleProfileChanged;
     }
 }

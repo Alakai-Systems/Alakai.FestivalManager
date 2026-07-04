@@ -1,0 +1,449 @@
+@page "/bus-operations"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Buses.Requests
+
+@inject BusApiClient BusApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+
+<PageHeader Title="Operations" pTitle="Buses"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <input class="form-input md:w-56" placeholder="Search name or email..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+            <select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+                @foreach (FestivalDto festival in festivals)
+                {
+                    <option value="@festival.Id">@festival.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
+                @foreach (EditionDto edition in editionsForSelectedFestival)
+                {
+                    <option value="@edition.Id">@edition.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-40" @bind="directionFilter" @bind:after="ResetPage">
+                <option value="0">All directions</option>
+                <option value="1">Outbound</option>
+                <option value="2">Return</option>
+            </select>
+            <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                <option value="10">10 rows</option>
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+            </select>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="p-3 text-sm rounded bg-success/10 text-success">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+    }
+
+    <div class="card">
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading...</p>
+        }
+        else if (PagedReservations.Count == 0)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">No bus reservations for this edition yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-3 py-3 font-semibold cursor-pointer select-none" @onclick='() => SortBy("Name")'>Name @GetSortIcon("Name")</th>
+                            <th class="px-3 py-3 font-semibold">Email</th>
+                            <th class="px-3 py-3 font-semibold cursor-pointer select-none" @onclick='() => SortBy("Direction")'>Direction @GetSortIcon("Direction")</th>
+                            <th class="px-3 py-3 font-semibold cursor-pointer select-none" @onclick='() => SortBy("Departure")'>Departure @GetSortIcon("Departure")</th>
+                            <th class="px-3 py-3 font-semibold">Route</th>
+                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (BusReservationDto reservation in PagedReservations)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3 font-medium">@(reservation.RegistrationName ?? "-")</td>
+                                <td class="px-3 py-3 text-black/60 dark:text-white/50">@reservation.RegistrationEmail</td>
+                                <td class="px-3 py-3">
+                                    <span class="inline-block rounded text-xs px-2 py-1 @(reservation.Direction == 1 ? "bg-purple/10 text-purple" : "bg-warning/10 text-warning")">@GetDirectionLabel(reservation.Direction)</span>
+                                </td>
+                                <td class="px-3 py-3">@reservation.DepartureTime.ToString("dd/MM/yyyy HH:mm")</td>
+                                <td class="px-3 py-3">@reservation.PickupLocation → @reservation.DestinationLocation</td>
+                                <td class="px-3 py-3">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(reservation)"><i class="ri-pencil-line text-lg"></i></button>
+                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(reservation)"><i class="ri-delete-bin-line text-lg"></i></button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredReservations.Count reservations</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (editingReservation is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Reservation</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div class="p-5">
+                    <label class="block text-sm text-black/60 dark:text-white/60">Bus</label>
+                    <select class="form-select" @bind="editNewBusId">
+                        @foreach (BusDto bus in allBuses)
+                        {
+                            <option value="@bus.Id">@GetDirectionLabel(bus.Direction) - @bus.DepartureTime.ToString("dd/MM HH:mm") (@bus.PickupLocation → @bus.DestinationLocation) [@bus.OccupiedCount/@bus.Capacity]</option>
+                        }
+                    </select>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@isSaving" @onclick="SaveEditAsync">@(isSaving ? "Saving..." : "Save")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletingReservation is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Reservation</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Cancel the bus reservation for @(deletingReservation.RegistrationName ?? deletingReservation.RegistrationEmail)?</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ConfirmDeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<FestivalDto> festivals = [];
+    private List<EditionDto> editions = [];
+    private List<BusDto> allBuses = [];
+    private List<BusReservationDto> reservations = [];
+
+    private Guid selectedFestivalId;
+    private Guid selectedEditionId;
+    private int directionFilter;
+    private string searchText = string.Empty;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private BusReservationDto? editingReservation;
+    private Guid editNewBusId;
+    private BusReservationDto? deletingReservation;
+
+    private List<EditionDto> editionsForSelectedFestival =>
+        editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+
+            FestivalDto? preferredFestival = ActiveFestivalState.Active is not null
+                ? festivals.FirstOrDefault(f => f.Id == ActiveFestivalState.Active.Id)
+                : null;
+
+            selectedFestivalId = preferredFestival?.Id
+                ?? editions.FirstOrDefault(e => e.IsActive)?.FestivalId
+                ?? festivals.FirstOrDefault()?.Id
+                ?? Guid.Empty;
+
+            EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+                ?? editionsForSelectedFestival.FirstOrDefault();
+
+            selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+            if (selectedEditionId != Guid.Empty)
+            {
+                await LoadDataAsync();
+            }
+            else
+            {
+                isLoading = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalChangedAsync()
+    {
+        EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+            ?? editionsForSelectedFestival.FirstOrDefault();
+
+        selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+        if (selectedEditionId != Guid.Empty)
+        {
+            await LoadDataAsync();
+        }
+        else
+        {
+            reservations = [];
+        }
+    }
+
+    private async Task OnEditionChangedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            allBuses = (await BusApiClient.GetAllAsync(selectedEditionId)).ToList();
+            reservations = (await BusApiClient.GetReservationsByEditionAsync(selectedEditionId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string sortColumn = "Departure";
+    private bool sortAscending = true;
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private string GetSortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return string.Empty;
+        }
+
+        return sortAscending ? "▲" : "▼";
+    }
+
+    private List<BusReservationDto> FilteredReservations
+    {
+        get
+        {
+            IEnumerable<BusReservationDto> query = reservations;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(r =>
+                    (r.RegistrationName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (r.RegistrationEmail ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (directionFilter != 0)
+            {
+                query = query.Where(r => r.Direction == directionFilter);
+            }
+
+            query = sortColumn switch
+            {
+                "Name" => sortAscending ? query.OrderBy(r => r.RegistrationName) : query.OrderByDescending(r => r.RegistrationName),
+                "Direction" => sortAscending ? query.OrderBy(r => r.Direction) : query.OrderByDescending(r => r.Direction),
+                _ => sortAscending ? query.OrderBy(r => r.DepartureTime) : query.OrderByDescending(r => r.DepartureTime)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private List<BusReservationDto> PagedReservations => FilteredReservations.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredReservations.Count / (double)pageSize));
+    private int StartRow => FilteredReservations.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredReservations.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void OpenEditModal(BusReservationDto reservation)
+    {
+        editingReservation = reservation;
+        editNewBusId = reservation.BusId;
+    }
+
+    private void CloseEditModal()
+    {
+        editingReservation = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editingReservation is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            UpdateBusReservationRequest request = new()
+            {
+                NewBusId = editNewBusId,
+                RequestingRegistrationId = editingReservation.RegistrationId
+            };
+
+            await BusApiClient.UpdateReservationAsync(editingReservation.Id, request, isAdmin: true);
+            ShowSuccess("Reservation updated successfully.");
+            CloseEditModal();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenDeleteModal(BusReservationDto reservation)
+    {
+        deletingReservation = reservation;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deletingReservation = null;
+    }
+
+    private async Task ConfirmDeleteAsync()
+    {
+        if (deletingReservation is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            await BusApiClient.DeleteReservationAsync(deletingReservation.Id, deletingReservation.RegistrationId, isAdmin: true);
+            ShowSuccess("Reservation cancelled successfully.");
+            CloseDeleteModal();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetDirectionLabel(int direction) => direction switch
+    {
+        1 => "Departure",
+        2 => "Return",
+        _ => "-"
+    };
+}
