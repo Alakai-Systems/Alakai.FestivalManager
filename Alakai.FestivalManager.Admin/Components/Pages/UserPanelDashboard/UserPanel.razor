@@ -7,6 +7,8 @@
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
 @using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Buses.Requests
+@using Alakai.FestivalManager.Admin.Contracts.Meals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Meals.Requests
 @using Alakai.FestivalManager.Admin.Services.Api
 
 @inject UserPanelApiClient UserPanelApiClient
@@ -15,6 +17,7 @@
 @inject AccommodationApiClient AccommodationApiClient
 @inject FestivalModuleApiClient FestivalModuleApiClient
 @inject BusApiClient BusApiClient
+@inject MealPreferenceApiClient MealPreferenceApiClient
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
 
@@ -311,7 +314,7 @@
                             <tr class="border-b border-black/10 dark:border-darkborder">
                                 <td class="px-4 py-3">@GetCompetitionName(competition.CompetitionId)</td>
                                 <td class="px-4 py-3">@GetCompetitionLevel(competition)</td>
-                                <td class="px-4 py-3">@competition.DanceRole</td>
+                                <td class="px-4 py-3">@competition.DanceRole.ToString()</td>
                                 <td class="px-4 py-3">
                                     <span class="@GetCompetitionStatusClass(@competition.Status.ToString())">
                                         @competition.Status
@@ -710,6 +713,59 @@
 
 }
 
+        @if (HasMealsModule)
+{
+<div class="card shadow-sm">
+            <div class="mb-5" id="meals">
+                <h2 class="text-lg font-bold text-black dark:text-white">Meals</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Tell us about your menu and any dietary needs.</p>
+            </div>
+
+            @if (!string.IsNullOrWhiteSpace(MealSuccessMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@MealSuccessMessage</div>
+            }
+            @if (!string.IsNullOrWhiteSpace(MealErrorMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@MealErrorMessage</div>
+            }
+
+            @if (IsLoadingMeal)
+            {
+                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+            }
+            else
+            {
+                <div class="space-y-4">
+                    <div>
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Menu</label>
+                        <select class="form-select" @bind="MealMenuType">
+                            <option value="1">Standard</option>
+                            <option value="2">Vegetarian</option>
+                        </select>
+                    </div>
+
+                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                        <input type="checkbox" @bind="MealIsCeliac" />
+                        I am Celiac or gluten intolerant
+                    </label>
+
+                    <div>
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Allergies or intolerances</label>
+                        <textarea class="form-input" rows="3" @bind="MealAllergiesNotes"></textarea>
+                    </div>
+
+                    <div class="flex justify-end">
+                        <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@IsSavingMeal" @onclick="SaveMealPreferenceAsync">
+                            @(IsSavingMeal ? "Saving..." : "Save")
+                        </button>
+                    </div>
+                </div>
+            }
+        </div>
+
+}
+
         <div class="card shadow-sm">
             <div class="mb-5" id="change-password">
                 <h2 class="text-lg font-bold text-black dark:text-white">Change password</h2>
@@ -944,6 +1000,109 @@
 }
 <!-- End All Card -->
 @code {
+    // ==================== Meals ====================
+    private const int MealsModuleFlag = 8;
+    private bool HasMealsModule => (EnabledFestivalModules & MealsModuleFlag) != 0;
+
+    private int MealMenuType { get; set; } = 1;
+    private bool MealIsCeliac { get; set; }
+    private string? MealAllergiesNotes { get; set; }
+    private bool IsLoadingMeal { get; set; } = true;
+    private bool IsSavingMeal { get; set; }
+    private string? MealSuccessMessage { get; set; }
+    private string? MealErrorMessage { get; set; }
+
+    private void ShowMealSuccess(string message)
+    {
+        MealSuccessMessage = message;
+        MealErrorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            MealSuccessMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowMealError(string message)
+    {
+        MealErrorMessage = message;
+        MealSuccessMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            MealErrorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private async Task LoadMealDataAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            IsLoadingMeal = false;
+            return;
+        }
+
+        IsLoadingMeal = true;
+
+        try
+        {
+            MealPreferenceDto? preference = await MealPreferenceApiClient.GetByRegistrationAsync(Dashboard.Registration.Id);
+
+            if (preference is not null && preference.HasPreference)
+            {
+                MealMenuType = preference.MenuType;
+                MealIsCeliac = preference.IsCeliacOrGlutenIntolerant;
+                MealAllergiesNotes = preference.AllergiesNotes;
+            }
+        }
+        catch
+        {
+            // Non-critical: the meals section just stays at defaults if this fails.
+        }
+        finally
+        {
+            IsLoadingMeal = false;
+        }
+    }
+
+    private async Task SaveMealPreferenceAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsSavingMeal = true;
+
+        try
+        {
+            SaveMealPreferenceRequest request = new()
+            {
+                RegistrationId = Dashboard.Registration.Id,
+                MenuType = MealMenuType,
+                IsCeliacOrGlutenIntolerant = MealIsCeliac,
+                AllergiesNotes = MealAllergiesNotes
+            };
+
+            await MealPreferenceApiClient.SaveAsync(request);
+            ShowMealSuccess("Meal preference saved successfully.");
+        }
+        catch (ApiClientException ex)
+        {
+            ShowMealError(ex.Message);
+        }
+        catch (Exception ex)
+        {
+            ShowMealError(ex.Message);
+        }
+        finally
+        {
+            IsSavingMeal = false;
+        }
+    }
+
     // ==================== Buses ====================
     private const int TransportModuleFlag = 4;
     private bool HasTransportModule => (EnabledFestivalModules & TransportModuleFlag) != 0;
@@ -1616,6 +1775,11 @@
             if (HasTransportModule)
             {
                 await LoadBusDataAsync();
+            }
+
+            if (HasMealsModule)
+            {
+                await LoadMealDataAsync();
             }
 
             StateHasChanged();

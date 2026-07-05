@@ -108,4 +108,9 @@ global using Alakai.FestivalManager.Application.Features.Buses.Commands;
 global using Alakai.FestivalManager.Application.Features.Buses.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Buses.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Buses.Services;
+global using Alakai.FestivalManager.Application.Features.Meals.Commands;
+global using Alakai.FestivalManager.Application.Features.Meals.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Meals.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Meals.Services;
+global using Alakai.FestivalManager.Application.Features.Reports.Services;
 

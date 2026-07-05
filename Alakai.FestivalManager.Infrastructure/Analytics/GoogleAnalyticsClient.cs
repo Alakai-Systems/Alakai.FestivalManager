@@ -1,4 +1,4 @@
-﻿using Google.Analytics.Data.V1Beta;
+using Google.Analytics.Data.V1Beta;
 using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Infrastructure.Analytics;
@@ -34,15 +34,24 @@ public class GoogleAnalyticsClient : IAnalyticsClient
 
             string property = $"properties/{propertyId}";
 
-            int spanDays = (endDate.DayNumber - startDate.DayNumber) + 1;
-            DateOnly previousEnd = startDate.AddDays(-1);
-            DateOnly previousStart = previousEnd.AddDays(-(spanDays - 1));
-
             DateRange currentRange = new() { StartDate = startDate.ToString("yyyy-MM-dd"), EndDate = endDate.ToString("yyyy-MM-dd") };
-            DateRange previousRange = new() { StartDate = previousStart.ToString("yyyy-MM-dd"), EndDate = previousEnd.ToString("yyyy-MM-dd") };
+
+            // Week-over-week comparison window, used ONLY for the change-percent badges
+            // (KPI cards, Top Countries, Top Pages). This is intentionally independent of
+            // the overall selected date range (which still drives the totals shown, the
+            // sparklines, and the Top Countries/Pages ranking) -- the comparison itself is
+            // always "last 7 days vs the 7 days before that", anchored on the range's end date.
+            DateOnly thisWeekEnd = endDate;
+            DateOnly thisWeekStart = thisWeekEnd.AddDays(-6);
+            DateOnly previousWeekEnd = thisWeekStart.AddDays(-1);
+            DateOnly previousWeekStart = previousWeekEnd.AddDays(-6);
+
+            DateRange thisWeekRange = new() { StartDate = thisWeekStart.ToString("yyyy-MM-dd"), EndDate = thisWeekEnd.ToString("yyyy-MM-dd") };
+            DateRange previousWeekRange = new() { StartDate = previousWeekStart.ToString("yyyy-MM-dd"), EndDate = previousWeekEnd.ToString("yyyy-MM-dd") };
 
             (long views, long users, long events, long newUsers) current = await GetOverviewNumbersAsync(client, property, currentRange, cancellationToken);
-            (long views, long users, long events, long newUsers) previous = await GetOverviewNumbersAsync(client, property, previousRange, cancellationToken);
+            (long views, long users, long events, long newUsers) thisWeek = await GetOverviewNumbersAsync(client, property, thisWeekRange, cancellationToken);
+            (long views, long users, long events, long newUsers) previousWeek = await GetOverviewNumbersAsync(client, property, previousWeekRange, cancellationToken);
 
             (List<long> views, List<long> users, List<long> events, List<long> newUsers) daily =
                 await GetDailySeriesAsync(client, property, currentRange, cancellationToken);
@@ -53,15 +62,22 @@ public class GoogleAnalyticsClient : IAnalyticsClient
                 ActiveUsers = current.users,
                 EventCount = current.events,
                 NewUsers = current.newUsers,
-                TotalViewsChangePercent = PercentChange(current.views, previous.views),
-                ActiveUsersChangePercent = PercentChange(current.users, previous.users),
-                EventCountChangePercent = PercentChange(current.events, previous.events),
-                NewUsersChangePercent = PercentChange(current.newUsers, previous.newUsers),
+                TotalViewsChangePercent = PercentChange(thisWeek.views, previousWeek.views),
+                ActiveUsersChangePercent = PercentChange(thisWeek.users, previousWeek.users),
+                EventCountChangePercent = PercentChange(thisWeek.events, previousWeek.events),
+                NewUsersChangePercent = PercentChange(thisWeek.newUsers, previousWeek.newUsers),
                 ViewsSparkline = daily.views,
                 ActiveUsersSparkline = daily.users,
                 EventCountSparkline = daily.events,
                 NewUsersSparkline = daily.newUsers
             };
+
+            // Top Countries / Top Pages: the ranking and the displayed totals still come
+            // from the overall selected range (unchanged). The change-percent per row
+            // compares that same country/page's activeUsers/views this week vs the
+            // previous week, matched by dimension value.
+            Dictionary<string, long> countriesThisWeek = await GetCountryBreakdownAsync(client, property, thisWeekRange, cancellationToken);
+            Dictionary<string, long> countriesPreviousWeek = await GetCountryBreakdownAsync(client, property, previousWeekRange, cancellationToken);
 
             RunReportRequest countriesRequest = new()
             {
@@ -76,12 +92,23 @@ public class GoogleAnalyticsClient : IAnalyticsClient
             RunReportResponse countriesResponse = await client.RunReportAsync(countriesRequest, cancellationToken);
 
             List<AnalyticsCountryStatDto> topCountries = countriesResponse.Rows
-                .Select(r => new AnalyticsCountryStatDto
+                .Select(r =>
                 {
-                    Country = r.DimensionValues[0].Value,
-                    ActiveUsers = ParseLong(r.MetricValues[0].Value)
+                    string country = r.DimensionValues[0].Value;
+                    countriesThisWeek.TryGetValue(country, out long thisWeekValue);
+                    countriesPreviousWeek.TryGetValue(country, out long previousWeekValue);
+
+                    return new AnalyticsCountryStatDto
+                    {
+                        Country = country,
+                        ActiveUsers = ParseLong(r.MetricValues[0].Value),
+                        ActiveUsersChangePercent = PercentChange(thisWeekValue, previousWeekValue)
+                    };
                 })
                 .ToList();
+
+            Dictionary<string, long> pagesThisWeek = await GetPageBreakdownAsync(client, property, thisWeekRange, cancellationToken);
+            Dictionary<string, long> pagesPreviousWeek = await GetPageBreakdownAsync(client, property, previousWeekRange, cancellationToken);
 
             RunReportRequest pagesRequest = new()
             {
@@ -96,10 +123,18 @@ public class GoogleAnalyticsClient : IAnalyticsClient
             RunReportResponse pagesResponse = await client.RunReportAsync(pagesRequest, cancellationToken);
 
             List<AnalyticsPageStatDto> topPages = pagesResponse.Rows
-                .Select(r => new AnalyticsPageStatDto
+                .Select(r =>
                 {
-                    PagePath = r.DimensionValues[0].Value,
-                    Views = ParseLong(r.MetricValues[0].Value)
+                    string pagePath = r.DimensionValues[0].Value;
+                    pagesThisWeek.TryGetValue(pagePath, out long thisWeekValue);
+                    pagesPreviousWeek.TryGetValue(pagePath, out long previousWeekValue);
+
+                    return new AnalyticsPageStatDto
+                    {
+                        PagePath = pagePath,
+                        Views = ParseLong(r.MetricValues[0].Value),
+                        ViewsChangePercent = PercentChange(thisWeekValue, previousWeekValue)
+                    };
                 })
                 .ToList();
 
@@ -157,6 +192,38 @@ public class GoogleAnalyticsClient : IAnalyticsClient
         );
     }
 
+    private static async Task<Dictionary<string, long>> GetCountryBreakdownAsync(
+        BetaAnalyticsDataClient client, string property, DateRange range, CancellationToken cancellationToken)
+    {
+        RunReportRequest request = new()
+        {
+            Property = property,
+            DateRanges = { range },
+            Dimensions = { new Dimension { Name = "country" } },
+            Metrics = { new Metric { Name = "activeUsers" } }
+        };
+
+        RunReportResponse response = await client.RunReportAsync(request, cancellationToken);
+
+        return response.Rows.ToDictionary(r => r.DimensionValues[0].Value, r => ParseLong(r.MetricValues[0].Value));
+    }
+
+    private static async Task<Dictionary<string, long>> GetPageBreakdownAsync(
+        BetaAnalyticsDataClient client, string property, DateRange range, CancellationToken cancellationToken)
+    {
+        RunReportRequest request = new()
+        {
+            Property = property,
+            DateRanges = { range },
+            Dimensions = { new Dimension { Name = "pagePath" } },
+            Metrics = { new Metric { Name = "screenPageViews" } }
+        };
+
+        RunReportResponse response = await client.RunReportAsync(request, cancellationToken);
+
+        return response.Rows.ToDictionary(r => r.DimensionValues[0].Value, r => ParseLong(r.MetricValues[0].Value));
+    }
+
     private static async Task<(List<long> views, List<long> users, List<long> events, List<long> newUsers)> GetDailySeriesAsync(
         BetaAnalyticsDataClient client, string property, DateRange range, CancellationToken cancellationToken)
     {
@@ -205,5 +272,3 @@ public class GoogleAnalyticsClient : IAnalyticsClient
 
     private static long ParseLong(string value) => long.TryParse(value, out long result) ? result : 0;
 }
-
-

@@ -1,0 +1,266 @@
+@page "/reports"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+
+@inject ReportApiClient ReportApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@inject IJSRuntime JsRuntime
+
+<PageHeader Title="Reports" pTitle="Downloads"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+                @foreach (FestivalDto festival in festivals)
+                {
+                    <option value="@festival.Id">@festival.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
+                @foreach (EditionDto edition in editionsForSelectedFestival)
+                {
+                    <option value="@edition.Id">@edition.Name</option>
+                }
+            </select>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="p-3 text-sm rounded bg-success/10 text-success">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+    }
+
+    <div class="card">
+        @if (selectedEditionId == Guid.Empty)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Select a festival and edition above.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Report</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Users</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "users")" @onclick='() => DownloadAsync("users")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "users" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Registrations</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "registrations")" @onclick='() => DownloadAsync("registrations")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "registrations" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Competitions</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "competitions")" @onclick='() => DownloadAsync("competitions")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "competitions" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        @if (HasAccommodationModule)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3">Accommodation</td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "accommodation")" @onclick='() => DownloadAsync("accommodation")'>
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "accommodation" ? "Downloading..." : "Download")
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3">
+                                    Accommodation (Floor Plan)
+                                </td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "accommodation-grid")" @onclick='() => DownloadAsync("accommodation-grid")'>
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "accommodation-grid" ? "Downloading..." : "Download")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (HasTransportModule)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3">Buses</td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "buses")" @onclick='() => DownloadAsync("buses")'>
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "buses" ? "Downloading..." : "Download")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                        @if (HasMealsModule)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3">Meals</td>
+                                <td class="px-4 py-3 text-right">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "meals")" @onclick='() => DownloadAsync("meals")'>
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "meals" ? "Downloading..." : "Download")
+                                    </button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+<script>
+    window.downloadFileFromBase64 = (filename, base64, mimeType) => {
+        const byteCharacters = atob(base64);
+        const byteNumbers = new Array(byteCharacters.length);
+        for (let i = 0; i < byteCharacters.length; i++) {
+            byteNumbers[i] = byteCharacters.charCodeAt(i);
+        }
+        const byteArray = new Uint8Array(byteNumbers);
+        const blob = new Blob([byteArray], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+    };
+</script>
+
+@code {
+    private List<FestivalDto> festivals = [];
+    private List<EditionDto> editions = [];
+    private Guid selectedFestivalId;
+    private Guid selectedEditionId;
+    private string? downloadingReport;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private List<EditionDto> editionsForSelectedFestival =>
+        editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
+    // Module flags are checked against the festival selected on THIS page, not the
+    // global ActiveFestivalState -- changing the filter here must never affect other
+    // pages or the Sidebar.
+    private FestivalDto? SelectedFestival => festivals.FirstOrDefault(f => f.Id == selectedFestivalId);
+    private bool HasAccommodationModule => SelectedFestival is not null && (SelectedFestival.EnabledModules & 2) != 0;
+    private bool HasTransportModule => SelectedFestival is not null && (SelectedFestival.EnabledModules & 4) != 0;
+    private bool HasMealsModule => SelectedFestival is not null && (SelectedFestival.EnabledModules & 8) != 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+
+            FestivalDto? preferredFestival = ActiveFestivalState.Active is not null
+                ? festivals.FirstOrDefault(f => f.Id == ActiveFestivalState.Active.Id)
+                : null;
+
+            selectedFestivalId = preferredFestival?.Id
+                ?? editions.FirstOrDefault(e => e.IsActive)?.FestivalId
+                ?? festivals.FirstOrDefault()?.Id
+                ?? Guid.Empty;
+
+            EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+                ?? editionsForSelectedFestival.FirstOrDefault();
+
+            selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private void OnFestivalChangedAsync()
+    {
+        EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+            ?? editionsForSelectedFestival.FirstOrDefault();
+
+        selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+    }
+
+    private void OnEditionChangedAsync()
+    {
+        // Nothing else to load -- the report list itself doesn't depend on data fetching.
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private const string XlsxMimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+    private async Task DownloadAsync(string reportType)
+    {
+        if (selectedEditionId == Guid.Empty)
+        {
+            return;
+        }
+
+        downloadingReport = reportType;
+
+        try
+        {
+            byte[] bytes = await ReportApiClient.GetReportXlsxAsync(reportType, selectedEditionId);
+            string base64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFileFromBase64", $"{reportType}.xlsx", base64, XlsxMimeType);
+            ShowSuccess($"{Capitalize(reportType)} report downloaded successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            downloadingReport = null;
+        }
+    }
+
+    private static string Capitalize(string value)
+    {
+        return string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
+    }
+}

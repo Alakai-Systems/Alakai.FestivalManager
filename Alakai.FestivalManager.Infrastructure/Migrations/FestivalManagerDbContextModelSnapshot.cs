@@ -1143,6 +1143,39 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.ToTable("Levels", (string)null);
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.MealPreference", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("AllergiesNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsCeliacOrGlutenIntolerant")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("MenuType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("RegistrationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RegistrationId")
+                        .IsUnique();
+
+                    b.ToTable("MealPreferences", (string)null);
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.PassType", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1816,6 +1849,17 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("PassType");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.MealPreference", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Registration", "Registration")
+                        .WithMany()
+                        .HasForeignKey("RegistrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Registration");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.PassType", b =>

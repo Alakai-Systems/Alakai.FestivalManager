@@ -22,12 +22,14 @@ public class AnalyticsCountryStatDto
 {
     public string Country { get; set; } = string.Empty;
     public long ActiveUsers { get; set; }
+    public decimal? ActiveUsersChangePercent { get; set; }
 }
 
 public class AnalyticsPageStatDto
 {
     public string PagePath { get; set; } = string.Empty;
     public long Views { get; set; }
+    public decimal? ViewsChangePercent { get; set; }
 }
 
 public class AnalyticsStatsDto

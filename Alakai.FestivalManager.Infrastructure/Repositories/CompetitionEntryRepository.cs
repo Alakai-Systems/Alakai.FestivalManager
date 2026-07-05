@@ -36,6 +36,16 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
         return await _context.CompetitionEntries.Where(e => e.RegistrationId == registrationId).ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<CompetitionEntry>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.CompetitionEntries
+            .Include(e => e.Registration)
+            .Include(e => e.Competition)
+            .Include(e => e.CompetitionCapacity).ThenInclude(c => c.CompetitionLevel)
+            .Where(e => e.Registration.EditionId == editionId)
+            .ToListAsync(cancellationToken);
+    }
+
 
     public async Task<int> CountActiveByCapacityIdAsync(Guid competitionCapacityId, CancellationToken cancellationToken = default)
     {

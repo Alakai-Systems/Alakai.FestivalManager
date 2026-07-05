@@ -20,12 +20,14 @@ public class AnalyticsCountryStatDto
 {
     public string Country { get; set; } = string.Empty;
     public long ActiveUsers { get; set; }
+    public decimal? ActiveUsersChangePercent { get; set; }
 }
 
 public class AnalyticsPageStatDto
 {
     public string PagePath { get; set; } = string.Empty;
     public long Views { get; set; }
+    public decimal? ViewsChangePercent { get; set; }
 }
 
 public class AnalyticsStatsDto
@@ -49,20 +51,16 @@ internal class AnalyticsApiResponse
 public class AnalyticsApiClient
 {
     private readonly HttpClient _httpClient;
-
     public AnalyticsApiClient(HttpClient httpClient)
     {
         _httpClient = httpClient;
     }
-
     public async Task<AnalyticsStatsDto> GetAnalyticsAsync(Guid festivalId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
     {
         string start = startDate.ToString("yyyy-MM-dd");
         string end = endDate.ToString("yyyy-MM-dd");
-
         AnalyticsApiResponse? response = await _httpClient.GetFromJsonAsync<AnalyticsApiResponse>(
             $"api/dashboard/analytics?festivalId={festivalId}&startDate={start}&endDate={end}", cancellationToken);
-
         return response?.Data ?? new AnalyticsStatsDto { IsAvailable = false, ErrorMessage = "Empty response." };
     }
 }

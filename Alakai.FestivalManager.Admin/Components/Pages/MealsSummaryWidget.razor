@@ -1,0 +1,66 @@
+@using Alakai.FestivalManager.Admin.Contracts.Meals.DTOs
+@inject MealPreferenceApiClient MealPreferenceApiClient
+
+@if (editionId != Guid.Empty && preferences.Count > 0)
+{
+    <div class="card shadow-sm">
+        <h2 class="mb-4 text-lg font-bold text-black dark:text-white">Meals By Menu Type</h2>
+        <div class="overflow-x-auto">
+            <table class="w-full table-hover">
+                <thead class="bg-gray-50 dark:bg-dark">
+                    <tr class="text-left">
+                        <th class="px-4 py-3 font-semibold whitespace-nowrap">Menu</th>
+                        <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Total</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="border-b border-black/10 dark:border-darkborder">
+                        <td class="px-4 py-3">Standard</td>
+                        <td class="px-4 py-3 text-right">@preferences.Count(p => p.HasPreference && p.MenuType == 1)</td>
+                    </tr>
+                    <tr class="border-b border-black/10 dark:border-darkborder">
+                        <td class="px-4 py-3">Vegetarian</td>
+                        <td class="px-4 py-3 text-right">@preferences.Count(p => p.HasPreference && p.MenuType == 2)</td>
+                    </tr>
+                    <tr class="border-b border-black/10 dark:border-darkborder">
+                        <td class="px-4 py-3">Celiac / Gluten intolerant</td>
+                        <td class="px-4 py-3 text-right">@preferences.Count(p => p.IsCeliacOrGlutenIntolerant)</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter]
+    public Guid EditionId { get; set; }
+
+    private Guid editionId = Guid.Empty;
+    private List<MealPreferenceDto> preferences = [];
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (EditionId == editionId)
+        {
+            return;
+        }
+
+        editionId = EditionId;
+
+        if (EditionId == Guid.Empty)
+        {
+            preferences = [];
+            return;
+        }
+
+        try
+        {
+            preferences = (await MealPreferenceApiClient.GetByEditionAsync(EditionId)).ToList();
+        }
+        catch
+        {
+            preferences = [];
+        }
+    }
+}

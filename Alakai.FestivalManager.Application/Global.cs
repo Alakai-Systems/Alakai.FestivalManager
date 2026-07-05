@@ -17,6 +17,7 @@ global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Response
 global using Alakai.FestivalManager.Application.Features.Auth.Contracts.Settings;
 global using Alakai.FestivalManager.Application.Features.Auth.Queries.GetCurrentUser;
 global using Alakai.FestivalManager.Application.Features.Auth.Services;
+global using Alakai.FestivalManager.Application.Features.Buses.Services;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.CreateCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.DeleteCompetitionEntry;
 global using Alakai.FestivalManager.Application.Features.CompetitionEntries.Commands.UpdateCompetitionEntry;
@@ -113,6 +114,7 @@ global using Alakai.FestivalManager.Application.Features.Levels.Queries.GetLevel
 global using Alakai.FestivalManager.Application.Features.Levels.Queries.GetLevels;
 global using Alakai.FestivalManager.Application.Features.Levels.Queries.GetLevelsByPassTypeId;
 global using Alakai.FestivalManager.Application.Features.Levels.Services;
+global using Alakai.FestivalManager.Application.Features.Meals.Services;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.CreatePassType;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.DeletePassType;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.UpdatePassType;
@@ -134,6 +136,7 @@ global using Alakai.FestivalManager.Application.Features.Registrations.Queries.G
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrations;
 global using Alakai.FestivalManager.Application.Features.Registrations.Queries.GetRegistrationsByEditionId;
 global using Alakai.FestivalManager.Application.Features.Registrations.Services;
+global using Alakai.FestivalManager.Application.Features.Reports.Services;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;

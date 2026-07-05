@@ -11,11 +11,16 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IEmailTemplateRendererService _emailTemplateRendererService;
     private readonly IEmailSender _emailSender;
     private readonly IEmailLayoutRepository _emailLayoutRepository;
+    private readonly IAccommodationReservationRepository _accommodationReservationRepository;
+    private readonly IBusReservationRepository _busReservationRepository;
+    private readonly IMealPreferenceRepository _mealPreferenceRepository;
     private readonly IMapper _mapper;
 
     public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
         IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
-        IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository)
+        IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
+        IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
+        IMealPreferenceRepository mealPreferenceRepository)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -25,6 +30,9 @@ public class EmailNotificationService : IEmailNotificationService
         _emailSender = emailSender;
         _userRepository = userRepository;
         _emailLayoutRepository = emailLayoutRepository;
+        _accommodationReservationRepository = accommodationReservationRepository;
+        _busReservationRepository = busReservationRepository;
+        _mealPreferenceRepository = mealPreferenceRepository;
     }
 
     private const int EmailShellWidth = 640;
@@ -99,6 +107,10 @@ public class EmailNotificationService : IEmailNotificationService
             ["PortalUrl"] = "https://lajambarcelona.com/account",
         };
 
+        await AddAccommodationVariablesAsync(variables, registration.Id, cancellationToken);
+        await AddBusVariablesAsync(variables, registration.Id, cancellationToken);
+        await AddMealVariablesAsync(variables, registration.Id, cancellationToken);
+
         string subject = _emailTemplateRendererService.Render(template.Subject, variables);
         string renderedBodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
         string? renderedBodyText = string.IsNullOrWhiteSpace(template.BodyText)
@@ -130,6 +142,75 @@ public class EmailNotificationService : IEmailNotificationService
         EmailLogDto dto = _mapper.Map<EmailLogDto>(emailLog);
 
         return dto;
+    }
+
+
+    private async Task AddAccommodationVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
+    {
+        variables["AccommodationBuildingName"] = string.Empty;
+        variables["AccommodationOccupantNames"] = string.Empty;
+
+        AccommodationReservation? reservation = await _accommodationReservationRepository.GetByRegistrationIdAsync(registrationId, cancellationToken);
+
+        if (reservation is null)
+        {
+            return;
+        }
+
+        variables["AccommodationBuildingName"] = reservation.AccommodationBuilding?.Name ?? string.Empty;
+        variables["AccommodationOccupantNames"] = string.Join(", ", reservation.Occupants.Select(o =>
+            o.Registration is not null ? $"{o.Registration.FirstName} {o.Registration.LastName}" : o.Email));
+    }
+
+    private async Task AddBusVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
+    {
+        variables["DepartureBusTime"] = string.Empty;
+        variables["DepartureBusPickup"] = string.Empty;
+        variables["DepartureBusDestination"] = string.Empty;
+        variables["DepartureBusPrice"] = string.Empty;
+        variables["ReturnBusTime"] = string.Empty;
+        variables["ReturnBusPickup"] = string.Empty;
+        variables["ReturnBusDestination"] = string.Empty;
+        variables["ReturnBusPrice"] = string.Empty;
+
+        IReadOnlyList<BusReservation> reservations = await _busReservationRepository.GetByRegistrationIdAsync(registrationId, cancellationToken);
+
+        BusReservation? departure = reservations.FirstOrDefault(r => r.Bus?.Direction == BusDirection.Outbound);
+        BusReservation? returnTrip = reservations.FirstOrDefault(r => r.Bus?.Direction == BusDirection.Return);
+
+        if (departure?.Bus is not null)
+        {
+            variables["DepartureBusTime"] = departure.Bus.DepartureTime.ToString("dd/MM/yyyy HH:mm");
+            variables["DepartureBusPickup"] = departure.Bus.PickupLocation;
+            variables["DepartureBusDestination"] = departure.Bus.DestinationLocation;
+            variables["DepartureBusPrice"] = departure.Bus.Price.ToString("0.00");
+        }
+
+        if (returnTrip?.Bus is not null)
+        {
+            variables["ReturnBusTime"] = returnTrip.Bus.DepartureTime.ToString("dd/MM/yyyy HH:mm");
+            variables["ReturnBusPickup"] = returnTrip.Bus.PickupLocation;
+            variables["ReturnBusDestination"] = returnTrip.Bus.DestinationLocation;
+            variables["ReturnBusPrice"] = returnTrip.Bus.Price.ToString("0.00");
+        }
+    }
+
+    private async Task AddMealVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
+    {
+        variables["MenuType"] = string.Empty;
+        variables["IsCeliacOrGlutenIntolerant"] = string.Empty;
+        variables["AllergiesNotes"] = string.Empty;
+
+        MealPreference? preference = await _mealPreferenceRepository.GetByRegistrationIdAsync(registrationId, cancellationToken);
+
+        if (preference is null)
+        {
+            return;
+        }
+
+        variables["MenuType"] = preference.MenuType.ToString();
+        variables["IsCeliacOrGlutenIntolerant"] = preference.IsCeliacOrGlutenIntolerant ? "Yes" : "No";
+        variables["AllergiesNotes"] = preference.AllergiesNotes ?? string.Empty;
     }
 
     public async Task<EmailLogDto?> CreateAndSendEmailAsync(EmailTemplateKey templateKey, Guid registrationId, CancellationToken cancellationToken = default)

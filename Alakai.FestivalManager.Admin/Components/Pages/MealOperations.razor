@@ -1,0 +1,390 @@
+@page "/meal-operations"
+@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Meals.DTOs
+@using Alakai.FestivalManager.Admin.Contracts.Meals.Requests
+
+@inject MealPreferenceApiClient MealPreferenceApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+
+<PageHeader Title="Operations" pTitle="Meals"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-3 md:flex-row md:items-center">
+            <input class="form-input md:w-56" placeholder="Search name or email..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+            <select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+                @foreach (FestivalDto festival in festivals)
+                {
+                    <option value="@festival.Id">@festival.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
+                @foreach (EditionDto edition in editionsForSelectedFestival)
+                {
+                    <option value="@edition.Id">@edition.Name</option>
+                }
+            </select>
+            <select class="form-select md:w-40" @bind="menuFilter" @bind:after="ResetPage">
+                <option value="0">All menus</option>
+                <option value="1">Standard</option>
+                <option value="2">Vegetarian</option>
+            </select>
+            <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                <option value="10">10 rows</option>
+                <option value="25">25 rows</option>
+                <option value="50">50 rows</option>
+            </select>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(successMessage))
+    {
+        <div class="p-3 text-sm rounded bg-success/10 text-success">@successMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(errorMessage))
+    {
+        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+    }
+
+    <div class="card">
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">Loading...</p>
+        }
+        else if (PagedPreferences.Count == 0)
+        {
+            <p class="text-sm text-black/50 dark:text-white/40">No registrations for this edition yet.</p>
+        }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-3 py-3 font-semibold">Name</th>
+                            <th class="px-3 py-3 font-semibold">Email</th>
+                            <th class="px-3 py-3 font-semibold">Menu</th>
+                            <th class="px-3 py-3 font-semibold">Celiac / Gluten</th>
+                            <th class="px-3 py-3 font-semibold">Allergies</th>
+                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (MealPreferenceDto preference in PagedPreferences)
+                        {
+                            <tr class="border-b border-black/10 dark:border-darkborder">
+                                <td class="px-4 py-3 font-medium">@(preference.RegistrationName ?? "-")</td>
+                                <td class="px-3 py-3 text-black/60 dark:text-white/50">@preference.RegistrationEmail</td>
+                                <td class="px-3 py-3">
+                                    @if (preference.HasPreference)
+                                    {
+                                        <span class="inline-block rounded text-xs px-2 py-1 @(preference.MenuType == 1 ? "bg-purple/10 text-purple" : "bg-success/10 text-success")">@GetMenuLabel(preference.MenuType)</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-black/40 dark:text-white/30">Not set</span>
+                                    }
+                                </td>
+                                <td class="px-3 py-3">
+                                    @if (preference.IsCeliacOrGlutenIntolerant)
+                                    {
+                                        <span class="inline-block rounded text-xs px-2 py-1 bg-warning/10 text-warning">Yes</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-xs text-black/40 dark:text-white/30">-</span>
+                                    }
+                                </td>
+                                <td class="px-3 py-3 max-w-xs truncate" title="@preference.AllergiesNotes">@(string.IsNullOrWhiteSpace(preference.AllergiesNotes) ? "-" : preference.AllergiesNotes)</td>
+                                <td class="px-3 py-3 text-right">
+                                    <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(preference)"><i class="ri-pencil-line text-lg"></i></button>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredPreferences.Count registrations</p>
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (editingPreference is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[480px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Meal Preference</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+                <div class="p-5 space-y-4">
+                    <p class="text-sm text-black/60 dark:text-white/60">@editingPreference.RegistrationName (@editingPreference.RegistrationEmail)</p>
+
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Menu</label>
+                        <select class="form-select" @bind="formMenuType">
+                            <option value="1">Standard</option>
+                            <option value="2">Vegetarian</option>
+                        </select>
+                    </div>
+
+                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                        <input type="checkbox" @bind="formIsCeliac" />
+                        Celiac or gluten intolerant
+                    </label>
+
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Allergies or intolerances</label>
+                        <textarea class="form-input" rows="3" @bind="formAllergiesNotes"></textarea>
+                    </div>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditModal">Cancel</button>
+                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@isSaving" @onclick="SaveEditAsync">@(isSaving ? "Saving..." : "Save")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<FestivalDto> festivals = [];
+    private List<EditionDto> editions = [];
+    private List<MealPreferenceDto> preferences = [];
+
+    private Guid selectedFestivalId;
+    private Guid selectedEditionId;
+    private int menuFilter;
+    private string searchText = string.Empty;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private bool isLoading = true;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+
+    private MealPreferenceDto? editingPreference;
+    private int formMenuType = 1;
+    private bool formIsCeliac;
+    private string? formAllergiesNotes;
+
+    private List<EditionDto> editionsForSelectedFestival =>
+        editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+
+            FestivalDto? preferredFestival = ActiveFestivalState.Active is not null
+                ? festivals.FirstOrDefault(f => f.Id == ActiveFestivalState.Active.Id)
+                : null;
+
+            selectedFestivalId = preferredFestival?.Id
+                ?? editions.FirstOrDefault(e => e.IsActive)?.FestivalId
+                ?? festivals.FirstOrDefault()?.Id
+                ?? Guid.Empty;
+
+            EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+                ?? editionsForSelectedFestival.FirstOrDefault();
+
+            selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+            if (selectedEditionId != Guid.Empty)
+            {
+                await LoadDataAsync();
+            }
+            else
+            {
+                isLoading = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalChangedAsync()
+    {
+        EditionDto? preferredEdition = editionsForSelectedFestival.FirstOrDefault(e => e.IsActive)
+            ?? editionsForSelectedFestival.FirstOrDefault();
+
+        selectedEditionId = preferredEdition?.Id ?? Guid.Empty;
+
+        if (selectedEditionId != Guid.Empty)
+        {
+            await LoadDataAsync();
+        }
+        else
+        {
+            preferences = [];
+        }
+    }
+
+    private async Task OnEditionChangedAsync()
+    {
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            preferences = (await MealPreferenceApiClient.GetByEditionAsync(selectedEditionId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private List<MealPreferenceDto> FilteredPreferences
+    {
+        get
+        {
+            IEnumerable<MealPreferenceDto> query = preferences;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(p =>
+                    (p.RegistrationName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (p.RegistrationEmail ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (menuFilter != 0)
+            {
+                query = query.Where(p => p.HasPreference && p.MenuType == menuFilter);
+            }
+
+            return query.OrderBy(p => p.RegistrationName).ToList();
+        }
+    }
+
+    private List<MealPreferenceDto> PagedPreferences => FilteredPreferences.Skip((currentPage - 1) * pageSize).Take(pageSize).ToList();
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredPreferences.Count / (double)pageSize));
+    private int StartRow => FilteredPreferences.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredPreferences.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void OpenEditModal(MealPreferenceDto preference)
+    {
+        editingPreference = preference;
+        formMenuType = preference.HasPreference ? preference.MenuType : 1;
+        formIsCeliac = preference.IsCeliacOrGlutenIntolerant;
+        formAllergiesNotes = preference.AllergiesNotes;
+    }
+
+    private void CloseEditModal()
+    {
+        editingPreference = null;
+    }
+
+    private async Task SaveEditAsync()
+    {
+        if (editingPreference is null)
+        {
+            return;
+        }
+
+        isSaving = true;
+
+        try
+        {
+            SaveMealPreferenceRequest request = new()
+            {
+                RegistrationId = editingPreference.RegistrationId,
+                MenuType = formMenuType,
+                IsCeliacOrGlutenIntolerant = formIsCeliac,
+                AllergiesNotes = formAllergiesNotes
+            };
+
+            await MealPreferenceApiClient.SaveAsync(request);
+            ShowSuccess("Meal preference updated successfully.");
+            CloseEditModal();
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetMenuLabel(int menuType) => menuType switch
+    {
+        1 => "Standard",
+        2 => "Vegetarian",
+        _ => "-"
+    };
+}

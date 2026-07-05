@@ -145,6 +145,20 @@ public static class ApiCLientsDependencyInjectionExtension
             client.BaseAddress = new Uri(baseUrl);
         });
 
+        services.AddHttpClient<MealPreferenceApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ReportApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
         services.AddHttpClient<AccommodationApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]

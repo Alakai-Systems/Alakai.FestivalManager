@@ -34,6 +34,7 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<Bus> Buses => Set<Bus>();
     public DbSet<BusPassType> BusPassTypes => Set<BusPassType>();
     public DbSet<BusReservation> BusReservations => Set<BusReservation>();
+    public DbSet<MealPreference> MealPreferences => Set<MealPreference>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

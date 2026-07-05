@@ -44,6 +44,16 @@ public class AccommodationReservationRepository : IAccommodationReservationRepos
             .FirstOrDefaultAsync(r => r.ResponsibleRegistrationId == registrationId || r.Occupants.Any(o => o.RegistrationId == registrationId), cancellationToken);
     }
 
+    public async Task<IReadOnlyList<AccommodationReservation>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.AccommodationReservations
+            .Include(r => r.Occupants).ThenInclude(o => o.Accommodation).ThenInclude(a => a!.AccommodationZone)
+            .Include(r => r.Occupants).ThenInclude(o => o.Registration)
+            .Include(r => r.AccommodationBuilding)
+            .Where(r => r.EditionId == editionId)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> IsRegistrationAlreadyBookedAsync(Guid editionId, Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.AccommodationReservationOccupants
