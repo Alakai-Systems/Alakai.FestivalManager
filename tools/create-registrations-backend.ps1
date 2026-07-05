@@ -1,18 +1,16 @@
 # ============================================================================
-# patch-accommodation-grid-report.ps1
-# Replaces GenerateAccommodationGridReportAsync in ReportService.cs with the
-# new "floor plan" layout (one sheet per building, zones as banners, unit
-# blocks in a 4-per-row grid, all slots bordered, responsible in gray,
-# booking-group number column).
+# patch-userpanel-module-icon-colors.ps1
+# Gives the module cards (Accommodation / Bus / Meals) their own icon colors,
+# distinct from the first row (purple/yellow/green/light-blue):
+#   Accommodation -> indigo, Bus -> pink, Meals -> blue
 #
-# Run from the solution root (the folder containing
-# Alakai.FestivalManager.Application). All-or-nothing: if any marker is not
-# found exactly once, NOTHING is saved.
+# REQUIRES patch-userpanel-module-cards-v2.ps1 to have been applied first.
+# Run from the solution root. All-or-nothing.
 # ============================================================================
 
 $ErrorActionPreference = 'Stop'
 
-$path = 'Alakai.FestivalManager.Application\Features\Reports\Services\ReportService.cs'
+$path = 'Alakai.FestivalManager.Admin\Components\Pages\UserPanelDashboard\UserPanel.razor'
 
 if (-not (Test-Path $path)) {
     Write-Host "ERROR: File not found: $path" -ForegroundColor Red
@@ -20,230 +18,70 @@ if (-not (Test-Path $path)) {
     exit 1
 }
 
-# Read and normalize line endings before matching
 $content = [System.IO.File]::ReadAllText($path)
 $content = $content -replace "`r`n", "`n"
 
-$startMarker = '    public async Task<byte[]> GenerateAccommodationGridReportAsync(Guid editionId, CancellationToken cancellationToken = default)'
-$endMarker   = '    public async Task<byte[]> GenerateBusesReportAsync'
+$failures = @()
 
-# --- Verification (all-or-nothing) ---
-$startCount = ([regex]::Matches($content, [regex]::Escape($startMarker))).Count
-$endCount   = ([regex]::Matches($content, [regex]::Escape($endMarker))).Count
-
-if ($startCount -ne 1) {
-    Write-Host "ABORTED: start marker found $startCount times (expected 1). Nothing was saved." -ForegroundColor Red
-    exit 1
-}
-if ($endCount -ne 1) {
-    Write-Host "ABORTED: end marker found $endCount times (expected 1). Nothing was saved." -ForegroundColor Red
-    exit 1
-}
-
-$startIndex = $content.IndexOf($startMarker)
-$endIndex   = $content.IndexOf($endMarker)
-
-if ($startIndex -ge $endIndex) {
-    Write-Host "ABORTED: markers are in unexpected order. Nothing was saved." -ForegroundColor Red
-    exit 1
-}
-
-# --- New method (literal here-string: no PowerShell expansion happens here) ---
-$newMethod = @'
-    public async Task<byte[]> GenerateAccommodationGridReportAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<AccommodationBuilding> buildings = await _accommodationBuildingRepository.GetByEditionIdAsync(editionId, cancellationToken);
-        IReadOnlyList<AccommodationReservation> reservations = await _accommodationReservationRepository.GetByEditionIdAsync(editionId, cancellationToken);
-
-        // Sequential booking number per edition (orders occupants of the same booking together,
-        // same concept as the reservation number column in the legacy sheet).
-        Dictionary<Guid, int> bookingNumbers = reservations
-            .OrderBy(r => r.CreatedAt)
-            .Select((r, index) => (r.Id, Number: index + 1))
-            .ToDictionary(t => t.Id, t => t.Number);
-
-        Dictionary<Guid, List<(AccommodationReservationOccupant Occupant, int BookingNumber)>> occupantsByUnit = reservations
-            .SelectMany(r => r.Occupants.Select(o => (Occupant: o, BookingNumber: bookingNumbers[r.Id])))
-            .Where(t => t.Occupant.AccommodationId.HasValue)
-            .GroupBy(t => t.Occupant.AccommodationId!.Value)
-            .ToDictionary(
-                g => g.Key,
-                g => g.OrderBy(t => t.BookingNumber)
-                      .ThenByDescending(t => t.Occupant.IsResponsible)
-                      .ThenBy(t => t.Occupant.Registration is not null ? $"{t.Occupant.Registration.FirstName} {t.Occupant.Registration.LastName}" : t.Occupant.Email, StringComparer.OrdinalIgnoreCase)
-                      .ToList());
-
-        // Layout constants: 4 unit blocks per band, each block = 2 columns (Name | Booking #),
-        // with a 1-column spacer between blocks.
-        const int BlocksPerBand = 4;
-        const int ColumnsPerBlock = 2;
-        const int SpacerColumns = 1;
-        const int TotalColumns = BlocksPerBand * ColumnsPerBlock + (BlocksPerBand - 1) * SpacerColumns;
-
-        XLColor buildingFill = XLColor.FromArgb(55, 65, 81);    // dark gray
-        XLColor zoneFill = XLColor.FromArgb(156, 163, 175);     // medium gray
-        XLColor unitHeaderFill = XLColor.FromArgb(107, 114, 128);
-        XLColor responsibleFill = XLColor.FromArgb(209, 213, 219); // light gray
-        XLColor borderColor = XLColor.FromArgb(107, 114, 128);
-
-        using XLWorkbook workbook = new();
-        HashSet<string> usedSheetNames = [];
-
-        foreach (AccommodationBuilding building in buildings.OrderBy(b => b.SortOrder))
-        {
-            List<AccommodationZone> zonesWithUnits = building.Zones
-                .OrderBy(z => z.SortOrder)
-                .Where(z => z.Accommodations.Any(a => a.Capacity > 0))
-                .ToList();
-
-            if (zonesWithUnits.Count == 0)
-            {
-                continue;
-            }
-
-            string sheetName = MakeUniqueSheetName(building.Name, usedSheetNames);
-            IXLWorksheet ws = workbook.Worksheets.Add(sheetName);
-            ws.ShowGridLines = false;
-
-            // Building title.
-            IXLRange titleRange = ws.Range(1, 1, 1, TotalColumns).Merge();
-            titleRange.Value = building.IsLocked ? $"{building.Name}  (Locked)" : building.Name;
-            titleRange.Style.Font.Bold = true;
-            titleRange.Style.Font.FontSize = 14;
-            titleRange.Style.Font.FontColor = XLColor.White;
-            titleRange.Style.Fill.BackgroundColor = buildingFill;
-            titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-            ws.Row(1).Height = 24;
-
-            // Legend.
-            IXLRange legendRange = ws.Range(2, 1, 2, TotalColumns).Merge();
-            legendRange.Value = "Gray row = booking responsible   ·   # = booking group";
-            legendRange.Style.Font.Italic = true;
-            legendRange.Style.Font.FontSize = 9;
-            legendRange.Style.Font.FontColor = XLColor.FromArgb(107, 114, 128);
-
-            int row = 4;
-
-            foreach (AccommodationZone zone in zonesWithUnits)
-            {
-                // Zone header.
-                IXLRange zoneRange = ws.Range(row, 1, row, TotalColumns).Merge();
-                zoneRange.Value = zone.Name;
-                zoneRange.Style.Font.Bold = true;
-                zoneRange.Style.Fill.BackgroundColor = zoneFill;
-                zoneRange.Style.Font.FontColor = XLColor.White;
-                ws.Row(row).Height = 20;
-                row += 2;
-
-                List<Accommodation> zoneUnits = zone.Accommodations
-                    .Where(a => a.Capacity > 0)
-                    .OrderBy(a => NaturalSortKey(a.Name)).ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
-                    .ToList();
-
-                for (int chunkStart = 0; chunkStart < zoneUnits.Count; chunkStart += BlocksPerBand)
-                {
-                    List<Accommodation> band = zoneUnits.Skip(chunkStart).Take(BlocksPerBand).ToList();
-                    int bandHeight = 0;
-
-                    for (int blockIndex = 0; blockIndex < band.Count; blockIndex++)
-                    {
-                        Accommodation unit = band[blockIndex];
-                        int startCol = 1 + blockIndex * (ColumnsPerBlock + SpacerColumns);
-
-                        List<(AccommodationReservationOccupant Occupant, int BookingNumber)> occupants =
-                            occupantsByUnit.TryGetValue(unit.Id, out List<(AccommodationReservationOccupant, int)>? list) ? list : [];
-
-                        // Draw all capacity slots (occupied or empty); extend if overbooked so no one is lost.
-                        int slotCount = Math.Max(unit.Capacity, occupants.Count);
-                        bandHeight = Math.Max(bandHeight, slotCount);
-
-                        // Unit header.
-                        IXLRange unitHeader = ws.Range(row, startCol, row, startCol + ColumnsPerBlock - 1).Merge();
-                        unitHeader.Value = $"{unit.Name}  ({unit.Capacity})";
-                        unitHeader.Style.Font.Bold = true;
-                        unitHeader.Style.Font.FontColor = XLColor.White;
-                        unitHeader.Style.Fill.BackgroundColor = unitHeaderFill;
-                        unitHeader.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                        unitHeader.Style.Border.OutsideBorderColor = borderColor;
-
-                        for (int slot = 0; slot < slotCount; slot++)
-                        {
-                            IXLCell nameCell = ws.Cell(row + 1 + slot, startCol);
-                            IXLCell bookingCell = ws.Cell(row + 1 + slot, startCol + 1);
-
-                            if (slot < occupants.Count)
-                            {
-                                (AccommodationReservationOccupant occupant, int bookingNumber) = occupants[slot];
-                                nameCell.Value = occupant.Registration is not null
-                                    ? $"{occupant.Registration.FirstName} {occupant.Registration.LastName}"
-                                    : occupant.Email;
-                                bookingCell.Value = $"#{bookingNumber}";
-                                bookingCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
-                                bookingCell.Style.Font.FontSize = 9;
-                                bookingCell.Style.Font.FontColor = XLColor.FromArgb(107, 114, 128);
-
-                                if (occupant.IsResponsible)
-                                {
-                                    nameCell.Style.Font.Bold = true;
-                                    nameCell.Style.Fill.BackgroundColor = responsibleFill;
-                                    bookingCell.Style.Fill.BackgroundColor = responsibleFill;
-                                }
-                            }
-
-                            IXLRange slotRange = ws.Range(row + 1 + slot, startCol, row + 1 + slot, startCol + 1);
-                            slotRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
-                            slotRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
-                            slotRange.Style.Border.OutsideBorderColor = borderColor;
-                            slotRange.Style.Border.InsideBorderColor = borderColor;
-                        }
-                    }
-
-                    // Header row + slot rows + one blank spacer row after the band.
-                    row += 1 + bandHeight + 1;
-                }
-
-                // Extra blank row between zones.
-                row += 1;
-            }
-
-            // Fixed column widths (AdjustToContents would collapse the spacer columns).
-            for (int blockIndex = 0; blockIndex < BlocksPerBand; blockIndex++)
-            {
-                int startCol = 1 + blockIndex * (ColumnsPerBlock + SpacerColumns);
-                ws.Column(startCol).Width = 28;
-                ws.Column(startCol + 1).Width = 7;
-
-                if (blockIndex < BlocksPerBand - 1)
-                {
-                    ws.Column(startCol + 2).Width = 2;
-                }
-            }
-
-            ws.SheetView.FreezeRows(2);
-        }
-
-        if (workbook.Worksheets.Count == 0)
-        {
-            workbook.Worksheets.Add("No data");
-        }
-
-        using MemoryStream stream = new();
-        workbook.SaveAs(stream);
-        return stream.ToArray();
-    }
+# ---------- Patch 1 ----------
+$old1 = @'
+<div class="flex items-center justify-center w-12 h-12 rounded bg-purple/10 text-purple shrink-0">
+                            <i class="ri-hotel-bed-line text-2xl"></i>
 '@
 
-# Normalize the replacement to LF as well (here-strings carry the script's own EOLs)
-$newMethod = $newMethod -replace "`r`n", "`n"
-if (-not $newMethod.EndsWith("`n")) { $newMethod += "`n" }
-$newMethod += "`n"
+$new1 = @'
+<div class="flex items-center justify-center w-12 h-12 rounded bg-indigo-400/20 text-indigo-500 shrink-0">
+                            <i class="ri-hotel-bed-line text-2xl"></i>
+'@
 
-# --- Splice ---
-$patched = $content.Substring(0, $startIndex) + $newMethod + $content.Substring($endIndex)
+$old1 = $old1 -replace "`r`n", "`n"
+$new1 = $new1 -replace "`r`n", "`n"
+$c1 = ([regex]::Matches($content, [regex]::Escape($old1))).Count
+if ($c1 -ne 1) { $failures += "Patch 1 target found $c1 times (expected 1). Did you run patch-userpanel-module-cards-v2.ps1 first?" }
 
-# Restore CRLF and save (UTF-8 without BOM)
-$patched = $patched -replace "`n", "`r`n"
-[System.IO.File]::WriteAllText($path, $patched, (New-Object System.Text.UTF8Encoding($false)))
+# ---------- Patch 2 ----------
+$old2 = @'
+<div class="flex items-center justify-center w-12 h-12 rounded bg-warning/10 text-warning shrink-0">
+                            <i class="ri-bus-2-line text-2xl"></i>
+'@
 
-Write-Host "OK: GenerateAccommodationGridReportAsync replaced successfully in $path" -ForegroundColor Green
+$new2 = @'
+<div class="flex items-center justify-center w-12 h-12 rounded bg-pink-500/10 text-pink-500 shrink-0">
+                            <i class="ri-bus-2-line text-2xl"></i>
+'@
+
+$old2 = $old2 -replace "`r`n", "`n"
+$new2 = $new2 -replace "`r`n", "`n"
+$c2 = ([regex]::Matches($content, [regex]::Escape($old2))).Count
+if ($c2 -ne 1) { $failures += "Patch 2 target found $c2 times (expected 1). Did you run patch-userpanel-module-cards-v2.ps1 first?" }
+
+# ---------- Patch 3 ----------
+$old3 = @'
+<div class="flex items-center justify-center w-12 h-12 rounded bg-success/10 text-success shrink-0">
+                            <i class="ri-restaurant-line text-2xl"></i>
+'@
+
+$new3 = @'
+<div class="flex items-center justify-center w-12 h-12 rounded bg-blue-500/10 text-blue-500 shrink-0">
+                            <i class="ri-restaurant-line text-2xl"></i>
+'@
+
+$old3 = $old3 -replace "`r`n", "`n"
+$new3 = $new3 -replace "`r`n", "`n"
+$c3 = ([regex]::Matches($content, [regex]::Escape($old3))).Count
+if ($c3 -ne 1) { $failures += "Patch 3 target found $c3 times (expected 1). Did you run patch-userpanel-module-cards-v2.ps1 first?" }
+
+if ($failures.Count -gt 0) {
+    Write-Host "ABORTED. Nothing was saved. Problems found:" -ForegroundColor Red
+    $failures | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
+    exit 1
+}
+
+$content = $content.Replace($old1, $new1)
+$content = $content.Replace($old2, $new2)
+$content = $content.Replace($old3, $new3)
+
+[System.IO.File]::WriteAllText($path, $content, (New-Object System.Text.UTF8Encoding($false)))
+
+Write-Host "OK: module card icon colors updated (indigo / pink / blue)." -ForegroundColor Green
 Write-Host "Now rebuild: dotnet build" -ForegroundColor Cyan

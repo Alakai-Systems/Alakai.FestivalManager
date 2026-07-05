@@ -20,6 +20,7 @@
 @inject MealPreferenceApiClient MealPreferenceApiClient
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
+@inject IJSRuntime JsRuntime
 
 <PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
 
@@ -47,52 +48,142 @@
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div class="card shadow-sm">
             <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded bg-purple/10 text-purple">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-purple/10 text-purple shrink-0">
                     <i class="ri-user-line text-2xl"></i>
                 </div>
-                <div>
+                <div class="overflow-hidden">
                     <MudText Class="text-muted dark:text-darkmuted">Registration</MudText>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@RegistrationStatus</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                        @RegistrationStatus
+                        @if (!string.IsNullOrWhiteSpace(RegistrationCardSuffix))
+                        {
+                            <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @RegistrationCardSuffix</span>
+                        }
+                    </MudText>
                 </div>
             </div>
         </div>
 
         <div class="card shadow-sm">
             <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded bg-warning/10 text-warning">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-warning/10 text-warning shrink-0">
                     <i class="ri-bank-card-line text-2xl"></i>
                 </div>
-                <div>
+                <div class="overflow-hidden">
                     <MudText Class="text-muted dark:text-darkmuted">Payment</MudText>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@PaymentStatus</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                        @PaymentStatus
+                        @if (!string.IsNullOrWhiteSpace(PaymentCardSuffix))
+                        {
+                            <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @PaymentCardSuffix</span>
+                        }
+                    </MudText>
                 </div>
             </div>
         </div>
 
         <div class="card shadow-sm">
             <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded bg-success/10 text-success">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-success/10 text-success shrink-0">
                     <i class="ri-trophy-line text-2xl"></i>
                 </div>
-                <div>
+                <div class="overflow-hidden">
                     <MudText Class="text-muted dark:text-darkmuted">Competitions</MudText>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Competitions.Count</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                        @Competitions.Count
+                        @if (!string.IsNullOrWhiteSpace(CompetitionsCardSuffix))
+                        {
+                            <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @CompetitionsCardSuffix</span>
+                        }
+                    </MudText>
                 </div>
             </div>
         </div>
 
         <div class="card shadow-sm">
             <div class="flex items-center gap-4">
-                <div class="flex items-center justify-center w-12 h-12 rounded bg-info/10 text-info">
+                <div class="flex items-center justify-center w-12 h-12 rounded bg-info/10 text-info shrink-0">
                     <i class="ri-file-list-3-line text-2xl"></i>
                 </div>
-                <div>
+                <div class="overflow-hidden">
                     <MudText Class="text-muted dark:text-darkmuted">Invoices</MudText>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Invoices.Count</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                        @Invoices.Count
+                        @if (!string.IsNullOrWhiteSpace(InvoicesCardSuffix))
+                        {
+                            <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @InvoicesCardSuffix</span>
+                        }
+                    </MudText>
                 </div>
             </div>
         </div>
     </div>
+
+    @if (HasAccommodationModule || HasTransportModule || HasMealsModule)
+    {
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            @if (HasAccommodationModule)
+            {
+                <div class="card shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded bg-success-400/20 text-success-500 shrink-0">
+                            <i class="ri-hotel-bed-line text-2xl"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <MudText Class="text-muted dark:text-darkmuted">Accommodation</MudText>
+                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                                @AccommodationSummary
+                                @if (!string.IsNullOrWhiteSpace(AccommodationCardSuffix))
+                                {
+                                    <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @AccommodationCardSuffix</span>
+                                }
+                            </MudText>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (HasTransportModule)
+            {
+                <div class="card shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded bg-pink-500/10 text-pink-500 shrink-0">
+                            <i class="ri-bus-2-line text-2xl"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <MudText Class="text-muted dark:text-darkmuted">Bus</MudText>
+                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                                @BusSummary
+                                @if (!string.IsNullOrWhiteSpace(BusCardSuffix))
+                                {
+                                    <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @BusCardSuffix</span>
+                                }
+                            </MudText>
+                        </div>
+                    </div>
+                </div>
+            }
+            @if (HasMealsModule)
+            {
+                <div class="card shadow-sm">
+                    <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center w-12 h-12 rounded bg-blue-500/10 text-blue-500 shrink-0">
+                            <i class="ri-restaurant-line text-2xl"></i>
+                        </div>
+                        <div class="overflow-hidden">
+                            <MudText Class="text-muted dark:text-darkmuted">Meals</MudText>
+                            <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
+                                @MealSummary
+                                @if (!string.IsNullOrWhiteSpace(MealCardSuffix))
+                                {
+                                    <span class="ml-1 text-xs font-normal text-muted dark:text-darkmuted">&middot; @MealCardSuffix</span>
+                                }
+                            </MudText>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    }
 
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="card shadow-sm">
@@ -999,6 +1090,16 @@
     </div>
 }
 <!-- End All Card -->
+
+<script>
+    window.scrollToSectionSmooth = (sectionId) => {
+        const el = document.getElementById(sectionId);
+        if (el) {
+            el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    };
+</script>
+
 @code {
     // ==================== Meals ====================
     private const int MealsModuleFlag = 8;
@@ -1052,6 +1153,7 @@
 
             if (preference is not null && preference.HasPreference)
             {
+                HasMealPreferenceSet = true;
                 MealMenuType = preference.MenuType;
                 MealIsCeliac = preference.IsCeliacOrGlutenIntolerant;
                 MealAllergiesNotes = preference.AllergiesNotes;
@@ -1087,6 +1189,7 @@
             };
 
             await MealPreferenceApiClient.SaveAsync(request);
+            HasMealPreferenceSet = true;
             ShowMealSuccess("Meal preference saved successfully.");
         }
         catch (ApiClientException ex)
@@ -1663,6 +1766,126 @@
     private IReadOnlyList<CompetitionEntryDto> Competitions => Dashboard?.Competitions ?? [];
     private IReadOnlyList<UserPanelInvoiceDto> Invoices => Dashboard?.Invoices ?? [];
     private IReadOnlyList<CompetitionDto> AvailableCompetitions => Dashboard?.AvailableCompetitions ?? [];
+
+    // ==================== Dashboard summary cards ====================
+    private string? RegistrationCardSuffix => PassTypeName == "-" ? null : PassTypeName;
+
+    private string? PaymentCardSuffix => FinalPrice > 0 ? $"{FinalPrice:0.00} €" : null;
+
+    private string? CompetitionsCardSuffix
+    {
+        get
+        {
+            List<string> names = Competitions
+                .Select(c => GetCompetitionName(c.CompetitionId))
+                .Where(n => !string.IsNullOrWhiteSpace(n) && n != "-")
+                .Distinct()
+                .ToList();
+
+            return names.Count == 0 ? null : string.Join(", ", names);
+        }
+    }
+
+    private string? InvoicesCardSuffix
+    {
+        get
+        {
+            UserPanelInvoiceDto? latest = Invoices.OrderByDescending(i => i.Date).FirstOrDefault();
+
+            return latest is null ? null : $"Last invoice {latest.Amount:0.00} €";
+        }
+    }
+
+    private string AccommodationSummary
+    {
+        get
+        {
+            if (IsLoadingAccommodation)
+            {
+                return "...";
+            }
+
+            if (ExistingReservation is null)
+            {
+                return "Not booked";
+            }
+
+            return ExistingReservation.BuildingName ?? "Booked";
+        }
+    }
+
+    private string? AccommodationCardSuffix
+    {
+        get
+        {
+            if (ExistingReservation is null)
+            {
+                return null;
+            }
+
+            int people = ExistingReservation.Occupants.Count;
+
+            return people == 1 ? "1 person" : $"{people} people";
+        }
+    }
+
+    private string BusSummary
+    {
+        get
+        {
+            if (IsLoadingBuses)
+            {
+                return "...";
+            }
+
+            if (BusReservations.Count == 0)
+            {
+                return "Not booked";
+            }
+
+            return string.Join(" + ", BusReservations.OrderBy(r => r.Direction).Select(r => GetDirectionLabel(r.Direction)));
+        }
+    }
+
+    private string? BusCardSuffix
+    {
+        get
+        {
+            if (BusReservations.Count == 0)
+            {
+                return null;
+            }
+
+            return string.Join(" / ", BusReservations.OrderBy(r => r.Direction).Select(r => r.DepartureTime.ToString("HH:mm")));
+        }
+    }
+
+    private bool HasMealPreferenceSet { get; set; }
+
+    private string MealSummary
+    {
+        get
+        {
+            if (IsLoadingMeal)
+            {
+                return "...";
+            }
+
+            if (!HasMealPreferenceSet)
+            {
+                return "Not set";
+            }
+
+            return MealMenuType == 2 ? "Vegetarian Menu" : "Standard Menu";
+        }
+    }
+
+    private string? MealCardSuffix => HasMealPreferenceSet && MealIsCeliac ? "Celiac" : null;
+
+    private async Task ScrollToSectionAsync(string sectionId)
+    {
+        await JsRuntime.InvokeVoidAsync("scrollToSectionSmooth", sectionId);
+    }
 
     private bool ShowInvoiceModal { get; set; }
     private bool IsCreatingInvoice { get; set; }
