@@ -4,6 +4,7 @@ global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Extensions;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.ExternalLogin;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.Login;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.Logout;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;

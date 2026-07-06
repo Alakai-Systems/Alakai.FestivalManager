@@ -27,6 +27,20 @@ public class AuthController : ControllerBase
         return Ok(response);
     }
 
+    [HttpPost("external-login")]
+    public async Task<ActionResult<ApiResponse<LoginResponse>>> ExternalLogin([FromBody] ExternalLoginRequest request, CancellationToken cancellationToken)
+    {
+        ExternalLoginCommand command = _mapper.Map<ExternalLoginCommand>(request);
+        ApiResponse<LoginResponse> response = await _authService.ExternalLoginAsync(command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return Unauthorized(response);
+        }
+
+        return Ok(response);
+    }
+
     [HttpPost("refresh-token")]
     public async Task<ActionResult<ApiResponse<RefreshTokenResponse>>> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken cancellationToken)
     {

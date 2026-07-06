@@ -42,6 +42,36 @@ public class AuthApiClient : IAuthApiClient
         return response.Data;
     }
 
+    public async Task<LoginResponse?> ExternalLoginAsync(ExternalLoginRequest request)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/auth/external-login", request);
+
+        ApiResponse<LoginResponse>? response = null;
+
+        try
+        {
+            response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<LoginResponse>>();
+        }
+        catch
+        {
+            // Non-JSON error payload; handled below.
+        }
+
+        if (response is null)
+        {
+            throw new Exception("External sign-in failed.");
+        }
+
+        if (!response.Success || response.Data is null)
+        {
+            string message = response.Errors is { Count: > 0 } ? response.Errors[0] : response.Message;
+
+            throw new Exception(string.IsNullOrWhiteSpace(message) ? "External sign-in failed." : message);
+        }
+
+        return response.Data;
+    }
+
     public async Task<string?> ForgotPasswordAsync(string email, CancellationToken cancellationToken = default)
     {
         object request = new

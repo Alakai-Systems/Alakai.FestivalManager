@@ -16,12 +16,13 @@ public class AuthService : IAuthService
     private readonly IValidator<ForgotPasswordCommand> _forgotPasswordValidator;
     private readonly IValidator<ResetPasswordCommand> _resetPasswordValidator;
     private readonly IValidator<ChangePasswordCommand> _changePasswordValidator;
+    private readonly IExternalAuthService _externalAuthService;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(IAuthRepository authRepository, IPasswordService passwordService, IJwtService jwtService, IMapper mapper, 
         IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator,
         IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator, IUserRepository userRepository, 
-        IEmailNotificationService emailNotificationService, ILogger<AuthService> logger)
+        IEmailNotificationService emailNotificationService, IExternalAuthService externalAuthService, ILogger<AuthService> logger)
     {
         _authRepository = authRepository;
         _passwordService = passwordService;
@@ -34,6 +35,7 @@ public class AuthService : IAuthService
         _changePasswordValidator = changePasswordValidator;
         _userRepository = userRepository;
         _emailNotificationService = emailNotificationService;
+        _externalAuthService = externalAuthService;
         _logger = logger;
     }
 
@@ -120,6 +122,49 @@ public class AuthService : IAuthService
         };
 
         return apiResponseSuccess;
+    }
+
+    public async Task<ApiResponse<LoginResponse>> ExternalLoginAsync(ExternalLoginCommand command, CancellationToken cancellationToken = default)
+    {
+        ExternalUserInfo? externalUser = await _externalAuthService.ValidateTokenAsync(command.Provider, command.Token, cancellationToken);
+
+        if (externalUser is null || string.IsNullOrWhiteSpace(externalUser.Email))
+        {
+            return new ApiResponse<LoginResponse> { Success = false, Data = null, Errors = ["External sign-in could not be validated."], Message = "Login failed" };
+        }
+
+        if (!externalUser.EmailVerified)
+        {
+            return new ApiResponse<LoginResponse> { Success = false, Data = null, Errors = ["The email of this external account is not verified."], Message = "Login failed" };
+        }
+
+        string normalizedEmail = externalUser.Email.Trim().ToLowerInvariant();
+        User? user = await _authRepository.GetUserByEmailAsync(normalizedEmail, cancellationToken);
+
+        if (user is null || !user.IsActive)
+        {
+            return new ApiResponse<LoginResponse> { Success = false, Data = null, Errors = ["No account exists for this email. Your account is created automatically when you register for the festival."], Message = "Login failed" };
+        }
+
+        if (user.IsLocked && user.LockoutEndAt.HasValue && user.LockoutEndAt.Value > DateTime.UtcNow)
+        {
+            return new ApiResponse<LoginResponse> { Success = false, Data = null, Errors = ["User is temporarily locked."], Message = "Login failed" };
+        }
+
+        user.FailedLoginAttempts = 0;
+        user.IsLocked = false;
+        user.LockoutEndAt = null;
+        user.LastLoginAt = DateTime.UtcNow;
+
+        RefreshToken refreshToken = _jwtService.GenerateRefreshToken(user);
+        await _authRepository.AddRefreshTokenAsync(refreshToken, cancellationToken);
+        await _authRepository.SaveChangesAsync(cancellationToken);
+
+        AuthResultDto authResult = CreateAuthResult(user, refreshToken.Token);
+
+        _logger.LogInformation("External login via {Provider} for {Email}.", externalUser.Provider, normalizedEmail);
+
+        return new ApiResponse<LoginResponse> { Success = true, Data = new LoginResponse { Auth = authResult }, Errors = [], Message = "Login successful" };
     }
 
     public async Task<ApiResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default)

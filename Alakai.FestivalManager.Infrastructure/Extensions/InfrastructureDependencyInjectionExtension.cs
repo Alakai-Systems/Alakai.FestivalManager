@@ -42,6 +42,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IInvoiceSettingsRepository, InvoiceSettingsRepository>();
         services.AddScoped<IInvoiceTemplateRepository, InvoiceTemplateRepository>();
         services.AddScoped<IInvoicePdfService, QuestPdfInvoiceService>();
+        services.Configure<ExternalAuthOptions>(configuration.GetSection("ExternalAuth"));
+        services.AddSingleton<IExternalAuthService, ExternalAuthService>();
         services.Configure<EmailOptions>(configuration.GetSection("Email"));
         services.AddScoped<IEmailSender, MailKitEmailSender>();
 
