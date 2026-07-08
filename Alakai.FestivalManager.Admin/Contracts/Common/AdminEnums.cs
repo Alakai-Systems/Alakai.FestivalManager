@@ -18,10 +18,9 @@ public enum CompetitionFormat
 
 public enum CompetitionEntryStatus
 {
-    Registered = 1,
-    Confirmed = 2,
-    WaitingPartner = 3,
-    Cancelled = 4
+    Confirmed = 1,
+    WaitingPartner = 2,
+    Cancelled = 3
 }
 
 public enum EmailTemplateKey
@@ -70,11 +69,12 @@ public enum RegistrationStatus
 
 public enum PaymentStatus
 {
-    Pending = 1,
-    Unpaid = 2,
+    Unpaid = 1,
+    Pending = 2,
     Paid = 3,
     Failed = 4,
-    Refunded = 5
+    Refunded = 5,
+    PartiallyPaid = 6
 }
 
 public enum DiscountActivationType
@@ -106,4 +106,11 @@ public enum FestivalModule
     Accommodation = 2,
     Transport = 4,
     Meals = 8
+}
+
+public enum PaymentPlan
+{
+    FullOnline = 1,
+    SplitFiftyFifty = 2,
+    DeferredTenDays = 3
 }

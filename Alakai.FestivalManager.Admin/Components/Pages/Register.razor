@@ -1,0 +1,718 @@
+@page "/register/{Slug}"
+@layout AuthLayout
+@using Alakai.FestivalManager.Admin.Components.Layout
+@using Alakai.FestivalManager.Admin.Services.Api
+@using Alakai.FestivalManager.Admin.Contracts.Registrations.Requests
+@using Alakai.FestivalManager.Admin.Contracts.Payments.Requests
+@using Alakai.FestivalManager.Admin.Contracts.Registrations.DTOs
+@inject NavigationManager Navigation
+@inject PublicRegistrationApiClient PublicApi
+@inject IJSRuntime JsRuntime
+@inject PaymentApiClient PaymentApiClient
+<!-- Main wrapper -->
+<div class="min-h-screen bg-slate-100 py-8 px-4">
+    <div style="max-width:680px;margin:0 auto;">
+        @if (IsLoading)
+        {
+            <div class="text-center py-16 text-muted">Loading…</div>
+        }
+        else if (ErrorMessage is not null)
+        {
+            <div class="bg-white rounded-lg border border-black/10 p-8 text-center">
+                <div class="text-danger font-semibold mb-2">Registration unavailable</div>
+                <div class="text-muted text-sm">@ErrorMessage</div>
+            </div>
+        }
+        else if (PaymentSuccess)
+        {
+            <div class="bg-white rounded-lg border border-black/10" style="padding:2.5rem 3rem;text-align:center;">
+                <div class="flex items-center justify-center w-14 h-14 rounded-full bg-success/10 text-success mx-auto">
+                    <i class="ri-check-line text-2xl"></i>
+                </div>
+                <div class="text-xl font-semibold" style="margin-top:1rem;">Payment completed!</div>
+                <div class="text-muted text-sm" style="margin-top:0.5rem;">Your registration is confirmed. Check your email for details.</div>
+                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">Go to login</a>
+            </div>
+        }
+        else if (PaymentFailed)
+        {
+            <div class="bg-white rounded-lg border border-black/10" style="padding:2.5rem 3rem;text-align:center;">
+                <div class="flex items-center justify-center w-14 h-14 rounded-full bg-danger/10 text-danger mx-auto">
+                    <i class="ri-close-line text-2xl"></i>
+                </div>
+                <div class="text-xl font-semibold" style="margin-top:1rem;">Payment failed</div>
+                <div class="text-muted text-sm" style="margin-top:0.5rem;">Your registration was created but the payment was not completed. You can try again from the User Panel.</div>
+                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">Go to login</a>
+            </div>
+        }
+        else if (Submitted)
+        {
+            <div class="bg-white rounded-lg border border-black/10" style="padding:2.5rem 3rem;text-align:center;">
+                <div class="flex items-center justify-center w-14 h-14 rounded-full bg-success/10 text-success mx-auto">
+                    <i class="ri-check-line text-2xl"></i>
+                </div>
+                <div class="text-xl font-semibold" style="margin-top:1rem;">Registration submitted!</div>
+                <div class="text-muted text-sm" style="margin-top:0.5rem;">Check your email for confirmation. You have 10 days to complete your payment from the User Panel.</div>
+                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">Go to login</a>
+            </div>
+        }
+        else
+        {
+            <!-- Festival header -->
+            <div class="mb-6 text-center">
+                <div class="text-2xl font-bold text-black">@Availability?.EditionName</div>
+            </div>
+            <div class="bg-white rounded-lg border border-black/10" style="padding:2.5rem 3rem;">
+                <!-- STEP 1: Pass -->
+                <div style="margin-bottom:1.5rem;">
+                    <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Select your pass</label>
+                    <select class="form-select" @bind="SelectedPassTypeId" @bind:after="OnPassTypeChanged">
+                        <option value="">-</option>
+                        @if (HasAccommodation)
+                        {
+                            @foreach (var group in PassesByBuilding)
+                            {
+                                if (group.Key is null)
+                                {
+                                    @foreach (var p in group.Value)
+                                    {
+                                        <option value="@p.Id">@p.Name</option>
+                                    }
+                                }
+                                else
+                                {
+                                    <optgroup label="@group.Key">
+                                        @foreach (var p in group.Value)
+                                        {
+                                            <option value="@p.Id">@p.Name</option>
+                                        }
+                                    </optgroup>
+                                }
+                            }
+                        }
+                        else
+                        {
+                            @foreach (var p in Availability?.PassTypes ?? [])
+                            {
+                                <option value="@p.Id">@p.Name</option>
+                            }
+                        }
+                    </select>
+                    @if (HasAccommodation && SelectedPass is not null && !string.IsNullOrEmpty(SelectedPass.BuildingName))
+                    {
+                        <div class="mt-1 text-xs" style="color:#6366f1;">Alojamiento: @SelectedPass.BuildingName</div>
+                    }
+                </div>
+                @if (SelectedPass is not null)
+                {
+                    <!-- STEP 2a: Multi-level (single parties) -->
+                    @if (SelectedPass.AllowsMultipleLevels && SelectedPass.Levels.Count > 1)
+                    {
+                        <div style="margin-bottom:1.5rem;">
+                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.75rem;">Choose your party/ies</label>
+                            <div class="space-y-2">
+                                @foreach (var lvl in SelectedPass.Levels)
+                                {
+                                    <label class="flex items-center gap-3 cursor-pointer @(lvl.IsFull ? "opacity-50" : "")">
+                                        <input type="checkbox" class="form-checkbox"
+                                               disabled="@lvl.IsFull"
+                                               checked="@SelectedLevelIds.Contains(lvl.Id)"
+                                               @onchange="e => OnPartyLevelToggled(lvl.Id, (bool)e.Value!)" />
+                                        <span>@lvl.Name @(lvl.IsFull ? " – Full" : "")</span>
+                                        @if (SelectedLevelIds.Contains(lvl.Id))
+                                        {
+                                            <span class="text-muted text-xs">@lvl.Price.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€</span>
+                                        }
+                                    </label>
+                                }
+                            </div>
+                            @if (SelectedPass.AllLevelsDiscountPercent.HasValue && SelectedLevelIds.Count == SelectedPass.Levels.Count(l => !l.IsFull) && SelectedLevelIds.Count > 0)
+                            {
+                                <div class="mt-2 text-success text-sm">✓ @SelectedPass.AllLevelsDiscountPercent.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)% discount applied for selecting all parties</div>
+                            }
+                        </div>
+                    }
+                    <!-- STEP 2b: Single level (auto-selected) or level picker -->
+                    else if (SelectedPass.Levels.Count == 1)
+                    {
+                        <!-- Auto-selected, nothing shown -->
+                    }
+                    else if (SelectedPass.HasLevels)
+                    {
+                        <div style="margin-bottom:1.5rem;">
+                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Select your level</label>
+                            <select class="form-select" @bind="SelectedLevelId" @bind:after="OnLevelChanged">
+                                <option value="">-</option>
+                                @foreach (var lvl in SelectedPass.Levels)
+                                {
+                                    <option value="@lvl.Id" disabled="@lvl.IsFull">@lvl.Name@(lvl.IsFull ? " – Full" : "")</option>
+                                }
+                            </select>
+                        </div>
+                    }
+                    @if (SelectedLevel is not null && SelectedLevel.RequiresRole)
+                    {
+                        <!-- STEP 3: Role -->
+                        <div style="margin-bottom:1.5rem;">
+                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Select your role</label>
+                            <select class="form-select" @bind="SelectedRole" @bind:after="OnRoleChanged">
+                                <option value="">-</option>
+                                <option value="Follower" disabled="@SelectedLevel.FollowerFull">Follower@(SelectedLevel.FollowerFull ? " – Full" : "")</option>
+                                <option value="Leader" disabled="@SelectedLevel.LeaderFull">Leader@(SelectedLevel.LeaderFull ? " – Full" : "")</option>
+                            </select>
+                        </div>
+                        @if (!string.IsNullOrEmpty(SelectedRole))
+                        {
+                            <!-- STEP 4: Partner -->
+                            <div style="margin-bottom:1.5rem;">
+                                <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Are you registering with a partner?</label>
+                                <select class="form-select" @bind="WithPartner" @bind:after="OnWithPartnerChanged">
+                                    <option value="">-</option>
+                                    <option value="yes">Yes</option>
+                                    <option value="no">No</option>
+                                </select>
+                            </div>
+                            @if (WithPartner == "si")
+                            {
+                                <div style="margin-bottom:1.5rem;">
+                                    <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Partner's email</label>
+                                    <input class="form-input" type="email" placeholder="Partner's email"
+                                           @bind="PartnerEmail" @bind:after="() => OnPartnerEmailInput()" />
+                                    @if (PartnerLookupDone)
+                                    {
+                                        @if (PartnerExists)
+                                        {
+                                            <div class="mt-1 text-sm font-medium" style="color:#16a34a;">✓ Your partner is already registered. You will be linked together.</div>
+                                        }
+                                        else
+                                        {
+                                            <div class="mt-1 text-sm font-medium" style="color:#d97706;">Your partner is not registered yet. You can register separately and will be linked once your partner registers.</div>
+                                        }
+                                    }
+                                </div>
+                            }
+                            @if (WithPartner == "no")
+                            {
+                                @if (SoloNotAvailable)
+                                {
+                                    <div class="p-3 rounded bg-warning/10 text-warning text-sm" style="margin-bottom:1.5rem;">
+                                        There are no solo spots available for @SelectedRole at this level. You must register with a partner or choose another level.
+                                    </div>
+                                }
+                            }
+                        }
+                    }
+                    else if (IsPartyPass && SelectedLevelIds.Count > 0)
+                    {
+                        <!-- Party pass with levels selected → no role/partner needed; go to personal data -->
+                    }
+                    else if (SelectedLevel is not null && !SelectedLevel.RequiresRole)
+                    {
+                        <!-- Individual pass: level selected, no role needed -->
+                    }
+                    @if (ShowPersonalData)
+                    {
+                        <!-- STEP 5: Personal data -->
+                        <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:1.5rem;margin-bottom:1.5rem;">
+                            <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">Personal Details</div>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Name</label>
+                                    <input class="form-input" @bind="Form.FirstName" placeholder="Nombre" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Last Names</label>
+                                    <input class="form-input" @bind="Form.LastName" placeholder="Apellidos" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Email</label>
+                                    <input class="form-input" type="email" @bind="Form.Email" placeholder="Email" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Password</label>
+                                    <input class="form-input" type="password" @bind="Form.Password" placeholder="Password" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Phone Number</label>
+                                    <input class="form-input" @bind="Form.Phone" placeholder="Phone Number" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Country</label>
+                                    <select class="form-select" @bind="Form.Country">
+                                        <option value="">-</option>
+                                        @foreach (string country in Countries)
+                                        {
+                                            <option value="@country">@country</option>
+                                        }
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">City</label>
+                                    <input class="form-input" @bind="Form.City" placeholder="City" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Group name</label>
+                                    <input class="form-input" @bind="GroupCode" @bind:after="OnGroupCodeInput" placeholder="Group name / discount code" />
+                                    @if (DiscountInfo is not null)
+                                    {
+                                        @if (DiscountInfo.Applied)
+                                        {
+                                            <div class="mt-1 text-sm font-medium" style="color:#16a34a;">
+                                                ✓ Group discount applied (-@DiscountInfo.DiscountAmount.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€)
+                                            </div>
+                                        }
+                                        else if (DiscountInfo.PendingThreshold)
+                                        {
+                                            <div class="mt-1 text-sm font-medium" style="color:#d97706;">
+                                                The group has not yet reached the minimum number of participants. The discount will be applied automatically once the minimum is reached.
+                                            </div>
+                                        }
+                                        else if (!DiscountInfo.Exists)
+                                        {
+                                            <div class="mt-1 text-muted text-sm">
+                                                Code not found.
+                                            </div>
+                                        }
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                        <!-- STEP 6: Terms -->
+                        <div style="margin-bottom:1.5rem;">
+                            <label class="flex items-center gap-2 cursor-pointer">
+                                <input type="checkbox" class="form-checkbox" @bind="AcceptsTerms" />
+                                <span class="text-sm">I accept the <a href="#" class="text-purple underline">Terms & Conditions</a></span>
+                            </label>
+                        </div>
+                        <!-- STEP 7: Payment plan -->
+                        <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:1.5rem;margin-bottom:1.5rem;">
+                            <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">Selecciona el tipo de pago</div>
+                            <div style="display:flex;flex-direction:column;gap:0.875rem;">
+                                <label class="flex items-start gap-3 cursor-pointer">
+                                    <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="FullOnline"
+                                           checked="@(SelectedPlan == "FullOnline")"
+                                           @onchange="@(e => { SelectedPlan = "FullOnline"; })" />
+                                    <span class="text-sm">Total amount to pay online now</span>
+                                </label>
+                                <label class="flex items-start gap-3 cursor-pointer">
+                                    <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="SplitFiftyFifty"
+                                           checked="@(SelectedPlan == "SplitFiftyFifty")"
+                                           @onchange="@(e => { SelectedPlan = "SplitFiftyFifty"; })" />
+                                    <span class="text-sm">Split payment: pay 50% online now and the remaining 50% in 30 days</span>
+                                </label>
+                                <label class="flex items-start gap-3 cursor-pointer">
+                                    <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="DeferredTenDays"
+                                           checked="@(SelectedPlan == "DeferredTenDays")"
+                                           @onchange="@(e => { SelectedPlan = "DeferredTenDays"; })" />
+                                    <span class="text-sm">Total amount due within 10 days of receiving the confirmation email</span>
+                                </label>
+                            </div>
+                            <!-- Price summary -->
+                            @if (BasePrice > 0)
+                            {
+                                <div style="margin-top:1.25rem;border-radius:0.5rem;background:rgba(0,0,0,0.03);padding:1.25rem;text-align:center;">
+                                    <div class="text-sm text-muted">Price: <span class="font-semibold text-black">@BasePrice.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
+                                    @if (SelectedPlan == "SplitFiftyFifty")
+                                    {
+                                        <div class="text-sm text-muted mt-1">Pagar ahora: <span class="font-semibold text-black">@AmountNow.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
+                                    }
+                                    <div class="text-xs text-muted mt-1">+ @ManagementFee.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€ for management fee (@(SelectedPlan == "SplitFiftyFifty" ? "of the 50%" : "of the total")).</div>
+                                </div>
+                            }
+                        </div>
+                        <!-- Error banner -->
+                        @if (!string.IsNullOrWhiteSpace(SubmitError))
+                        {
+                            <div class="p-3 rounded bg-danger/10 text-danger text-sm">@SubmitError</div>
+                        }
+                        <!-- Submit -->
+                        <button type="button"
+                                style="width:100%;padding:0.875rem;font-size:1rem;font-weight:600;letter-spacing:0.05em;"
+                                class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]"
+                                disabled="@IsSubmitting"
+                                @onclick="SubmitAsync">
+                            @(IsSubmitting ? "Processing…" : "REGISTER NOW")
+                        </button>
+                    }
+                }
+            </div><!-- /card -->
+        }
+    </div>
+</div>
+<script>
+    window.redsysSubmit = window.redsysSubmit || function(url, sv, mp, sig) {
+        const f = document.createElement('form');
+        f.method = 'POST'; f.action = url;
+        [['Ds_SignatureVersion', sv], ['Ds_MerchantParameters', mp], ['Ds_Signature', sig]].forEach(([n, v]) => {
+            const i = document.createElement('input'); i.type = 'hidden'; i.name = n; i.value = v; f.appendChild(i);
+        });
+        document.body.appendChild(f); f.submit();
+    };
+</script>
+@code {
+    [Parameter] public string Slug { get; set; } = string.Empty;
+    // ── State ──────────────────────────────────────────────────────────────
+    private bool IsLoading = true;
+    private bool IsSubmitting;
+    private bool Submitted;
+    private bool PaymentSuccess;
+    private bool PaymentFailed;
+    private string? ErrorMessage;
+    private string? SubmitError;
+    private PublicRegistrationAvailabilityDto? Availability;
+    private bool HasAccommodation;
+    // Grouped passes for the optgroup selector
+    private List<KeyValuePair<string?, List<PublicPassTypeDto>>> PassesByBuilding = [];
+    // Step values
+    private Guid SelectedPassTypeId;
+    private PublicPassTypeDto? SelectedPass;
+    private Guid SelectedLevelId;
+    private List<Guid> SelectedLevelIds = [];
+    private PublicLevelDto? SelectedLevel;
+    private string SelectedRole = string.Empty;
+    private string WithPartner = string.Empty;
+    private string PartnerEmail = string.Empty;
+    private bool PartnerLookupDone;
+    private bool PartnerExists;
+    private bool SoloNotAvailable;
+    private System.Threading.CancellationTokenSource? _partnerCts;
+    private string GroupCode = string.Empty;
+    private PublicDiscountCheckDto? DiscountInfo;
+    private System.Threading.CancellationTokenSource? _discountCts;
+    private bool AcceptsTerms;
+    private string SelectedPlan = "FullOnline";
+
+    private static readonly List<string> Countries =
+    [
+        "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan",
+        "Bahamas","Bahrain","Bangladesh","Belarus","Belgium","Bolivia","Bosnia and Herzegovina","Brazil","Bulgaria",
+        "Cambodia","Canada","Chile","China","Colombia","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic",
+        "Denmark","Dominican Republic","Ecuador","Egypt","El Salvador","Estonia","Ethiopia","Finland","France",
+        "Georgia","Germany","Ghana","Greece","Guatemala","Honduras","Hungary","Iceland","India","Indonesia","Iran",
+        "Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kosovo","Kuwait",
+        "Latvia","Lebanon","Libya","Lithuania","Luxembourg","Malaysia","Malta","Mexico","Moldova","Monaco",
+        "Montenegro","Morocco","Netherlands","New Zealand","Nicaragua","Nigeria","North Macedonia","Norway",
+        "Pakistan","Palestine","Panama","Paraguay","Peru","Philippines","Poland","Portugal","Puerto Rico",
+        "Qatar","Romania","Russia","Saudi Arabia","Senegal","Serbia","Singapore","Slovakia","Slovenia",
+        "South Africa","South Korea","Spain","Sri Lanka","Sweden","Switzerland","Syria","Taiwan","Thailand",
+        "Tunisia","Turkey","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay",
+        "Uzbekistan","Venezuela","Vietnam","Yemen"
+    ];
+    // Computed prices
+    private bool IsPartyPass => SelectedPass?.AllowsMultipleLevels is true;
+    /// <summary>Price before the group discount code is applied (after any all-levels party discount).</summary>
+    private decimal PreDiscountAmount
+    {
+        get
+        {
+            if (IsPartyPass)
+            {
+                decimal sum = SelectedPass!.Levels
+                    .Where(l => SelectedLevelIds.Contains(l.Id))
+                    .Sum(l => l.Price);
+                int activeCount = SelectedPass.Levels.Count(l => !l.IsFull);
+                if (SelectedPass.AllLevelsDiscountPercent.HasValue
+                    && activeCount > 0
+                    && SelectedLevelIds.Count == activeCount)
+                {
+                    sum = sum * (1m - SelectedPass.AllLevelsDiscountPercent.Value / 100m);
+                }
+                return Math.Round(sum, 2, MidpointRounding.AwayFromZero);
+            }
+            return Math.Round(SelectedLevel?.Price ?? 0m, 2, MidpointRounding.AwayFromZero);
+        }
+    }
+    private decimal BasePrice => DiscountInfo?.Applied is true
+        ? DiscountInfo.FinalPrice
+        : PreDiscountAmount;
+    private decimal ManagementFee => Math.Round(AmountNow * 0.01m, 2, MidpointRounding.AwayFromZero);
+    private decimal AmountNow => SelectedPlan switch
+    {
+        "SplitFiftyFifty" => Math.Round(BasePrice * 0.5m, 2, MidpointRounding.AwayFromZero),
+        _ => BasePrice
+    };
+    private bool ShowPersonalData =>
+        (IsPartyPass && SelectedLevelIds.Count > 0) ||
+        (!IsPartyPass && SelectedLevel is not null &&
+            (!SelectedLevel.RequiresRole || (!string.IsNullOrEmpty(SelectedRole) && (WithPartner == "no" && !SoloNotAvailable || WithPartner == "si"))));
+    // ── Lifecycle ──────────────────────────────────────────────────────────
+    private readonly CreateRegistrationRequest Form = new();
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Check for Redsys return
+            string query = new Uri(Navigation.Uri).Query;
+            if (!string.IsNullOrEmpty(query))
+            {
+                string payment = GetQueryParam(query, "payment");
+                if (payment == "ok")
+                {
+                    PaymentSuccess = true;
+                    // Try to update status in background - if fails, webhook will handle it in production
+                    string mp = GetQueryParam(query, "Ds_MerchantParameters").Replace(' ', '+');
+                    if (!string.IsNullOrEmpty(mp))
+                    {
+                        try { await PaymentApiClient.ProcessReturnAsync(mp); } catch { }
+                    }
+                    return;
+                }
+                if (payment == "ko")
+                {
+                    PaymentFailed = true;
+                    return;
+                }
+            }
+            PublicFestivalSlugDto? festivalResponse = await PublicApi.GetFestivalBySlugAsync(Slug);
+            if (festivalResponse?.ActiveEditionId is null)
+            {
+                ErrorMessage = "This festival is not currently open for registration.";
+                return;
+            }
+            Availability = await PublicApi.GetAvailabilityAsync(festivalResponse.ActiveEditionId.Value);
+            if (Availability is null)
+            {
+                ErrorMessage = "Could not load registration information.";
+                return;
+            }
+            Form.EditionId = festivalResponse.ActiveEditionId.Value;
+            HasAccommodation = festivalResponse.HasAccommodation;
+            BuildPassGroups();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+        finally
+        {
+            IsLoading = false;
+        }
+    }
+    private void BuildPassGroups()
+    {
+        if (Availability is null) return;
+        const string NoGroup = "";
+        var dict = new Dictionary<string, List<PublicPassTypeDto>>();
+        foreach (var p in Availability.PassTypes)
+        {
+            string key = p.BuildingName ?? NoGroup;
+            if (!dict.TryGetValue(key, out var list))
+            {
+                list = [];
+                dict[key] = list;
+            }
+            list.Add(p);
+        }
+        PassesByBuilding = dict
+            .OrderBy(kv => kv.Key == NoGroup ? 1 : 0)
+            .ThenBy(kv => kv.Key)
+            .Select(kv => new KeyValuePair<string?, List<PublicPassTypeDto>>(kv.Key == NoGroup ? null : kv.Key, kv.Value))
+            .ToList();
+    }
+    // ── Step handlers ──────────────────────────────────────────────────────
+    private void OnPassTypeChanged()
+    {
+        DiscountInfo = null;
+        SelectedPass = Availability?.PassTypes.FirstOrDefault(p => p.Id == SelectedPassTypeId);
+        SelectedLevelId = Guid.Empty;
+        SelectedLevelIds.Clear();
+        SelectedLevel = null;
+        SelectedRole = string.Empty;
+        WithPartner = string.Empty;
+        PartnerEmail = string.Empty;
+        PartnerLookupDone = false;
+        SoloNotAvailable = false;
+        // Auto-select single level
+        if (SelectedPass?.Levels.Count == 1 && !IsPartyPass)
+        {
+            SelectedLevelId = SelectedPass.Levels[0].Id;
+            SelectedLevel = SelectedPass.Levels[0];
+        }
+    }
+    private void OnLevelChanged()
+    {
+        DiscountInfo = null;
+        SelectedLevel = SelectedPass?.Levels.FirstOrDefault(l => l.Id == SelectedLevelId);
+        SelectedRole = string.Empty;
+        WithPartner = string.Empty;
+        PartnerEmail = string.Empty;
+        PartnerLookupDone = false;
+        SoloNotAvailable = false;
+    }
+    private void OnPartyLevelToggled(Guid levelId, bool selected)
+    {
+        DiscountInfo = null;
+        if (selected)
+        {
+            if (!SelectedLevelIds.Contains(levelId)) SelectedLevelIds.Add(levelId);
+        }
+        else
+        {
+            SelectedLevelIds.Remove(levelId);
+        }
+    }
+    private void OnRoleChanged()
+    {
+        WithPartner = string.Empty;
+        PartnerEmail = string.Empty;
+        PartnerLookupDone = false;
+        SoloNotAvailable = false;
+    }
+    private void OnWithPartnerChanged()
+    {
+        PartnerEmail = string.Empty;
+        PartnerLookupDone = false;
+        if (WithPartner == "no" && SelectedLevel is not null && !string.IsNullOrEmpty(SelectedRole))
+        {
+            bool isLeader = SelectedRole == "Leader";
+            SoloNotAvailable = isLeader ? !SelectedLevel.LeaderSoloAvailable : !SelectedLevel.FollowerSoloAvailable;
+        }
+        else
+        {
+            SoloNotAvailable = false;
+        }
+    }
+    private async Task OnPartnerEmailInput()
+    {
+        PartnerLookupDone = false;
+        _partnerCts?.Cancel();
+        _partnerCts = new System.Threading.CancellationTokenSource();
+        var token = _partnerCts.Token;
+        try
+        {
+            await Task.Delay(600, token);
+            if (string.IsNullOrWhiteSpace(PartnerEmail) || !PartnerEmail.Contains('@')) return;
+            var result = await PublicApi.LookupPartnerAsync(Form.EditionId, PartnerEmail, token);
+            PartnerExists = result?.Exists is true;
+            PartnerLookupDone = true;
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+    private async Task OnGroupCodeInput()
+    {
+        DiscountInfo = null;
+        _discountCts?.Cancel();
+        _discountCts = new System.Threading.CancellationTokenSource();
+        var token = _discountCts.Token;
+        try
+        {
+            await Task.Delay(600, token);
+            if (string.IsNullOrWhiteSpace(GroupCode)) return;
+            DiscountInfo = await PublicApi.CheckDiscountAsync(Form.EditionId, GroupCode, PreDiscountAmount, token);
+            StateHasChanged();
+        }
+        catch (OperationCanceledException) { }
+    }
+    // ── Submit ─────────────────────────────────────────────────────────────
+    private async Task SubmitAsync()
+    {
+        SubmitError = null;
+        if (string.IsNullOrWhiteSpace(Form.FirstName) || string.IsNullOrWhiteSpace(Form.LastName)
+            || string.IsNullOrWhiteSpace(Form.Email) || string.IsNullOrWhiteSpace(Form.Password))
+        {
+            SubmitError = "Please complete all required fields.";
+            return;
+        }
+        if (!AcceptsTerms)
+        {
+            SubmitError = "You must accept the Terms and Conditions to continue.";
+            return;
+        }
+        if (SelectedPass is null)
+        {
+            SubmitError = "Please select a pass to continue.";
+            return;
+        }
+        IsSubmitting = true;
+        try
+        {
+            Form.PassTypeId = SelectedPass.Id;
+            Form.DiscountCodeValue = string.IsNullOrWhiteSpace(GroupCode) ? null : GroupCode.Trim();
+            Form.PartnerEmail = WithPartner == "si" && !string.IsNullOrWhiteSpace(PartnerEmail) ? PartnerEmail.Trim() : null;
+            if (IsPartyPass)
+            {
+                Form.LevelIds = SelectedLevelIds.ToList();
+                Form.LevelId = SelectedLevelIds.FirstOrDefault() == Guid.Empty ? null : SelectedLevelIds.FirstOrDefault();
+                Form.DanceRole = null;
+            }
+            else
+            {
+                Form.LevelId = SelectedLevel?.Id;
+                Form.LevelIds = [];
+                Form.DanceRole = SelectedRole switch
+                {
+                    "Leader" => DanceRole.Leader,
+                    "Follower" => DanceRole.Follower,
+                    _ => null
+                };
+            }
+            Form.BasePrice = BasePrice;
+            Form.FinalPrice = AmountNow + ManagementFee;
+            Form.PaymentPlan = SelectedPlan switch
+            {
+                "SplitFiftyFifty" => PaymentPlan.SplitFiftyFifty,
+                "DeferredTenDays" => PaymentPlan.DeferredTenDays,
+                _ => PaymentPlan.FullOnline
+            };
+            Form.ManagementFee = ManagementFee;
+            _createdRegistrationId = await PublicApi.CreateRegistrationAsync(Form);
+            if (SelectedPlan == "DeferredTenDays")
+            {
+                Submitted = true;
+            }
+            else if (_createdRegistrationId.HasValue)
+            {
+                await LaunchPaymentAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            SubmitError = ex.Message;
+        }
+        finally
+        {
+            IsSubmitting = false;
+        }
+    }
+    // ── Helpers ────────────────────────────────────────────────────────────
+    private void SetPlan(string plan) => SelectedPlan = plan;
+    private Guid? _createdRegistrationId;
+    private static string GetQueryParam(string query, string name)
+    {
+        foreach (string pair in query.TrimStart('?').Split('&'))
+        {
+            int sep = pair.IndexOf('=');
+            if (sep <= 0) continue;
+            if (string.Equals(pair[..sep], name, StringComparison.OrdinalIgnoreCase))
+                return System.Net.WebUtility.UrlDecode(pair[(sep + 1)..]);
+        }
+        return string.Empty;
+    }
+    private async Task LaunchPaymentAsync()
+    {
+        if (!_createdRegistrationId.HasValue) return;
+        try
+        {
+            decimal amount = SelectedPlan == "SplitFiftyFifty"
+                ? Math.Round(BasePrice * 0.5m + ManagementFee, 2, MidpointRounding.AwayFromZero)
+                : BasePrice + ManagementFee;
+            string baseUrl = Navigation.BaseUri.TrimEnd('/');
+            CreatePaymentSessionRequest payReq = new()
+            {
+                RegistrationId = _createdRegistrationId.Value,
+                AmountOverride = amount,
+                UrlOk = $"{baseUrl}/register/{Slug}?payment=ok",
+                UrlKo = $"{baseUrl}/register/{Slug}?payment=ko"
+            };
+            RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(payReq);
+            await JsRuntime.InvokeVoidAsync("redsysSubmit",
+                form.Url, form.SignatureVersion, form.MerchantParameters, form.Signature);
+        }
+        catch (Exception ex)
+        {
+            SubmitError = $"No se pudo iniciar el pago: {ex.Message}";
+            StateHasChanged();
+        }
+    }
+}

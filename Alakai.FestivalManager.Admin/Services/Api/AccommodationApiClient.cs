@@ -1,9 +1,3 @@
-using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs;
-using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests;
-using Alakai.FestivalManager.Admin.Contracts.Accommodations.Responses;
-using System.Text.Json;
-using AccommodationOccupantInput = Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests.AccommodationOccupantInput;
-
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class AccommodationApiClient

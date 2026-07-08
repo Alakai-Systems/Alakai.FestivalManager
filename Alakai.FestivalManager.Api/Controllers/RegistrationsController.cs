@@ -18,9 +18,12 @@ public class RegistrationsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)
     {
+        Console.WriteLine($"[DEBUG] PaymentPlan received: {request.PaymentPlan} ({(int)request.PaymentPlan})");
         CreateRegistrationCommand command = _mapper.Map<CreateRegistrationCommand>(request);
+        Console.WriteLine($"[DEBUG] PaymentPlan in command: {command.PaymentPlan} ({(int)command.PaymentPlan})");
+        
 
-        ApiResponse<CreateRegistrationResponse> response = await _registrationService.CreateAsync(command, cancellationToken);
+        ApiResponse <CreateRegistrationResponse> response = await _registrationService.CreateAsync(command, cancellationToken);
         return CreatedAtAction(nameof(GetById), new { id = response.Data!.Registration.Id }, response);
     }
 

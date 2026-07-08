@@ -1182,6 +1182,12 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal?>("AllLevelsDiscountPercent")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<bool>("AllowsMultipleLevels")
+                        .HasColumnType("bit");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
@@ -1292,6 +1298,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("AmountPaid")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<decimal>("BasePrice")
                         .HasColumnType("decimal(18,2)");
 
@@ -1367,6 +1376,9 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<Guid?>("LevelId")
                         .HasColumnType("uniqueidentifier");
 
+                    b.Property<decimal>("ManagementFee")
+                        .HasColumnType("decimal(18,2)");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(2000)
                         .HasColumnType("nvarchar(2000)");
@@ -1383,6 +1395,12 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.Property<Guid>("PassTypeId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("PaymentDueAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("PaymentPlan")
+                        .HasColumnType("int");
 
                     b.Property<string>("PaymentReference")
                         .HasMaxLength(200)
@@ -1431,6 +1449,34 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.HasIndex("EditionId", "Email");
 
                     b.ToTable("Registrations", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RegistrationLevelSelection", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("LevelId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("RegistrationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LevelId");
+
+                    b.HasIndex("RegistrationId", "LevelId")
+                        .IsUnique();
+
+                    b.ToTable("RegistrationLevelSelections", (string)null);
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.User", b =>
@@ -1947,6 +1993,25 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RegistrationLevelSelection", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Level", "Level")
+                        .WithMany()
+                        .HasForeignKey("LevelId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Registration", "Registration")
+                        .WithMany("LevelSelections")
+                        .HasForeignKey("RegistrationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Level");
+
+                    b.Navigation("Registration");
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.AccommodationBuilding", b =>
                 {
                     b.Navigation("AllowedPassTypes");
@@ -1998,6 +2063,11 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.PassType", b =>
                 {
                     b.Navigation("Levels");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>
+                {
+                    b.Navigation("LevelSelections");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.User", b =>

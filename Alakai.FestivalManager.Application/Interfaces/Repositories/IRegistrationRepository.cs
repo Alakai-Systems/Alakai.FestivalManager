@@ -12,6 +12,9 @@ public interface IRegistrationRepository
     Task<int> CountByDiscountCodeAsync(Guid discountCodeId, CancellationToken cancellationToken = default);
     Task<Registration?> GetByIdWithPartnerDataAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Registration?> GetActiveByEmailAsync(string email, CancellationToken cancellationToken = default);
+    Task<Registration?> GetByPaymentReferenceAsync(string paymentReference, CancellationToken cancellationToken = default);
+    Task<Registration?> GetByOrderAsync(string order, CancellationToken cancellationToken = default);
+    Task<int> CountActiveByLevelAsync(Guid levelId, DanceRole? danceRole, CancellationToken cancellationToken = default);
     Task<int> CountActiveByLevelAndRoleAsync(Guid levelId, DanceRole role, CancellationToken cancellationToken = default);
     void Update(Registration registration);
     void Delete(Registration registration);

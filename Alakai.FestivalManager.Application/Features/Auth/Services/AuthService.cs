@@ -1,4 +1,3 @@
-
 using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Application.Features.Auth.Services;

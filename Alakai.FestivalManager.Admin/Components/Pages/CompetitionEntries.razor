@@ -51,7 +51,6 @@
 
                 <select class="form-select w-full md:w-44" @bind="statusFilter" @bind:after="ResetPage">
                     <option value="">All statuses</option>
-                    <option value="@CompetitionEntryStatus.Registered">Registered</option>
                     <option value="@CompetitionEntryStatus.Confirmed">Confirmed</option>
                     <option value="@CompetitionEntryStatus.WaitingPartner">Waiting Partner</option>
                     <option value="@CompetitionEntryStatus.Cancelled">Cancelled</option>
@@ -189,7 +188,6 @@
                     <div>
                         <label class="block text-sm text-black/60 dark:text-white/60">Status</label>
                         <select class="form-select" @bind="editModel.Status">
-                            <option value="@CompetitionEntryStatus.Registered">Registered</option>
                             <option value="@CompetitionEntryStatus.Confirmed">Confirmed</option>
                             <option value="@CompetitionEntryStatus.WaitingPartner">Waiting Partner</option>
                             <option value="@CompetitionEntryStatus.Cancelled">Cancelled</option>

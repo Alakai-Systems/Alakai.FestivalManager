@@ -1,5 +1,3 @@
-using Alakai.FestivalManager.Application.Features.Invoices.Services;
-
 namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
 public static class InfrastructureDependencyInjectionExtension
@@ -44,6 +42,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IInvoicePdfService, QuestPdfInvoiceService>();
         services.Configure<ExternalAuthOptions>(configuration.GetSection("ExternalAuth"));
         services.AddSingleton<IExternalAuthService, ExternalAuthService>();
+        services.Configure<RedsysOptions>(configuration.GetSection("Redsys"));
+        services.AddSingleton<IRedsysGateway, RedsysGateway>();
         services.Configure<EmailOptions>(configuration.GetSection("Email"));
         services.AddScoped<IEmailSender, MailKitEmailSender>();
 

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Domain.Entities;
+namespace Alakai.FestivalManager.Domain.Entities;
 
 public class PassType : BaseEntity
 {
@@ -8,5 +8,7 @@ public class PassType : BaseEntity
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool AllowsMultipleLevels { get; set; }
+    public decimal? AllLevelsDiscountPercent { get; set; }
     public ICollection<Level> Levels { get; set; } = new List<Level>();
 }

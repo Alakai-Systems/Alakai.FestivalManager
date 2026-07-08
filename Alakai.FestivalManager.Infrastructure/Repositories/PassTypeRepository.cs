@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
+namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class PassTypeRepository : IPassTypeRepository
 {
@@ -22,6 +22,16 @@ public class PassTypeRepository : IPassTypeRepository
     public async Task<IReadOnlyList<PassType>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
         return await _context.PassTypes.AsNoTracking().Where(p => p.EditionId == editionId).OrderBy(p => p.SortOrder).ThenBy(p => p.Name).ToListAsync(cancellationToken);
+    }
+
+    public async Task<IReadOnlyList<PassType>> GetActiveByEditionIdWithLevelsAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.PassTypes
+            .AsNoTracking()
+            .Include(p => p.Levels)
+            .Where(p => p.EditionId == editionId && p.IsActive)
+            .OrderBy(p => p.SortOrder).ThenBy(p => p.Name)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<bool> ExistsByEditionAndNameAsync(Guid editionId, string name, CancellationToken cancellationToken = default)

@@ -1,7 +1,3 @@
-using Alakai.FestivalManager.Application.Common.Responses;
-using Alakai.FestivalManager.Application.Features.Accommodations.Commands;
-using Alakai.FestivalManager.Application.Features.Accommodations.Contracts.Responses;
-
 namespace Alakai.FestivalManager.Application.Features.Accommodations.Services;
 
 public interface IAccommodationReservationService

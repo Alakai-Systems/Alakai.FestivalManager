@@ -1,7 +1,3 @@
-using Alakai.FestivalManager.Application.Common.Responses;
-using Alakai.FestivalManager.Application.Features.Buses.Commands;
-using Alakai.FestivalManager.Application.Features.Buses.Contracts.Responses;
-
 namespace Alakai.FestivalManager.Application.Features.Buses.Services;
 
 public interface IBusService

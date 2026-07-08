@@ -22,4 +22,8 @@ public class CreateRegistrationRequest
     public string? DiscountCodeValue { get; set; }
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }
+    public List<Guid> LevelIds { get; set; } = [];
+    public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;
+    public decimal ManagementFee { get; set; }
+    public decimal AmountPaid { get; set; }
 }

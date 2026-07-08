@@ -46,4 +46,14 @@ public class AccommodationBuildingRepository : IAccommodationBuildingRepository
     {
         return await _context.SaveChangesAsync(cancellationToken);
     }
+
+    public void AddPassType(AccommodationBuildingPassType entry)
+    {
+        _context.Set<AccommodationBuildingPassType>().Add(entry);
+    }
+
+    public void RemovePassType(AccommodationBuildingPassType entry)
+    {
+        _context.Set<AccommodationBuildingPassType>().Remove(entry);
+    }
 }

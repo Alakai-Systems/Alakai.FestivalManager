@@ -13,4 +13,7 @@ public class UserPanelRegistrationDto
     public decimal FinalPrice { get; set; }
     public string? DocumentNumber { get; set; }
     public string? DocumentCountry { get; set; }
+    public string PaymentPlan { get; set; } = string.Empty;
+    public decimal AmountPaid { get; set; }
+    public DateTime? PaymentDueAt { get; set; }
 }

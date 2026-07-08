@@ -56,6 +56,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<DeleteRegistrationHandler>();
         services.AddScoped<IRegistrationService, RegistrationService>();
         services.AddScoped<IRegistrationPartnerService, RegistrationPartnerService>();
+        services.AddScoped<IPublicRegistrationService, PublicRegistrationService>();
 
         //Users
         services.AddScoped<CreateUserHandler>();
@@ -75,6 +76,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<IRegistrationFestivalInfoService, RegistrationFestivalInfoService>();
         services.AddScoped<IBusService, BusService>();
         services.AddScoped<IMealPreferenceService, MealPreferenceService>();
+        services.AddScoped<IPaymentService, PaymentService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IBusReservationService, BusReservationService>();
 

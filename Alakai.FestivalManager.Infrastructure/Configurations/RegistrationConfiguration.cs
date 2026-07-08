@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
 public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
 {
@@ -78,6 +78,14 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
             .HasColumnType("decimal(18,2)");
 
         builder.Property(r => r.FinalPrice)
+            .IsRequired()
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(r => r.ManagementFee)
+            .IsRequired()
+            .HasColumnType("decimal(18,2)");
+
+        builder.Property(r => r.AmountPaid)
             .IsRequired()
             .HasColumnType("decimal(18,2)");
 

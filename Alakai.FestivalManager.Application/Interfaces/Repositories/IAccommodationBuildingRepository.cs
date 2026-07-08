@@ -8,4 +8,6 @@ public interface IAccommodationBuildingRepository
     void Update(AccommodationBuilding building);
     void Delete(AccommodationBuilding building);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
+    void AddPassType(AccommodationBuildingPassType entry);
+    void RemovePassType(AccommodationBuildingPassType entry);
 }

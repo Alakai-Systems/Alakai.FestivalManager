@@ -1,12 +1,3 @@
-using Alakai.FestivalManager.Application.Common.Responses;
-using Alakai.FestivalManager.Application.Common.Exceptions;
-using Alakai.FestivalManager.Application.Features.Accommodations.Commands;
-using Alakai.FestivalManager.Application.Features.Accommodations.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Features.Accommodations.Contracts.Responses;
-using Alakai.FestivalManager.Application.Interfaces.Repositories;
-using Alakai.FestivalManager.Domain.Entities;
-using Alakai.FestivalManager.Domain.Enums;
-
 namespace Alakai.FestivalManager.Application.Features.Accommodations.Services;
 
 public class AccommodationBuildingService : IAccommodationBuildingService
@@ -137,12 +128,16 @@ public class AccommodationBuildingService : IAccommodationBuildingService
 
         foreach (AccommodationBuildingPassType entry in toRemove)
         {
-            building.AllowedPassTypes.Remove(entry);
+            _buildingRepository.RemovePassType(entry);
         }
 
         foreach (Guid passTypeId in desiredPassTypeIds.Except(currentPassTypeIds))
         {
-            building.AllowedPassTypes.Add(new AccommodationBuildingPassType { AccommodationBuildingId = building.Id, PassTypeId = passTypeId });
+            _buildingRepository.AddPassType(new AccommodationBuildingPassType
+            {
+                AccommodationBuildingId = building.Id,
+                PassTypeId = passTypeId
+            });
         }
 
         await _buildingRepository.SaveChangesAsync(cancellationToken);

@@ -1,8 +1,3 @@
-using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs;
-using Alakai.FestivalManager.Admin.Contracts.Buses.Requests;
-using Alakai.FestivalManager.Admin.Contracts.Buses.Responses;
-using System.Text.Json;
-
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class BusApiClient

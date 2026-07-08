@@ -13,6 +13,7 @@ public class Registration : BaseEntity
 
     public Guid? LevelId { get; set; }
     public Level? Level { get; set; }
+    public ICollection<RegistrationLevelSelection> LevelSelections { get; set; } = [];
 
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
@@ -43,6 +44,11 @@ public class Registration : BaseEntity
 
     public string? PaymentReference { get; set; }
     public DateTime? PaidAt { get; set; }
+
+    public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;
+    public decimal ManagementFee { get; set; }
+    public decimal AmountPaid { get; set; }
+    public DateTime? PaymentDueAt { get; set; }
 
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }

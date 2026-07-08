@@ -18,6 +18,7 @@
 @inject FestivalModuleApiClient FestivalModuleApiClient
 @inject BusApiClient BusApiClient
 @inject MealPreferenceApiClient MealPreferenceApiClient
+@inject PaymentApiClient PaymentApiClient
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
 @inject IJSRuntime JsRuntime
@@ -302,18 +303,54 @@
                     <h2 class="text-lg font-bold text-black dark:text-white">Payments</h2>
                     <p class="mt-1 text-sm text-muted dark:text-darkmuted">Pay your registration.</p>
                 </div>
-                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]">Pay now</button>
+                @if (PaymentStatus != "Paid")
+                {
+                    <button type="button" disabled="@IsStartingPayment" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="PayNowAsync">
+                        @if (IsStartingPayment) { @("Redirecting...") }
+                        else if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid") {
+
+                            @("Pay remaining")
+                        }
+                        else { @("Pay now") }
+                    </button>
+                }
             </div>
+
+            @if (!string.IsNullOrWhiteSpace(PaymentBannerMessage))
+            {
+                <div class="p-3 mb-4 text-sm rounded @(PaymentBannerIsError ? "bg-danger/10 text-danger" : "bg-success/10 text-success")">
+                    @PaymentBannerMessage
+                </div>
+            }
 
             <div class="flex items-center justify-between gap-4 p-4 rounded bg-light/20 dark:bg-white/5">
                 <div>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">Registration Payment</MudText>
-                    <MudText Class="text-muted mt-0.5 dark:text-darkmuted">Status of your payment.</MudText>
-                </div>
+                    <MudText Class="text-muted mt-0.5 dark:text-darkmuted">
+                        @if (Dashboard?.Registration?.PaymentPlan == "SplitFiftyFifty") { @("Split · 50% now, 50% in 30 days") }
+                        else if (Dashboard?.Registration?.PaymentPlan == "DeferredTenDays")
+                        {
 
+                            @("Deferred · Pay within 10 days")
+                        }
+                        else { @("Full payment") }
+                    </MudText>
+                    @if (Dashboard?.Registration?.PaymentDueAt.HasValue is true)
+                    {
+                        <MudText Class="text-xs text-muted dark:text-darkmuted">Due: @Dashboard.Registration.PaymentDueAt.Value.ToString("dd MMM yyyy")</MudText>
+                    }
+                </div>
                 <div class="text-right">
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
-                    <MudText Class="text-warning">@PaymentStatus</MudText>
+                    @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+                    {
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") € paid</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid).ToString("0.00")) € pending</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
+                        <MudText Class="text-warning">@PaymentStatus</MudText>
+                    }
                 </div>
             </div>
         </div>
@@ -325,6 +362,11 @@
                 </div>
                 <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="OpenInvoiceModal">Create invoice</button>
             </div>
+
+            @if (!string.IsNullOrWhiteSpace(InvoiceListError))
+            {
+                <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@InvoiceListError</div>
+            }
 
             <div class="overflow-x-auto">
                 <table class="w-full table-hover">
@@ -1089,6 +1131,28 @@
         </div>
     </div>
 }
+@if (ShowCompetitionFullModal)
+{
+    <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8" @onclick="CloseCompetitionFullModal">
+        <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 440px);" @onclick:stopPropagation="true">
+            <div class="p-5">
+                <div class="flex items-center gap-3 mb-4">
+                    <div class="flex items-center justify-center w-10 h-10 rounded bg-warning/10 text-warning shrink-0">
+                        <i class="ri-error-warning-line text-xl"></i>
+                    </div>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">No spots available</MudText>
+                </div>
+
+                <MudText Class="mb-5 text-muted dark:text-darkmuted">@CompetitionFullMessage</MudText>
+
+                <div class="flex justify-end">
+                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="CloseCompetitionFullModal">OK</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 <!-- End All Card -->
 
 <script>
@@ -1097,6 +1161,30 @@
         if (el) {
             el.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
+    };
+
+    window.redsysSubmit = (url, signatureVersion, merchantParameters, signature) => {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = url;
+        form.target = '_blank';
+
+        const fields = {
+            'Ds_SignatureVersion': signatureVersion,
+            'Ds_MerchantParameters': merchantParameters,
+            'Ds_Signature': signature
+        };
+
+        for (const name in fields) {
+            const input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = name;
+            input.value = fields[name];
+            form.appendChild(input);
+        }
+
+        document.body.appendChild(form);
+        form.submit();
     };
 </script>
 
@@ -1169,10 +1257,21 @@
         }
     }
 
+    private const string PaymentRequiredMessage = "You must complete at least a partial payment for your registration before making this reservation.";
+
+    private bool HasSufficientPayment =>
+        Dashboard?.Registration?.PaymentStatus is "Paid" or "PartiallyPaid";
+
     private async Task SaveMealPreferenceAsync()
     {
         if (Dashboard?.Registration is null)
         {
+            return;
+        }
+
+        if (!HasSufficientPayment)
+        {
+            ShowMealError(PaymentRequiredMessage);
             return;
         }
 
@@ -1291,6 +1390,12 @@
     {
         if (Dashboard?.Registration is null)
         {
+            return;
+        }
+
+        if (!HasSufficientPayment)
+        {
+            ShowBusError(PaymentRequiredMessage);
             return;
         }
 
@@ -1581,6 +1686,12 @@
             return;
         }
 
+        if (!HasSufficientPayment)
+        {
+            ShowAccommodationError(PaymentRequiredMessage);
+            return;
+        }
+
         IsSavingAccommodation = true;
 
         try
@@ -1770,7 +1881,19 @@
     // ==================== Dashboard summary cards ====================
     private string? RegistrationCardSuffix => PassTypeName == "-" ? null : PassTypeName;
 
-    private string? PaymentCardSuffix => FinalPrice > 0 ? $"{FinalPrice:0.00} €" : null;
+    private string? PaymentCardSuffix
+    {
+        get
+        {
+            if (FinalPrice <= 0) return null;
+            if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+            {
+                decimal paid = Dashboard.Registration.AmountPaid;
+                return $"{paid:0.00} € paid · {(FinalPrice - paid):0.00} € pending";
+            }
+            return $"{FinalPrice:0.00} €";
+        }
+    }
 
     private string? CompetitionsCardSuffix
     {
@@ -1887,6 +2010,129 @@
         await JsRuntime.InvokeVoidAsync("scrollToSectionSmooth", sectionId);
     }
 
+    // ==================== Payments (Redsys) ====================
+    private bool IsStartingPayment { get; set; }
+
+    private string? PaymentBannerMessage { get; set; }
+
+    private bool PaymentBannerIsError { get; set; }
+
+    private async Task PayNowAsync()
+    {
+        if (Dashboard?.Registration is null)
+        {
+            return;
+        }
+
+        IsStartingPayment = true;
+        StateHasChanged();
+
+        try
+        {
+            decimal? amountOverride = null;
+            if (Dashboard.Registration.PaymentStatus == "PartiallyPaid")
+            {
+                decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
+                amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
+            }
+            CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
+            RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(request);
+
+            await JsRuntime.InvokeVoidAsync("redsysSubmit", form.Url, form.SignatureVersion, form.MerchantParameters, form.Signature);
+
+            IsStartingPayment = false;
+            ShowPaymentBanner("The payment page has been opened in a new tab.", isError: false);
+        }
+        catch (Exception ex)
+        {
+            IsStartingPayment = false;
+            ShowPaymentBanner(ex.Message, isError: true);
+        }
+    }
+
+    private async Task CheckPaymentReturnAsync()
+    {
+        Uri uri = new(Navigation.Uri);
+        string query = uri.Query;
+
+        if (string.IsNullOrEmpty(query))
+        {
+            return;
+        }
+
+        // If Redsys appended the signed response parameters to the return URL,
+        // confirm the payment server-side right now (works without the
+        // server-to-server notification being reachable, e.g. on localhost).
+        string merchantParameters = GetQueryValue(query, "Ds_MerchantParameters");
+        string signature = GetQueryValue(query, "Ds_Signature");
+
+        bool hasReturnParameters = !string.IsNullOrWhiteSpace(merchantParameters) && !string.IsNullOrWhiteSpace(signature);
+
+        if (hasReturnParameters)
+        {
+            // A '+' inside the Base64 payload arrives as a space after URL decoding; restore it.
+            merchantParameters = merchantParameters.Replace(' ', '+');
+
+            try
+            {
+                ConfirmRedsysReturnRequest request = new() { MerchantParameters = merchantParameters, Signature = signature };
+                await PaymentApiClient.ConfirmReturnAsync(request);
+                ShowPaymentBanner("Payment confirmed.", isError: false);
+
+                return;
+            }
+            catch (Exception ex)
+            {
+                ShowPaymentBanner($"The payment could not be confirmed: {ex.Message}", isError: true);
+
+                return;
+            }
+        }
+
+        if (query.Contains("payment=ok", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
+        }
+        else if (query.Contains("payment=ko", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowPaymentBanner("The payment could not be completed. No charge was made.", isError: true);
+        }
+    }
+
+    private static string GetQueryValue(string query, string name)
+    {
+        foreach (string pair in query.TrimStart('?').Split('&'))
+        {
+            int separator = pair.IndexOf('=');
+
+            if (separator <= 0)
+            {
+                continue;
+            }
+
+            if (string.Equals(pair[..separator], name, StringComparison.OrdinalIgnoreCase))
+            {
+                return System.Net.WebUtility.UrlDecode(pair[(separator + 1)..]);
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private void ShowPaymentBanner(string message, bool isError)
+    {
+        PaymentBannerMessage = message;
+        PaymentBannerIsError = isError;
+
+        _ = InvokeAsync(async () =>
+        {
+            StateHasChanged();
+            await Task.Delay(3500);
+            PaymentBannerMessage = null;
+            StateHasChanged();
+        });
+    }
+
     private bool ShowInvoiceModal { get; set; }
     private bool IsCreatingInvoice { get; set; }
     private string? InvoiceModalError { get; set; }
@@ -1897,8 +2143,28 @@
     private string InvoicePostalCode { get; set; } = string.Empty;
     private string InvoiceCountry { get; set; } = string.Empty;
 
+    private string? InvoiceListError { get; set; }
+
+    private void ShowInvoiceListError(string message)
+    {
+        InvoiceListError = message;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            InvoiceListError = null;
+            StateHasChanged();
+        });
+    }
+
     private void OpenInvoiceModal()
     {
+        if (!HasSufficientPayment)
+        {
+            ShowInvoiceListError("You must complete at least a partial payment for your registration before requesting an invoice.");
+            return;
+        }
+
+        InvoiceListError = null;
         InvoiceModalError = null;
         InvoiceFiscalName = $"{FirstName} {LastName}".Trim();
         InvoiceTaxId = DocumentNumber ?? string.Empty;
@@ -1917,6 +2183,13 @@
     private async Task CreateInvoiceAsync()
     {
         InvoiceModalError = null;
+
+        if (!HasSufficientPayment)
+        {
+            InvoiceModalError = "You must complete at least a partial payment for your registration before requesting an invoice.";
+            return;
+        }
+
         IsCreatingInvoice = true;
 
         try
@@ -1987,6 +2260,7 @@
     {
         if (firstRender)
         {
+            await CheckPaymentReturnAsync();
             await LoadDashboardAsync();
             await LoadFestivalModulesAsync();
 
@@ -2048,7 +2322,7 @@
     {
         return status switch
         {
-            "Registered" => "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success",
+            "Confirmed" => "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success",
             "WaitingPartner" => "inline-block rounded text-xs px-2 py-1 bg-warning/10 text-warning",
             "Cancelled" => "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger",
             _ => "inline-block rounded text-xs px-2 py-1 bg-black/10 text-black"
@@ -2266,7 +2540,7 @@
         CompetitionFormLevelId = Guid.Empty;
         CompetitionFormDanceRole = null;
         CompetitionFormNotes = null;
-        CompetitionFormStatus = CompetitionEntryStatus.Registered;
+        CompetitionFormStatus = CompetitionEntryStatus.Confirmed;
         CompetitionFormIsActive = true;
         ShowCompetitionModal = true;
         ShowDeleteCompetitionModal = false;
@@ -2361,6 +2635,13 @@
         if (Dashboard?.Registration is null)
         {
             CompetitionModalError = "Registration not found.";
+            await ShowCompetitionErrorAsync(CompetitionModalError);
+            return;
+        }
+
+        if (!HasSufficientPayment)
+        {
+            CompetitionModalError = PaymentRequiredMessage;
             await ShowCompetitionErrorAsync(CompetitionModalError);
             return;
         }
@@ -2468,6 +2749,14 @@
         }
         catch(Exception ex)
         {
+            if (ex.Message.Contains("full", StringComparison.OrdinalIgnoreCase))
+            {
+                CompetitionFullMessage = ex.Message;
+                ShowCompetitionFullModal = true;
+                StateHasChanged();
+                return;
+            }
+
             CompetitionModalError = ex.Message;
             await ShowCompetitionErrorAsync(CompetitionModalError);
         }
@@ -2494,6 +2783,17 @@
             CompetitionModalError = "Competition entry could not be deleted.";
             await ShowCompetitionErrorAsync(CompetitionModalError);
         }
+    }
+
+    // ==================== Competition full popup ====================
+    private bool ShowCompetitionFullModal { get; set; }
+
+    private string? CompetitionFullMessage { get; set; }
+
+    private void CloseCompetitionFullModal()
+    {
+        ShowCompetitionFullModal = false;
+        CompetitionFullMessage = null;
     }
 
     private string GetCompetitionName(Guid competitionId)

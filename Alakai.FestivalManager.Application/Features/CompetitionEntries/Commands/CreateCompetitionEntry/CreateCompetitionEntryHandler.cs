@@ -63,8 +63,17 @@ public class CreateCompetitionEntryHandler
             throw new BusinessRuleException("Selected capacity does not belong to the selected competition.");
         }
 
+        int activeEntriesInCapacity = await _competitionEntryRepository.CountActiveByCapacityIdAsync(capacity.Id, cancellationToken);
+
+        if (capacity.Capacity > 0 && activeEntriesInCapacity >= capacity.Capacity)
+        {
+            throw new BusinessRuleException(capacity.CompetitionLevelId.HasValue
+                ? "The selected level is full for this role."
+                : "This competition is full for the selected role.");
+        }
+
         CompetitionEntry entry = _mapper.Map<CompetitionEntry>(command);
-        entry.Status = command.PartnerRegistrationId.HasValue || competition.RequiresPartner is false? CompetitionEntryStatus.Registered : CompetitionEntryStatus.WaitingPartner;
+        entry.Status = command.PartnerRegistrationId.HasValue || competition.RequiresPartner is false? CompetitionEntryStatus.Confirmed : CompetitionEntryStatus.WaitingPartner;
         entry.IsActive = true;
         entry.CompetitionCapacityId = capacity.Id;
         entry.DanceRole = capacity.DanceRole;

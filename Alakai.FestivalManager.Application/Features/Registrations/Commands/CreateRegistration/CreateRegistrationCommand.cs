@@ -5,6 +5,7 @@ public class CreateRegistrationCommand
     public Guid EditionId { get; set; }
     public Guid PassTypeId { get; set; }
     public Guid? LevelId { get; set; }
+    public List<Guid> LevelIds { get; set; } = [];
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
@@ -19,4 +20,7 @@ public class CreateRegistrationCommand
     public string? DiscountCodeValue { get; set; }
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }
+    public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;
+    public decimal ManagementFee { get; set; }
+    public decimal AmountPaid { get; set; }
 }

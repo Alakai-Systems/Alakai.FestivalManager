@@ -33,7 +33,11 @@ public class RegistrationMappingProfile : Profile
             .ForMember(dest => dest.CancelledAt, opt => opt.Ignore())
             .ForMember(dest => dest.IsActive, opt => opt.Ignore())
             .ForMember(dest => dest.DiscountCode, opt => opt.Ignore());
-        CreateMap<CreateRegistrationRequest, CreateRegistrationCommand>();
+        CreateMap<CreateRegistrationRequest, CreateRegistrationCommand>()
+           .ForMember(dest => dest.PaymentPlan, opt => opt.MapFrom(src => src.PaymentPlan))
+           .ForMember(dest => dest.ManagementFee, opt => opt.MapFrom(src => src.ManagementFee))
+           .ForMember(dest => dest.AmountPaid, opt => opt.MapFrom(src => src.AmountPaid))
+           .ForMember(dest => dest.LevelIds, opt => opt.MapFrom(src => src.LevelIds));
         CreateMap<RegistrationDto, CreateRegistrationResponse>();
 
         //Update Registration

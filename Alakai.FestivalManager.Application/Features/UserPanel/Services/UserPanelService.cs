@@ -100,7 +100,10 @@ public class UserPanelService : IUserPanelService
                 DiscountCodeValue = registration.DiscountCodeValue,
                 FinalPrice = registration.FinalPrice,
                 DocumentNumber = registration.DocumentNumber,
-                DocumentCountry = registration.DocumentCountry
+                DocumentCountry = registration.DocumentCountry,
+                PaymentPlan = registration.PaymentPlan.ToString(),
+                AmountPaid = registration.AmountPaid,
+                PaymentDueAt = registration.PaymentDueAt
             },
             Competitions = competitionEntries.Select(c => new CompetitionEntryDto
             {

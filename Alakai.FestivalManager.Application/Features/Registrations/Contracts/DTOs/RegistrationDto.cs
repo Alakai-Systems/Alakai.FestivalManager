@@ -43,4 +43,8 @@ public class RegistrationDto
     public DateTime? CancelledAt { get; set; }
 
     public bool IsActive { get; set; }
+    public PaymentPlan PaymentPlan { get; set; }
+    public decimal ManagementFee { get; set; }
+    public decimal AmountPaid { get; set; }
+    public DateTime? PaymentDueAt { get; set; }
 }

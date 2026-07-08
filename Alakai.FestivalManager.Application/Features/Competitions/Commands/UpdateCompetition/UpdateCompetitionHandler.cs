@@ -1,5 +1,3 @@
-using Alakai.FestivalManager.Application.Contracts.Repositories;
-
 namespace Alakai.FestivalManager.Application.Features.Competitions.Commands.UpdateCompetition;
 
 public class UpdateCompetitionHandler

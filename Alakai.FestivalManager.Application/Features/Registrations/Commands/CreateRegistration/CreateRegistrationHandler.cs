@@ -110,6 +110,14 @@ public class CreateRegistrationHandler
         registration.DiscountCodeId = discount.DiscountCodeId;
         registration.DiscountCodeValue = discount.DiscountCodeValue;
         registration.DiscountStatus = discount.DiscountStatus;
+        registration.PaymentPlan = command.PaymentPlan;
+        registration.ManagementFee = command.ManagementFee;
+        registration.AmountPaid = command.AmountPaid;
+        registration.PaymentDueAt = command.PaymentPlan == PaymentPlan.DeferredTenDays
+            ? DateTime.UtcNow.AddDays(10)
+            : command.PaymentPlan == PaymentPlan.SplitFiftyFifty
+                ? DateTime.UtcNow.AddDays(30)
+                : null;
 
         await _registrationRepository.AddAsync(registration, cancellationToken);
         await _registrationRepository.SaveChangesAsync(cancellationToken);

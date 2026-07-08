@@ -1,8 +1,3 @@
-using Alakai.FestivalManager.Admin.Contracts.Meals.DTOs;
-using Alakai.FestivalManager.Admin.Contracts.Meals.Requests;
-using Alakai.FestivalManager.Admin.Contracts.Meals.Responses;
-using System.Text.Json;
-
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class MealPreferenceApiClient

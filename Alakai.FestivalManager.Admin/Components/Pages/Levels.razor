@@ -34,7 +34,7 @@
                         }
                     </select>
 
-                    <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
+                    <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="OnEditionFilterChanged">
                         <option value="@Guid.Empty">All editions</option>
                         @foreach (EditionDto ed in EditionsForSelectedFestival)
                         {
@@ -44,7 +44,7 @@
 
                     <select class="form-select w-full md:w-44" @bind="passTypeFilter" @bind:after="ResetPage">
                         <option value="@Guid.Empty">All pass types</option>
-                        @foreach (PassTypeDto pt in passTypes)
+                        @foreach (PassTypeDto pt in passTypes.Where(pt => editionFilter is null || editionFilter == Guid.Empty || pt.EditionId == editionFilter))
                         {
                             <option value="@pt.Id">@pt.Name</option>
                         }
@@ -608,6 +608,12 @@
         {
             isLoading = false;
         }
+    }
+
+    private void OnEditionFilterChanged()
+    {
+        passTypeFilter = Guid.Empty;
+        ResetPage();
     }
 
     private void ResetPage()

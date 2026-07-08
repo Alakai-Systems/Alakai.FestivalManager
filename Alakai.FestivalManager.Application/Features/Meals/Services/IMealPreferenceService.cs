@@ -1,7 +1,3 @@
-using Alakai.FestivalManager.Application.Common.Responses;
-using Alakai.FestivalManager.Application.Features.Meals.Commands;
-using Alakai.FestivalManager.Application.Features.Meals.Contracts.Responses;
-
 namespace Alakai.FestivalManager.Application.Features.Meals.Services;
 
 public interface IMealPreferenceService

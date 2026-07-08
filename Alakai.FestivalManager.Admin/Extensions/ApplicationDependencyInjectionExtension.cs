@@ -4,6 +4,13 @@ public static class ApiCLientsDependencyInjectionExtension
 {
     public static IServiceCollection AddApiClients(this IServiceCollection services, IConfiguration configuration)
     {
+        services.AddHttpClient<PublicRegistrationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
         services.AddHttpClient<FestivalApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]
@@ -146,6 +153,13 @@ public static class ApiCLientsDependencyInjectionExtension
         });
 
         services.AddHttpClient<MealPreferenceApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<PaymentApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]
                 ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");

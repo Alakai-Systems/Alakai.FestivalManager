@@ -25,14 +25,28 @@
             <div class="flex flex-wrap items-center gap-4 mb-7">
                 @if (HasGoogleLogin)
                 {
-                    <button type="button" disabled="@IsLoading" @onclick="SignInWithGoogleAsync" class="flex items-center flex-1 gap-1 text-black transition-all duration-300 border rounded-md btn border-light dark:text-white dark:hover:text-black hover:bg-light hover:text-black">
-                                    <div class="flex items-center justify-center flex-none w-8 h-8">
-                                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" class="size-5">
-                                            <path fill="currentColor" d="M12 11H20.5329C20.5769 11.3847 20.6 11.7792 20.6 12.1837C20.6 14.9184 19.6204 17.2204 17.9224 18.7837C16.4367 20.1551 14.404 20.9592 11.9796 20.9592C8.46933 20.9592 5.43266 18.947 3.9551 16.0123C3.34695 14.8 3 13.4286 3 11.9796C3 10.5306 3.34695 9.1592 3.9551 7.94698C5.43266 5.01226 8.46933 3 11.9796 3C14.4 3 16.4326 3.88983 17.9877 5.33878L16.5255 6.80101C15.3682 5.68153 13.8028 5 12 5C8.13401 5 5 8.13401 5 12C5 15.866 8.13401 19 12 19C15.5265 19 18.1443 16.3923 18.577 13H12V11Z"></path>
-                                        </svg>
-                                    </div>
-                                    <MudText Class="whitespace-nowrap">Sign in with Google</MudText>
-                                </button>
+
+                    <button type="button"
+                            disabled="@IsLoading"
+                            @onclick="SignInWithGoogleAsync"
+                            class="flex items-center justify-center w-full gap-3 px-4 py-3
+                       bg-white border border-slate-300 rounded-lg
+                       hover:bg-slate-50 hover:border-slate-400
+                       transition-all duration-200">
+
+                        <!-- Google "G" oficial -->
+                        <svg width="20" height="20" viewBox="0 0 48 48">
+                            <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.3 36 24 36c-6.6 0-12-5.4-12-12S17.4 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.2-.1-2.3-.4-3.5z" />
+                            <path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.7 1.1 7.8 2.9l5.7-5.7C34.1 6.1 29.3 4 24 4c-7.7 0-14.4 4.3-17.7 10.7z" />
+                            <path fill="#4CAF50" d="M24 44c5.2 0 10-2 13.5-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.3 0-9.7-3.3-11.4-8l-6.5 5C9.4 39.6 16.1 44 24 44z" />
+                            <path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-1.1 3.1-3.3 5.5-6.1 6.9l6.2 5.2C39.1 36.6 44 31 44 24c0-1.2-.1-2.3-.4-3.5z" />
+                        </svg>
+
+                        <span class="font-medium text-slate-700">
+                            Continue with Google
+                        </span>
+
+                    </button>
                 }
                 @if (HasAppleLogin)
                 {

@@ -105,6 +105,31 @@ public class RegistrationRepository : IRegistrationRepository
         _context.Registrations.Remove(registration);
     }
 
+    public async Task<int> CountActiveByLevelAsync(Guid levelId, DanceRole? danceRole, CancellationToken cancellationToken = default)
+    {
+        IQueryable<Registration> query = _context.Registrations
+            .Where(r => (r.LevelId == levelId || r.LevelSelections.Any(s => s.LevelId == levelId)) && r.IsActive && r.Status != RegistrationStatus.Cancelled);
+
+        if (danceRole.HasValue)
+        {
+            query = query.Where(r => r.DanceRole == danceRole.Value);
+        }
+
+        return await query.CountAsync(cancellationToken);
+    }
+
+    public async Task<Registration?> GetByOrderAsync(string order, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .FirstOrDefaultAsync(r => r.PaymentReference == order, cancellationToken);
+    }
+
+    public async Task<Registration?> GetByPaymentReferenceAsync(string paymentReference, CancellationToken cancellationToken = default)
+    {
+        return await _context.Registrations
+            .FirstOrDefaultAsync(r => r.PaymentReference == paymentReference, cancellationToken);
+    }
+
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
         return await _context.SaveChangesAsync(cancellationToken);
