@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
+﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class MealPreferenceRepository : IMealPreferenceRepository
 {
@@ -11,7 +11,7 @@ public class MealPreferenceRepository : IMealPreferenceRepository
 
     public async Task<MealPreference?> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
-        return await _context.MealPreferences.FirstOrDefaultAsync(m => m.RegistrationId == registrationId, cancellationToken);
+        return await _context.MealPreferences.AsNoTracking().FirstOrDefaultAsync(m => m.RegistrationId == registrationId, cancellationToken);
     }
 
     public async Task<IReadOnlyList<MealPreference>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)

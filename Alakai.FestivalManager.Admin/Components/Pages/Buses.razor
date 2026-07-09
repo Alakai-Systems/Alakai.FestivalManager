@@ -1,4 +1,4 @@
-@page "/buses"
+﻿@page "/buses"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -58,11 +58,11 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading buses...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading buses...</p>
         }
         else if (PagedBuses.Count == 0)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">No buses for this edition yet.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">No buses for this edition yet.</p>
         }
         else
         {
@@ -80,7 +80,7 @@
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (BusDto bus in PagedBuses)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
@@ -106,7 +106,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredBuses.Count buses</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Showing @StartRow to @EndRow of @FilteredBuses.Count buses</p>
                 <div class="flex items-center gap-2">
                     <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
                     <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
@@ -218,6 +218,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<EditionDto> editions = [];
     private List<PassTypeDto> passTypes = [];
@@ -252,6 +253,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+
         try
         {
             festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
@@ -570,5 +573,22 @@
     private static string GetStatusClass(bool isActive)
     {
         return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            if (ActiveFestivalState.Active is not null)
+            {
+                selectedFestivalId = ActiveFestivalState.Active.Id;
+                await OnFestivalChangedAsync();
+            }
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

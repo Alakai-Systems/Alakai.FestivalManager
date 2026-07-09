@@ -1,4 +1,4 @@
-@page "/email-layout"
+﻿@page "/email-layout"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -58,11 +58,11 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading layouts...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading layouts...</p>
         }
         else if (FilteredLayouts.Count == 0)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">No email layouts found.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">No email layouts found.</p>
         }
         else
         {
@@ -76,7 +76,7 @@
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (EmailLayoutDto layout in PagedLayouts)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
@@ -96,7 +96,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
+                <p class="text-sm text-black/50 dark:text-white/60">
                     Showing @StartRow to @EndRow of @FilteredLayouts.Count layouts
                 </p>
 
@@ -192,6 +192,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<EmailLayoutDto> layouts = [];
     private List<EditionDto> editions = [];
@@ -212,6 +213,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -477,5 +479,19 @@
         public string FooterHtml { get; set; } = string.Empty;
         public string? FooterText { get; set; }
         public bool IsActive { get; set; } = true;
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

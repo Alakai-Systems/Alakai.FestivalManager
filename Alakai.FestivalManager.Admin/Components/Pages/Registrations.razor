@@ -1,4 +1,4 @@
-@page "/registrations"
+﻿@page "/registrations"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -100,7 +100,7 @@
 
             @if (isLoading)
             {
-                <p class="text-sm text-black/50 dark:text-white/40">Loading registrations...</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Loading registrations...</p>
             }
             else
             {
@@ -120,13 +120,13 @@
                                 <th class="px-2 py-2 max-w-[140px] font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @foreach (RegistrationDto registration in PagedRegistrations)
                             {
                                 <tr class="@GetRowClass(registration)">
                                     <td class="px-2 py-2 max-w-[180px]">
                                         <div class="font-medium truncate">@registration.FullName</div>
-                                        <div class="text-xs text-black/50 dark:text-white/40 truncate">@registration.Email</div>
+                                        <div class="text-xs text-black/50 dark:text-white/60 truncate">@registration.Email</div>
                                     </td>
                                     <td class="px-2 py-2 whitespace-nowrap">@GetPassTypeName(registration.PassTypeId)</td>
                                     <td class="px-2 py-2 whitespace-nowrap">@GetLevelName(registration.LevelId)</td>
@@ -135,20 +135,26 @@
                                         <div>@registration.FinalPrice.ToString("0.##") €</div>
                                         @if (registration.FinalPrice != registration.BasePrice)
                                         {
-                                            <div class="text-xs text-black/50 dark:text-white/40">Base @registration.BasePrice.ToString("0.##") €</div>
+                                            <div class="text-xs text-black/50 dark:text-white/60">Base @registration.BasePrice.ToString("0.##") €</div>
                                         }
                                     </td>
                                     <td class="px-2 py-2 whitespace-nowrap">@registration.DiscountCodeValue</td>
                                     <td class="px-2 py-2 max-w-[140px] truncate">@FormatPartner(registration)</td>
-                                    <td class="px-2 py-2 whitespace-nowrap"><span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span></td>
+                                    <td class="px-2 py-2 whitespace-nowrap">
+                                        <span class="@GetPaymentClass(registration.PaymentStatus)">@registration.PaymentStatus</span>
+                                        @if (!string.IsNullOrEmpty(registration.PaymentAuthCodes))
+                                        {
+                                            <div class="text-xs text-black/40 dark:text-white/60 mt-1 font-mono">@(string.Join(" | ", registration.PaymentAuthCodes.Split('|').Select(e => e.Contains(':') ? e.Split(':')[1] : e)))</div>
+                                        }
+                                    </td>
                                     <td class="px-2 py-2 whitespace-nowrap">@FormatDate(registration.CreatedAt)</td>
                                     <td class="px-2 py-2">
                                         <div class="flex justify-end gap-1">
-                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Registration confirmation email" @onclick='() => EmailAction("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
-                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Payment confirmation email" @onclick='() => EmailAction("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
-                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Unpaid reminder email" @onclick='() => EmailAction("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
-                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Missing partner email" @onclick='() => EmailAction("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
-                                            <button type="button" class="text-black dark:text-white/70 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Registration confirmation email" @onclick='() => OpenEmailConfirmModal("registration confirmation", registration)'><i class="ri-mail-send-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Payment confirmation email" @onclick='() => OpenEmailConfirmModal("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Unpaid reminder email" @onclick='() => OpenEmailConfirmModal("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Missing partner email" @onclick='() => OpenEmailConfirmModal("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
                                             <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
                                         </div>
                                     </td>
@@ -159,7 +165,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
+                    <p class="text-sm text-black/50 dark:text-white/60">
                         Showing @StartRow to @EndRow of @FilteredRegistrations.Count registrations
                     </p>
 
@@ -295,6 +301,27 @@
     </div>
 }
 
+@if (emailConfirmRegistration is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Send Email</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">
+                        Send <strong>@emailConfirmAction</strong> email to <strong>@emailConfirmRegistration.FullName</strong>?
+                    </p>
+                    <p class="mt-1 text-xs text-black/40 dark:text-white/40">@emailConfirmRegistration.Email</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10 dark:border-darkborder dark:text-white/80" disabled="@isSaving" @onclick="CloseEmailConfirmModal">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ConfirmEmailAsync">@(isSaving ? "Sending..." : "Send")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @if (deleteRegistration is not null)
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
@@ -302,7 +329,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Registration</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deleteRegistration.FullName</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@deleteRegistration.FullName</strong>?</p>
                 </div>
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                     <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
@@ -313,6 +340,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<RegistrationDto> registrations = [];
     private List<PassTypeDto> passTypes = [];
@@ -321,6 +349,8 @@
     private List<FestivalDto> festivals = [];
     private RegistrationDto? editingRegistration;
     private RegistrationDto? deleteRegistration;
+    private RegistrationDto? emailConfirmRegistration;
+    private string emailConfirmAction = string.Empty;
     private string searchText = string.Empty;
     private string paymentFilter = string.Empty;
     private string partnerFilter = string.Empty;
@@ -351,6 +381,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -607,6 +638,27 @@
         };
     }
 
+    private void OpenEmailConfirmModal(string action, RegistrationDto registration)
+    {
+        emailConfirmAction = action;
+        emailConfirmRegistration = registration;
+    }
+
+    private void CloseEmailConfirmModal()
+    {
+        emailConfirmRegistration = null;
+        emailConfirmAction = string.Empty;
+    }
+
+    private async Task ConfirmEmailAsync()
+    {
+        if (emailConfirmRegistration is null) return;
+        RegistrationDto registration = emailConfirmRegistration;
+        string action = emailConfirmAction;
+        CloseEmailConfirmModal();
+        await EmailAction(action, registration);
+    }
+
     private async Task EmailAction(string action, RegistrationDto registration)
     {
         try
@@ -750,5 +802,19 @@
         {
             isSaving = false;
         }
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = Guid.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

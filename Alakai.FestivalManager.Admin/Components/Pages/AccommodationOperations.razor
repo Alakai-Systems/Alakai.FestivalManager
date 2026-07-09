@@ -1,4 +1,4 @@
-@page "/accommodation-operations"
+﻿@page "/accommodation-operations"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -50,11 +50,11 @@
 
     @if (isLoading)
     {
-        <div class="card"><p class="text-sm text-black/50 dark:text-white/40">Loading...</p></div>
+        <div class="card"><p class="text-sm text-black/50 dark:text-white/60">Loading...</p></div>
     }
     else if (selectedBuildingId == Guid.Empty)
     {
-        <div class="card"><p class="text-sm text-black/50 dark:text-white/40">Select a building above to see its occupancy.</p></div>
+        <div class="card"><p class="text-sm text-black/50 dark:text-white/60">Select a building above to see its occupancy.</p></div>
     }
     else if (buildingDetail is not null)
     {
@@ -86,7 +86,7 @@
                             <div class="overflow-hidden border rounded-lg border-black/10 dark:border-darkborder">
                                 <div class="flex items-center justify-between px-3 py-2 @(unit.OccupiedCount >= unit.Capacity ? "bg-danger/10" : "bg-purple/10")">
                                     <span class="font-semibold @(unit.OccupiedCount >= unit.Capacity ? "text-danger" : "text-purple")">@unit.Name</span>
-                                    <span class="flex items-center gap-1 text-xs text-black/60 dark:text-white/50">
+                                    <span class="flex items-center gap-1 text-xs text-black/60 dark:text-white/60">
                                         <i class="ri-team-line"></i>@unit.OccupiedCount / @unit.Capacity
                                     </span>
                                 </div>
@@ -190,6 +190,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<FestivalDto> festivals = [];
     private List<EditionDto> editions = [];
@@ -219,6 +220,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+
         try
         {
             festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
@@ -538,5 +541,22 @@
         public string Email { get; set; } = string.Empty;
         public DateTime? BirthDate { get; set; }
         public DateTime? DocumentExpiryDate { get; set; }
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            if (ActiveFestivalState.Active is not null)
+            {
+                selectedFestivalId = ActiveFestivalState.Active.Id;
+                await OnFestivalChangedAsync();
+            }
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

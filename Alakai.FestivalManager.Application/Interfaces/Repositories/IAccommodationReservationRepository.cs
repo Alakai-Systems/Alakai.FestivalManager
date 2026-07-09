@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
+﻿namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
 
 public interface IAccommodationReservationRepository
 {
@@ -10,6 +10,7 @@ public interface IAccommodationReservationRepository
     Task<bool> IsRegistrationAlreadyBookedAsync(Guid editionId, Guid registrationId, CancellationToken cancellationToken = default);
     Task<Dictionary<Guid, int>> GetOccupancyCountsAsync(IReadOnlyList<Guid> accommodationIds, CancellationToken cancellationToken = default);
     Task AddAsync(AccommodationReservation reservation, CancellationToken cancellationToken = default);
+    Task<AccommodationReservation?> GetByResponsibleRegistrationIdTrackedAsync(Guid registrationId, CancellationToken cancellationToken = default);
     void Delete(AccommodationReservation reservation);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);
 }

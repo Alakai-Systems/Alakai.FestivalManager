@@ -1,4 +1,4 @@
-using Alakai.FestivalManager.Infrastructure.Email;
+﻿using Alakai.FestivalManager.Infrastructure.Email;
 
 namespace Alakai.FestivalManager.Application.Features.Emails.Services;
 
@@ -14,13 +14,14 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IAccommodationReservationRepository _accommodationReservationRepository;
     private readonly IBusReservationRepository _busReservationRepository;
     private readonly IMealPreferenceRepository _mealPreferenceRepository;
+    private readonly IAccommodationBuildingRepository _accommodationBuildingRepository;
     private readonly IMapper _mapper;
 
     public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
         IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
         IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
         IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
-        IMealPreferenceRepository mealPreferenceRepository)
+        IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -33,6 +34,7 @@ public class EmailNotificationService : IEmailNotificationService
         _accommodationReservationRepository = accommodationReservationRepository;
         _busReservationRepository = busReservationRepository;
         _mealPreferenceRepository = mealPreferenceRepository;
+        _accommodationBuildingRepository = accommodationBuildingRepository;
     }
 
     private const int EmailShellWidth = 640;
@@ -157,7 +159,13 @@ public class EmailNotificationService : IEmailNotificationService
             return;
         }
 
-        variables["AccommodationBuildingName"] = reservation.AccommodationBuilding?.Name ?? string.Empty;
+        string buildingName = reservation.AccommodationBuilding?.Name ?? string.Empty;
+        if (string.IsNullOrEmpty(buildingName))
+        {
+            AccommodationBuilding? building = await _accommodationBuildingRepository.GetByIdAsync(reservation.AccommodationBuildingId, cancellationToken);
+            buildingName = building?.Name ?? string.Empty;
+        }
+        variables["AccommodationBuildingName"] = buildingName;
         variables["AccommodationOccupantNames"] = string.Join(", ", reservation.Occupants.Select(o =>
             o.Registration is not null ? $"{o.Registration.FirstName} {o.Registration.LastName}" : o.Email));
     }
@@ -168,10 +176,12 @@ public class EmailNotificationService : IEmailNotificationService
         variables["DepartureBusPickup"] = string.Empty;
         variables["DepartureBusDestination"] = string.Empty;
         variables["DepartureBusPrice"] = string.Empty;
+        variables["DepartureBusLine"] = string.Empty;
         variables["ReturnBusTime"] = string.Empty;
         variables["ReturnBusPickup"] = string.Empty;
         variables["ReturnBusDestination"] = string.Empty;
         variables["ReturnBusPrice"] = string.Empty;
+        variables["ReturnBusLine"] = string.Empty;
 
         IReadOnlyList<BusReservation> reservations = await _busReservationRepository.GetByRegistrationIdAsync(registrationId, cancellationToken);
 
@@ -184,6 +194,7 @@ public class EmailNotificationService : IEmailNotificationService
             variables["DepartureBusPickup"] = departure.Bus.PickupLocation;
             variables["DepartureBusDestination"] = departure.Bus.DestinationLocation;
             variables["DepartureBusPrice"] = departure.Bus.Price.ToString("0.00");
+            variables["DepartureBusLine"] = $"{departure.Bus.DepartureTime.ToString("dd/MM/yyyy HH:mm")} - {departure.Bus.PickupLocation} - {departure.Bus.DestinationLocation} - {departure.Bus.Price.ToString("0.00")}";
         }
 
         if (returnTrip?.Bus is not null)
@@ -192,6 +203,7 @@ public class EmailNotificationService : IEmailNotificationService
             variables["ReturnBusPickup"] = returnTrip.Bus.PickupLocation;
             variables["ReturnBusDestination"] = returnTrip.Bus.DestinationLocation;
             variables["ReturnBusPrice"] = returnTrip.Bus.Price.ToString("0.00");
+            variables["ReturnBusLine"] = $"{returnTrip.Bus.DepartureTime.ToString("dd/MM/yyyy HH:mm")} - {returnTrip.Bus.PickupLocation} - {returnTrip.Bus.DestinationLocation} - {returnTrip.Bus.Price.ToString("0.00")}";
         }
     }
 

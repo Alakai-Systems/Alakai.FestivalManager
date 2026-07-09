@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
+﻿namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
 
 public interface IInvoiceRepository
 {
@@ -7,5 +7,6 @@ public interface IInvoiceRepository
     Task<Invoice?> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<int> GetMaxSequenceNumberForYearAsync(int year, CancellationToken cancellationToken = default);
+    void Delete(Invoice invoice);
     Task SaveChangesAsync(CancellationToken cancellationToken = default);
 }

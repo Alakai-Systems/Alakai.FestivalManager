@@ -1,4 +1,4 @@
-@page "/reports"
+﻿@page "/reports"
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 
@@ -40,7 +40,7 @@
     <div class="card">
         @if (selectedEditionId == Guid.Empty)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Select a festival and edition above.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Select a festival and edition above.</p>
         }
         else
         {
@@ -52,7 +52,7 @@
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         <tr class="border-b border-black/10 dark:border-darkborder">
                             <td class="px-4 py-3">Users</td>
                             <td class="px-4 py-3 text-right">
@@ -147,6 +147,7 @@
     };
 </script>
 
+@implements IDisposable
 @code {
     private List<FestivalDto> festivals = [];
     private List<EditionDto> editions = [];
@@ -169,6 +170,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+
         try
         {
             festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
@@ -262,5 +265,22 @@
     private static string Capitalize(string value)
     {
         return string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            if (ActiveFestivalState.Active is not null)
+            {
+                selectedFestivalId = ActiveFestivalState.Active.Id;
+                OnFestivalChangedAsync();
+            }
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

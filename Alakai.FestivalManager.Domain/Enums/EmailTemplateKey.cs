@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Domain.Enums;
+﻿namespace Alakai.FestivalManager.Domain.Enums;
 
 public enum EmailTemplateKey
 {
@@ -16,5 +16,6 @@ public enum EmailTemplateKey
     BusConfirmed = 12,
     BusCancelled = 13,
     MenuConfirmed = 14,
-    MenuCancelled = 15
+    MenuCancelled = 15,
+    AccommodationNewResponsible = 16
 }

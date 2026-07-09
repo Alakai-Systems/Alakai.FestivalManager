@@ -1,4 +1,4 @@
-@page "/invoices"
+﻿@page "/invoices"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -47,11 +47,11 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading invoices...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading invoices...</p>
         }
         else if (FilteredInvoices.Count == 0)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">No invoices found.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">No invoices found.</p>
         }
         else
         {
@@ -69,7 +69,7 @@
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (InvoiceDto invoice in PagedInvoices)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
@@ -92,7 +92,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
+                <p class="text-sm text-black/50 dark:text-white/60">
                     Showing @StartRow to @EndRow of @FilteredInvoices.Count invoices
                 </p>
 
@@ -106,6 +106,7 @@
     </div>
 </div>
 
+@implements IDisposable
 @code {
     private List<InvoiceDto> invoices = [];
     private List<EditionDto> editions = [];
@@ -130,6 +131,12 @@
     private string? errorMessage;
 
     protected override async Task OnInitializedAsync()
+    {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
     {
         isLoading = true;
 
@@ -229,5 +236,20 @@
         {
             currentPage++;
         }
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            editionFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

@@ -1,4 +1,4 @@
-@page "/discount-codes"
+﻿@page "/discount-codes"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -80,7 +80,7 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading discount codes...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading discount codes...</p>
         }
         else
         {
@@ -98,7 +98,7 @@
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (DiscountCodeDto item in PagedCodes)
                         {
                             <tr>
@@ -122,7 +122,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
+                <p class="text-sm text-black/50 dark:text-white/60">
                     Showing @StartRow to @EndRow of @FilteredCodes.Count discount codes
                 </p>
 
@@ -235,7 +235,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Discount Code</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deleteCode.Code</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@deleteCode.Code</strong>?</p>
                 </div>
              <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                 <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
@@ -246,6 +246,7 @@
 </div>
 }
 
+@implements IDisposable
 @code {
     private List<DiscountCodeDto> codes = [];
     private List<EditionDto> editions = [];
@@ -283,6 +284,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -628,5 +630,19 @@
         public int? MaxUses { get; set; }
         public int CurrentUses { get; set; }
         public bool IsActive { get; set; }
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
+﻿namespace Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
 
 public class RegistrationDto
 {
@@ -33,6 +33,7 @@ public class RegistrationDto
     public DiscountApplicationStatus DiscountStatus { get; set; }
 
     public string? PaymentReference { get; set; }
+    public string? PaymentAuthCodes { get; set; }
     public DateTime? PaidAt { get; set; }
 
     public string? Notes { get; set; }

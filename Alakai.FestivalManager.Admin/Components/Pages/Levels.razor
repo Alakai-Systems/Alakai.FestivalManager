@@ -1,4 +1,4 @@
-@page "/levels"
+﻿@page "/levels"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Levels
@@ -86,7 +86,7 @@
 
             @if (isLoading)
             {
-                <p class="text-sm text-black/50 dark:text-white/40">Loading levels...</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Loading levels...</p>
             }
             else
             {
@@ -125,11 +125,11 @@
                                 <th class="px-4 py-3 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @if (PagedLevels.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No levels found.</td>
+                                    <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No levels found.</td>
                                 </tr>
                             }
                             else
@@ -159,6 +159,9 @@
                                                 <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(level)">
                                                     <i class="ri-pencil-line text-lg"></i>
                                                 </button>
+                                                <button type="button" class="text-black dark:text-white/80" title="Duplicate" @onclick="() => OpenDuplicateModal(level)">
+                                                    <i class="ri-file-copy-line text-lg"></i>
+                                                </button>
                                                 <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(level)">
                                                     <i class="ri-delete-bin-line text-lg"></i>
                                                 </button>
@@ -172,7 +175,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
+                    <p class="text-sm text-black/50 dark:text-white/60">
                         Showing @ShowingFrom to @ShowingTo of @FilteredLevels.Count levels
                     </p>
 
@@ -421,7 +424,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Level</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@selectedLevel.Name</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@selectedLevel.Name</strong>?</p>
 
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
@@ -440,6 +443,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private IReadOnlyList<LevelDto> allLevels = [];
     private List<PassTypeDto> passTypes = new();
@@ -544,6 +548,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadPassTypesAsync();
         await LoadEditionsAsync();
         await LoadLevelsAsync();
@@ -685,6 +690,32 @@
             MaxLeaderDifference = null,
             MaxFollowerDifference = null,
             SortOrder = 0
+        };
+
+        showCreateModal = true;
+    }
+
+    private void OpenDuplicateModal(LevelDto level)
+    {
+        modalErrorMessage = null;
+
+        modalSelectedEdition = passTypes.FirstOrDefault(pt => pt.Id == level.PassTypeId)?.EditionId ?? Guid.Empty;
+        OnModalEditionChanged();
+
+        createRequest = new CreateLevelRequest
+        {
+            PassTypeId = level.PassTypeId,
+            Name = string.Empty,
+            Description = level.Description,
+            EarlyBirdPrice = level.EarlyBirdPrice,
+            GroupPrice = level.GroupPrice,
+            RegularPrice = level.RegularPrice,
+            LeaderCapacity = level.LeaderCapacity,
+            FollowerCapacity = level.FollowerCapacity,
+            IndividualCapacity = level.IndividualCapacity,
+            MaxLeaderDifference = level.MaxLeaderDifference,
+            MaxFollowerDifference = level.MaxFollowerDifference,
+            SortOrder = level.SortOrder
         };
 
         showCreateModal = true;
@@ -853,5 +884,20 @@
     {
         if (exception.Errors.Count == 0) return exception.Message;
         return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = null;
+            await LoadEditionsAsync();
+            await LoadLevelsAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

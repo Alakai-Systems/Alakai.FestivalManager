@@ -13,6 +13,7 @@ public class PassTypeStatDto
     public Guid PassTypeId { get; set; }
     public string PassTypeName { get; set; } = string.Empty;
     public int Purchased { get; set; }
+    public int PartiallyPaid { get; set; }
     public int FullyPaid { get; set; }
     public int PendingPayment { get; set; }
     public int Unpaid { get; set; }

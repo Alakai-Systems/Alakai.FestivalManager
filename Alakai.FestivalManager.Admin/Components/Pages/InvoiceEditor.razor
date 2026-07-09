@@ -1,4 +1,4 @@
-@page "/settings/invoices"
+﻿@page "/settings/invoices"
 
 @inject InvoiceSettingsApiClient InvoiceSettingsApiClient
 @inject UploadsApiClient UploadsApiClient
@@ -40,7 +40,7 @@
                 <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
                 @if (IsUploadingLogo)
                 {
-                    <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
+                    <p class="mt-1 text-xs text-black/50 dark:text-white/60">Uploading...</p>
                 }
             </div>
         </div>

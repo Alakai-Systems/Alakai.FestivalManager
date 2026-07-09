@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Domain.Entities;
+﻿namespace Alakai.FestivalManager.Domain.Entities;
 
 public class Registration : BaseEntity
 {
@@ -43,6 +43,7 @@ public class Registration : BaseEntity
     public decimal FinalPrice { get; set; }
 
     public string? PaymentReference { get; set; }
+    public string? PaymentAuthCodes { get; set; }
     public DateTime? PaidAt { get; set; }
 
     public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;

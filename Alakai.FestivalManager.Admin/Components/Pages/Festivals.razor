@@ -1,4 +1,4 @@
-@page "/festivals"
+﻿@page "/festivals"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Festivals
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -54,7 +54,7 @@
 
             @if (isLoading)
             {
-                <p class="text-sm text-black/50 dark:text-white/40">Loading festivals...</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Loading festivals...</p>
             }
             else
             {
@@ -89,11 +89,11 @@
                                 <th class="px-4 py-3 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @if (PagedFestivals.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No festivals found.</td>
+                                    <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No festivals found.</td>
                                 </tr>
                             }
                             else
@@ -137,7 +137,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
+                    <p class="text-sm text-black/50 dark:text-white/60">
                         Showing @ShowingFrom to @ShowingTo of @FilteredFestivals.Count festivals
                     </p>
 
@@ -262,7 +262,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Festival</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete @selectedFestival.Name?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete @selectedFestival.Name?</p>
 
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {

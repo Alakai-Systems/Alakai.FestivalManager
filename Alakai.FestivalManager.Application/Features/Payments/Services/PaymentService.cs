@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Application.Features.Payments.Services;
 
@@ -72,6 +72,9 @@ public class PaymentService : IPaymentService
             string responseCodeStr = root.TryGetProperty("Ds_Response", out System.Text.Json.JsonElement respEl)
                 ? respEl.GetString() ?? "-1" : "-1";
 
+            string authCode = root.TryGetProperty("Ds_AuthorisationCode", out System.Text.Json.JsonElement authEl)
+                ? (authEl.GetString() ?? string.Empty).Trim() : string.Empty;
+
             if (string.IsNullOrEmpty(order)) return false;
 
             int responseCode = int.TryParse(responseCodeStr, out int rc) ? rc : -1;
@@ -84,6 +87,14 @@ public class PaymentService : IPaymentService
 
             if (isApproved)
             {
+                if (!string.IsNullOrEmpty(authCode))
+                {
+                    string entry = $"{order}:{authCode}";
+                    registration.PaymentAuthCodes = string.IsNullOrEmpty(registration.PaymentAuthCodes)
+                        ? entry
+                        : registration.PaymentAuthCodes + "|" + entry;
+                }
+
                 if (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.AmountPaid == 0m)
                 {
                     registration.PaymentStatus = PaymentStatus.PartiallyPaid;
@@ -94,8 +105,8 @@ public class PaymentService : IPaymentService
                     registration.PaymentStatus = PaymentStatus.Paid;
                     registration.PaidAt = DateTime.UtcNow;
                     registration.AmountPaid = registration.FinalPrice;
+                    registration.Status = RegistrationStatus.Confirmed;
                 }
-                registration.Status = RegistrationStatus.Confirmed;
                 _logger.LogInformation("Redsys return confirmed. Order {Order}.", order);
             }
             else
@@ -168,6 +179,15 @@ public class PaymentService : IPaymentService
                 registration.PaymentStatus = PaymentStatus.Paid;
                 registration.PaidAt = DateTime.UtcNow;
                 registration.AmountPaid = registration.FinalPrice;
+                registration.Status = RegistrationStatus.Confirmed;
+            }
+
+            if (!string.IsNullOrEmpty(notification.AuthorisationCode))
+            {
+                string entry = $"{notification.Order}:{notification.AuthorisationCode}";
+                registration.PaymentAuthCodes = string.IsNullOrEmpty(registration.PaymentAuthCodes)
+                    ? entry
+                    : registration.PaymentAuthCodes + "|" + entry;
             }
 
             _logger.LogInformation("Redsys payment approved. Order {Order}, auth code {AuthCode}.", notification.Order, notification.AuthorisationCode);

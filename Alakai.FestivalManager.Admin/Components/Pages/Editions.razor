@@ -1,4 +1,4 @@
-@page "/editions"
+﻿@page "/editions"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
@@ -66,7 +66,7 @@
 
             @if (isLoading)
             {
-                <p class="text-sm text-black/50 dark:text-white/40">Loading editions...</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Loading editions...</p>
             }
             else
             {
@@ -113,11 +113,11 @@
                                 <th class="px-4 py-3 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @if (PagedEditions.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No editions found.</td>
+                                    <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No editions found.</td>
                                 </tr>
                             }
                             else
@@ -158,7 +158,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
+                    <p class="text-sm text-black/50 dark:text-white/60">
                         Showing @ShowingFrom to @ShowingTo of @FilteredEditions.Count editions
                     </p>
 
@@ -280,7 +280,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Edition</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@selectedEdition.Name</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@selectedEdition.Name</strong>?</p>
 
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
@@ -299,6 +299,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private IReadOnlyList<EditionDto> allEditions = [];
     private IReadOnlyList<FestivalDto> festivals = [];
@@ -373,6 +374,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadEditionsAsync();
         await LoadFestivalsAsync();
     }
@@ -664,5 +666,19 @@
     {
         FestivalDto? festival = festivals.FirstOrDefault(f => f.Id == festivalId);
         return festival is null ? festivalId.ToString() : festival.Name;
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = null;
+            await LoadEditionsAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

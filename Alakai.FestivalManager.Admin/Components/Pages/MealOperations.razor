@@ -1,4 +1,4 @@
-@page "/meal-operations"
+﻿@page "/meal-operations"
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Meals.DTOs
@@ -52,11 +52,11 @@
     <div class="card">
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading...</p>
         }
         else if (PagedPreferences.Count == 0)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">No registrations for this edition yet.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">No registrations for this edition yet.</p>
         }
         else
         {
@@ -72,12 +72,12 @@
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (MealPreferenceDto preference in PagedPreferences)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
                                 <td class="px-4 py-3 font-medium">@(preference.RegistrationName ?? "-")</td>
-                                <td class="px-3 py-3 text-black/60 dark:text-white/50">@preference.RegistrationEmail</td>
+                                <td class="px-3 py-3 text-black/60 dark:text-white/60">@preference.RegistrationEmail</td>
                                 <td class="px-3 py-3">
                                     @if (preference.HasPreference)
                                     {
@@ -109,7 +109,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">Showing @StartRow to @EndRow of @FilteredPreferences.Count registrations</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Showing @StartRow to @EndRow of @FilteredPreferences.Count registrations</p>
                 <div class="flex items-center gap-2">
                     <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
                     <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
@@ -159,6 +159,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<FestivalDto> festivals = [];
     private List<EditionDto> editions = [];
@@ -186,6 +187,8 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+
         try
         {
             festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();
@@ -386,5 +389,22 @@
         1 => "Standard",
         2 => "Vegetarian",
         _ => "-"
-    };
+    };
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            if (ActiveFestivalState.Active is not null)
+            {
+                selectedFestivalId = ActiveFestivalState.Active.Id;
+                await OnFestivalChangedAsync();
+            }
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
+    }
 }

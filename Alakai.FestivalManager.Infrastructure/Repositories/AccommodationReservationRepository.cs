@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
+﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class AccommodationReservationRepository : IAccommodationReservationRepository
 {
@@ -35,9 +35,17 @@ public class AccommodationReservationRepository : IAccommodationReservationRepos
             .FirstOrDefaultAsync(r => r.ResponsibleRegistrationId == registrationId, cancellationToken);
     }
 
+    public async Task<AccommodationReservation?> GetByResponsibleRegistrationIdTrackedAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.AccommodationReservations
+            .Include(r => r.Occupants).ThenInclude(o => o.Registration)
+            .FirstOrDefaultAsync(r => r.ResponsibleRegistrationId == registrationId, cancellationToken);
+    }
+
     public async Task<AccommodationReservation?> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.AccommodationReservations
+            .AsNoTracking()
             .Include(r => r.Occupants).ThenInclude(o => o.Accommodation).ThenInclude(a => a!.AccommodationZone)
             .Include(r => r.Occupants).ThenInclude(o => o.Registration)
             .Include(r => r.AccommodationBuilding)

@@ -1,4 +1,4 @@
-@page "/competitions"
+﻿@page "/competitions"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -66,7 +66,7 @@
 
             @if (isLoading)
             {
-                <p class="text-sm text-black/50 dark:text-white/40">Loading competitions...</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Loading competitions...</p>
             }
             else if (SelectedCompetitionForDetail is not null)
             {
@@ -74,7 +74,7 @@
                 <div class="flex items-center justify-between mb-4">
                     <div>
                         <h2 class="text-lg font-bold text-black dark:text-white">@SelectedCompetitionForDetail.Name</h2>
-                        <p class="text-sm text-black/50 dark:text-white/40">@SelectedCompetitionForDetail.Format &middot; @SelectedCompetitionForDetail.Price.ToString("0.00") &euro;</p>
+                        <p class="text-sm text-black/50 dark:text-white/60">@SelectedCompetitionForDetail.Format &middot; @SelectedCompetitionForDetail.Price.ToString("0.00") &euro;</p>
                     </div>
                     <div class="flex items-center gap-3">
                         <button type="button" class="btn border border-black/10" @onclick="ClearCompetitionFilter">
@@ -99,11 +99,11 @@
                                 <th class="px-4 py-3 font-semibold">Status</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @if (SelectedCompetitionForDetail.Capacities.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/40">
+                                    <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/60">
                                         No capacities defined yet. Use "Edit Competition" to add levels and capacities.
                                     </td>
                                 </tr>
@@ -149,11 +149,11 @@
                                 <th class="px-4 py-3 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @if (PagedCompetitions.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No competitions found.</td>
+                                    <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No competitions found.</td>
                                 </tr>
                             }
                             else
@@ -163,7 +163,7 @@
                                     <tr @key="competition.Id" class="border-b border-black/10 dark:border-darkborder">
                                         <td class="px-4 py-3">
                                             <div class="font-medium">@competition.Name</div>
-                                            <div class="text-xs text-black/50 dark:text-white/40">@competition.Description</div>
+                                            <div class="text-xs text-black/50 dark:text-white/60">@competition.Description</div>
                                         </td>
                                         <td class="px-4 py-3">@competition.Format</td>
                                         <td class="px-4 py-3">@competition.Price.ToString("0.00") &euro;</td>
@@ -184,7 +184,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
+                    <p class="text-sm text-black/50 dark:text-white/60">
                         Showing @StartRow to @EndRow of @FilteredCompetitions.Count competitions
                     </p>
                     <div class="flex items-center gap-2">
@@ -269,7 +269,7 @@
 
                             @if (formModel.LevelNames.Count == 0)
                             {
-                                <p class="text-xs text-black/40 dark:text-white/40">No levels defined. This competition will have a single capacity, with no level breakdown.</p>
+                                <p class="text-xs text-black/40 dark:text-white/60">No levels defined. This competition will have a single capacity, with no level breakdown.</p>
                             }
 
                             @for (int i = 0; i < formModel.LevelNames.Count; i++)
@@ -278,7 +278,7 @@
 
                                 <div @key="idx" class="flex items-end gap-3 mb-2">
                                     <div class="flex-1">
-                                        <label class="block text-xs text-black/50 dark:text-white/40">Level name</label>
+                                        <label class="block text-xs text-black/50 dark:text-white/60">Level name</label>
                                         <input class="form-input" value="@formModel.LevelNames[idx]" @oninput="(ChangeEventArgs e) => UpdateLevelName(idx, e.Value?.ToString() ?? string.Empty)" placeholder="e.g. Open, Advanced, Beginner..." />
                                     </div>
                                     <button type="button" class="btn border text-danger" @onclick="() => RemoveLevel(idx)">Remove</button>
@@ -297,14 +297,14 @@
 
                             @if (formModel.Capacities.Count == 0)
                             {
-                                <p class="text-xs text-black/40 dark:text-white/40">No capacities defined yet.</p>
+                                <p class="text-xs text-black/40 dark:text-white/60">No capacities defined yet.</p>
                             }
 
                             @foreach (CompetitionCapacityFormModel capacity in formModel.Capacities)
                             {
                                 <div @key="capacity" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-3 p-3 border rounded-md border-black/10 dark:border-darkborder">
                                     <div>
-                                        <label class="block text-xs text-black/50 dark:text-white/40">Level</label>
+                                        <label class="block text-xs text-black/50 dark:text-white/60">Level</label>
                                         <select class="form-select" @bind="capacity.LevelName">
                                             <option value="">No level</option>
                                             @foreach (string levelName in formModel.LevelNames.Where(n => !string.IsNullOrWhiteSpace(n)))
@@ -315,7 +315,7 @@
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs text-black/50 dark:text-white/40">Role</label>
+                                        <label class="block text-xs text-black/50 dark:text-white/60">Role</label>
                                         <select class="form-select" @bind="capacity.DanceRole">
                                             <option value="@DanceRole.Leader">Leader</option>
                                             <option value="@DanceRole.Follower">Follower</option>
@@ -324,13 +324,13 @@
                                     </div>
 
                                     <div>
-                                        <label class="block text-xs text-black/50 dark:text-white/40">Capacity</label>
+                                        <label class="block text-xs text-black/50 dark:text-white/60">Capacity</label>
                                         <InputNumber class="form-input" @bind-Value="capacity.Capacity" />
                                     </div>
 
                                     <div class="flex items-end gap-2">
                                         <div class="flex-1">
-                                            <label class="block text-xs text-black/50 dark:text-white/40">Sort order</label>
+                                            <label class="block text-xs text-black/50 dark:text-white/60">Sort order</label>
                                             <InputNumber class="form-input" @bind-Value="capacity.SortOrder" />
                                         </div>
                                         <button type="button" class="btn border text-danger" @onclick="() => RemoveCapacity(capacity)">Remove</button>
@@ -356,7 +356,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Competition</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@deletingCompetition.Name</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@deletingCompetition.Name</strong>?</p>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -368,6 +368,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<CompetitionDto> competitions = [];
     private List<EditionDto> editions = [];
@@ -416,6 +417,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -780,8 +782,18 @@
         public int Capacity { get; set; }
         public int SortOrder { get; set; }
     }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = Guid.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
+    }
 }
-
-
-
-

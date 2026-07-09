@@ -1,4 +1,4 @@
-@page "/profile"
+﻿@page "/profile"
 
 @inject UserApiClient UserApiClient
 @inject UploadsApiClient UploadsApiClient
@@ -40,7 +40,7 @@
                 <InputFile OnChange="OnPhotoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
                 @if (IsUploadingPhoto)
                 {
-                    <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
+                    <p class="mt-1 text-xs text-black/50 dark:text-white/60">Uploading...</p>
                 }
             </div>
         </div>

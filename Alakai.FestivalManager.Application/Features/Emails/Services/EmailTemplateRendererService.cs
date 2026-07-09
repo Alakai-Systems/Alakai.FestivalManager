@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Emails.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Emails.Services;
 
 public class EmailTemplateRendererService : IEmailTemplateRendererService
 {
@@ -9,7 +9,20 @@ public class EmailTemplateRendererService : IEmailTemplateRendererService
             return string.Empty;
         }
 
-        StringBuilder result = new(template);
+        // Strip any HTML tags that a WYSIWYG editor may have injected inside {{placeholders}}.
+        // e.g. {{Accommodation<b>BuildingName</b>}} -> {{AccommodationBuildingName}}
+        string sanitized = System.Text.RegularExpressions.Regex.Replace(
+            template,
+            @"\{\{(.*?)\}\}",
+            m =>
+            {
+                string inner = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value, "<[^>]+>", string.Empty);
+                inner = System.Net.WebUtility.HtmlDecode(inner).Trim();
+                return "{{" + inner + "}}";
+            },
+            System.Text.RegularExpressions.RegexOptions.Singleline);
+
+        StringBuilder result = new(sanitized);
 
         foreach (KeyValuePair<string, string> variable in variables)
         {

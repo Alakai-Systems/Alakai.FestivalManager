@@ -1,11 +1,17 @@
-@page "/accommodation-buildings/{Id:guid}"
+﻿@page "/accommodation-buildings/{Id:guid}"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
 
 @inject AccommodationApiClient AccommodationApiClient
+@inject NavigationManager NavigationManager
 
-<PageHeader Title="Event Setup" pTitle="@(building?.Name ?? "Building")"></PageHeader>
+<div class="flex items-center justify-between">
+    <PageHeader Title="Event Setup" pTitle="@(building?.Name ?? "Building")"></PageHeader>
+    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick='() => NavigationManager.NavigateTo("/accommodation-buildings")'>
+        <i class="ri-arrow-left-line"></i> Back to Buildings
+    </button>
+</div>
 
 @if (!string.IsNullOrWhiteSpace(successMessage))
 {
@@ -18,21 +24,20 @@
 
 @if (isLoading)
 {
-    <p class="mt-4 text-sm text-black/50 dark:text-white/40">Loading...</p>
+    <p class="mt-4 text-sm text-black/50 dark:text-white/60">Loading...</p>
 }
 else if (building is null)
 {
-    <p class="mt-4 text-sm text-black/50 dark:text-white/40">Building not found.</p>
+    <p class="mt-4 text-sm text-black/50 dark:text-white/60">Building not found.</p>
 }
 else
 {
     <div class="flex items-center justify-between mt-4 card">
         <div class="flex items-center gap-3">
-            <h2 class="text-xl font-semibold text-black dark:text-white">@building.Name</h2>
             <span class="inline-block rounded text-xs px-2 py-1 bg-purple/10 text-purple">@GetTypeLabel(building.Type)</span>
             @if (building.AllowedPassTypeNames.Count > 0)
             {
-                <span class="text-sm text-black/50 dark:text-white/40">Allowed: @string.Join(", ", building.AllowedPassTypeNames)</span>
+                <span class="text-sm text-black/50 dark:text-white/60">Allowed: @string.Join(", ", building.AllowedPassTypeNames)</span>
             }
         </div>
         <button type="button" class="transition-all duration-300 border rounded-md btn whitespace-nowrap @(building.IsLocked ? "text-danger border-danger hover:bg-danger hover:text-white" : "text-success border-success hover:bg-success hover:text-white")" @onclick="ToggleLockAsync">
@@ -50,17 +55,16 @@ else
                     <option value="25">25 rows</option>
                     <option value="50">50 rows</option>
                 </select>
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenAddZoneModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    Add Zone
+                </button>
             </div>
-
-            <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenAddZoneModal">
-                <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                Add Zone
-            </button>
         </div>
 
         @if (PagedZones.Count == 0)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">No zones yet.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">No zones yet.</p>
         }
         else
         {
@@ -75,11 +79,11 @@ else
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (AccommodationZoneDto zone in PagedZones)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
-                                <td class="px-3 py-3 text-black/50 dark:text-white/40">@zone.SortOrder</td>
+                                <td class="px-3 py-3 text-black/50 dark:text-white/60">@zone.SortOrder</td>
                                 <td class="px-4 py-3 font-medium">@zone.Name</td>
                                 <td class="px-3 py-3">@zone.Accommodations.Count</td>
                                 <td class="px-3 py-3">@zone.Accommodations.Sum(a => a.Capacity)</td>
@@ -99,7 +103,7 @@ else
                                     <td colspan="5" class="px-4 py-4 bg-gray-50 dark:bg-dark">
                                         @if (zone.Accommodations.Count == 0)
                                         {
-                                            <p class="mb-3 text-sm text-black/50 dark:text-white/40">No units in this zone yet.</p>
+                                            <p class="mb-3 text-sm text-black/50 dark:text-white/60">No units in this zone yet.</p>
                                         }
                                         else
                                         {
@@ -112,7 +116,7 @@ else
                                                         <th class="px-3 py-2 text-xs font-semibold text-right">Actions</th>
                                                     </tr>
                                                 </thead>
-                                                <tbody>
+                                                <tbody class="text-black dark:text-white/80">
                                                     @foreach (AccommodationDto unit in NaturalSort(zone.Accommodations))
                                                     {
                                                         <tr class="border-b border-black/10 dark:border-darkborder">
@@ -157,7 +161,7 @@ else
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">Showing @ZoneStartRow to @ZoneEndRow of @building.Zones.Count zones</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Showing @ZoneStartRow to @ZoneEndRow of @building.Zones.Count zones</p>
                 <div class="flex items-center gap-2">
                     <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(zonePage == 1)" @onclick="PreviousZonePage">Previous</button>
                     <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@zonePage</span>

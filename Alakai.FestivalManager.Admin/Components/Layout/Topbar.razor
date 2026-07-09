@@ -1,4 +1,4 @@
-@using FestivalDto = Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs.FestivalDto
+﻿@using FestivalDto = Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs.FestivalDto
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 @inject IJSRuntime JsRuntime
@@ -46,7 +46,7 @@
         </a>
 
         <div class="relative" x-data="{ profileOpen: false }" x-on:click.outside="profileOpen = false">
-            <button type="button" class="flex items-center gap-1.5 xl:gap-0 dark:text-white/80" x-on:click="profileOpen = !profileOpen">
+            <button type="button" class="flex items-center gap-1.5 dark:text-white/80" x-on:click="profileOpen = !profileOpen">
                 @if (!string.IsNullOrWhiteSpace(UserProfileState.PhotoUrl))
                 {
                     <img src="@UserProfileState.PhotoUrl" alt="Header Avatar" class="object-cover rounded-full h-7 w-7 ltr:xl:mr-2 rtl:xl:ml-2" />
@@ -123,8 +123,17 @@
             try
             {
                 IReadOnlyList<FestivalDto> festivals = await FestivalApiClient.GetAllAsync();
-                string? savedId = await JsRuntime.InvokeAsync<string?>("getActiveFestivalId");
-                Guid? preferredId = Guid.TryParse(savedId, out Guid parsed) ? parsed : null;
+
+                Guid? preferredId = null;
+                try
+                {
+                    string? savedId = await JsRuntime.InvokeAsync<string?>("getActiveFestivalId");
+                    preferredId = Guid.TryParse(savedId, out Guid parsed) ? parsed : null;
+                }
+                catch
+                {
+                    // JS interop not available during pre-render — initialize with default festival.
+                }
 
                 ActiveFestivalState.Initialize(festivals, preferredId);
             }

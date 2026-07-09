@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
+﻿namespace Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
 
 public class LevelStatDto
 {
@@ -18,7 +18,7 @@ public class PassTypeStatDto
     public string PassTypeName { get; set; } = string.Empty;
     public int Purchased { get; set; }
     public int FullyPaid { get; set; }
-    public int PendingPayment { get; set; }
+    public int PartiallyPaid { get; set; }
     public int Unpaid { get; set; }
     public bool HasRoleBreakdown { get; set; }
     public List<LevelStatDto> Levels { get; set; } = [];

@@ -1,4 +1,4 @@
-@page "/user-panel/dashboard"
+﻿@page "/user-panel/dashboard"
 @layout UserPanelLayout
 
 @using Alakai.FestivalManager.Admin.Components.Layout
@@ -382,7 +382,7 @@
                         @if (Invoices.Count == 0)
                         {
                             <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/40">There are no invoices available yet.</td>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">There are no invoices available yet.</td>
                             </tr>
                         }
                         else
@@ -469,7 +469,7 @@
                         @if (Competitions.Count == 0)
                         {
                             <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/40">You are not registered to any competition.</td>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">You are not registered to any competition.</td>
                             </tr>
                         }
                     </tbody>

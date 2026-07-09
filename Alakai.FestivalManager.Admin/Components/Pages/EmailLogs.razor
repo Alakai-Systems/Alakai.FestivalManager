@@ -1,4 +1,4 @@
-@page "/email-logs"
+﻿@page "/email-logs"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -55,7 +55,7 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading email logs...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading email logs...</p>
         }
         else
         {
@@ -71,11 +71,11 @@
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @if (PagedLogs.Count == 0)
                         {
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No email logs found.</td>
+                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No email logs found.</td>
                             </tr>
                         }
                         else
@@ -104,7 +104,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
+                <p class="text-sm text-black/50 dark:text-white/60">
                     Showing @ShowingFrom to @ShowingTo of @FilteredLogs.Count logs
                 </p>
 
@@ -126,7 +126,7 @@
                 <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
                     <div>
                         <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
-                        <p class="text-xs text-black/50 dark:text-white/40">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
+                        <p class="text-xs text-black/50 dark:text-white/60">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
                     </div>
                     <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
                 </div>
@@ -139,6 +139,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<EmailLogDto> logs = [];
     private List<EditionDto> editions = [];
@@ -166,6 +167,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -284,5 +286,19 @@
     private void ClosePreview()
     {
         previewingLog = null;
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = Guid.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

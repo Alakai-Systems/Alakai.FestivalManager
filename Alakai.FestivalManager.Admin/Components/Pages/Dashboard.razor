@@ -1,4 +1,4 @@
-@page "/"
+﻿@page "/"
 @using System.Globalization
 @using System.Text
 @using Alakai.FestivalManager.Admin.Components.Layout
@@ -52,7 +52,7 @@
     {
         @if (analytics is { IsAvailable: true })
         {
-            <p class="text-xs text-black/40 dark:text-white/40">Analytics period: @analytics.DateRangeLabel</p>
+            <p class="text-xs text-black/40 dark:text-white/60">Analytics period: @analytics.DateRangeLabel</p>
         }
 
         <!-- Row 1: Google Analytics KPI cards, full-width sparkline below value -->
@@ -151,7 +151,7 @@
 
                 @if (ChartPoints.Count == 0)
                 {
-                    <p class="text-sm text-black/40 dark:text-white/40">No revenue data.</p>
+                    <p class="text-sm text-black/40 dark:text-white/60">No revenue data.</p>
                 }
                 else
                 {
@@ -188,7 +188,7 @@
                 }
                 else
                 {
-                    <p class="text-sm text-black/40 dark:text-white/40">No data available.</p>
+                    <p class="text-sm text-black/40 dark:text-white/60">No data available.</p>
                 }
             </div>
 
@@ -219,7 +219,7 @@
                 }
                 else
                 {
-                    <p class="text-sm text-black/40 dark:text-white/40">No data available.</p>
+                    <p class="text-sm text-black/40 dark:text-white/60">No data available.</p>
                 }
             </div>
         </div>
@@ -235,7 +235,7 @@
                                 <th class="px-4 py-3 font-semibold whitespace-nowrap">PASS TYPE</th>
                                 <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Purchased</th>
                                 <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Fully Paid</th>
-                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Pending</th>
+                                <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Partially Paid</th>
                                 <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Unpaid</th>
                             </tr>
                         </thead>
@@ -254,7 +254,7 @@
                                         <td class="px-4 py-3">@passType.PassTypeName</td>
                                         <td class="px-4 py-3 text-right">@passType.Purchased</td>
                                         <td class="px-4 py-3 text-right">@passType.FullyPaid</td>
-                                        <td class="px-4 py-3 text-right">@passType.PendingPayment</td>
+                                        <td class="px-4 py-3 text-right">@passType.PartiallyPaid</td>
                                         <td class="px-4 py-3 text-right">@passType.Unpaid</td>
                                     </tr>
                                 }
@@ -262,7 +262,7 @@
                                     <td class="px-4 py-3">TOTAL</td>
                                     <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.Purchased)</td>
                                     <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.FullyPaid)</td>
-                                    <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.PendingPayment)</td>
+                                    <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.PartiallyPaid)</td>
                                     <td class="px-4 py-3 text-right">@stats.PassTypes.Sum(p => p.Unpaid)</td>
                                 </tr>
                             }
@@ -334,7 +334,7 @@
                 <h2 class="mb-4 text-lg font-bold text-black dark:text-white">Competitions</h2>
                 @if (stats.Competitions.Count == 0)
                 {
-                    <p class="text-sm text-black/40 dark:text-white/40">No competitions found for this edition.</p>
+                    <p class="text-sm text-black/40 dark:text-white/60">No competitions found for this edition.</p>
                 }
                 else
                 {

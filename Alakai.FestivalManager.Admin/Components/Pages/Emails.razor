@@ -1,4 +1,4 @@
-@page "/emails"
+﻿@page "/emails"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Radzen.Blazor
@@ -63,7 +63,7 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading templates...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading templates...</p>
         }
         else
         {
@@ -79,11 +79,11 @@
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @if (FilteredEmailTemplates.Count == 0)
                         {
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No email templates found.</td>
+                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No email templates found.</td>
                             </tr>
                         }
                         else
@@ -110,7 +110,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
+                <p class="text-sm text-black/50 dark:text-white/60">
                     Showing @StartRow to @EndRow of @FilteredEmailTemplates.Count discount codes
                 </p>
 
@@ -171,14 +171,7 @@
                             <label class="block text-sm text-black/60 dark:text-white/60">Body HTML</label>
                             <EmailTemplateEditor @ref="bodyEditor"
                                                  @bind-Value="formModel.BodyHtml"
-                                                 Variables="@(new List<string> {
-                                                                       "FestivalName", "EditionName", "FirstName", "LastName",
-                                                                       "FullName", "UserEmail", "PortalUrl", "PassTypeName",
-                                                                       "FinalPrice", "PartnerEmail", "ResetPasswordUrl",
-                                                                       "AccommodationBuildingName", "AccommodationOccupantNames",
-                                                                       "DepartureBusTime", "DepartureBusPickup", "DepartureBusDestination", "DepartureBusPrice",
-                                                                       "ReturnBusTime", "ReturnBusPickup", "ReturnBusDestination", "ReturnBusPrice",
-                                                                       "MenuType", "IsCeliacOrGlutenIntolerant", "AllergiesNotes"})" />
+                                                 Variables="@TemplateVariables" />
                         </div>
 
                         <div class="md:col-span-2">
@@ -222,6 +215,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<EmailTemplateDto> templates = [];
     private List<EditionDto> editions = [];
@@ -263,6 +257,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -573,6 +568,48 @@
         return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
     }
 
+    private List<string> TemplateVariables
+    {
+        get
+        {
+            List<string> vars = new()
+            {
+                "FestivalName", "EditionName", "FirstName", "LastName",
+                "FullName", "UserEmail", "PortalUrl", "PassTypeName",
+                "FinalPrice", "PartnerEmail", "ResetPasswordUrl"
+            };
+
+            if (ActiveFestivalState.HasModule(FestivalModule.Accommodation))
+            {
+                vars.Add("AccommodationBuildingName");
+                vars.Add("AccommodationOccupantNames");
+            }
+
+            if (ActiveFestivalState.HasModule(FestivalModule.Transport))
+            {
+                vars.Add("DepartureBusLine");
+                vars.Add("ReturnBusLine");
+                vars.Add("DepartureBusTime");
+                vars.Add("DepartureBusPickup");
+                vars.Add("DepartureBusDestination");
+                vars.Add("DepartureBusPrice");
+                vars.Add("ReturnBusTime");
+                vars.Add("ReturnBusPickup");
+                vars.Add("ReturnBusDestination");
+                vars.Add("ReturnBusPrice");
+            }
+
+            if (ActiveFestivalState.HasModule(FestivalModule.Meals))
+            {
+                vars.Add("MenuType");
+                vars.Add("IsCeliacOrGlutenIntolerant");
+                vars.Add("AllergiesNotes");
+            }
+
+            return vars;
+        }
+    }
+
     private class EmailTemplateFormModel
     {
         public Guid? EditionId { get; set; }
@@ -583,5 +620,19 @@
         public string? BodyText { get; set; }
         public bool IsSystem { get; set; }
         public bool IsActive { get; set; }
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

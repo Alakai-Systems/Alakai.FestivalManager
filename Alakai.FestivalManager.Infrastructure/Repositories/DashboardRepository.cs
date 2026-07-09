@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
+﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class DashboardRepository : IDashboardRepository
 {
@@ -64,8 +64,8 @@ public class DashboardRepository : IDashboardRepository
                 PassTypeName = passType.Name,
                 Purchased = passTypeRegistrations.Count,
                 FullyPaid = passTypeRegistrations.Count(r => r.PaymentStatus == PaymentStatus.Paid),
-                PendingPayment = passTypeRegistrations.Count(r => r.PaymentStatus == PaymentStatus.Pending),
-                Unpaid = passTypeRegistrations.Count(r => r.PaymentStatus == PaymentStatus.Unpaid || r.PaymentStatus == PaymentStatus.Failed),
+                PartiallyPaid = passTypeRegistrations.Count(r => r.PaymentStatus == PaymentStatus.PartiallyPaid),
+                Unpaid = passTypeRegistrations.Count(r => r.PaymentStatus == PaymentStatus.Unpaid || r.PaymentStatus == PaymentStatus.Failed || r.PaymentStatus == PaymentStatus.Pending),
                 HasRoleBreakdown = hasRoleBreakdown,
                 Levels = levelStats
             });
@@ -202,7 +202,7 @@ public class DashboardRepository : IDashboardRepository
     public async Task<List<RevenuePointDto>> GetRevenueAsync(Guid editionId, string range, CancellationToken cancellationToken = default)
     {
         List<Registration> paidRegistrations = await _context.Registrations
-            .Where(r => r.EditionId == editionId && r.PaymentStatus == PaymentStatus.Paid)
+            .Where(r => r.EditionId == editionId && (r.PaymentStatus == PaymentStatus.Paid || r.PaymentStatus == PaymentStatus.PartiallyPaid))
             .ToListAsync(cancellationToken);
 
         DateTime Effective(Registration r) => r.UpdatedAt ?? r.CreatedAt;
@@ -220,7 +220,7 @@ public class DashboardRepository : IDashboardRepository
 
                 decimal amount = paidRegistrations
                     .Where(r => Effective(r) >= monthStart && Effective(r) < monthEnd)
-                    .Sum(r => r.FinalPrice);
+                    .Sum(r => r.AmountPaid);
 
                 points.Add(new RevenuePointDto
                 {
@@ -243,7 +243,7 @@ public class DashboardRepository : IDashboardRepository
             {
                 decimal amount = paidRegistrations
                     .Where(r => DateOnly.FromDateTime(Effective(r)) == day)
-                    .Sum(r => r.FinalPrice);
+                    .Sum(r => r.AmountPaid);
 
                 string label = string.Equals(range, "week", StringComparison.OrdinalIgnoreCase)
                     ? day.ToString("ddd", System.Globalization.CultureInfo.InvariantCulture)

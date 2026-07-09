@@ -1,4 +1,4 @@
-@page "/settings/invoice-templates"
+﻿@page "/settings/invoice-templates"
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
@@ -57,11 +57,11 @@
 
         @if (isLoading)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">Loading templates...</p>
+            <p class="text-sm text-black/50 dark:text-white/60">Loading templates...</p>
         }
         else if (FilteredTemplates.Count == 0)
         {
-            <p class="text-sm text-black/50 dark:text-white/40">No invoice templates found.</p>
+            <p class="text-sm text-black/50 dark:text-white/60">No invoice templates found.</p>
         }
         else
         {
@@ -77,7 +77,7 @@
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody class="text-black dark:text-white/80">
                         @foreach (InvoiceTemplateDto template in PagedTemplates)
                         {
                             <tr class="border-b border-black/10 dark:border-darkborder">
@@ -99,7 +99,7 @@
             </div>
 
             <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/40">
+                <p class="text-sm text-black/50 dark:text-white/60">
                     Showing @StartRow to @EndRow of @FilteredTemplates.Count templates
                 </p>
 
@@ -139,7 +139,7 @@
                             <InputFile OnChange="OnLogoSelected" accept="image/png,image/jpeg,image/gif,image/webp" />
                             @if (isUploadingLogo)
                             {
-                                <p class="mt-1 text-xs text-black/50 dark:text-white/50">Uploading...</p>
+                                <p class="mt-1 text-xs text-black/50 dark:text-white/60">Uploading...</p>
                             }
                         </div>
                     </div>
@@ -225,6 +225,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private List<InvoiceTemplateDto> templates = [];
     private List<EditionDto> editions = [];
@@ -246,6 +247,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
 
@@ -548,5 +550,19 @@
         public string Country { get; set; } = string.Empty;
         public string? LogoUrl { get; set; }
         public bool IsActive { get; set; } = true;
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }

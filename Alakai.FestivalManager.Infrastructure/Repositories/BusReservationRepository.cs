@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
+﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class BusReservationRepository : IBusReservationRepository
 {
@@ -20,6 +20,7 @@ public class BusReservationRepository : IBusReservationRepository
     public async Task<IReadOnlyList<BusReservation>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
         return await _context.BusReservations
+            .AsNoTracking()
             .Include(r => r.Bus)
             .Where(r => r.RegistrationId == registrationId)
             .ToListAsync(cancellationToken);

@@ -1,4 +1,4 @@
-@using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
+﻿@using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
 @inject BusApiClient BusApiClient
 
 @if (busId != Guid.Empty && buses.Count > 0)
@@ -15,7 +15,7 @@
                         <th class="px-4 py-3 font-semibold text-right whitespace-nowrap">Seats</th>
                     </tr>
                 </thead>
-                <tbody>
+                <tbody class="text-black dark:text-white/80">
                     @foreach (BusDto bus in buses.OrderBy(b => b.DepartureTime))
                     {
                         <tr class="border-b border-black/10 dark:border-darkborder">

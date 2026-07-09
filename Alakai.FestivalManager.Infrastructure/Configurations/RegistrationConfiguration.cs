@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Configurations;
+﻿namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
 public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
 {
@@ -91,6 +91,9 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
 
         builder.Property(r => r.PaymentReference)
             .HasMaxLength(200);
+
+        builder.Property(r => r.PaymentAuthCodes)
+            .HasMaxLength(500);
 
         builder.Property(r => r.PaidAt);
 

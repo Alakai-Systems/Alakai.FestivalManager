@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
+﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class InvoiceRepository : IInvoiceRepository
 {
@@ -48,6 +48,11 @@ public class InvoiceRepository : IInvoiceRepository
         return await _context.Invoices
             .Where(i => i.Year == year)
             .MaxAsync(i => i.SequenceNumber, cancellationToken);
+    }
+
+    public void Delete(Invoice invoice)
+    {
+        _context.Invoices.Remove(invoice);
     }
 
     public async Task SaveChangesAsync(CancellationToken cancellationToken = default)

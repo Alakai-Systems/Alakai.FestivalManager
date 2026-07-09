@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Accommodations.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Accommodations.Services;
 
 public class AccommodationReservationService : IAccommodationReservationService
 {
@@ -420,8 +420,25 @@ public class AccommodationReservationService : IAccommodationReservationService
             throw new BusinessRuleException("Only the person who made this reservation can cancel it.");
         }
 
+        List<Guid> occupantRegistrationIds = reservation.Occupants
+            .Where(o => o.RegistrationId.HasValue)
+            .Select(o => o.RegistrationId!.Value)
+            .ToList();
+
         _reservationRepository.Delete(reservation);
         await _reservationRepository.SaveChangesAsync(cancellationToken);
+
+        foreach (Guid occupantRegistrationId in occupantRegistrationIds)
+        {
+            try
+            {
+                await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.AccommodationCancelled, occupantRegistrationId, cancellationToken);
+            }
+            catch
+            {
+                // Non-critical: the cancellation is already saved even if an individual email fails to send.
+            }
+        }
 
         return new ApiResponse<DeleteAccommodationReservationResponse> { Success = true, Data = new DeleteAccommodationReservationResponse { Id = id, Deleted = true }, Errors = [], Message = "Reservation cancelled successfully." };
     }

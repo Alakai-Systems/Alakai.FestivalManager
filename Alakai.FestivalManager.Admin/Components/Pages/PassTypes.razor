@@ -1,4 +1,4 @@
-@page "/pass-types"
+﻿@page "/pass-types"
 @using System
 @using Alakai.FestivalManager.Admin.Components.Layout
 @using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
@@ -78,7 +78,7 @@
 
             @if (isLoading)
             {
-                <p class="text-sm text-black/50 dark:text-white/40">Loading pass types...</p>
+                <p class="text-sm text-black/50 dark:text-white/60">Loading pass types...</p>
             }
             else
             {
@@ -107,11 +107,11 @@
                                 <th class="px-4 py-3 font-semibold text-right">Actions</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody class="text-black dark:text-white/80">
                             @if (PagedPassTypes.Count == 0)
                             {
                                 <tr>
-                                    <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/40">No pass types found.</td>
+                                    <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No pass types found.</td>
                                 </tr>
                             }
                             else
@@ -149,7 +149,7 @@
                 </div>
 
                 <div class="flex items-center justify-between mt-4">
-                    <p class="text-sm text-black/50 dark:text-white/40">
+                    <p class="text-sm text-black/50 dark:text-white/60">
                         Showing @ShowingFrom to @ShowingTo of @FilteredPassTypes.Count pass types
                     </p>
 
@@ -268,7 +268,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Pass Type</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/50">Are you sure you want to delete <strong>@selectedPassType.Name</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@selectedPassType.Name</strong>?</p>
 
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
@@ -287,6 +287,7 @@
     </div>
 }
 
+@implements IDisposable
 @code {
     private IReadOnlyList<PassTypeDto> allPassTypes = [];
     private List<EditionDto> editions = new();
@@ -382,6 +383,7 @@
 
     protected override async Task OnInitializedAsync()
     {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadEditionsAsync();
         await LoadPassTypesAsync();
     }
@@ -681,5 +683,20 @@
         }
 
         return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = null;
+            await LoadEditionsAsync();
+            await LoadPassTypesAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
     }
 }
