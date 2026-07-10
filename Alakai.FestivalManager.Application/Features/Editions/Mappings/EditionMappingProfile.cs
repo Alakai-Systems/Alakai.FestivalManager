@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Mapping;
+﻿namespace Alakai.FestivalManager.Application.Features.Editions.Mappings;
 
 public class EditionMappingProfile : Profile
 {

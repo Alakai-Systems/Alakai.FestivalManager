@@ -1,5 +1,4 @@
-using System.Text.Json;
-using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs;
+﻿using System.Text.Json;
 using Alakai.FestivalManager.Admin.Contracts.Editions.Requests;
 using Alakai.FestivalManager.Admin.Contracts.Editions.Responses;
 

@@ -1,4 +1,4 @@
-global using Alakai.FestivalManager.Application.Common.Exceptions;
+﻿global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Contracts.Repositories;
 global using Alakai.FestivalManager.Application.Features.Accommodations.Commands;
@@ -189,3 +189,6 @@ global using System.IdentityModel.Tokens.Jwt;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
+global using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Invoices.Contracts.Responses;
+global using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;

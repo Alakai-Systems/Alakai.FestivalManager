@@ -1,6 +1,4 @@
 ﻿@page "/bus-operations"
-@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
-@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Buses.Requests
 
@@ -33,9 +31,9 @@
                 <option value="2">Return</option>
             </select>
             <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                <option value="10">10 rows</option>
-                <option value="25">25 rows</option>
                 <option value="50">50 rows</option>
+                <option value="100">100 rows</option>
+                <option value="200">200 rows</option>
             </select>
         </div>
     </div>
@@ -163,7 +161,7 @@
     private Guid selectedEditionId;
     private int directionFilter;
     private string searchText = string.Empty;
-    private int pageSize = 10;
+    private int pageSize = 50;
     private int currentPage = 1;
 
     private bool isLoading = true;

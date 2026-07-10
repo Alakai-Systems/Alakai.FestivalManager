@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.EmailTemplates.Mapping;
+﻿namespace Alakai.FestivalManager.Application.Features.EmailTemplates.Mappings;
 
 public class EmailTemplateMappingProfile : Profile
 {

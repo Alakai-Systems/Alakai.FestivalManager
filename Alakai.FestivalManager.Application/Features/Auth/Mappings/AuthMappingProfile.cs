@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Auth.Mapping;
+﻿namespace Alakai.FestivalManager.Application.Features.Auth.Mappings;
 
 public class AuthMappingProfile : Profile
 {

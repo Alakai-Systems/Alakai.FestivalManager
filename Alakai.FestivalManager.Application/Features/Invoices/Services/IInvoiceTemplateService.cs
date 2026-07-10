@@ -1,7 +1,6 @@
-using Alakai.FestivalManager.Application.Common.Responses;
+﻿using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Features.Invoices.Commands.CreateInvoiceTemplate;
 using Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoiceTemplate;
-using Alakai.FestivalManager.Application.Features.Invoices.Contracts.Responses;
 
 namespace Alakai.FestivalManager.Application.Features.Invoices.Services;
 

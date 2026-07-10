@@ -1,7 +1,5 @@
-using Alakai.FestivalManager.Application.Common.Responses;
+﻿using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoiceSettings;
-using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Features.Invoices.Contracts.Responses;
 using Alakai.FestivalManager.Application.Interfaces.Repositories;
 using Alakai.FestivalManager.Domain.Entities;
 

@@ -1,5 +1,4 @@
-using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Interfaces.Repositories;
+﻿using Alakai.FestivalManager.Application.Interfaces.Repositories;
 using Alakai.FestivalManager.Domain.Entities;
 
 namespace Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoiceSettings;

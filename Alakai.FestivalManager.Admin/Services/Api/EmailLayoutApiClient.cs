@@ -1,7 +1,4 @@
-using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.DTOs;
-using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Requests;
-using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Responses;
-using System.Text.Json;
+﻿using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
 

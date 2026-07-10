@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Auth.Services;
+﻿namespace Alakai.FestivalManager.Application.Features.Auth.Services;
 
 public class JwtService : IJwtService
 {
@@ -58,7 +58,14 @@ public class JwtService : IJwtService
 
         JwtSecurityTokenHandler handler = new();
 
-        return handler.ValidateToken(token, parameters, out SecurityToken _);
+        try
+        {
+            return handler.ValidateToken(token, parameters, out SecurityToken _);
+        }
+        catch
+        {
+            return null;
+        }
     }
 
     public DateTime GetAccessTokenExpiration()

@@ -1,10 +1,9 @@
-using Alakai.FestivalManager.Application.Common.Responses;
+﻿using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
 using Alakai.FestivalManager.Application.Features.Users.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;
 using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserByEmail;
 using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserById;
 using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;

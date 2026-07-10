@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Mapping;
+﻿namespace Alakai.FestivalManager.Application.Features.Festivals.Mappings;
 
 public class FestivalMappingProfile : Profile
 {

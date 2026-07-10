@@ -1,6 +1,5 @@
-using Alakai.FestivalManager.Application.Common.Exceptions;
+﻿using Alakai.FestivalManager.Application.Common.Exceptions;
 using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
 using Alakai.FestivalManager.Application.Features.Invoices.Services;
 using Alakai.FestivalManager.Application.Interfaces.Repositories;
 using Alakai.FestivalManager.Domain.Entities;

@@ -1,8 +1,7 @@
-using Alakai.FestivalManager.Application.Common.Responses;
+﻿using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
-using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;
 
 namespace Alakai.FestivalManager.Application.Features.Users.Services;
 

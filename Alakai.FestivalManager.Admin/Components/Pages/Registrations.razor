@@ -1,7 +1,4 @@
 ﻿@page "/registrations"
-@using Alakai.FestivalManager.Admin.Components.Layout
-@using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs
-@using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs
 
 @inject EmailNotificationApiClient EmailNotificationApiClient
 @inject RegistrationApiClient RegistrationApiClient
@@ -57,7 +54,7 @@
 
                 <select class="form-select w-full md:w-40" @bind="passTypeFilter" @bind:after="ResetPage">
                     <option value="">All pass types</option>
-                    @foreach (PassTypeDto passType in passTypes)
+                    @foreach (PassTypeDto passType in passTypes.Where(pt => editionFilter == Guid.Empty || pt.EditionId == editionFilter))
                     {
                         <option value="@passType.Id">@passType.Name</option>
                     }
@@ -65,7 +62,9 @@
 
                 <select class="form-select w-full md:w-40" @bind="levelFilter" @bind:after="ResetPage">
                     <option value="">All levels</option>
-                    @foreach (LevelDto level in levels)
+                    @foreach (LevelDto level in levels.Where(l =>
+                        (string.IsNullOrEmpty(passTypeFilter) || l.PassTypeId.ToString() == passTypeFilter) &&
+                        (editionFilter == Guid.Empty || passTypes.Any(pt => pt.Id == l.PassTypeId && pt.EditionId == editionFilter))))
                     {
                         <option value="@level.Id">@level.Name</option>
                     }
@@ -80,9 +79,9 @@
                 </select>
 
                 <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                    <option value="25">25 rows</option>
                     <option value="50">50 rows</option>
                     <option value="100">100 rows</option>
+                    <option value="200">200 rows</option>
                 </select>
 
             </div>
@@ -123,7 +122,7 @@
                         <tbody class="text-black dark:text-white/80">
                             @foreach (RegistrationDto registration in PagedRegistrations)
                             {
-                                <tr class="@GetRowClass(registration)">
+                                <tr class="@GetRowClass(registration, DateTime.UtcNow)">
                                     <td class="px-2 py-2 max-w-[180px]">
                                         <div class="font-medium truncate">@registration.FullName</div>
                                         <div class="text-xs text-black/50 dark:text-white/60 truncate">@registration.Email</div>
@@ -177,6 +176,19 @@
                 </div>
             }
         </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="px-5 py-4">
+        <div class="flex items-center justify-between mb-2">
+            <h3 class="text-sm font-semibold text-black dark:text-white">
+                Emails (@FilteredRegistrations.Count)
+            </h3>
+            <span class="text-xs text-black/40 dark:text-white/60">Filtered by current selection — click to select all</span>
+        </div>
+        <textarea readonly class="w-full text-xs font-mono text-black/70 dark:text-white/70 bg-transparent border border-black/10 dark:border-darkborder rounded-md px-3 py-2 resize-none focus:outline-none focus:border-purple/50" rows="3"
+                  onclick="this.select()">@(string.Join(", ", FilteredRegistrations.Select(r => r.Email)))</textarea>
     </div>
 </div>
 
@@ -376,7 +388,7 @@
     private bool isSaving;
     private string? successMessage;
     private string? errorMessage;
-    private int pageSize = 25;
+    private int pageSize = 50;
     private int currentPage = 1;
 
     protected override async Task OnInitializedAsync()
@@ -418,7 +430,12 @@
         }
     }
 
-    private List<string?> Groups => registrations.Where(r => !string.IsNullOrWhiteSpace(r.DiscountCodeValue)).Select(r => r.DiscountCodeValue).Distinct().OrderBy(g => g).ToList();
+    private List<string?> Groups => registrations
+        .Where(r => !string.IsNullOrWhiteSpace(r.DiscountCodeValue) && (editionFilter == Guid.Empty || r.EditionId == editionFilter))
+        .Select(r => r.DiscountCodeValue)
+        .Distinct()
+        .OrderBy(g => g)
+        .ToList();
 
     private List<RegistrationDto> FilteredRegistrations
     {
@@ -611,11 +628,20 @@
         return date.ToString("dd/MM/yyyy");
     }
 
-    private static string GetRowClass(RegistrationDto registration)
+    private static string GetRowClass(RegistrationDto registration, DateTime now)
     {
         if (registration.PaymentStatus == PaymentStatus.Unpaid || registration.PaymentStatus == PaymentStatus.Failed)
         {
             return "bg-danger/5";
+        }
+
+        bool isOverdue = registration.PaymentDueAt.HasValue && registration.PaymentDueAt.Value < now;
+
+        if (isOverdue &&
+            (registration.PaymentPlan == PaymentPlan.DeferredTenDays && registration.PaymentStatus != PaymentStatus.Paid) ||
+            (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.PaymentStatus == PaymentStatus.PartiallyPaid))
+        {
+            return "bg-danger/10";
         }
 
         if (!string.IsNullOrWhiteSpace(registration.PartnerEmail) && !registration.PartnerRegistrationId.HasValue)

@@ -73,3 +73,8 @@ global using Alakai.FestivalManager.Admin.Contracts.Invoices.Responses;
 
 
 global using Alakai.FestivalManager.Admin.Contracts.Invoices.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.Editions.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Responses;
