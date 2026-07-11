@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Extensions;
+﻿namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApiCLientsDependencyInjectionExtension
 {
@@ -201,6 +201,7 @@ public static class ApiCLientsDependencyInjectionExtension
             client.BaseAddress = new Uri(baseUrl);
         });
         services.AddScoped<ActiveFestivalState>();
+        services.AddScoped<ITranslationService, TranslationService>();
 
         services.AddScoped<UserProfileState>();
 

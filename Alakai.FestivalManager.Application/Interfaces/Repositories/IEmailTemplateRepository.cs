@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
+﻿namespace Alakai.FestivalManager.Application.Interfaces.Repositories;
 
 public interface IEmailTemplateRepository
 {
@@ -9,6 +9,7 @@ public interface IEmailTemplateRepository
     Task<IReadOnlyList<EmailTemplate>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
     Task<bool> ExistsByEditionAndTemplateKeyAsync(Guid? editionId, EmailTemplateKey templateKey, Guid? excludeId = null, CancellationToken cancellationToken = default);
     Task<EmailTemplate?> GetByKeyAsync(EmailTemplateKey templateKey, Guid? editionId, CancellationToken cancellationToken = default);
+    Task<EmailTemplate?> GetByKeyAndLanguageAsync(EmailTemplateKey templateKey, Guid? editionId, string language, CancellationToken cancellationToken = default);
     void Update(EmailTemplate emailTemplate);
     void Delete(EmailTemplate emailTemplate);
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

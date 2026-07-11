@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Admin.Contracts.EmailTemplates.DTOs;
+﻿namespace Alakai.FestivalManager.Admin.Contracts.EmailTemplates.DTOs;
 
 public class EmailTemplateDto
 {
@@ -11,4 +11,5 @@ public class EmailTemplateDto
     public string? BodyText { get; set; }
     public bool IsSystem { get; set; }
     public bool IsActive { get; set; }
+    public string Language { get; set; } = "en";
 }

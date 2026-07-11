@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Repositories;
+﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class EmailTemplateRepository : IEmailTemplateRepository
 {
@@ -63,6 +63,33 @@ public class EmailTemplateRepository : IEmailTemplateRepository
         }
 
         return await _context.EmailTemplates.FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == null && t.IsActive, cancellationToken);
+    }
+
+    public async Task<EmailTemplate?> GetByKeyAndLanguageAsync(EmailTemplateKey templateKey, Guid? editionId, string language, CancellationToken cancellationToken = default)
+    {
+        // 1. Edition-specific + exact language
+        EmailTemplate? template = await _context.EmailTemplates
+            .FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == editionId && t.Language == language && t.IsActive, cancellationToken);
+
+        if (template is not null) return template;
+
+        // 2. Edition-specific + fallback to English
+        if (language != "en")
+        {
+            template = await _context.EmailTemplates
+                .FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == editionId && t.Language == "en" && t.IsActive, cancellationToken);
+            if (template is not null) return template;
+        }
+
+        // 3. Global (no edition) + exact language
+        template = await _context.EmailTemplates
+            .FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == null && t.Language == language && t.IsActive, cancellationToken);
+
+        if (template is not null) return template;
+
+        // 4. Global + fallback to English
+        return await _context.EmailTemplates
+            .FirstOrDefaultAsync(t => t.TemplateKey == templateKey && t.EditionId == null && t.Language == "en" && t.IsActive, cancellationToken);
     }
 
     public void Update(EmailTemplate emailTemplate)

@@ -14,8 +14,8 @@ global using Alakai.FestivalManager.Application.Features.Accommodations.Contract
 global using Alakai.FestivalManager.Application.Features.Accommodations.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Accommodations.Services;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;
-global using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.ExternalLogin;
+global using Alakai.FestivalManager.Application.Features.Auth.Commands.ForgotPassword;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.Login;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.Logout;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.RefreshToken;
@@ -119,6 +119,8 @@ global using Alakai.FestivalManager.Application.Features.Invoices.Commands.Creat
 global using Alakai.FestivalManager.Application.Features.Invoices.Commands.CreateInvoiceTemplate;
 global using Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoiceSettings;
 global using Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoiceTemplate;
+global using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Invoices.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Invoices.Services;
 global using Alakai.FestivalManager.Application.Features.Levels.Commands.CreateLevel;
 global using Alakai.FestivalManager.Application.Features.Levels.Commands.DeleteLevel;
@@ -134,9 +136,6 @@ global using Alakai.FestivalManager.Application.Features.Meals.Commands.SaveMeal
 global using Alakai.FestivalManager.Application.Features.Meals.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Meals.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Meals.Services;
-global using Alakai.FestivalManager.Application.Features.Payments.Commands.CreatePaymentSession;
-global using Alakai.FestivalManager.Application.Features.Payments.Contracts.DTOs;
-global using Alakai.FestivalManager.Application.Features.Payments.Services;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.CreatePassType;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.DeletePassType;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Commands.UpdatePassType;
@@ -147,6 +146,9 @@ global using Alakai.FestivalManager.Application.Features.PassTypes.Queries.GetPa
 global using Alakai.FestivalManager.Application.Features.PassTypes.Queries.GetPassTypes;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Queries.GetPassTypesByEditionId;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Services;
+global using Alakai.FestivalManager.Application.Features.Payments.Commands.CreatePaymentSession;
+global using Alakai.FestivalManager.Application.Features.Payments.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Payments.Services;
 global using Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 global using Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 global using Alakai.FestivalManager.Application.Features.Registrations.Commands.UpdateRegistration;
@@ -168,6 +170,7 @@ global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUs
 global using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
 global using Alakai.FestivalManager.Application.Features.Users.Contracts.DTOs;
+global using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserByEmail;
 global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUserById;
 global using Alakai.FestivalManager.Application.Features.Users.Queries.GetUsers;
@@ -189,6 +192,3 @@ global using System.IdentityModel.Tokens.Jwt;
 global using System.Security.Claims;
 global using System.Security.Cryptography;
 global using System.Text;
-global using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
-global using Alakai.FestivalManager.Application.Features.Invoices.Contracts.Responses;
-global using Alakai.FestivalManager.Application.Features.Users.Contracts.Responses;

@@ -34,6 +34,7 @@ public class RegistrationDto
 
     public string? PaymentReference { get; set; }
     public string? PaymentAuthCodes { get; set; }
+    public string Language { get; set; } = "en";
     public DateTime? PaidAt { get; set; }
 
     public string? Notes { get; set; }

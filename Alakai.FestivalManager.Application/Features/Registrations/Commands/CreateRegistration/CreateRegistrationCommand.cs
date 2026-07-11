@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
+﻿namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 
 public class CreateRegistrationCommand
 {
@@ -23,4 +23,5 @@ public class CreateRegistrationCommand
     public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;
     public decimal ManagementFee { get; set; }
     public decimal AmountPaid { get; set; }
+    public string Language { get; set; } = "en";
 }

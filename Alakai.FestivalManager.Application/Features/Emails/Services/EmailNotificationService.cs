@@ -84,7 +84,7 @@ public class EmailNotificationService : IEmailNotificationService
             return null;
         }
 
-        EmailTemplate? template = await _emailTemplateRepository.GetByKeyAsync(templateKey, registration.EditionId, cancellationToken);
+        EmailTemplate? template = await _emailTemplateRepository.GetByKeyAndLanguageAsync(templateKey, registration.EditionId, registration.Language, cancellationToken);
 
         if (template is null)
         {

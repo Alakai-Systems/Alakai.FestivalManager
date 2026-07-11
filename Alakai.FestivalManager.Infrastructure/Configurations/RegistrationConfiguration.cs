@@ -92,8 +92,16 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.Property(r => r.PaymentReference)
             .HasMaxLength(200);
 
+        builder.Property(r => r.Language)
+            .HasMaxLength(5)
+            .HasDefaultValue("en");
+
         builder.Property(r => r.PaymentAuthCodes)
             .HasMaxLength(500);
+
+        builder.Property(r => r.Language)
+            .HasMaxLength(5)
+            .HasDefaultValue("en");
 
         builder.Property(r => r.PaidAt);
 

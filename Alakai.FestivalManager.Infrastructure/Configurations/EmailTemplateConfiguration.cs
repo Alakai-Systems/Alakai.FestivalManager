@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
+﻿namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
 
 public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate>
 {
@@ -37,9 +37,14 @@ public class EmailTemplateConfiguration : IEntityTypeConfiguration<EmailTemplate
 
         builder.Property(e => e.UpdatedAt);
 
+        builder.Property(e => e.Language)
+            .IsRequired()
+            .HasMaxLength(5)
+            .HasDefaultValue("en");
+
         builder.HasIndex(e => e.EditionId);
 
-        builder.HasIndex(e => new { e.EditionId, e.TemplateKey })
+        builder.HasIndex(e => new { e.EditionId, e.TemplateKey, e.Language })
             .IsUnique();
 
         builder.HasOne(e => e.Edition)

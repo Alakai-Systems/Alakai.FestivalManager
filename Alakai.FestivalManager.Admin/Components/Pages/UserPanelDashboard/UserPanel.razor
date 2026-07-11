@@ -10,6 +10,7 @@
 @using Alakai.FestivalManager.Admin.Contracts.Meals.Requests
 
 @inject UserPanelApiClient UserPanelApiClient
+@inject Alakai.FestivalManager.Admin.Services.Localisation.ITranslationService T
 @inject RegistrationApiClient RegistrationApiClient
 @inject CompetitionEntryApiClient CompetitionEntryApiClient
 @inject AccommodationApiClient AccommodationApiClient
@@ -51,7 +52,7 @@
                     <i class="ri-user-line text-2xl"></i>
                 </div>
                 <div class="overflow-hidden">
-                    <MudText Class="text-muted dark:text-darkmuted">Registration</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_registration")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
                         @RegistrationStatus
                         @if (!string.IsNullOrWhiteSpace(RegistrationCardSuffix))
@@ -69,7 +70,7 @@
                     <i class="ri-bank-card-line text-2xl"></i>
                 </div>
                 <div class="overflow-hidden">
-                    <MudText Class="text-muted dark:text-darkmuted">Payment</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_payment")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
                         @PaymentStatus
                         @if (!string.IsNullOrWhiteSpace(PaymentCardSuffix))
@@ -87,7 +88,7 @@
                     <i class="ri-trophy-line text-2xl"></i>
                 </div>
                 <div class="overflow-hidden">
-                    <MudText Class="text-muted dark:text-darkmuted">Competitions</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_competitions")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
                         @Competitions.Count
                         @if (!string.IsNullOrWhiteSpace(CompetitionsCardSuffix))
@@ -105,7 +106,7 @@
                     <i class="ri-file-list-3-line text-2xl"></i>
                 </div>
                 <div class="overflow-hidden">
-                    <MudText Class="text-muted dark:text-darkmuted">Invoices</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_invoices")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
                         @Invoices.Count
                         @if (!string.IsNullOrWhiteSpace(InvoicesCardSuffix))
@@ -129,7 +130,7 @@
                             <i class="ri-hotel-bed-line text-2xl"></i>
                         </div>
                         <div class="overflow-hidden">
-                            <MudText Class="text-muted dark:text-darkmuted">Accommodation</MudText>
+                            <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_accommodation")</MudText>
                             <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
                                 @AccommodationSummary
                                 @if (!string.IsNullOrWhiteSpace(AccommodationCardSuffix))
@@ -169,7 +170,7 @@
                             <i class="ri-restaurant-line text-2xl"></i>
                         </div>
                         <div class="overflow-hidden">
-                            <MudText Class="text-muted dark:text-darkmuted">Meals</MudText>
+                            <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_meals")</MudText>
                             <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white truncate">
                                 @MealSummary
                                 @if (!string.IsNullOrWhiteSpace(MealCardSuffix))
@@ -187,8 +188,8 @@
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div class="card shadow-sm">
             <div class="mb-5" id="personal-data">
-                <h2 class="text-lg font-bold text-black dark:text-white">My personal details</h2>
-                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Update your personal details.</p>
+                <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_personal_details")</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_update_profile")</p>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(ProfileSuccessMessage))
@@ -207,38 +208,38 @@
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="space-y-2">
-                    <MudText>First Name</MudText>
-                    <input type="text" class="form-input" placeholder="First Name" @bind="FirstName">
+                    <MudText>@T.Get("up_first_name")</MudText>
+                    <input type="text" class="form-input" placeholder="@T.Get("up_first_name")" @bind="FirstName">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>Last Name</MudText>
-                    <input type="text" class="form-input" placeholder="Last Name" @bind="LastName">
+                    <MudText>@T.Get("up_last_name")</MudText>
+                    <input type="text" class="form-input" placeholder="@T.Get("up_last_name")" @bind="LastName">
                 </div>
 
                 <div class="space-y-2 md:col-span-2">
-                    <MudText>Your email</MudText>
-                    <input type="email" class="form-input" placeholder="Email" @bind="Email">
+                    <MudText>@T.Get("up_email")</MudText>
+                    <input type="email" class="form-input" placeholder="@T.Get("up_email")" @bind="Email">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>Phone</MudText>
-                    <input type="text" class="form-input" placeholder="Phone" @bind="Phone">
+                    <MudText>@T.Get("up_phone")</MudText>
+                    <input type="text" class="form-input" placeholder="@T.Get("up_phone")" @bind="Phone">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>Country</MudText>
-                    <input type="text" class="form-input" placeholder="Country" @bind="Country">
+                    <MudText>@T.Get("up_country")</MudText>
+                    <input type="text" class="form-input" placeholder="@T.Get("up_country")" @bind="Country">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>City</MudText>
-                    <input type="text" class="form-input" placeholder="City" @bind="City">
+                    <MudText>@T.Get("up_city")</MudText>
+                    <input type="text" class="form-input" placeholder="@T.Get("up_city")" @bind="City">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>Document Number</MudText>
-                    <input type="text" class="form-input" placeholder="Document Number" @bind="DocumentNumber">
+                    <MudText>@T.Get("up_document")</MudText>
+                    <input type="text" class="form-input" placeholder="@T.Get("up_document")" @bind="DocumentNumber">
                 </div>
 
                 <div class="flex flex-wrap gap-3 md:col-span-2">
@@ -259,37 +260,37 @@
 
         <div class="card shadow-sm">
             <div class="mb-5" id="registration-data">
-                <h2 class="text-lg font-bold text-black dark:text-white">My Registration details</h2>
+                <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_my_registration")</h2>
             </div>
 
             <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
-                    <MudText Class="text-muted dark:text-darkmuted">Pass</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_pass")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@PassTypeName</MudText>
                 </div>
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
-                    <MudText Class="text-muted dark:text-darkmuted">Level</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_level")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@LevelName</MudText>
                 </div>
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
-                    <MudText Class="text-muted dark:text-darkmuted">Role</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_role")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@RegistrationDanceRole</MudText>
                 </div>
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
-                    <MudText Class="text-muted dark:text-darkmuted">Partner</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_partner")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@PartnerText</MudText>
                 </div>
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
-                    <MudText Class="text-muted dark:text-darkmuted">Discount Code</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_discount_code")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@DiscountCode</MudText>
                 </div>
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
-                    <MudText Class="text-muted dark:text-darkmuted">Final Price</MudText>
+                    <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_final_price")</MudText>
                     <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
                 </div>
             </div>
@@ -298,8 +299,8 @@
         <div class="card shadow-sm">
             <div class="flex items-center justify-between gap-4 mb-4">
                 <div class="mb-5" id="payments">
-                    <h2 class="text-lg font-bold text-black dark:text-white">Payments</h2>
-                    <p class="mt-1 text-sm text-muted dark:text-darkmuted">Pay your registration.</p>
+                    <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_payment")</h2>
+                    <p class="mt-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_pay_registration")</p>
                 </div>
                 @if (PaymentStatus != "Paid")
                 {
@@ -323,7 +324,7 @@
 
             <div class="flex items-center justify-between gap-4 p-4 rounded bg-light/20 dark:bg-white/5">
                 <div>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">Registration Payment</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@T.Get("up_registration_payment")</MudText>
                     <MudText Class="text-muted mt-0.5 dark:text-darkmuted">
                         @if (Dashboard?.Registration?.PaymentPlan == "SplitFiftyFifty") { @("Split · 50% now, 50% in 30 days") }
                         else if (Dashboard?.Registration?.PaymentPlan == "DeferredTenDays")
@@ -356,9 +357,9 @@
         <div class="card shadow-sm">
             <div class="flex items-center justify-between gap-4 mb-4">
                 <div class="mb-5" id="invoices">
-                    <h2 class="text-lg font-bold text-black dark:text-white">Invoices</h2>
+                    <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_invoices")</h2>
                 </div>
-                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="OpenInvoiceModal">Create invoice</button>
+                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="OpenInvoiceModal">@T.Get("up_create_invoice")</button>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(InvoiceListError))
@@ -370,17 +371,17 @@
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold">Invoice</th>
-                            <th class="px-4 py-3 font-semibold">Date</th>
-                            <th class="px-4 py-3 font-semibold">Amount</th>
-                            <th class="px-4 py-3 font-semibold text-right">Accions</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_invoice")</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_date")</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_amount")</th>
+                            <th class="px-4 py-3 font-semibold text-right">@T.Get("up_actions")</th>
                         </tr>
                     </thead>
                     <tbody>
                         @if (Invoices.Count == 0)
                         {
                             <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">There are no invoices available yet.</td>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">@T.Get("up_no_invoices")</td>
                             </tr>
                         }
                         else
@@ -407,7 +408,7 @@
         <div class="card shadow-sm">
             <div class="flex items-center justify-between gap-4 mb-4">
                 <div class="mb-5" id="competitions">
-                    <h2 class="text-lg font-bold text-black dark:text-white">Competitions</h2>
+                    <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_competitions")</h2>
                 </div>
                 <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="OpenCreateCompetitionModal">
                     Register
@@ -432,11 +433,11 @@
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold">Competition</th>
-                            <th class="px-4 py-3 font-semibold">Level</th>
-                            <th class="px-4 py-3 font-semibold">Role</th>
-                            <th class="px-4 py-3 font-semibold">Status</th>
-                            <th class="px-4 py-3 font-semibold text-right">Accions</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_competition")</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_level")</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_role")</th>
+                            <th class="px-4 py-3 font-semibold">@T.Get("up_status")</th>
+                            <th class="px-4 py-3 font-semibold text-right">@T.Get("up_actions")</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -467,7 +468,7 @@
                         @if (Competitions.Count == 0)
                         {
                             <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">You are not registered to any competition.</td>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">@T.Get("up_no_competition")</td>
                             </tr>
                         }
                     </tbody>
@@ -479,7 +480,7 @@
 {
 <div class="card shadow-sm">
             <div class="mb-5" id="accommodation">
-                <h2 class="text-lg font-bold text-black dark:text-white">Accommodation</h2>
+                <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_accommodation")</h2>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(AccommodationSuccessMessage))
@@ -494,7 +495,7 @@
 
             @if (IsLoadingAccommodation)
             {
-                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+                <p class="text-sm text-muted dark:text-darkmuted">@T.Get("loading")</p>
             }
             else if (ExistingReservation is not null)
             {
@@ -506,9 +507,9 @@
                     <table class="w-full table-hover">
                         <thead class="bg-gray-50 dark:bg-dark">
                             <tr class="text-left">
-                                <th class="px-4 py-3 font-semibold">Occupant</th>
-                                <th class="px-4 py-3 font-semibold">Unit</th>
-                                <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                                <th class="px-4 py-3 font-semibold">@T.Get("up_occupant")</th>
+                                <th class="px-4 py-3 font-semibold">@T.Get("up_unit")</th>
+                                <th class="px-4 py-3 font-semibold text-right">@T.Get("up_actions")</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -538,18 +539,18 @@
 
                 @if (!IsResponsibleForExistingReservation)
                 {
-                    <p class="mt-3 text-xs text-muted dark:text-darkmuted">To modify this reservation, contact the person responsible for it.</p>
+                    <p class="mt-3 text-xs text-muted dark:text-darkmuted">@T.Get("up_to_modify_contact")</p>
                 }
             }
             else if (AvailableAccommodationBuildings.Count == 0)
             {
-                <p class="text-sm text-muted dark:text-darkmuted">No accommodation is available for your pass right now.</p>
+                <p class="text-sm text-muted dark:text-darkmuted">@T.Get("up_no_accommodation")</p>
             }
             else
             {
                 <div class="space-y-4">
                     <div>
-                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Choose your accommodation</label>
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_choose_accommodation")</label>
                         <select class="form-select" @bind="SelectedAccommodationBuildingId" @bind:after="OnAccommodationBuildingChangedAsync">
                             <option value="@Guid.Empty">-</option>
                             @foreach (AccommodationBuildingSummaryDto building in AvailableAccommodationBuildings)
@@ -562,7 +563,7 @@
                     @if (SelectedAccommodationBuildingId != Guid.Empty && SelectedBuildingType == 1)
                     {
                         <div>
-                            <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Number of occupants (max 12)</label>
+                            <label class="block mb-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_occupants_max")</label>
                             <input type="number" min="1" max="12" class="form-input" @bind="OccupantCount" @bind:after="RebuildOccupantRows" />
                         </div>
                     }
@@ -570,10 +571,10 @@
                     @if (SelectedAccommodationBuildingId != Guid.Empty && SelectedBuildingType != 1)
                     {
                         <div>
-                            <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Number of occupants</label>
+                            <label class="block mb-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_occupants")</label>
                             @if (AvailableCapacities.Count == 0)
                             {
-                                <p class="text-sm text-danger">No units available right now for this accommodation.</p>
+                                <p class="text-sm text-danger">@T.Get("up_no_units")</p>
                             }
                             else
                             {
@@ -591,7 +592,7 @@
                     @if (OccupantRows.Count > 0)
                     {
                         <div class="space-y-3">
-                            <h3 class="text-sm font-semibold text-black dark:text-white">Data of the occupants</h3>
+                            <h3 class="text-sm font-semibold text-black dark:text-white">@T.Get("up_data_occupants")</h3>
 
                             @for (int i = 0; i < OccupantRows.Count; i++)
                             {
@@ -607,11 +608,11 @@
                                     @if (SelectedBuildingType != 1)
                                     {
                                         <div>
-                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">Birth date</label>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">@T.Get("up_birth_date")</label>
                                             <input type="date" class="form-input" @bind="OccupantRows[rowIndex].BirthDate" />
                                         </div>
                                         <div>
-                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">ID/Passport expiry date</label>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">@T.Get("up_id_expiry")</label>
                                             <input type="date" class="form-input" @bind="OccupantRows[rowIndex].DocumentExpiryDate" />
                                         </div>
                                     }
@@ -635,14 +636,14 @@
                 <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 600px); max-height: 90vh;">
                     <div class="overflow-y-auto" style="max-height: 90vh;">
                         <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                            <h3 class="text-lg font-semibold text-black dark:text-white">Edit Accommodation</h3>
+                            <h3 class="text-lg font-semibold text-black dark:text-white">@T.Get("up_edit_accommodation")</h3>
                             <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditAccommodationModal"><i class="ri-close-line text-2xl"></i></button>
                         </div>
                         <div class="p-5 space-y-4">
                             @if (SelectedBuildingType == 1)
                             {
                                 <div>
-                                    <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Number of occupants (max 12)</label>
+                                    <label class="block mb-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_occupants_max")</label>
                                     <input type="number" min="1" max="12" class="form-input" @bind="OccupantCount" @bind:after="RebuildOccupantRows" />
                                 </div>
                             }
@@ -661,11 +662,11 @@
                                     @if (SelectedBuildingType != 1)
                                     {
                                         <div>
-                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">Birth date</label>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">@T.Get("up_birth_date")</label>
                                             <input type="date" class="form-input" @bind="OccupantRows[rowIndex].BirthDate" />
                                         </div>
                                         <div>
-                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">ID/Passport expiry date</label>
+                                            <label class="block mb-1 text-xs text-muted dark:text-darkmuted">@T.Get("up_id_expiry")</label>
                                             <input type="date" class="form-input" @bind="OccupantRows[rowIndex].DocumentExpiryDate" />
                                         </div>
                                     }
@@ -673,7 +674,7 @@
                             }
                         </div>
                         <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditAccommodationModal">Cancel</button>
+                            <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditAccommodationModal">@T.Get("up_cancel")</button>
                             <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@IsSavingAccommodation" @onclick="SaveEditedAccommodationReservationAsync">
                                 @(IsSavingAccommodation ? "Saving..." : "Save changes")
                             </button>
@@ -688,11 +689,11 @@
             <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
                 <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                     <div class="px-5 py-4">
-                        <h3 class="text-lg font-semibold text-black dark:text-white">Cancel reservation</h3>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@T.Get("up_cancel_reservation")</h3>
                         <p class="mt-2 text-sm text-muted dark:text-darkmuted">Are you sure you want to cancel this accommodation reservation? This cannot be undone.</p>
                     </div>
                     <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelAccommodationModal">Keep it</button>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelAccommodationModal">@T.Get("up_keep_it")</button>
                         <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@IsSavingAccommodation" @onclick="CancelAccommodationReservationAsync">
                             @(IsSavingAccommodation ? "Cancelling..." : "Cancel reservation")
                         </button>
@@ -707,8 +708,8 @@
 {
 <div class="card shadow-sm">
             <div class="mb-5" id="buses">
-                <h2 class="text-lg font-bold text-black dark:text-white">Buses</h2>
-                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Choose your departure and/or return bus, then save.</p>
+                <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_buses")</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_choose_bus")</p>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(BusSuccessMessage))
@@ -722,7 +723,7 @@
 
             @if (IsLoadingBuses)
             {
-                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+                <p class="text-sm text-muted dark:text-darkmuted">@T.Get("loading")</p>
             }
             else
             {
@@ -802,7 +803,7 @@
             <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
                 <div class="relative w-full overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 480px);">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                        <h3 class="text-lg font-semibold text-black dark:text-white">Edit Bus</h3>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@T.Get("up_edit_bus")</h3>
                         <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditBusModal"><i class="ri-close-line text-2xl"></i></button>
                     </div>
                     <div class="p-5">
@@ -817,7 +818,7 @@
                         </select>
                     </div>
                     <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditBusModal">Cancel</button>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditBusModal">@T.Get("up_cancel")</button>
                         <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@IsSavingBus" @onclick="SaveEditedBusAsync">@(IsSavingBus ? "Saving..." : "Save changes")</button>
                     </div>
                 </div>
@@ -829,11 +830,11 @@
             <div class="fixed inset-0 z-[999] flex items-center justify-center bg-black/60 px-4 py-8">
                 <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                     <div class="px-5 py-4">
-                        <h3 class="text-lg font-semibold text-black dark:text-white">Cancel bus reservation</h3>
-                        <p class="mt-2 text-sm text-muted dark:text-darkmuted">Are you sure you want to cancel this bus reservation?</p>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@T.Get("up_cancel_bus")</h3>
+                        <p class="mt-2 text-sm text-muted dark:text-darkmuted">@T.Get("up_confirm_cancel_reservation")</p>
                     </div>
                     <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelBusModal">Keep it</button>
+                        <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseCancelBusModal">@T.Get("up_keep_it")</button>
                         <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@IsSavingBus" @onclick="CancelBusReservationAsync">
                             @(IsSavingBus ? "Cancelling..." : "Cancel reservation")
                         </button>
@@ -848,8 +849,8 @@
 {
 <div class="card shadow-sm">
             <div class="mb-5" id="meals">
-                <h2 class="text-lg font-bold text-black dark:text-white">Meals</h2>
-                <p class="mt-1 text-sm text-muted dark:text-darkmuted">Tell us about your menu and any dietary needs.</p>
+                <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_meals")</h2>
+                <p class="mt-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_meals_intro")</p>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(MealSuccessMessage))
@@ -863,16 +864,16 @@
 
             @if (IsLoadingMeal)
             {
-                <p class="text-sm text-muted dark:text-darkmuted">Loading...</p>
+                <p class="text-sm text-muted dark:text-darkmuted">@T.Get("loading")</p>
             }
             else
             {
                 <div class="space-y-4">
                     <div>
-                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Menu</label>
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_menu")</label>
                         <select class="form-select" @bind="MealMenuType">
-                            <option value="1">Standard</option>
-                            <option value="2">Vegetarian</option>
+                            <option value="1">@T.Get("up_standard")</option>
+                            <option value="2">@T.Get("up_vegetarian")</option>
                         </select>
                     </div>
 
@@ -882,7 +883,7 @@
                     </label>
 
                     <div>
-                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">Allergies or intolerances</label>
+                        <label class="block mb-1 text-sm text-muted dark:text-darkmuted">@T.Get("up_allergies")</label>
                         <textarea class="form-input" rows="3" @bind="MealAllergiesNotes"></textarea>
                     </div>
 
@@ -899,7 +900,7 @@
 
         <div class="card shadow-sm">
             <div class="mb-5" id="change-password">
-                <h2 class="text-lg font-bold text-black dark:text-white">Change password</h2>
+                <h2 class="text-lg font-bold text-black dark:text-white">@T.Get("up_change_password")</h2>
             </div>
 
             @if (!string.IsNullOrWhiteSpace(PasswordSuccessMessage))
@@ -918,18 +919,18 @@
 
             <div class="space-y-4">
                 <div class="space-y-2">
-                    <MudText>Current Password</MudText>
-                    <input type="password" class="form-input" placeholder="Current Password" @bind="CurrentPassword">
+                    <MudText>@T.Get("up_current_password")</MudText>
+                    <input type="password" class="form-input" placeholder="@T.Get("up_current_password")" @bind="CurrentPassword">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>New Password</MudText>
-                    <input type="password" class="form-input" placeholder="New Password" @bind="NewPassword">
+                    <MudText>@T.Get("up_new_password")</MudText>
+                    <input type="password" class="form-input" placeholder="@T.Get("up_new_password")" @bind="NewPassword">
                 </div>
 
                 <div class="space-y-2">
-                    <MudText>Confirm Password</MudText>
-                    <input type="password" class="form-input" placeholder="Confirm Password" @bind="ConfirmPassword">
+                    <MudText>@T.Get("up_confirm_password")</MudText>
+                    <input type="password" class="form-input" placeholder="@T.Get("up_confirm_password")" @bind="ConfirmPassword">
                 </div>
 
                 <div class="flex flex-wrap gap-3 md:col-span-2">
@@ -977,9 +978,9 @@
                 }
 
                 <div class="space-y-2">
-                    <label class="block text-sm font-medium text-black dark:text-white">Competition</label>
+                    <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_competition")</label>
                     <select class="form-select" value="@CompetitionFormCompetitionId" @onchange="OnCompetitionChanged">
-                        <option value="@Guid.Empty">Select competition</option>
+                        <option value="@Guid.Empty">@T.Get("up_select_competition")</option>
 
                         @foreach (CompetitionDto competition in AvailableCompetitions)
                         {
@@ -993,9 +994,9 @@
                     @if (SelectedCompetitionHasLevels)
                     {
                         <div class="space-y-2">
-                            <label class="block text-sm font-medium text-black dark:text-white">Level</label>
+                            <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_level")</label>
                             <select class="form-select" @bind="CompetitionFormLevelId">
-                                <option value="@Guid.Empty">Select level</option>
+                                <option value="@Guid.Empty">@T.Get("up_select_level")</option>
 
                                 @foreach (CompetitionLevelDto level in SelectedCompetitionLevels)
                                 {
@@ -1006,18 +1007,18 @@
                     }
 
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium text-black dark:text-white">Role</label>
+                        <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_role")</label>
                         <select class="form-select" @bind="CompetitionFormDanceRole">
-                            <option value="">Select role</option>
-                            <option value="Leader">Leader</option>
-                            <option value="Follower">Follower</option>
+                            <option value="">@T.Get("up_select_role")</option>
+                            <option value="Leader">@T.Get("role_leader")</option>
+                            <option value="Follower">@T.Get("role_follower")</option>
                         </select>
                     </div>
                 }
                 else
                 {
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium text-black dark:text-white">Role</label>
+                        <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_role")</label>
                         <input type="text" class="form-input" value="Individual" disabled>
                     </div>
                 }
@@ -1042,7 +1043,7 @@
         <div class="relative w-[92vw] md:w-[380px] overflow-hidden rounded-lg border border-black/10 bg-white shadow-3xl dark:border-darkborder dark:bg-darklight">
 
             <div class="border-b border-black/10 px-5 py-4 dark:border-darkborder">
-                <h3 class="text-lg font-bold text-black dark:text-white">Delete competition</h3>
+                <h3 class="text-lg font-bold text-black dark:text-white">@T.Get("up_delete_competition")</h3>
                 <p class="mt-1 text-sm text-muted dark:text-darkmuted">
                     Are you sure you want to delete your registration to @CompetitionToDeleteName?
                 </p>
@@ -1067,7 +1068,7 @@
 
             <div class="flex items-center justify-between border-b border-black/10 px-5 py-4 dark:border-darkborder">
                 <div>
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Create Invoice</h3>
+                    <h3 class="text-lg font-semibold text-black dark:text-white">@T.Get("up_create_invoice")</h3>
                     <p class="mt-1 text-sm text-muted dark:text-darkmuted">
                         Enter your billing details.
                     </p>
@@ -1087,31 +1088,31 @@
                 }
 
                 <div class="space-y-2">
-                    <label class="block text-sm font-medium text-black dark:text-white">Full name / Company name</label>
+                    <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_full_name")</label>
                     <input type="text" class="form-input" @bind="InvoiceFiscalName" />
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-sm font-medium text-black dark:text-white">Tax ID (NIF/CIF)</label>
+                    <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_tax_id")</label>
                     <input type="text" class="form-input" @bind="InvoiceTaxId" />
                 </div>
 
                 <div class="space-y-2">
-                    <label class="block text-sm font-medium text-black dark:text-white">Address</label>
+                    <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_address")</label>
                     <input type="text" class="form-input" @bind="InvoiceAddress" />
                 </div>
 
                 <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium text-black dark:text-white">City</label>
+                        <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_city")</label>
                         <input type="text" class="form-input" @bind="InvoiceCity" />
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium text-black dark:text-white">Postal code</label>
+                        <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_postal_code")</label>
                         <input type="text" class="form-input" @bind="InvoicePostalCode" />
                     </div>
                     <div class="space-y-2">
-                        <label class="block text-sm font-medium text-black dark:text-white">Country</label>
+                        <label class="block text-sm font-medium text-black dark:text-white">@T.Get("up_country")</label>
                         <input type="text" class="form-input" @bind="InvoiceCountry" />
                     </div>
                 </div>
@@ -1138,7 +1139,7 @@
                     <div class="flex items-center justify-center w-10 h-10 rounded bg-warning/10 text-warning shrink-0">
                         <i class="ri-error-warning-line text-xl"></i>
                     </div>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">No spots available</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@T.Get("up_no_spots")</MudText>
                 </div>
 
                 <MudText Class="mb-5 text-muted dark:text-darkmuted">@CompetitionFullMessage</MudText>
@@ -1322,9 +1323,9 @@
     private bool HasPendingBusSelection =>
         PendingBusSelection.Any(kv => kv.Value != Guid.Empty && !BusReservations.Any(r => r.Direction == kv.Key));
 
-    private static string GetDirectionLabel(int direction) => direction switch
+    private string GetDirectionLabel(int direction) => direction switch
     {
-        1 => "Departure",
+        1 => T.Get("up_departure"),
         2 => "Return",
         _ => "-"
     };
@@ -1994,10 +1995,10 @@
 
             if (!HasMealPreferenceSet)
             {
-                return "Not set";
+                return T.Get("up_not_set");
             }
 
-            return MealMenuType == 2 ? "Vegetarian Menu" : "Standard Menu";
+            return MealMenuType == 2 ? T.Get("up_vegetarian_menu") : T.Get("up_standard_menu");
         }
     }
 
@@ -2039,7 +2040,7 @@
             await JsRuntime.InvokeVoidAsync("redsysSubmit", form.Url, form.SignatureVersion, form.MerchantParameters, form.Signature);
 
             IsStartingPayment = false;
-            ShowPaymentBanner("The payment page has been opened in a new tab.", isError: false);
+            ShowPaymentBanner(T.Get("up_payment_new_tab"), isError: false);
         }
         catch (Exception ex)
         {
@@ -2075,7 +2076,7 @@
             {
                 ConfirmRedsysReturnRequest request = new() { MerchantParameters = merchantParameters, Signature = signature };
                 await PaymentApiClient.ConfirmReturnAsync(request);
-                ShowPaymentBanner("Payment confirmed.", isError: false);
+                ShowPaymentBanner(T.Get("up_payment_confirmed"), isError: false);
 
                 return;
             }
@@ -2231,7 +2232,7 @@
     private bool IsEditingCompetitionEntry { get; set; }
     private Guid? EditingCompetitionEntryId { get; set; }
     private Guid? DeletingCompetitionEntryId { get; set; }
-    private string CompetitionModalTitle => IsEditingCompetitionEntry ? "Edit competition entry" : "Register competition";
+    private string CompetitionModalTitle => IsEditingCompetitionEntry ? T.Get("up_edit_competition_entry") : T.Get("up_register_competition");
     private string? CompetitionModalError { get; set; }
     private string? CompetitionModalSuccess { get; set; }
     private string? CompetitionToDeleteName { get; set; }
@@ -2289,6 +2290,10 @@
         try
         {
             Dashboard = await UserPanelApiClient.GetDashboardAsync();
+            if (Dashboard?.Registration is not null)
+            {
+                await T.SetLanguageAsync(Dashboard.Registration.Language);
+            }
 
             if (Dashboard is null)
             {
@@ -2377,7 +2382,7 @@
             string.IsNullOrWhiteSpace(NewPassword) ||
             string.IsNullOrWhiteSpace(ConfirmPassword))
         {
-            await ShowPasswordErrorAsync("Please complete all password fields.");
+            await ShowPasswordErrorAsync(T.Get("up_error_password_fields"));
             return;
         }
 
@@ -2646,7 +2651,7 @@
 
         if (CompetitionFormCompetitionId == Guid.Empty)
         {
-            CompetitionModalError = "Please select a competition.";
+            CompetitionModalError = T.Get("up_error_select_competition");
             await ShowCompetitionErrorAsync(CompetitionModalError);
             return;
         }
@@ -2659,14 +2664,14 @@
         {
             if (SelectedCompetitionHasLevels && CompetitionFormLevelId == Guid.Empty)
             {
-                CompetitionModalError = "Please select a level.";
+                CompetitionModalError = T.Get("up_error_select_level");
                 await ShowCompetitionErrorAsync(CompetitionModalError);
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(CompetitionFormDanceRole))
             {
-                CompetitionModalError = "Please select a role.";
+                CompetitionModalError = T.Get("up_error_select_role");
                 await ShowCompetitionErrorAsync(CompetitionModalError);
                 return;
             }

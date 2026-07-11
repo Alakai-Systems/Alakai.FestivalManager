@@ -1,752 +1,543 @@
-# Creates complete documentation for Alakai FestivalManager
-# Run from repo root: .\create_documentation.ps1
+# Rewrite all 4 JSON files with ALL keys needed by Register.razor and UserPanel.razor
+# Run from repo root: .\fix_all_json_keys.ps1
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-New-Item -ItemType Directory -Path "docs" -Force | Out-Null
+$i18n = "Alakai.FestivalManager.Admin\wwwroot\i18n"
 
-# ── README.md ─────────────────────────────────────────────────────────────────
-[System.IO.File]::WriteAllText("README.md", @'
-# Alakai FestivalManager
-
-Multi-tenant SaaS platform for managing dance and music festivals. Built with .NET 9, Blazor Server, Entity Framework Core and SQL Server.
-
-## Projects
-
-| Project | Port (dev) | Purpose |
-|---|---|---|
-| `Alakai.FestivalManager.Api` | 7157 | REST API — all business logic and data access |
-| `Alakai.FestivalManager.Admin` | 7033 | Blazor Server — Admin panel + User Panel |
-| `Alakai.FestivalManager.Application` | — | Use cases, handlers, services, validators |
-| `Alakai.FestivalManager.Domain` | — | Entities, enums, domain exceptions |
-| `Alakai.FestivalManager.Infrastructure` | — | EF Core, repositories, external integrations |
-| `Alakai.FestivalManager.Tests` | — | xUnit unit tests |
-
-## Quick Start
-
-### Prerequisites
-- .NET 9 SDK
-- SQL Server (local or remote)
-- Visual Studio 2022 / Rider / VS Code
-
-### 1. Clone and restore
-```bash
-git clone <repo-url>
-cd Alakai.FestivalManager
-dotnet restore
-```
-
-### 2. Configure the API
-Copy `appsettings.json` to `appsettings.Development.json` in `Alakai.FestivalManager.Api` and set:
-- `ConnectionStrings:DefaultConnection` — your SQL Server connection string
-- `Jwt:SecretKey` — any random string ≥ 32 characters
-- `Email:*` — your SMTP credentials
-
-### 3. Run migrations
-```bash
-cd Alakai.FestivalManager.Infrastructure
-dotnet ef database update --startup-project ../Alakai.FestivalManager.Api
-```
-
-### 4. Start both projects
-```bash
-# Terminal 1
-dotnet run --project Alakai.FestivalManager.Api
-
-# Terminal 2
-dotnet run --project Alakai.FestivalManager.Admin
-```
-
-Open `https://localhost:7033` for the Admin panel.  
-API Swagger: `https://localhost:7157/swagger`
-
-## Architecture
-
-See [docs/architecture.md](docs/architecture.md)
-
-## Configuration Reference
-
-See [docs/configuration.md](docs/configuration.md)
-
-## Production Deployment
-
-See [docs/production-checklist.md](docs/production-checklist.md)
-
-## Modules
-
-See [docs/modules.md](docs/modules.md)
-
-## Testing
-
-See [docs/testing.md](docs/testing.md)
-
-## Clients
-
-The platform is multi-tenant. Each client deployment has its own:
-- SQL Server database
-- API instance
-- Admin instance
-- Domain/subdomain
-
-Current clients: **La Jam Barcelona**, **Swim Out Costa Brava**.
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: README.md"
-
-# ── docs/architecture.md ──────────────────────────────────────────────────────
-[System.IO.File]::WriteAllText("docs\architecture.md", @'
-# Architecture
-
-Alakai FestivalManager follows **Clean Architecture** with strict layer dependencies.
-
-## Layer Dependencies
-
-```
-Domain
-  └── Application  (references Domain)
-        └── Infrastructure  (references Application + Domain)
-              └── Api  (references Application + Infrastructure)
-                    └── Admin  (references Api via HTTP, not project reference)
-```
-
-The Admin (Blazor Server) communicates with the Api exclusively via `HttpClient` — it has no direct reference to Application or Infrastructure assemblies. This keeps them independently deployable.
-
-## Project Responsibilities
-
-### Domain
-Pure C# — no dependencies on any framework.
-- `Entities/` — all database entities inheriting `BaseEntity` (Id, CreatedAt, UpdatedAt)
-- `Enums/` — `PaymentStatus`, `PaymentPlan`, `FestivalModule`, `DanceRole`, etc.
-- `Common/BaseEntity.cs` — base class with protected Id setter (auto-generated Guid)
-
-### Application
-Business logic layer. Depends only on Domain.
-- `Features/{Feature}/Commands/` — write operations (Create, Update, Delete handlers)
-- `Features/{Feature}/Queries/` — read operations
-- `Features/{Feature}/Services/` — stateful services (PaymentService, AuthService, etc.)
-- `Features/{Feature}/Validators/` — FluentValidation validators
-- `Features/{Feature}/Mappings/` — AutoMapper profiles
-- `Interfaces/Repositories/` — repository contracts
-- `Common/Exceptions/` — `NotFoundException`, `BusinessRuleException`, `ValidationException`
-
-### Infrastructure
-Implements Application interfaces. Depends on Application + Domain.
-- `Repositories/` — EF Core repository implementations
-- `Configurations/` — EF entity configurations (table names, FKs, indexes)
-- `Migrations/` — EF migrations
-- `Extensions/InfrastructureDependencyInjectionExtension.cs` — DI registration
-
-### Api
-ASP.NET Core Web API. Thin controllers — no business logic.
-- `Controllers/` — one controller per feature, delegates to handlers/services
-- `Middleware/GlobalExceptionMiddleware.cs` — catches domain exceptions, returns RFC 7807 errors
-- JWT Bearer authentication
-- CORS configured for the Admin origin
-
-### Admin
-Blazor Server application. Single project serving both:
-- **Admin panel** (`/` routes) — festival management, registrations, reports
-- **User Panel** (`/user-panel/` routes) — registration form, payments, accommodation booking
-
-Key Admin concepts:
-- `ActiveFestivalState` (Scoped) — tracks the selected festival across pages
-- `Components/Layout/` — shared layouts, PageHeader, Sidebar, Topbar
-- `Services/Api/` — typed HttpClient wrappers for every API endpoint
-- `Contracts/` — mirror DTOs matching the Api contracts
-
-## Key Patterns
-
-### Command/Query handlers
-Handlers are plain C# classes registered as Scoped services. Controllers resolve them directly — no MediatR.
-
-```csharp
-// Controller
-public async Task<IActionResult> Create([FromBody] CreateRegistrationCommand command)
+[System.IO.File]::WriteAllText("$i18n\en.json", @'
 {
-    RegistrationDto result = await _handler.HandleAsync(command);
-    return Ok(result);
+  "loading": "Loading...",
+  "Loading": "Loading...",
+  "registration_unavailable": "Registration unavailable",
+  "payment_success": "Payment completed!",
+  "payment_failed": "Payment failed",
+  "registration_confirmed": "Your registration is confirmed. Check your email for details.",
+  "registration_submitted": "Registration submitted!",
+  "go_to_login": "Go to login",
+  "personal_details": "Personal Details",
+  "name": "Name",
+  "last_names": "Last Names",
+  "email": "Email",
+  "password": "Password",
+  "phone_number": "Phone Number",
+  "country": "Country",
+  "city": "City",
+  "select_pass": "Select your pass",
+  "choose_parties": "Choose your party/ies",
+  "select_level": "Select your level",
+  "select_role": "Select your role",
+  "register_with_partner": "Are you registering with a partner?",
+  "yes": "Yes",
+  "no": "No",
+  "partner_email": "Partner's email",
+  "group_code": "Group name / discount code",
+  "select_payment": "Select payment type",
+  "payment_split": "Split payment: pay 50% online now and the remaining 50% in 30 days",
+  "total_now": "Total amount to pay online now",
+  "total_deferred": "Total amount due within 10 days of receiving the confirmation email",
+  "price": "Price:",
+  "pay_now": "Pay now:",
+  "accept_terms": "I accept the",
+  "terms": "Terms & Conditions",
+  "submit": "Register",
+  "error_required_fields": "Please complete all required fields.",
+  "error_accept_terms": "You must accept the Terms and Conditions to continue.",
+  "error_select_pass": "Please select a pass to continue.",
+  "role_leader": "Leader",
+  "role_follower": "Follower",
+  "role_individual": "Individual",
+  "up_registration": "Registration",
+  "up_payment": "Payment",
+  "up_competitions": "Competitions",
+  "up_invoices": "Invoices",
+  "up_accommodation": "Accommodation",
+  "up_meals": "Meals",
+  "up_buses": "Buses",
+  "up_personal_details": "My personal details",
+  "up_update_profile": "Update your personal details.",
+  "up_first_name": "First Name",
+  "up_last_name": "Last Name",
+  "up_email": "Your email",
+  "up_phone": "Phone",
+  "up_country": "Country",
+  "up_city": "City",
+  "up_document": "Document Number",
+  "up_postal_code": "Postal code",
+  "up_birth_date": "Birth date",
+  "up_save": "Save",
+  "up_discard": "Discard",
+  "up_edit": "Edit",
+  "up_cancel": "Cancel",
+  "up_my_registration": "My Registration details",
+  "up_pass": "Pass",
+  "up_level": "Level",
+  "up_role": "Role",
+  "up_partner": "Partner",
+  "up_status": "Status",
+  "up_amount": "Amount",
+  "up_date": "Date",
+  "up_pay_registration": "Pay your registration.",
+  "up_registration_payment": "Registration Payment",
+  "up_final_price": "Final Price",
+  "up_discount_code": "Discount Code",
+  "up_create_invoice": "Create Invoice",
+  "up_invoice": "Invoice",
+  "up_no_invoices": "There are no invoices available yet.",
+  "up_actions": "Actions",
+  "up_competition": "Competition",
+  "up_no_competition": "You are not registered to any competition.",
+  "up_delete_competition": "Delete competition",
+  "up_no_spots": "No spots available",
+  "up_select_competition": "Select competition",
+  "up_select_level": "Select level",
+  "up_select_role": "Select role",
+  "up_choose_accommodation": "Choose your accommodation",
+  "up_edit_accommodation": "Edit Accommodation",
+  "up_cancel_reservation": "Cancel reservation",
+  "up_keep_it": "Keep it",
+  "up_no_accommodation": "No accommodation is available for your pass right now.",
+  "up_no_units": "No units available right now for this accommodation.",
+  "up_occupants": "Number of occupants",
+  "up_occupants_max": "Number of occupants (max 12)",
+  "up_occupant": "Occupant",
+  "up_data_occupants": "Data of the occupants",
+  "up_full_name": "Full name / Company name",
+  "up_tax_id": "Tax ID (NIF/CIF)",
+  "up_id_expiry": "ID/Passport expiry date",
+  "up_address": "Address",
+  "up_to_modify_contact": "To modify this reservation, contact the person responsible for it.",
+  "up_choose_bus": "Choose your departure and/or return bus, then save.",
+  "up_edit_bus": "Edit Bus",
+  "up_cancel_bus": "Cancel bus reservation",
+  "up_confirm_cancel_reservation": "Are you sure you want to cancel this bus reservation?",
+  "up_menu": "Menu",
+  "up_standard": "Standard",
+  "up_vegetarian": "Vegetarian",
+  "up_allergies": "Allergies or intolerances",
+  "up_meals_intro": "Tell us about your menu and any dietary needs.",
+  "up_unit": "Unit",
+  "up_change_password": "Change password",
+  "up_current_password": "Current Password",
+  "up_new_password": "New Password",
+  "up_confirm_password": "Confirm Password",
+  "up_payment_confirmed": "Payment confirmed.",
+  "up_payment_new_tab": "The payment page has been opened in a new tab.",
+  "up_error_password_fields": "Please complete all password fields.",
+  "up_error_select_competition": "Please select a competition.",
+  "up_error_select_level": "Please select a level.",
+  "up_error_select_role": "Please select a role.",
+  "up_edit_competition_entry": "Edit competition entry",
+  "up_register_competition": "Register competition",
+  "up_standard_menu": "Standard Menu",
+  "up_vegetarian_menu": "Vegetarian Menu",
+  "up_not_set": "Not set",
+  "up_departure": "Departure",
+  "up_return": "Return"
 }
-```
+'@, [System.Text.Encoding]::new(65001, $false))
+Write-Host "OK: en.json"
 
-### Repository pattern
-All data access goes through repository interfaces. EF Core DbContext is injected into repositories (not into handlers).
-
-### Global exception middleware
-Domain exceptions are caught centrally and converted to HTTP responses:
-- `NotFoundException` → 404
-- `BusinessRuleException` → 422
-- `ValidationException` → 400
-
-### Multi-tenancy
-Tenancy is per-deployment (separate database + API + Admin per client). No shared database. Festival selection within a deployment is managed via `ActiveFestivalState`.
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: docs/architecture.md"
-
-# ── docs/configuration.md ────────────────────────────────────────────────────
-[System.IO.File]::WriteAllText("docs\configuration.md", @'
-# Configuration Reference
-
-All configuration lives in `appsettings.json` (committed, safe defaults) and `appsettings.Production.json` (not committed, secrets).
-
-## Api — appsettings.json
-
-### ConnectionStrings
-```json
-"ConnectionStrings": {
-  "DefaultConnection": "Server=...;Database=...;User Id=...;Password=...;"
-}
-```
-Standard SQL Server connection string. Uses EF Core + SQL Server provider.
-
-### Jwt
-```json
-"Jwt": {
-  "Issuer": "AlakaiFestivalManager",
-  "Audience": "AlakaiFestivalManager",
-  "SecretKey": "CHANGE_IN_PRODUCTION",
-  "ExpirationMinutes": 120,
-  "RefreshTokenExpirationDays": 30
-}
-```
-- `SecretKey` must be ≥ 32 characters. Used to sign JWT tokens.
-- `ExpirationMinutes` — access token lifetime.
-- `RefreshTokenExpirationDays` — refresh token lifetime.
-
-### Redsys (payment gateway)
-```json
-"Redsys": {
-  "MerchantCode": "367830569",
-  "Terminal": "2",
-  "Currency": "978",
-  "SecretKey": "sq7HjrUOBfKmC576ILgskD5srU870gJ7",
-  "MerchantName": "Windy Hoppers Emporda",
-  "PaymentUrl": "https://sis-t.redsys.es:25443/sis/realizarPago",
-  "NotificationUrl": "https://YOUR-API-DOMAIN/api/payments/redsys/notification",
-  "UrlOk": "https://YOUR-ADMIN-DOMAIN/user-panel/dashboard?payment=ok",
-  "UrlKo": "https://YOUR-ADMIN-DOMAIN/user-panel/dashboard?payment=ko"
-}
-```
-- `PaymentUrl` — test: `https://sis-t.redsys.es:25443/sis/realizarPago`, production: `https://sis.redsys.es/sis/realizarPago`
-- `NotificationUrl` — must be a publicly reachable HTTPS URL (Redsys calls this server-to-server)
-- `MerchantCode`, `Terminal`, `SecretKey` — provided by your bank/Redsys contract
-
-### Email (SMTP)
-```json
-"Email": {
-  "Host": "mail.alakai-systems.com",
-  "Port": 587,
-  "UserName": "info@alakai-systems.com",
-  "Password": "...",
-  "UseSSL": true,
-  "FromEmail": "info@alakai-systems.com",
-  "FromName": "Festival Manager"
-}
-```
-
-### FileStorage
-```json
-"FileStorage": {
-  "RootPath": "wwwroot/uploads/email-images",
-  "PublicBaseUrl": "https://YOUR-API-DOMAIN/uploads/email-images"
-}
-```
-Stores images uploaded via the email template editor. `PublicBaseUrl` must be the public URL of the Api.
-
-### ExternalAuth
-```json
-"ExternalAuth": {
-  "Google": { "ClientId": "..." },
-  "Apple": { "ClientId": "" }
-}
-```
-Google OAuth2 client ID for social login in the User Panel.
-
-### ApplicationUrls
-```json
-"ApplicationUrls": {
-  "PortalUrl": "https://YOUR-ADMIN-DOMAIN/user-panel"
-}
-```
-Used in emails as the link to the User Panel.
-
-### GoogleAnalytics
-```json
-"GoogleAnalytics": {
-  "CredentialsPath": "/path/to/service-account.json"
-}
-```
-Path to the Google service account JSON file for GA4 data API access.
-
----
-
-## Admin — appsettings.json
-
-### ApiSettings
-```json
-"ApiSettings": {
-  "BaseUrl": "https://YOUR-API-DOMAIN/"
-}
-```
-The Admin uses this to call the Api. Must include trailing slash.
-
-### ExternalAuth
-```json
-"ExternalAuth": {
-  "GoogleClientId": "...",
-  "AppleClientId": "",
-  "AppleRedirectUri": ""
-}
-```
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: docs/configuration.md"
-
-# ── docs/production-checklist.md ─────────────────────────────────────────────
-[System.IO.File]::WriteAllText("docs\production-checklist.md", @'
-# Production Checklist
-
-Everything that must be changed before deploying to production. Go through this list top to bottom.
-
----
-
-## 1. API — appsettings.Production.json
-
-Create this file in `Alakai.FestivalManager.Api/` (never commit it):
-
-```json
+[System.IO.File]::WriteAllText("$i18n\es.json", @'
 {
-  "ConnectionStrings": {
-    "DefaultConnection": "Server=PROD-SERVER;Database=PROD-DB;User Id=PROD-USER;Password=PROD-PASS;TrustServerCertificate=True"
-  },
-  "Jwt": {
-    "SecretKey": "<random string, minimum 32 characters, never share>"
-  },
-  "Redsys": {
-    "MerchantCode": "<your production merchant code from bank>",
-    "Terminal": "<your production terminal number>",
-    "SecretKey": "<your production Redsys secret key>",
-    "PaymentUrl": "https://sis.redsys.es/sis/realizarPago",
-    "NotificationUrl": "https://YOUR-API-DOMAIN/api/payments/redsys/notification",
-    "UrlOk": "https://YOUR-ADMIN-DOMAIN/user-panel/dashboard?payment=ok",
-    "UrlKo": "https://YOUR-ADMIN-DOMAIN/user-panel/dashboard?payment=ko"
-  },
-  "Email": {
-    "Host": "<production SMTP host>",
-    "Port": 587,
-    "UserName": "<production email>",
-    "Password": "<production email password>",
-    "FromEmail": "<production from email>",
-    "FromName": "<festival name>"
-  },
-  "FileStorage": {
-    "PublicBaseUrl": "https://YOUR-API-DOMAIN/uploads/email-images"
-  },
-  "ApplicationUrls": {
-    "PortalUrl": "https://YOUR-ADMIN-DOMAIN/user-panel"
-  },
-  "GoogleAnalytics": {
-    "CredentialsPath": "/var/secrets/ga-service-account.json"
-  }
+  "loading": "Cargando...",
+  "Loading": "Cargando...",
+  "registration_unavailable": "Inscripción no disponible",
+  "payment_success": "¡Pago completado!",
+  "payment_failed": "El pago ha fallado",
+  "registration_confirmed": "Tu inscripción está confirmada. Revisa tu correo electrónico.",
+  "registration_submitted": "¡Inscripción enviada!",
+  "go_to_login": "Ir al acceso",
+  "personal_details": "Datos personales",
+  "name": "Nombre",
+  "last_names": "Apellidos",
+  "email": "Correo electrónico",
+  "password": "Contraseña",
+  "phone_number": "Teléfono",
+  "country": "País",
+  "city": "Ciudad",
+  "select_pass": "Selecciona tu pase",
+  "choose_parties": "Elige tus fiestas",
+  "select_level": "Selecciona tu nivel",
+  "select_role": "Selecciona tu rol",
+  "register_with_partner": "¿Te inscribes con pareja?",
+  "yes": "Sí",
+  "no": "No",
+  "partner_email": "Email de tu pareja",
+  "group_code": "Nombre de grupo / código de descuento",
+  "select_payment": "Selecciona el tipo de pago",
+  "payment_split": "Pago dividido: paga el 50% ahora y el 50% restante en 30 días",
+  "total_now": "Importe total a pagar online ahora",
+  "total_deferred": "Importe total a pagar en los 10 días siguientes a la confirmación",
+  "price": "Precio:",
+  "pay_now": "Pagar ahora:",
+  "accept_terms": "Acepto los",
+  "terms": "Términos y condiciones",
+  "submit": "Inscribirse",
+  "error_required_fields": "Por favor, completa todos los campos obligatorios.",
+  "error_accept_terms": "Debes aceptar los Términos y Condiciones para continuar.",
+  "error_select_pass": "Por favor, selecciona un pase para continuar.",
+  "role_leader": "Leader",
+  "role_follower": "Follower",
+  "role_individual": "Individual",
+  "up_registration": "Inscripción",
+  "up_payment": "Pago",
+  "up_competitions": "Competiciones",
+  "up_invoices": "Facturas",
+  "up_accommodation": "Alojamiento",
+  "up_meals": "Comidas",
+  "up_buses": "Autobuses",
+  "up_personal_details": "Mis datos personales",
+  "up_update_profile": "Actualiza tus datos personales.",
+  "up_first_name": "Nombre",
+  "up_last_name": "Apellidos",
+  "up_email": "Tu correo electrónico",
+  "up_phone": "Teléfono",
+  "up_country": "País",
+  "up_city": "Ciudad",
+  "up_document": "Número de documento",
+  "up_postal_code": "Código postal",
+  "up_birth_date": "Fecha de nacimiento",
+  "up_save": "Guardar",
+  "up_discard": "Descartar",
+  "up_edit": "Editar",
+  "up_cancel": "Cancelar",
+  "up_my_registration": "Mi inscripción",
+  "up_pass": "Pase",
+  "up_level": "Nivel",
+  "up_role": "Rol",
+  "up_partner": "Pareja",
+  "up_status": "Estado",
+  "up_amount": "Importe",
+  "up_date": "Fecha",
+  "up_pay_registration": "Paga tu inscripción.",
+  "up_registration_payment": "Pago de inscripción",
+  "up_final_price": "Precio final",
+  "up_discount_code": "Código de descuento",
+  "up_create_invoice": "Crear factura",
+  "up_invoice": "Factura",
+  "up_no_invoices": "Aún no hay facturas disponibles.",
+  "up_actions": "Acciones",
+  "up_competition": "Competición",
+  "up_no_competition": "No estás inscrito en ninguna competición.",
+  "up_delete_competition": "Eliminar competición",
+  "up_no_spots": "No hay plazas disponibles",
+  "up_select_competition": "Selecciona una competición",
+  "up_select_level": "Selecciona un nivel",
+  "up_select_role": "Selecciona un rol",
+  "up_choose_accommodation": "Elige tu alojamiento",
+  "up_edit_accommodation": "Editar alojamiento",
+  "up_cancel_reservation": "Cancelar reserva",
+  "up_keep_it": "Mantener",
+  "up_no_accommodation": "No hay alojamiento disponible para tu pase en este momento.",
+  "up_no_units": "No hay unidades disponibles para este alojamiento en este momento.",
+  "up_occupants": "Número de ocupantes",
+  "up_occupants_max": "Número de ocupantes (máx. 12)",
+  "up_occupant": "Ocupante",
+  "up_data_occupants": "Datos de los ocupantes",
+  "up_full_name": "Nombre completo / Razón social",
+  "up_tax_id": "NIF/CIF",
+  "up_id_expiry": "Fecha de caducidad del documento",
+  "up_address": "Dirección",
+  "up_to_modify_contact": "Para modificar esta reserva, contacta con el responsable.",
+  "up_choose_bus": "Elige tu autobús de ida y/o vuelta y guarda.",
+  "up_edit_bus": "Editar autobús",
+  "up_cancel_bus": "Cancelar reserva de autobús",
+  "up_confirm_cancel_reservation": "¿Seguro que quieres cancelar esta reserva de autobús?",
+  "up_menu": "Menú",
+  "up_standard": "Estándar",
+  "up_vegetarian": "Vegetariano",
+  "up_allergies": "Alergias o intolerancias",
+  "up_meals_intro": "Cuéntanos tus preferencias de menú y necesidades dietéticas.",
+  "up_unit": "Unidad",
+  "up_change_password": "Cambiar contraseña",
+  "up_current_password": "Contraseña actual",
+  "up_new_password": "Nueva contraseña",
+  "up_confirm_password": "Confirmar contraseña",
+  "up_payment_confirmed": "Pago confirmado.",
+  "up_payment_new_tab": "La página de pago se ha abierto en una nueva pestaña.",
+  "up_error_password_fields": "Por favor, completa todos los campos de contraseña.",
+  "up_error_select_competition": "Por favor, selecciona una competición.",
+  "up_error_select_level": "Por favor, selecciona un nivel.",
+  "up_error_select_role": "Por favor, selecciona un rol.",
+  "up_edit_competition_entry": "Editar inscripción a competición",
+  "up_register_competition": "Inscribirse a competición",
+  "up_standard_menu": "Menú estándar",
+  "up_vegetarian_menu": "Menú vegetariano",
+  "up_not_set": "No establecido",
+  "up_departure": "Ida",
+  "up_return": "Vuelta"
 }
-```
+'@, [System.Text.Encoding]::new(65001, $false))
+Write-Host "OK: es.json"
 
----
-
-## 2. Admin — appsettings.Production.json
-
-Create this file in `Alakai.FestivalManager.Admin/` (never commit it):
-
-```json
+[System.IO.File]::WriteAllText("$i18n\fr.json", @'
 {
-  "ApiSettings": {
-    "BaseUrl": "https://YOUR-API-DOMAIN/"
-  },
-  "ExternalAuth": {
-    "GoogleClientId": "<production Google OAuth client ID>"
-  }
+  "loading": "Chargement...",
+  "Loading": "Chargement...",
+  "registration_unavailable": "Inscription non disponible",
+  "payment_success": "Paiement effectué !",
+  "payment_failed": "Échec du paiement",
+  "registration_confirmed": "Votre inscription est confirmée. Consultez votre e-mail pour plus de détails.",
+  "registration_submitted": "Inscription envoyée !",
+  "go_to_login": "Aller à la connexion",
+  "personal_details": "Coordonnées personnelles",
+  "name": "Prénom",
+  "last_names": "Nom de famille",
+  "email": "Adresse e-mail",
+  "password": "Mot de passe",
+  "phone_number": "Téléphone",
+  "country": "Pays",
+  "city": "Ville",
+  "select_pass": "Choisissez votre pass",
+  "choose_parties": "Choisissez vos soirées",
+  "select_level": "Choisissez votre niveau",
+  "select_role": "Choisissez votre rôle",
+  "register_with_partner": "Vous inscrivez-vous avec un partenaire ?",
+  "yes": "Oui",
+  "no": "Non",
+  "partner_email": "E-mail de votre partenaire",
+  "group_code": "Nom du groupe / code de réduction",
+  "select_payment": "Choisissez votre mode de paiement",
+  "payment_split": "Paiement en deux fois : payez 50 % maintenant et les 50 % restants dans 30 jours",
+  "total_now": "Montant total à payer en ligne maintenant",
+  "total_deferred": "Montant total à payer dans les 10 jours suivant la confirmation",
+  "price": "Prix :",
+  "pay_now": "Payer maintenant :",
+  "accept_terms": "J'accepte les",
+  "terms": "Conditions générales",
+  "submit": "S'inscrire",
+  "error_required_fields": "Veuillez remplir tous les champs obligatoires.",
+  "error_accept_terms": "Vous devez accepter les conditions générales pour continuer.",
+  "error_select_pass": "Veuillez sélectionner un pass pour continuer.",
+  "role_leader": "Leader",
+  "role_follower": "Follower",
+  "role_individual": "Individuel",
+  "up_registration": "Inscription",
+  "up_payment": "Paiement",
+  "up_competitions": "Compétitions",
+  "up_invoices": "Factures",
+  "up_accommodation": "Hébergement",
+  "up_meals": "Repas",
+  "up_buses": "Bus",
+  "up_personal_details": "Mes coordonnées",
+  "up_update_profile": "Mettez à jour vos coordonnées.",
+  "up_first_name": "Prénom",
+  "up_last_name": "Nom",
+  "up_email": "Votre e-mail",
+  "up_phone": "Téléphone",
+  "up_country": "Pays",
+  "up_city": "Ville",
+  "up_document": "Numéro de document",
+  "up_postal_code": "Code postal",
+  "up_birth_date": "Date de naissance",
+  "up_save": "Enregistrer",
+  "up_discard": "Annuler",
+  "up_edit": "Modifier",
+  "up_cancel": "Annuler",
+  "up_my_registration": "Mon inscription",
+  "up_pass": "Pass",
+  "up_level": "Niveau",
+  "up_role": "Rôle",
+  "up_partner": "Partenaire",
+  "up_status": "Statut",
+  "up_amount": "Montant",
+  "up_date": "Date",
+  "up_pay_registration": "Payez votre inscription.",
+  "up_registration_payment": "Paiement de l'inscription",
+  "up_final_price": "Prix final",
+  "up_discount_code": "Code de réduction",
+  "up_create_invoice": "Créer une facture",
+  "up_invoice": "Facture",
+  "up_no_invoices": "Aucune facture disponible pour le moment.",
+  "up_actions": "Actions",
+  "up_competition": "Compétition",
+  "up_no_competition": "Vous n'êtes inscrit à aucune compétition.",
+  "up_delete_competition": "Supprimer la compétition",
+  "up_no_spots": "Aucune place disponible",
+  "up_select_competition": "Sélectionner une compétition",
+  "up_select_level": "Sélectionner un niveau",
+  "up_select_role": "Sélectionner un rôle",
+  "up_choose_accommodation": "Choisissez votre hébergement",
+  "up_edit_accommodation": "Modifier l'hébergement",
+  "up_cancel_reservation": "Annuler la réservation",
+  "up_keep_it": "Conserver",
+  "up_no_accommodation": "Aucun hébergement disponible pour votre pass en ce moment.",
+  "up_no_units": "Aucune unité disponible pour cet hébergement en ce moment.",
+  "up_occupants": "Nombre d'occupants",
+  "up_occupants_max": "Nombre d'occupants (max. 12)",
+  "up_occupant": "Occupant",
+  "up_data_occupants": "Données des occupants",
+  "up_full_name": "Nom complet / Raison sociale",
+  "up_tax_id": "Numéro fiscal",
+  "up_id_expiry": "Date d'expiration du document",
+  "up_address": "Adresse",
+  "up_to_modify_contact": "Pour modifier cette réservation, contactez la personne responsable.",
+  "up_choose_bus": "Choisissez votre bus aller et/ou retour, puis enregistrez.",
+  "up_edit_bus": "Modifier le bus",
+  "up_cancel_bus": "Annuler la réservation de bus",
+  "up_confirm_cancel_reservation": "Êtes-vous sûr de vouloir annuler cette réservation de bus ?",
+  "up_menu": "Menu",
+  "up_standard": "Standard",
+  "up_vegetarian": "Végétarien",
+  "up_allergies": "Allergies ou intolérances",
+  "up_meals_intro": "Indiquez vos préférences de menu et besoins alimentaires.",
+  "up_unit": "Unité",
+  "up_change_password": "Changer le mot de passe",
+  "up_current_password": "Mot de passe actuel",
+  "up_new_password": "Nouveau mot de passe",
+  "up_confirm_password": "Confirmer le mot de passe",
+  "up_payment_confirmed": "Paiement confirmé.",
+  "up_payment_new_tab": "La page de paiement a été ouverte dans un nouvel onglet.",
+  "up_error_password_fields": "Veuillez compléter tous les champs du mot de passe.",
+  "up_error_select_competition": "Veuillez sélectionner une compétition.",
+  "up_error_select_level": "Veuillez sélectionner un niveau.",
+  "up_error_select_role": "Veuillez sélectionner un rôle.",
+  "up_edit_competition_entry": "Modifier l'inscription à la compétition",
+  "up_register_competition": "S'inscrire à la compétition",
+  "up_standard_menu": "Menu standard",
+  "up_vegetarian_menu": "Menu végétarien",
+  "up_not_set": "Non défini",
+  "up_departure": "Aller",
+  "up_return": "Retour"
 }
-```
+'@, [System.Text.Encoding]::new(65001, $false))
+Write-Host "OK: fr.json"
 
----
-
-## 3. Code changes required
-
-### CORS (Api/Program.cs)
-Change the hardcoded Admin origin:
-```csharp
-// Line ~82 — change localhost:7033 to your production Admin domain
-policy.WithOrigins("https://YOUR-ADMIN-DOMAIN")
-```
-
-### Password reset URL (Application/Features/Auth/Services/AuthService.cs)
-Change the hardcoded localhost URL:
-```csharp
-// Line ~283 — change to your production Admin domain
-string resetPasswordUrl = $"https://YOUR-ADMIN-DOMAIN/user-panel/reset-password?token={encodedToken}";
-```
-
-### EmailNotificationApiClient (Admin/Extensions/ApplicationDependencyInjectionExtension.cs)
-One HttpClient still has a hardcoded localhost URL (~line 192). Change to use config:
-```csharp
-// Change:
-client.BaseAddress = new Uri("https://localhost:7157/");
-// To:
-client.BaseAddress = new Uri(configuration["ApiSettings:BaseUrl"]!);
-```
-
----
-
-## 4. Redsys — test vs production
-
-| Setting | Test | Production |
-|---|---|---|
-| `PaymentUrl` | `https://sis-t.redsys.es:25443/sis/realizarPago` | `https://sis.redsys.es/sis/realizarPago` |
-| `MerchantCode` | Test merchant code | Real merchant code from bank |
-| `SecretKey` | Test key | Real key from bank |
-| `NotificationUrl` | Any (not called in test) | Must be publicly reachable HTTPS |
-
-The `NotificationUrl` is called server-to-server by Redsys to confirm payments. It **must** be reachable from the internet — localhost will not work.
-
----
-
-## 5. Google Analytics
-
-1. Create a Google Cloud service account with GA4 Data API access
-2. Download the JSON credentials file
-3. Set `GoogleAnalytics:CredentialsPath` to the path on the server
-4. Set `GoogleAnalyticsPropertyId` on each Festival record in the database
-
----
-
-## 6. Google OAuth (Social Login)
-
-1. In Google Cloud Console, add your production domain to authorised redirect URIs
-2. Update `ExternalAuth:Google:ClientId` in Api appsettings
-3. Update `ExternalAuth:GoogleClientId` in Admin appsettings
-
----
-
-## 7. Database
-
-```bash
-# Run migrations against production database
-dotnet ef database update \
-  --project Alakai.FestivalManager.Infrastructure \
-  --startup-project Alakai.FestivalManager.Api \
-  --connection "Server=PROD-SERVER;..."
-```
-
----
-
-## 8. File storage
-
-The `wwwroot/uploads/` folder in the Api stores email images uploaded via the Admin. In production:
-- Ensure the Api process has write access to this folder
-- Consider using Azure Blob Storage or S3 for production (requires implementing `IFileStorageService`)
-- Update `FileStorage:PublicBaseUrl` to point to your production API domain
-
----
-
-## 9. Security checklist
-
-- [ ] `Jwt:SecretKey` is unique per deployment, ≥ 32 characters, never committed to git
-- [ ] `Email:Password` not in committed appsettings
-- [ ] `Redsys:SecretKey` not in committed appsettings
-- [ ] `ConnectionStrings:DefaultConnection` not in committed appsettings
-- [ ] CORS `WithOrigins` contains only the production Admin domain
-- [ ] Swagger UI disabled in production (already gated by `IsDevelopment()`)
-- [ ] HTTPS enforced on both Api and Admin
-- [ ] SQL Server user has minimum required permissions (no sa)
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: docs/production-checklist.md"
-
-# ── docs/modules.md ───────────────────────────────────────────────────────────
-[System.IO.File]::WriteAllText("docs\modules.md", @'
-# Festival Modules
-
-Modules are enabled per-festival using the `FestivalModule` flags enum. Each festival can have any combination enabled.
-
-```csharp
-[Flags]
-public enum FestivalModule
+[System.IO.File]::WriteAllText("$i18n\ca.json", @'
 {
-    None         = 0,
-    Competitions = 1,
-    Accommodation = 2,
-    Transport    = 4,
-    Meals        = 8
+  "loading": "Carregant...",
+  "Loading": "Carregant...",
+  "registration_unavailable": "Inscripció no disponible",
+  "payment_success": "Pagament completat!",
+  "payment_failed": "El pagament ha fallat",
+  "registration_confirmed": "La teva inscripció està confirmada. Revisa el teu correu electrònic.",
+  "registration_submitted": "Inscripció enviada!",
+  "go_to_login": "Anar a l'accés",
+  "personal_details": "Dades personals",
+  "name": "Nom",
+  "last_names": "Cognoms",
+  "email": "Correu electrònic",
+  "password": "Contrasenya",
+  "phone_number": "Telèfon",
+  "country": "País",
+  "city": "Ciutat",
+  "select_pass": "Selecciona el teu passi",
+  "choose_parties": "Tria les teves festes",
+  "select_level": "Selecciona el teu nivell",
+  "select_role": "Selecciona el teu rol",
+  "register_with_partner": "Et vols inscriure amb parella?",
+  "yes": "Sí",
+  "no": "No",
+  "partner_email": "Email de la teva parella",
+  "group_code": "Nom del grup / codi de descompte",
+  "select_payment": "Selecciona el tipus de pagament",
+  "payment_split": "Pagament dividit: paga el 50% ara i el 50% restant en 30 dies",
+  "total_now": "Import total a pagar en línia ara",
+  "total_deferred": "Import total a pagar en els 10 dies següents a la confirmació",
+  "price": "Preu:",
+  "pay_now": "Pagar ara:",
+  "accept_terms": "Accepto els",
+  "terms": "Termes i condicions",
+  "submit": "Inscriure's",
+  "error_required_fields": "Si us plau, completa tots els camps obligatoris.",
+  "error_accept_terms": "Has d'acceptar els Termes i Condicions per continuar.",
+  "error_select_pass": "Si us plau, selecciona un passi per continuar.",
+  "role_leader": "Leader",
+  "role_follower": "Follower",
+  "role_individual": "Individual",
+  "up_registration": "Inscripció",
+  "up_payment": "Pagament",
+  "up_competitions": "Competicions",
+  "up_invoices": "Factures",
+  "up_accommodation": "Allotjament",
+  "up_meals": "Àpats",
+  "up_buses": "Autobusos",
+  "up_personal_details": "Les meves dades personals",
+  "up_update_profile": "Actualitza les teves dades personals.",
+  "up_first_name": "Nom",
+  "up_last_name": "Cognoms",
+  "up_email": "El teu correu electrònic",
+  "up_phone": "Telèfon",
+  "up_country": "País",
+  "up_city": "Ciutat",
+  "up_document": "Número de document",
+  "up_postal_code": "Codi postal",
+  "up_birth_date": "Data de naixement",
+  "up_save": "Desar",
+  "up_discard": "Descartar",
+  "up_edit": "Editar",
+  "up_cancel": "Cancel·lar",
+  "up_my_registration": "La meva inscripció",
+  "up_pass": "Passi",
+  "up_level": "Nivell",
+  "up_role": "Rol",
+  "up_partner": "Parella",
+  "up_status": "Estat",
+  "up_amount": "Import",
+  "up_date": "Data",
+  "up_pay_registration": "Paga la teva inscripció.",
+  "up_registration_payment": "Pagament de la inscripció",
+  "up_final_price": "Preu final",
+  "up_discount_code": "Codi de descompte",
+  "up_create_invoice": "Crear factura",
+  "up_invoice": "Factura",
+  "up_no_invoices": "Encara no hi ha factures disponibles.",
+  "up_actions": "Accions",
+  "up_competition": "Competició",
+  "up_no_competition": "No estàs inscrit a cap competició.",
+  "up_delete_competition": "Eliminar competició",
+  "up_no_spots": "No hi ha places disponibles",
+  "up_select_competition": "Selecciona una competició",
+  "up_select_level": "Selecciona un nivell",
+  "up_select_role": "Selecciona un rol",
+  "up_choose_accommodation": "Tria el teu allotjament",
+  "up_edit_accommodation": "Editar allotjament",
+  "up_cancel_reservation": "Cancel·lar reserva",
+  "up_keep_it": "Mantenir",
+  "up_no_accommodation": "No hi ha allotjament disponible per al teu passi en aquest moment.",
+  "up_no_units": "No hi ha unitats disponibles per a aquest allotjament en aquest moment.",
+  "up_occupants": "Nombre d'ocupants",
+  "up_occupants_max": "Nombre d'ocupants (màx. 12)",
+  "up_occupant": "Ocupant",
+  "up_data_occupants": "Dades dels ocupants",
+  "up_full_name": "Nom complet / Raó social",
+  "up_tax_id": "NIF/CIF",
+  "up_id_expiry": "Data de caducitat del document",
+  "up_address": "Adreça",
+  "up_to_modify_contact": "Per modificar aquesta reserva, contacta amb el responsable.",
+  "up_choose_bus": "Tria el teu autobús d'anada i/o tornada i desa.",
+  "up_edit_bus": "Editar autobús",
+  "up_cancel_bus": "Cancel·lar reserva d'autobús",
+  "up_confirm_cancel_reservation": "Estàs segur que vols cancel·lar aquesta reserva d'autobús?",
+  "up_menu": "Menú",
+  "up_standard": "Estàndard",
+  "up_vegetarian": "Vegetarià",
+  "up_allergies": "Al·lèrgies o intoleràncies",
+  "up_meals_intro": "Explica'ns les teves preferències de menú i necessitats dietètiques.",
+  "up_unit": "Unitat",
+  "up_change_password": "Canviar contrasenya",
+  "up_current_password": "Contrasenya actual",
+  "up_new_password": "Nova contrasenya",
+  "up_confirm_password": "Confirmar contrasenya",
+  "up_payment_confirmed": "Pagament confirmat.",
+  "up_payment_new_tab": "La pàgina de pagament s'ha obert en una nova pestanya.",
+  "up_error_password_fields": "Si us plau, completa tots els camps de la contrasenya.",
+  "up_error_select_competition": "Si us plau, selecciona una competició.",
+  "up_error_select_level": "Si us plau, selecciona un nivell.",
+  "up_error_select_role": "Si us plau, selecciona un rol.",
+  "up_edit_competition_entry": "Editar inscripció a la competició",
+  "up_register_competition": "Inscriure's a la competició",
+  "up_standard_menu": "Menú estàndard",
+  "up_vegetarian_menu": "Menú vegetarià",
+  "up_not_set": "No establert",
+  "up_departure": "Anada",
+  "up_return": "Tornada"
 }
-```
-
-Modules are stored on the `Festival` entity as an integer bitmask. The Admin UI and the User Panel check `HasModule(FestivalModule.X)` to show/hide sections.
-
----
-
-## Core (always enabled)
-
-### Registrations
-The central module. Every festival has registrations.
-- Public registration form at `/register/{slug}`
-- Pass types with optional levels
-- Dance roles (Leader / Follower / Individual)
-- Partner linking
-- Payment plans: FullOnline, SplitFiftyFifty, DeferredTenDays
-- Redsys payment integration
-- Discount codes with threshold or immediate activation
-
-### Email Templates
-Admin-configurable email templates with `{{variable}}` placeholders.
-- Templates: RegistrationCreated, PaymentConfirmed, PaymentFailed, RegistrationCancelled, WaitingPartner, PartnerConfirmed, AccommodationConfirmed, AccommodationCancelled, AccommodationNewResponsible, BusConfirmed, BusCancelled, MenuConfirmed, MenuCancelled, PasswordReset
-- Per-edition templates (falls back to global if no edition-specific one exists)
-- WYSIWYG editor in Admin
-
-### Invoices
-PDF invoice generation using QuestPDF.
-- Per-registration invoices
-- Configurable invoice templates and issuer settings
-- Auto-generated sequential invoice numbers
-
----
-
-## Optional Modules
-
-### Competitions (`FestivalModule.Competitions = 1`)
-Competition management with capacity control.
-- Multiple competitions per edition
-- Formats: Individual / Partnered / Team
-- Capacity per role (Leader / Follower / Individual)
-- Threshold-based capacity with levels
-- Status: WaitingPartner → Confirmed
-
-### Accommodation (`FestivalModule.Accommodation = 2`)
-Accommodation booking tied to registrations.
-- Buildings with zones and individual accommodation units
-- Reservation with responsible + occupants
-- Occupant registration linking
-- When the responsible registration is deleted, responsibility transfers automatically to another occupant
-- Emails sent to all occupants on confirmation/cancellation
-
-### Transport (`FestivalModule.Transport = 4`)
-Bus reservation management.
-- Outbound + return bus lines
-- Per-bus capacity with pass type restrictions
-- Email confirmation with departure details
-
-### Meals (`FestivalModule.Meals = 8`)
-Meal preference collection.
-- Menu type selection
-- Dietary requirements (celiac, gluten intolerant, allergies)
-- Per-edition menu options
-
----
-
-## User Panel
-
-The User Panel (`/user-panel/`) is a self-service area for registered participants:
-- Dashboard with registration and payment status
-- Payment gateway (Redsys)
-- Module sections gated by festival modules: Accommodation, Buses, Meals, Competitions
-
-Access is JWT-authenticated. Users are created automatically when a registration is submitted.
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: docs/modules.md"
-
-# ── docs/testing.md ───────────────────────────────────────────────────────────
-[System.IO.File]::WriteAllText("docs\testing.md", @'
-# Testing
-
-## Stack
-
-| Package | Version | Purpose |
-|---|---|---|
-| xUnit | 2.9.3 | Test runner |
-| Moq | 4.20.72 | Mocking |
-| FluentAssertions | 8.3.1 | Readable assertions |
-| Bogus | 35.6.3 | Test data generation |
-
-## Running tests
-
-```bash
-# All tests
-dotnet test Alakai.FestivalManager.Tests
-
-# With coverage
-dotnet test Alakai.FestivalManager.Tests --collect:"XPlat Code Coverage"
-
-# Specific test class
-dotnet test --filter "FullyQualifiedName~PaymentServiceTests"
-```
-
-## Test structure
-
-```
-Tests/
-  Unit/
-    Application/
-      Common/
-        Builders.cs                    ← shared test data builders (Bogus + reflection for protected Id)
-      Features/
-        Auth/
-          AuthServiceLoginTests.cs     ← login, lockout, failed attempts
-          JwtServiceTests.cs           ← token generation, claims, refresh tokens
-        CompetitionEntries/
-          CreateCompetitionEntryHandlerTests.cs
-        DiscountCodes/
-          DiscountCalculationServiceTests.cs
-        Emails/
-          EmailTemplateRendererServiceTests.cs
-        Payments/
-          PaymentServiceTests.cs       ← split payment flow, auth code storage
-        Registrations/
-          CreateRegistrationHandlerTests.cs
-          DeleteRegistrationHandlerTests.cs
-          UpdateRegistrationHandlerTests.cs
-      Validators/
-        CreateRegistrationCommandValidatorTests.cs
-        CreateDiscountCodeCommandValidatorTests.cs
-        CreateLevelValidatorTests.cs
-        CreateEditionValidatorTests.cs
-        CreateCompetitionCommandValidatorTests.cs
-        LoginCommandValidatorTests.cs
-  Integration/
-    Api/
-      Controllers/
-        README.md                      ← integration tests not yet implemented
-```
-
-## Coverage areas
-
-| Area | Tests | Key scenarios |
-|---|---|---|
-| `EmailTemplateRendererService` | 11 | Substitution, null values, HTML tag stripping in placeholders, whitespace |
-| `DiscountCalculationService` | 10 | Percentage/fixed discounts, expired/inactive codes, threshold activation |
-| `PaymentService` | 13 | CreateSession, split payment guard, auth codes, declined payments |
-| `DeleteRegistrationHandler` | 10 | Cascade cleanup, accommodation responsibility transfer, partner nulling |
-| `AuthService` (login) | 8 | User not found, inactive, locked, lockout expiry, failed attempt counter, email normalisation |
-| `JwtService` | 9 | Token generation, claims, refresh token uniqueness, invalid token handling |
-| `CreateRegistrationHandler` | 9 | Not found, duplicate email, level validation, payment due dates, user creation |
-| `UpdateRegistrationHandler` | 6 | Not found, Paid→Confirmed status, duplicate email on change |
-| `CreateCompetitionEntryHandler` | 9 | Not found, duplicate entry, capacity full, unlimited capacity, partner/no-partner status |
-| Validators | 48 | Required fields, length limits, email format, date ordering, enum values |
-
-## Builders
-
-`Builders.cs` provides factory methods for domain entities. Because `BaseEntity.Id` has a `protected set`, the builders use reflection to assign a specific Id when needed:
-
-```csharp
-Registration reg = Builders.BuildRegistration(
-    id: Guid.NewGuid(),
-    paymentStatus: PaymentStatus.PartiallyPaid,
-    paymentPlan: PaymentPlan.SplitFiftyFifty,
-    finalPrice: 450m,
-    amountPaid: 225m);
-```
-
-## What is not tested
-
-- **Controllers** — thin delegation only, no business logic
-- **Simple CRUD handlers** (GetAll, GetById, Delete without logic) — no branching
-- **Services that delegate entirely** to repositories (FestivalService, EditionService, etc.)
-- **Integration tests** — require a test database; planned for future implementation
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: docs/testing.md"
-
-# ── docs/api.md ──────────────────────────────────────────────────────────────
-[System.IO.File]::WriteAllText("docs\api.md", @'
-# API Reference
-
-The API is a standard ASP.NET Core Web API with JWT Bearer authentication.
-
-## Base URL
-
-- Development: `https://localhost:7157`
-- Production: configured per deployment
-
-## Swagger
-
-Available at `/swagger` in development only.
-
-## Authentication
-
-All endpoints except public ones require a JWT Bearer token:
-
-```
-Authorization: Bearer <token>
-```
-
-Tokens are obtained via `POST /api/auth/login`.
-
-### Public endpoints (no auth required)
-- `GET /api/public-festivals` — list active festivals for public registration form
-- `GET /api/public-registrations/{slug}` — festival info for registration form
-- `POST /api/public-registrations` — submit a registration
-- `POST /api/auth/login` — obtain JWT token
-- `POST /api/auth/refresh-token` — refresh access token
-- `POST /api/auth/forgot-password` — request password reset
-- `POST /api/auth/reset-password` — submit new password
-- `POST /api/payments/redsys/return` — Redsys payment return URL
-- `POST /api/payments/redsys/notification` — Redsys server-to-server notification
-
-## Response format
-
-All responses follow `ApiResponse<T>`:
-
-```json
-{
-  "success": true,
-  "data": { ... },
-  "errors": [],
-  "message": "..."
-}
-```
-
-Errors return RFC 7807 Problem Details via `GlobalExceptionMiddleware`:
-
-| Exception | HTTP Status |
-|---|---|
-| `NotFoundException` | 404 |
-| `BusinessRuleException` | 422 |
-| `ValidationException` | 400 |
-| Unhandled | 500 |
-
-## Main endpoint groups
-
-| Prefix | Description |
-|---|---|
-| `/api/festivals` | Festival CRUD |
-| `/api/editions` | Edition CRUD |
-| `/api/pass-types` | Pass type CRUD |
-| `/api/levels` | Level CRUD |
-| `/api/registrations` | Registration CRUD + status management |
-| `/api/payments` | Redsys payment session creation and callbacks |
-| `/api/competitions` | Competition CRUD |
-| `/api/competition-entries` | Competition entry management |
-| `/api/accommodations` | Accommodation unit management |
-| `/api/accommodation-buildings` | Building + zone management |
-| `/api/accommodation-reservations` | Reservation CRUD |
-| `/api/buses` | Bus line management |
-| `/api/bus-reservations` | Bus booking |
-| `/api/meal-preferences` | Meal preference management |
-| `/api/email-templates` | Email template CRUD |
-| `/api/emails` | Manual email sending |
-| `/api/email-logs` | Sent email history |
-| `/api/invoices` | Invoice generation and retrieval |
-| `/api/discount-codes` | Discount code management |
-| `/api/reports` | Excel report exports |
-| `/api/dashboard` | KPI stats and revenue data |
-| `/api/analytics` | Google Analytics 4 data |
-| `/api/users` | User management |
-| `/api/auth` | Authentication |
-| `/api/user-panel` | User Panel specific endpoints |
-| `/api/uploads` | Image upload for email templates |
-'@, [System.Text.Encoding]::UTF8)
-Write-Host "OK: docs/api.md"
+'@, [System.Text.Encoding]::new(65001, $false))
+Write-Host "OK: ca.json"
 
 Write-Host ""
-Write-Host "Documentation created:"
-Write-Host "  README.md"
-Write-Host "  docs/architecture.md"
-Write-Host "  docs/configuration.md"
-Write-Host "  docs/production-checklist.md"
-Write-Host "  docs/modules.md"
-Write-Host "  docs/testing.md"
-Write-Host "  docs/api.md"
+Write-Host "Done. All 4 JSON files rewritten with complete key sets."
+Write-Host "Restart the app and test all languages."

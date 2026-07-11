@@ -800,6 +800,13 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Property<bool>("IsSystem")
                         .HasColumnType("bit");
 
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)")
+                        .HasDefaultValue("en");
+
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(150)
@@ -820,7 +827,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.HasIndex("EditionId");
 
-                    b.HasIndex("EditionId", "TemplateKey")
+                    b.HasIndex("EditionId", "TemplateKey", "Language")
                         .IsUnique()
                         .HasFilter("[EditionId] IS NOT NULL");
 
@@ -1367,6 +1374,13 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<string>("Language")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(5)
+                        .HasColumnType("nvarchar(5)")
+                        .HasDefaultValue("en");
 
                     b.Property<string>("LastName")
                         .IsRequired()

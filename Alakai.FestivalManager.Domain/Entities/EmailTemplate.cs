@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Domain.Entities;
+﻿namespace Alakai.FestivalManager.Domain.Entities;
 
 public class EmailTemplate : BaseEntity
 {
@@ -14,4 +14,7 @@ public class EmailTemplate : BaseEntity
 
     public bool IsSystem { get; set; }
     public bool IsActive { get; set; } = true;
+
+    /// <summary>ISO 639-1 language code: "en", "es", "fr". Null means applies to all languages.</summary>
+    public string Language { get; set; } = "en";
 }

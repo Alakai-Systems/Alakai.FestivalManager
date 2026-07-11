@@ -1,4 +1,5 @@
 ﻿@page "/register/{Slug}"
+@page "/register/{Slug}/{Lang}"
 @layout AuthLayout
 @using Alakai.FestivalManager.Admin.Contracts.Registrations.Requests
 @using Alakai.FestivalManager.Admin.Contracts.Payments.Requests
@@ -6,18 +7,19 @@
 @inject NavigationManager Navigation
 @inject PublicRegistrationApiClient PublicApi
 @inject IJSRuntime JsRuntime
+@inject Alakai.FestivalManager.Admin.Services.Localisation.ITranslationService T
 @inject PaymentApiClient PaymentApiClient
 <!-- Main wrapper -->
 <div class="min-h-screen bg-slate-100 py-8 px-4">
     <div style="max-width:680px;margin:0 auto;">
         @if (IsLoading)
         {
-            <div class="text-center py-16 text-muted">Loading…</div>
+            <div class="text-center py-16 text-muted">@T.Get("Loading")</div>
         }
         else if (ErrorMessage is not null)
         {
             <div class="bg-white rounded-lg border border-black/10 p-8 text-center">
-                <div class="text-danger font-semibold mb-2">Registration unavailable</div>
+                <div class="text-danger font-semibold mb-2">@T.Get("registration_unavailable")</div>
                 <div class="text-muted text-sm">@ErrorMessage</div>
             </div>
         }
@@ -27,9 +29,9 @@
                 <div class="flex items-center justify-center w-14 h-14 rounded-full bg-success/10 text-success mx-auto">
                     <i class="ri-check-line text-2xl"></i>
                 </div>
-                <div class="text-xl font-semibold" style="margin-top:1rem;">Payment completed!</div>
-                <div class="text-muted text-sm" style="margin-top:0.5rem;">Your registration is confirmed. Check your email for details.</div>
-                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">Go to login</a>
+                <div class="text-xl font-semibold" style="margin-top:1rem;">@T.Get("payment_success")</div>
+                <div class="text-muted text-sm" style="margin-top:0.5rem;">@T.Get("registration_confirmed")</div>
+                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">@T.Get("go_to_login")</a>
             </div>
         }
         else if (PaymentFailed)
@@ -38,9 +40,9 @@
                 <div class="flex items-center justify-center w-14 h-14 rounded-full bg-danger/10 text-danger mx-auto">
                     <i class="ri-close-line text-2xl"></i>
                 </div>
-                <div class="text-xl font-semibold" style="margin-top:1rem;">Payment failed</div>
+                <div class="text-xl font-semibold" style="margin-top:1rem;">@T.Get("payment_failed")</div>
                 <div class="text-muted text-sm" style="margin-top:0.5rem;">Your registration was created but the payment was not completed. You can try again from the User Panel.</div>
-                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">Go to login</a>
+                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">@T.Get("go_to_login")</a>
             </div>
         }
         else if (Submitted)
@@ -49,9 +51,9 @@
                 <div class="flex items-center justify-center w-14 h-14 rounded-full bg-success/10 text-success mx-auto">
                     <i class="ri-check-line text-2xl"></i>
                 </div>
-                <div class="text-xl font-semibold" style="margin-top:1rem;">Registration submitted!</div>
+                <div class="text-xl font-semibold" style="margin-top:1rem;">@T.Get("registration_submitted")</div>
                 <div class="text-muted text-sm" style="margin-top:0.5rem;">Check your email for confirmation. You have 10 days to complete your payment from the User Panel.</div>
-                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">Go to login</a>
+                <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">@T.Get("go_to_login")</a>
             </div>
         }
         else
@@ -63,7 +65,7 @@
             <div class="bg-white rounded-lg border border-black/10" style="padding:2.5rem 3rem;">
                 <!-- STEP 1: Pass -->
                 <div style="margin-bottom:1.5rem;">
-                    <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Select your pass</label>
+                    <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">@T.Get("select_pass")</label>
                     <select class="form-select" @bind="SelectedPassTypeId" @bind:after="OnPassTypeChanged">
                         <option value="">-</option>
                         @if (HasAccommodation)
@@ -107,7 +109,7 @@
                     @if (SelectedPass.AllowsMultipleLevels && SelectedPass.Levels.Count > 1)
                     {
                         <div style="margin-bottom:1.5rem;">
-                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.75rem;">Choose your party/ies</label>
+                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.75rem;">@T.Get("choose_parties")</label>
                             <div class="space-y-2">
                                 @foreach (var lvl in SelectedPass.Levels)
                                 {
@@ -138,7 +140,7 @@
                     else if (SelectedPass.HasLevels)
                     {
                         <div style="margin-bottom:1.5rem;">
-                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Select your level</label>
+                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">@T.Get("select_level")</label>
                             <select class="form-select" @bind="SelectedLevelId" @bind:after="OnLevelChanged">
                                 <option value="">-</option>
                                 @foreach (var lvl in SelectedPass.Levels)
@@ -152,7 +154,7 @@
                     {
                         <!-- STEP 3: Role -->
                         <div style="margin-bottom:1.5rem;">
-                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Select your role</label>
+                            <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">@T.Get("select_role")</label>
                             <select class="form-select" @bind="SelectedRole" @bind:after="OnRoleChanged">
                                 <option value="">-</option>
                                 <option value="Follower" disabled="@SelectedLevel.FollowerFull">Follower@(SelectedLevel.FollowerFull ? " – Full" : "")</option>
@@ -163,18 +165,18 @@
                         {
                             <!-- STEP 4: Partner -->
                             <div style="margin-bottom:1.5rem;">
-                                <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Are you registering with a partner?</label>
+                                <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">@T.Get("register_with_partner")</label>
                                 <select class="form-select" @bind="WithPartner" @bind:after="OnWithPartnerChanged">
                                     <option value="">-</option>
-                                    <option value="yes">Yes</option>
+                                    <option value="yes">@T.Get("yes")</option>
                                     <option value="no">No</option>
                                 </select>
                             </div>
                             @if (WithPartner == "si")
                             {
                                 <div style="margin-bottom:1.5rem;">
-                                    <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">Partner's email</label>
-                                    <input class="form-input" type="email" placeholder="Partner's email"
+                                    <label class="block text-sm font-semibold text-black" style="margin-bottom:0.5rem;">@T.Get("partner_email")</label>
+                                    <input class="form-input" type="email" placeholder="@T.Get("partner_email")"
                                            @bind="PartnerEmail" @bind:after="() => OnPartnerEmailInput()" />
                                     @if (PartnerLookupDone)
                                     {
@@ -212,30 +214,30 @@
                     {
                         <!-- STEP 5: Personal data -->
                         <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:1.5rem;margin-bottom:1.5rem;">
-                            <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">Personal Details</div>
+                            <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">@T.Get("personal_details")</div>
                             <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Name</label>
-                                    <input class="form-input" @bind="Form.FirstName" placeholder="Nombre" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("name")</label>
+                                    <input class="form-input" @bind="Form.FirstName" placeholder="@T.Get("name")" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Last Names</label>
-                                    <input class="form-input" @bind="Form.LastName" placeholder="Apellidos" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("last_names")</label>
+                                    <input class="form-input" @bind="Form.LastName" placeholder="@T.Get("last_names")" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Email</label>
-                                    <input class="form-input" type="email" @bind="Form.Email" placeholder="Email" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("email")</label>
+                                    <input class="form-input" type="email" @bind="Form.Email" placeholder="@T.Get("email")" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Password</label>
-                                    <input class="form-input" type="password" @bind="Form.Password" placeholder="Password" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("password")</label>
+                                    <input class="form-input" type="password" @bind="Form.Password" placeholder="@T.Get("password")" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Phone Number</label>
-                                    <input class="form-input" @bind="Form.Phone" placeholder="Phone Number" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("phone_number")</label>
+                                    <input class="form-input" @bind="Form.Phone" placeholder="@T.Get("phone_number")" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Country</label>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("country")</label>
                                     <select class="form-select" @bind="Form.Country">
                                         <option value="">-</option>
                                         @foreach (string country in Countries)
@@ -245,12 +247,12 @@
                                     </select>
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">City</label>
-                                    <input class="form-input" @bind="Form.City" placeholder="City" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("city")</label>
+                                    <input class="form-input" @bind="Form.City" placeholder="@T.Get("city")" />
                                 </div>
                                 <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">Group name</label>
-                                    <input class="form-input" @bind="GroupCode" @bind:after="OnGroupCodeInput" placeholder="Group name / discount code" />
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("group_code")</label>
+                                    <input class="form-input" @bind="GroupCode" @bind:after="OnGroupCodeInput" placeholder="@T.Get("group_code")" />
                                     @if (DiscountInfo is not null)
                                     {
                                         @if (DiscountInfo.Applied)
@@ -279,40 +281,40 @@
                         <div style="margin-bottom:1.5rem;">
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" class="form-checkbox" @bind="AcceptsTerms" />
-                                <span class="text-sm">I accept the <a href="#" class="text-purple underline">Terms & Conditions</a></span>
+                                <span class="text-sm">@T.Get("accept_terms") <a href="#" class="text-purple underline">@T.Get("terms")</a></span>
                             </label>
                         </div>
                         <!-- STEP 7: Payment plan -->
                         <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:1.5rem;margin-bottom:1.5rem;">
-                            <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">Selecciona el tipo de pago</div>
+                            <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">@T.Get("select_payment")</div>
                             <div style="display:flex;flex-direction:column;gap:0.875rem;">
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="FullOnline"
                                            checked="@(SelectedPlan == "FullOnline")"
                                            @onchange="@(e => { SelectedPlan = "FullOnline"; })" />
-                                    <span class="text-sm">Total amount to pay online now</span>
+                                    <span class="text-sm">@T.Get("total_now")</span>
                                 </label>
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="SplitFiftyFifty"
                                            checked="@(SelectedPlan == "SplitFiftyFifty")"
                                            @onchange="@(e => { SelectedPlan = "SplitFiftyFifty"; })" />
-                                    <span class="text-sm">Split payment: pay 50% online now and the remaining 50% in 30 days</span>
+                                    <span class="text-sm">@T.Get("payment_split")</span>
                                 </label>
                                 <label class="flex items-start gap-3 cursor-pointer">
                                     <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="DeferredTenDays"
                                            checked="@(SelectedPlan == "DeferredTenDays")"
                                            @onchange="@(e => { SelectedPlan = "DeferredTenDays"; })" />
-                                    <span class="text-sm">Total amount due within 10 days of receiving the confirmation email</span>
+                                    <span class="text-sm">@T.Get("total_deferred")</span>
                                 </label>
                             </div>
                             <!-- Price summary -->
                             @if (BasePrice > 0)
                             {
                                 <div style="margin-top:1.25rem;border-radius:0.5rem;background:rgba(0,0,0,0.03);padding:1.25rem;text-align:center;">
-                                    <div class="text-sm text-muted">Price: <span class="font-semibold text-black">@BasePrice.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
+                                    <div class="text-sm text-muted">@T.Get("price") <span class="font-semibold text-black">@BasePrice.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
                                     @if (SelectedPlan == "SplitFiftyFifty")
                                     {
-                                        <div class="text-sm text-muted mt-1">Pagar ahora: <span class="font-semibold text-black">@AmountNow.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
+                                        <div class="text-sm text-muted mt-1">@T.Get("pay_now") <span class="font-semibold text-black">@AmountNow.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
                                     }
                                     <div class="text-xs text-muted mt-1">+ @ManagementFee.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€ for management fee (@(SelectedPlan == "SplitFiftyFifty" ? "of the 50%" : "of the total")).</div>
                                 </div>
@@ -329,7 +331,7 @@
                                 class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]"
                                 disabled="@IsSubmitting"
                                 @onclick="SubmitAsync">
-                            @(IsSubmitting ? "Processing…" : "REGISTER NOW")
+                            @(IsSubmitting? T.Get("loading") : T.Get("submit").ToUpper())
                         </button>
                     }
                 }
@@ -349,6 +351,7 @@
 </script>
 @code {
     [Parameter] public string Slug { get; set; } = string.Empty;
+    [Parameter] public string? Lang { get; set; }
     // ── State ──────────────────────────────────────────────────────────────
     private bool IsLoading = true;
     private bool IsSubmitting;
@@ -439,6 +442,10 @@
     {
         try
         {
+            // Load language first so T.Get() works on first render
+            string language = Lang?.ToLower() switch { "es" => "es", "fr" => "fr", "ca" => "ca", _ => "en" };
+            await T.SetLanguageAsync(language);
+
             // Check for Redsys return
             string query = new Uri(Navigation.Uri).Query;
             if (!string.IsNullOrEmpty(query))
@@ -476,6 +483,7 @@
             Form.EditionId = festivalResponse.ActiveEditionId.Value;
             HasAccommodation = festivalResponse.HasAccommodation;
             BuildPassGroups();
+            Form.Language = T.Language;
         }
         catch (Exception ex)
         {
@@ -609,17 +617,17 @@
         if (string.IsNullOrWhiteSpace(Form.FirstName) || string.IsNullOrWhiteSpace(Form.LastName)
             || string.IsNullOrWhiteSpace(Form.Email) || string.IsNullOrWhiteSpace(Form.Password))
         {
-            SubmitError = "Please complete all required fields.";
+            SubmitError = T.Get("error_required_fields");
             return;
         }
         if (!AcceptsTerms)
         {
-            SubmitError = "You must accept the Terms and Conditions to continue.";
+            SubmitError = T.Get("error_accept_terms");
             return;
         }
         if (SelectedPass is null)
         {
-            SubmitError = "Please select a pass to continue.";
+            SubmitError = T.Get("error_select_pass");
             return;
         }
         IsSubmitting = true;
@@ -654,6 +662,7 @@
                 _ => PaymentPlan.FullOnline
             };
             Form.ManagementFee = ManagementFee;
+            Form.Language = T.Language;
             _createdRegistrationId = await PublicApi.CreateRegistrationAsync(Form);
             if (SelectedPlan == "DeferredTenDays")
             {

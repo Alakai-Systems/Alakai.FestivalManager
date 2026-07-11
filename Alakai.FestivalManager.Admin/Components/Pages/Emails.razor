@@ -21,6 +21,14 @@
                     }
                 </select>
 
+                <select class="form-select md:w-32" @bind="languageFilter" @bind:after="ResetPage">
+                    <option value="">All languages</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="ca">Català</option>
+                </select>
+
                 <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
                     <option value="@Guid.Empty">All editions</option>
                     @foreach (EditionDto edition in EditionsForSelectedFestival)
@@ -178,6 +186,15 @@
 
                         <div class="flex items-center gap-4">
                             <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsSystem" />System template</label>
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Language</label>
+                                <select class="form-select" @bind="formModel.Language">
+                                    <option value="en">English</option>
+                                    <option value="es">Español</option>
+                                    <option value="fr">Français</option>
+                                </select>
+                            </div>
+
                             <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
                         </div>
                     </div>
@@ -242,6 +259,7 @@
     private string searchText = string.Empty;
     private bool isSaving;
     private string editionFilter = string.Empty;
+    private string languageFilter = string.Empty;
     private string statusFilter = "All";
     private int pageSize = 10;
     private int currentPage = 1;
@@ -393,6 +411,9 @@
                  c.TemplateKey.ToString().Contains(searchText, StringComparison.OrdinalIgnoreCase)
  );
             }
+
+            if (!string.IsNullOrEmpty(languageFilter))
+                query = query.Where(c => c.Language == languageFilter);
 
             if (Guid.TryParse(editionFilter, out Guid editionId) && editionId != Guid.Empty)
             {
@@ -610,6 +631,7 @@
     private class EmailTemplateFormModel
     {
         public Guid? EditionId { get; set; }
+        public string Language { get; set; } = "en";
         public EmailTemplateKey TemplateKey { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Subject { get; set; } = string.Empty;

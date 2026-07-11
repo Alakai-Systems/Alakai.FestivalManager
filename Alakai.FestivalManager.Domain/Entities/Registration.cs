@@ -50,11 +50,9 @@ public class Registration : BaseEntity
     public decimal ManagementFee { get; set; }
     public decimal AmountPaid { get; set; }
     public DateTime? PaymentDueAt { get; set; }
-
+    public string Language { get; set; } = "en";
     public string? Notes { get; set; }
     public string? InternalNotes { get; set; }
-
     public DateTime? CancelledAt { get; set; }
-
     public bool IsActive { get; set; } = true;
 }
