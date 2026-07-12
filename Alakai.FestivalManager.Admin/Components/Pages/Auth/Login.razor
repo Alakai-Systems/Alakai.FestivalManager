@@ -260,7 +260,8 @@
 
             await TokenStorageService.SetTokenAsync(response.Auth.AccessToken);
 
-            Navigation.NavigateTo("/user-panel/dashboard", true);
+            string lang = response.Language ?? "en";
+            Navigation.NavigateTo($"/user-panel/dashboard/{lang}", true);
         }
         catch (Exception ex)
         {
@@ -297,7 +298,8 @@
 
             await TokenStorageService.SetTokenAsync(response.Auth.AccessToken);
 
-            Navigation.NavigateTo("/user-panel/dashboard", true);
+            string lang = response.Language ?? "en";
+            Navigation.NavigateTo($"/user-panel/dashboard/{lang}", true);
         }
         catch (Exception ex)
         {

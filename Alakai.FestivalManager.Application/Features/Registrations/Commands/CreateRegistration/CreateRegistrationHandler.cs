@@ -1,4 +1,4 @@
-using Alakai.FestivalManager.Application.Features.Emails.Services;
+﻿using Alakai.FestivalManager.Application.Features.Emails.Services;
 
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 
@@ -110,6 +110,7 @@ public class CreateRegistrationHandler
         registration.DiscountCodeId = discount.DiscountCodeId;
         registration.DiscountCodeValue = discount.DiscountCodeValue;
         registration.DiscountStatus = discount.DiscountStatus;
+        registration.Language = command.Language;
         registration.PaymentPlan = command.PaymentPlan;
         registration.ManagementFee = command.ManagementFee;
         registration.AmountPaid = command.AmountPaid;

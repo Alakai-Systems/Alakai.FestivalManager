@@ -1,4 +1,4 @@
-using Alakai.FestivalManager.Application.Common.Responses;
+﻿using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Common.Exceptions;
 using Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
 using Alakai.FestivalManager.Application.Interfaces.Repositories;
@@ -48,7 +48,7 @@ public class RegistrationFestivalInfoService : IRegistrationFestivalInfoService
         return new ApiResponse<RegistrationFestivalInfoDto>
         {
             Success = true,
-            Data = new RegistrationFestivalInfoDto { EnabledModules = (int)festival.EnabledModules },
+            Data = new RegistrationFestivalInfoDto { EnabledModules = (int)festival.EnabledModules, TermsUrl = festival.TermsUrl },
             Errors = [],
             Message = "Festival info loaded."
         };

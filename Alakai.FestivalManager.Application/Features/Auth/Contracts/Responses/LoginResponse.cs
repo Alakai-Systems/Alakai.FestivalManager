@@ -1,6 +1,7 @@
-namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
+﻿namespace Alakai.FestivalManager.Application.Features.Auth.Contracts.Responses;
 
 public class LoginResponse
 {
     public AuthResultDto Auth { get; set; } = default!;
+    public string Language { get; set; } = "en";
 }

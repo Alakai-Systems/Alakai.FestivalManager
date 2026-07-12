@@ -41,7 +41,7 @@
                     <i class="ri-close-line text-2xl"></i>
                 </div>
                 <div class="text-xl font-semibold" style="margin-top:1rem;">@T.Get("payment_failed")</div>
-                <div class="text-muted text-sm" style="margin-top:0.5rem;">Your registration was created but the payment was not completed. You can try again from the User Panel.</div>
+                <div class="text-muted text-sm" style="margin-top:0.5rem;">@T.Get("reg_payment_failed_body")</div>
                 <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">@T.Get("go_to_login")</a>
             </div>
         }
@@ -52,7 +52,7 @@
                     <i class="ri-check-line text-2xl"></i>
                 </div>
                 <div class="text-xl font-semibold" style="margin-top:1rem;">@T.Get("registration_submitted")</div>
-                <div class="text-muted text-sm" style="margin-top:0.5rem;">Check your email for confirmation. You have 10 days to complete your payment from the User Panel.</div>
+                <div class="text-muted text-sm" style="margin-top:0.5rem;">@T.Get("reg_submitted_body")</div>
                 <a href="/user-panel/login" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" style="display:inline-block;margin-top:1.5rem;padding:0.75rem 2rem;">@T.Get("go_to_login")</a>
             </div>
         }
@@ -100,7 +100,7 @@
                     </select>
                     @if (HasAccommodation && SelectedPass is not null && !string.IsNullOrEmpty(SelectedPass.BuildingName))
                     {
-                        <div class="mt-1 text-xs" style="color:#6366f1;">Alojamiento: @SelectedPass.BuildingName</div>
+                        <div class="mt-1 text-xs" style="color:#6366f1;">@T.Get("accommodation"): @SelectedPass.BuildingName</div>
                     }
                 </div>
                 @if (SelectedPass is not null)
@@ -128,7 +128,7 @@
                             </div>
                             @if (SelectedPass.AllLevelsDiscountPercent.HasValue && SelectedLevelIds.Count == SelectedPass.Levels.Count(l => !l.IsFull) && SelectedLevelIds.Count > 0)
                             {
-                                <div class="mt-2 text-success text-sm">✓ @SelectedPass.AllLevelsDiscountPercent.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)% discount applied for selecting all parties</div>
+                                <div class="mt-2 text-success text-sm">✓ @SelectedPass.AllLevelsDiscountPercent.Value.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)% @T.Get("reg_all_levels_discount")</div>
                             }
                         </div>
                     }
@@ -182,11 +182,11 @@
                                     {
                                         @if (PartnerExists)
                                         {
-                                            <div class="mt-1 text-sm font-medium" style="color:#16a34a;">✓ Your partner is already registered. You will be linked together.</div>
+                                            <div class="mt-1 text-sm font-medium" style="color:#16a34a;">✓ @T.Get("reg_partner_found")</div>
                                         }
                                         else
                                         {
-                                            <div class="mt-1 text-sm font-medium" style="color:#d97706;">Your partner is not registered yet. You can register separately and will be linked once your partner registers.</div>
+                                            <div class="mt-1 text-sm font-medium" style="color:#d97706;">@T.Get("reg_partner_not_found")</div>
                                         }
                                     }
                                 </div>
@@ -196,7 +196,7 @@
                                 @if (SoloNotAvailable)
                                 {
                                     <div class="p-3 rounded bg-warning/10 text-warning text-sm" style="margin-bottom:1.5rem;">
-                                        There are no solo spots available for @SelectedRole at this level. You must register with a partner or choose another level.
+                                        @T.Get("reg_no_solo_spots")
                                     </div>
                                 }
                             }
@@ -258,19 +258,19 @@
                                         @if (DiscountInfo.Applied)
                                         {
                                             <div class="mt-1 text-sm font-medium" style="color:#16a34a;">
-                                                ✓ Group discount applied (-@DiscountInfo.DiscountAmount.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€)
+                                                ✓ @T.Get("reg_discount_applied") (-@DiscountInfo.DiscountAmount.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€)
                                             </div>
                                         }
                                         else if (DiscountInfo.PendingThreshold)
                                         {
                                             <div class="mt-1 text-sm font-medium" style="color:#d97706;">
-                                                The group has not yet reached the minimum number of participants. The discount will be applied automatically once the minimum is reached.
+                                                @T.Get("reg_discount_pending")
                                             </div>
                                         }
                                         else if (!DiscountInfo.Exists)
                                         {
                                             <div class="mt-1 text-muted text-sm">
-                                                Code not found.
+                                                @T.Get("reg_code_not_found")
                                             </div>
                                         }
                                     }
@@ -281,7 +281,7 @@
                         <div style="margin-bottom:1.5rem;">
                             <label class="flex items-center gap-2 cursor-pointer">
                                 <input type="checkbox" class="form-checkbox" @bind="AcceptsTerms" />
-                                <span class="text-sm">@T.Get("accept_terms") <a href="#" class="text-purple underline">@T.Get("terms")</a></span>
+                                <span class="text-sm">@T.Get("accept_terms") <a href="@(TermsUrl ?? "#")" target="_blank" class="text-purple underline">@T.Get("terms")</a></span>
                             </label>
                         </div>
                         <!-- STEP 7: Payment plan -->
@@ -316,7 +316,7 @@
                                     {
                                         <div class="text-sm text-muted mt-1">@T.Get("pay_now") <span class="font-semibold text-black">@AmountNow.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
                                     }
-                                    <div class="text-xs text-muted mt-1">+ @ManagementFee.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€ for management fee (@(SelectedPlan == "SplitFiftyFifty" ? "of the 50%" : "of the total")).</div>
+                                    <div class="text-xs text-muted mt-1">+ @ManagementFee.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€ @T.Get("reg_management_fee") (@(SelectedPlan == "SplitFiftyFifty" ? T.Get("reg_of_50") : T.Get("reg_of_total"))).</div>
                                 </div>
                             }
                         </div>
@@ -362,6 +362,7 @@
     private string? SubmitError;
     private PublicRegistrationAvailabilityDto? Availability;
     private bool HasAccommodation;
+    private string? TermsUrl;
     // Grouped passes for the optgroup selector
     private List<KeyValuePair<string?, List<PublicPassTypeDto>>> PassesByBuilding = [];
     // Step values
@@ -482,6 +483,7 @@
             }
             Form.EditionId = festivalResponse.ActiveEditionId.Value;
             HasAccommodation = festivalResponse.HasAccommodation;
+            TermsUrl = festivalResponse.TermsUrl;
             BuildPassGroups();
             Form.Language = T.Language;
         }

@@ -3,4 +3,5 @@
 public class LoginResponse
 {
     public AuthResultDto Auth { get; set; } = new();
+    public string Language { get; set; } = "en";
 }

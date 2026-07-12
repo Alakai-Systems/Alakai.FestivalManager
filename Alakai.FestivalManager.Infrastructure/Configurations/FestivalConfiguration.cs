@@ -1,4 +1,4 @@
-namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
+﻿namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
 
 public class FestivalConfiguration : IEntityTypeConfiguration<Festival>
 {
@@ -38,6 +38,12 @@ public class FestivalConfiguration : IEntityTypeConfiguration<Festival>
 
         builder.Property(f => f.GoogleAnalyticsPropertyId)
             .HasMaxLength(50);
+
+        builder.Property(f => f.TermsUrl)
+            .HasMaxLength(500);
+
+        builder.Property(f => f.TermsUrl)
+            .HasMaxLength(500);
     }
 }
 

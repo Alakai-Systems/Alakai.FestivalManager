@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Application.Features.Auth.Services;
 
@@ -16,12 +16,13 @@ public class AuthService : IAuthService
     private readonly IValidator<ResetPasswordCommand> _resetPasswordValidator;
     private readonly IValidator<ChangePasswordCommand> _changePasswordValidator;
     private readonly IExternalAuthService _externalAuthService;
+    private readonly IRegistrationRepository _registrationRepository;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(IAuthRepository authRepository, IPasswordService passwordService, IJwtService jwtService, IMapper mapper, 
         IValidator<LoginCommand> loginValidator, IValidator<RefreshTokenCommand> refreshTokenValidator, IValidator<ForgotPasswordCommand> forgotPasswordValidator,
         IValidator<ResetPasswordCommand> resetPasswordValidator, IValidator<ChangePasswordCommand> changePasswordValidator, IUserRepository userRepository, 
-        IEmailNotificationService emailNotificationService, IExternalAuthService externalAuthService, ILogger<AuthService> logger)
+        IEmailNotificationService emailNotificationService, IExternalAuthService externalAuthService, IRegistrationRepository registrationRepository, ILogger<AuthService> logger)
     {
         _authRepository = authRepository;
         _passwordService = passwordService;
@@ -35,6 +36,7 @@ public class AuthService : IAuthService
         _userRepository = userRepository;
         _emailNotificationService = emailNotificationService;
         _externalAuthService = externalAuthService;
+        _registrationRepository = registrationRepository;
         _logger = logger;
     }
 
@@ -112,10 +114,13 @@ public class AuthService : IAuthService
 
         AuthResultDto authResult = CreateAuthResult(user, refreshToken.Token);
 
+        Registration? registration = await _registrationRepository.GetActiveByEmailAsync(normalizedEmail, cancellationToken);
+        string language = registration?.Language ?? "en";
+
         ApiResponse<LoginResponse> apiResponseSuccess = new()
         {
             Success = true,
-            Data = new LoginResponse { Auth = authResult },
+            Data = new LoginResponse { Auth = authResult, Language = language },
             Errors = [],
             Message = "Login successful"
         };
@@ -163,7 +168,10 @@ public class AuthService : IAuthService
 
         _logger.LogInformation("External login via {Provider} for {Email}.", externalUser.Provider, normalizedEmail);
 
-        return new ApiResponse<LoginResponse> { Success = true, Data = new LoginResponse { Auth = authResult }, Errors = [], Message = "Login successful" };
+        Registration? externalRegistration = await _registrationRepository.GetActiveByEmailAsync(normalizedEmail, cancellationToken);
+        string externalLanguage = externalRegistration?.Language ?? "en";
+
+        return new ApiResponse<LoginResponse> { Success = true, Data = new LoginResponse { Auth = authResult, Language = externalLanguage }, Errors = [], Message = "Login successful" };
     }
 
     public async Task<ApiResponse<RefreshTokenResponse>> RefreshTokenAsync(RefreshTokenCommand command, CancellationToken cancellationToken = default)

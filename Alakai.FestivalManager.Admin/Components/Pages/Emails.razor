@@ -21,20 +21,20 @@
                     }
                 </select>
 
-                <select class="form-select md:w-32" @bind="languageFilter" @bind:after="ResetPage">
-                    <option value="">All languages</option>
-                    <option value="en">English</option>
-                    <option value="es">Español</option>
-                    <option value="fr">Français</option>
-                    <option value="ca">Català</option>
-                </select>
-
                 <select class="form-select md:w-56" @bind="editionFilter" @bind:after="ResetPage">
                     <option value="@Guid.Empty">All editions</option>
                     @foreach (EditionDto edition in EditionsForSelectedFestival)
                     {
                         <option value="@edition.Id">@edition.Name</option>
                     }
+                </select>
+
+                <select class="form-select md:w-32" @bind="languageFilter" @bind:after="ResetPage">
+                    <option value="">All languages</option>
+                    <option value="en">English</option>
+                    <option value="es">Español</option>
+                    <option value="fr">Français</option>
+                    <option value="ca">Català</option>
                 </select>
 
                 <select class="form-select w-full md:w-44" @bind="statusFilter" @bind:after="ResetPage">
