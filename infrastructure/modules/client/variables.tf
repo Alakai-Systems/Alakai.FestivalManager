@@ -95,3 +95,15 @@ variable "google_client_id" {
   sensitive = true
   default   = ""
 }
+
+variable "google_analytics_credentials_json" {
+  description = "Google Analytics service account JSON credentials (full file contents)"
+  type        = string
+  sensitive   = true
+  default     = ""
+}
+
+variable "tenant_id" {
+  description = "Azure tenant ID"
+  type        = string
+}

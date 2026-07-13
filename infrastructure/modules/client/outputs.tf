@@ -1,9 +1,9 @@
 ﻿output "api_url" {
-  value = "https://${azurerm_windows_web_app.api.default_hostname}"
+  value = "https://${azurerm_linux_web_app.api.default_hostname}"
 }
 
 output "admin_url" {
-  value = "https://${azurerm_windows_web_app.admin.default_hostname}"
+  value = "https://${azurerm_linux_web_app.admin.default_hostname}"
 }
 
 output "sql_server_fqdn" {

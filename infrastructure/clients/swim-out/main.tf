@@ -2,10 +2,10 @@
   source = "../../modules/client"
 
   client_name     = "swimout"
-  location        = "East US"
+  location        = "UK South"
   subscription_id = var.subscription_id
 
-  app_service_sku = "B1"
+  app_service_sku = "F1"
   sql_sku         = "Basic"
 
   sql_admin_username   = var.sql_admin_username
@@ -21,7 +21,9 @@
   email_password       = var.email_password
   email_from           = var.email_from
   email_from_name      = var.email_from_name
-  google_client_id     = var.google_client_id
+  google_client_id                    = var.google_client_id
+  google_analytics_credentials_json  = var.google_analytics_credentials_json
+  tenant_id = var.tenant_id
 }
 
 output "api_url"   { value = module.swimout.api_url }

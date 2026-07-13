@@ -67,3 +67,13 @@ variable "google_client_id" {
   type    = string
   default = ""
 }
+
+variable "google_analytics_credentials_json" {
+  type      = string
+  sensitive = true
+  default   = ""
+}
+
+variable "tenant_id" {
+  type = string
+}

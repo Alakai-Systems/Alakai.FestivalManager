@@ -9,6 +9,7 @@
 
 provider "azurerm" {
   subscription_id = var.subscription_id
+  tenant_id       = var.tenant_id
   features {}
 }
 
@@ -32,7 +33,7 @@ resource "azurerm_service_plan" "plan" {
   name                = "plan-${local.prefix}"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
-  os_type             = "Windows"
+  os_type             = "Linux"
   sku_name            = var.app_service_sku
   tags                = local.tags
 }
@@ -64,7 +65,7 @@ resource "azurerm_mssql_database" "db" {
 }
 
 # ── API App Service ────────────────────────────────────────────────────────────
-resource "azurerm_windows_web_app" "api" {
+resource "azurerm_linux_web_app" "api" {
   name                = "app-${local.prefix}-api"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
@@ -73,10 +74,9 @@ resource "azurerm_windows_web_app" "api" {
 
   site_config {
     application_stack {
-      current_stack  = "dotnet"
-      dotnet_version = "v9.0"
+      dotnet_version = "9.0"
     }
-    always_on = true
+    //always_on = true
   }
 
   app_settings = {
@@ -105,7 +105,8 @@ resource "azurerm_windows_web_app" "api" {
     "ApplicationUrls__PortalUrl"  = "https://app-${local.prefix}-admin.azurewebsites.net/user-panel"
     "FileStorage__RootPath"       = "wwwroot/uploads/email-images"
     "FileStorage__PublicBaseUrl"  = "https://app-${local.prefix}-api.azurewebsites.net/uploads/email-images"
-    "ExternalAuth__Google__ClientId" = var.google_client_id
+    "ExternalAuth__Google__ClientId"          = var.google_client_id
+    "GoogleAnalytics__CredentialsJson"        = var.google_analytics_credentials_json
   }
 
   logs {
@@ -122,7 +123,7 @@ resource "azurerm_windows_web_app" "api" {
 }
 
 # ── Admin App Service ──────────────────────────────────────────────────────────
-resource "azurerm_windows_web_app" "admin" {
+resource "azurerm_linux_web_app" "admin" {
   name                = "app-${local.prefix}-admin"
   resource_group_name = azurerm_resource_group.rg.name
   location            = azurerm_resource_group.rg.location
@@ -131,10 +132,9 @@ resource "azurerm_windows_web_app" "admin" {
 
   site_config {
     application_stack {
-      current_stack  = "dotnet"
-      dotnet_version = "v9.0"
+      dotnet_version = "9.0"
     }
-    always_on = true
+    //always_on = true
     websockets_enabled = true
   }
 

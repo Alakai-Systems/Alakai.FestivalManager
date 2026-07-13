@@ -1,4 +1,4 @@
-using Google.Analytics.Data.V1Beta;
+﻿using Google.Analytics.Data.V1Beta;
 using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Infrastructure.Analytics;
@@ -16,21 +16,19 @@ public class GoogleAnalyticsClient : IAnalyticsClient
 
     public async Task<AnalyticsStatsDto> GetStatsAsync(string propertyId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
     {
-        if (!File.Exists(_options.CredentialsPath))
+        bool hasFile = !string.IsNullOrWhiteSpace(_options.CredentialsPath) && File.Exists(_options.CredentialsPath);
+        bool hasJson = !string.IsNullOrWhiteSpace(_options.CredentialsJson);
+        if (!hasFile && !hasJson)
         {
-            return new AnalyticsStatsDto
-            {
-                IsAvailable = false,
-                ErrorMessage = $"Credentials file not found at: {_options.CredentialsPath}"
-            };
+            return new AnalyticsStatsDto { IsAvailable = false, ErrorMessage = "Google Analytics credentials not configured." };
         }
 
         try
         {
-            BetaAnalyticsDataClient client = new BetaAnalyticsDataClientBuilder
-            {
-                CredentialsPath = _options.CredentialsPath
-            }.Build();
+            BetaAnalyticsDataClientBuilder builder = hasFile
+                ? new BetaAnalyticsDataClientBuilder { CredentialsPath = _options.CredentialsPath }
+                : new BetaAnalyticsDataClientBuilder { JsonCredentials = _options.CredentialsJson };
+            BetaAnalyticsDataClient client = builder.Build();
 
             string property = $"properties/{propertyId}";
 
