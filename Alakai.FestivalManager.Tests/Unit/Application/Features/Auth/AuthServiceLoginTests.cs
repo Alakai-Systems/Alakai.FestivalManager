@@ -17,6 +17,7 @@ public class AuthServiceLoginTests
     private readonly Mock<IEmailNotificationService> _emailSvc = new();
     private readonly Mock<IExternalAuthService> _externalAuth = new();
     private readonly Mock<ILogger<AuthService>> _logger = new();
+    private readonly Mock<IRegistrationRepository> _registrationRepo = new();
     private readonly AuthService _sut;
 
     public AuthServiceLoginTests()
@@ -25,7 +26,7 @@ public class AuthServiceLoginTests
             _authRepo.Object, _passwordSvc.Object, _jwtSvc.Object, _mapper.Object,
             _loginValidator.Object, _refreshValidator.Object, _forgotValidator.Object,
             _resetValidator.Object, _changeValidator.Object, _userRepo.Object,
-            _emailSvc.Object, _externalAuth.Object, _logger.Object);
+            _emailSvc.Object, _externalAuth.Object, _registrationRepo.Object, _logger.Object);
 
         _loginValidator.Setup(v => v.ValidateAsync(It.IsAny<LoginCommand>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new FluentValidation.Results.ValidationResult());
