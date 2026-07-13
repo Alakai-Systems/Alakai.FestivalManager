@@ -1,5 +1,5 @@
 # fix_github_workflows.ps1
-# Crea la carpeta .github/workflows y los dos ficheros de CI/CD
+# Sobreescribe los dos workflows con trigger en master y ambos automaticos
 # Ejecutar desde la raiz del repo: .\tools\fix_github_workflows.ps1
 
 $ErrorActionPreference = "Stop"
@@ -7,22 +7,20 @@ $ErrorActionPreference = "Stop"
 $dir = ".github\workflows"
 if (-not (Test-Path $dir)) {
     New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    Write-Host "OK: Carpeta $dir creada"
 }
 
-# ── Swim Out — auto en push a main + manual ───────────────────────────────────
 [System.IO.File]::WriteAllText("$dir\deploy-swimout.yml", @'
 name: Deploy - Swim Out Costa Brava
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '9.0.x'
-  API_PROJECT: 'Alakai.FestivalManager.Api/Alakai.FestivalManager.Api.csproj'
-  ADMIN_PROJECT: 'Alakai.FestivalManager.Admin/Alakai.FestivalManager.Admin.csproj'
+  DOTNET_VERSION: "9.0.x"
+  API_PROJECT: "Alakai.FestivalManager.Api/Alakai.FestivalManager.Api.csproj"
+  ADMIN_PROJECT: "Alakai.FestivalManager.Admin/Alakai.FestivalManager.Admin.csproj"
 
 jobs:
   build-and-deploy:
@@ -70,17 +68,18 @@ jobs:
 '@, [System.Text.Encoding]::UTF8)
 Write-Host "OK: deploy-swimout.yml"
 
-# ── La Jam — solo manual ──────────────────────────────────────────────────────
 [System.IO.File]::WriteAllText("$dir\deploy-lajam.yml", @'
 name: Deploy - La Jam Barcelona
 
 on:
+  push:
+    branches: [ master ]
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '9.0.x'
-  API_PROJECT: 'Alakai.FestivalManager.Api/Alakai.FestivalManager.Api.csproj'
-  ADMIN_PROJECT: 'Alakai.FestivalManager.Admin/Alakai.FestivalManager.Admin.csproj'
+  DOTNET_VERSION: "9.0.x"
+  API_PROJECT: "Alakai.FestivalManager.Api/Alakai.FestivalManager.Api.csproj"
+  ADMIN_PROJECT: "Alakai.FestivalManager.Admin/Alakai.FestivalManager.Admin.csproj"
 
 jobs:
   build-and-deploy:
@@ -129,4 +128,4 @@ jobs:
 Write-Host "OK: deploy-lajam.yml"
 
 Write-Host ""
-Write-Host "Listo. Haz git add, commit y push para activar el pipeline de swim-out."
+Write-Host "Listo. Haz commit y push a master para activar los dos pipelines."

@@ -1,12 +1,14 @@
 ﻿name: Deploy - La Jam Barcelona
 
 on:
+  push:
+    branches: [ master ]
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '9.0.x'
-  API_PROJECT: 'Alakai.FestivalManager.Api/Alakai.FestivalManager.Api.csproj'
-  ADMIN_PROJECT: 'Alakai.FestivalManager.Admin/Alakai.FestivalManager.Admin.csproj'
+  DOTNET_VERSION: "9.0.x"
+  API_PROJECT: "Alakai.FestivalManager.Api/Alakai.FestivalManager.Api.csproj"
+  ADMIN_PROJECT: "Alakai.FestivalManager.Admin/Alakai.FestivalManager.Admin.csproj"
 
 jobs:
   build-and-deploy:
