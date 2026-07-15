@@ -1,4 +1,4 @@
-QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+﻿QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,7 +79,11 @@ builder.Services.AddCors(options =>
         policy =>
         {
             policy
-                .WithOrigins("https://localhost:7033")
+                .WithOrigins(
+                    "https://localhost:7033",
+                    "https://app-alakai-swimout-admin-bpdebfdvbgdacyda.westus2-01.azurewebsites.net",
+                    "https://app-alakai-lajam-admin.azurewebsites.net"
+                )
                 .AllowAnyHeader()
                 .AllowAnyMethod();
         });
@@ -93,13 +97,19 @@ if (app.Environment.IsDevelopment())
     app.UseSwagger();
     app.UseSwaggerUI();
 }
+using (IServiceScope scope = app.Services.CreateScope())
+{
+    AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    db.Database.Migrate();
+}
+
 app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("AdminCors");
+app.UseCors("Admin");
 
 app.MapControllers();
 
