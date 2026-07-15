@@ -1,53 +1,86 @@
-# fix_antiforgery.ps1
-# Ejecutar desde la raiz del repo: .\tools\fix_antiforgery.ps1
+# Fix-DataProtection-Admin.ps1
+# Corrige la perdida de la cookie AlakaiAdminAuth en Azure App Service (Linux)
+# causada por la falta de persistencia explicita de las claves de Data Protection.
+# Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$adminBase = "Alakai.FestivalManager.Admin"
 
-$file = "Alakai.FestivalManager.Admin\Endpoints\AdminAuthEndpoints.cs"
+function Patch-File {
+    param(
+        [string]$Path,
+        [string]$OldString,
+        [string]$NewString,
+        [string]$Description
+    )
 
-if (-not (Test-Path $file)) {
-    Write-Error "ABORT: No se encuentra $file"
+    if (-not (Test-Path $Path)) {
+        Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow
+        return $false
+    }
+
+    $content = Get-Content -Path $Path -Raw
+
+    if ($content.Contains($NewString)) {
+        Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
+        return $true
+    }
+
+    if (-not $content.Contains($OldString)) {
+        Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow
+        return $false
+    }
+
+    $updated = $content.Replace($OldString, $NewString)
+    Set-Content -Path $Path -Value $updated -NoNewline
+    Write-Host "OK: $Description" -ForegroundColor Green
+    return $true
+}
+
+$patches = @()
+
+# --- Patch 1: agregar using de Data Protection en Program.cs ---
+$programPath = Join-Path $adminBase "Program.cs"
+
+$patches += [PSCustomObject]@{
+    Path = $programPath
+    Old = 'using Microsoft.AspNetCore.HttpOverrides;'
+    New = @'
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.DataProtection;
+'@
+    Description = "Agregar using Microsoft.AspNetCore.DataProtection"
+}
+
+# --- Patch 2: configurar AddDataProtection con persistencia en filesystem ---
+$patches += [PSCustomObject]@{
+    Path = $programPath
+    Old = @'
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+'@
+    New = @'
+string dataProtectionKeyPath = builder.Configuration["DataProtection:KeyRingPath"]
+    ?? "/home/DataProtection-Keys";
+
+builder.Services.AddDataProtection()
+    .SetApplicationName("Alakai.FestivalManager.Admin")
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
+
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+'@
+    Description = "Configurar AddDataProtection().PersistKeysToFileSystem()"
+}
+
+# --- Ejecutar todos los patches (all-or-nothing) ---
+$results = @()
+foreach ($p in $patches) {
+    $results += Patch-File -Path $p.Path -OldString $p.Old -NewString $p.New -Description $p.Description
+}
+
+if ($results -contains $false) {
+    Write-Host "`nAlgun patch no se pudo aplicar. Revisa los mensajes anteriores. No se han guardado cambios parciales fuera de lo ya escrito." -ForegroundColor Red
     exit 1
 }
 
-function Patch-File {
-    param([string]$Path, [string]$OldText, [string]$NewText, [string]$Description)
-    $raw = [System.IO.File]::ReadAllText($Path)
-    $rawNorm = $raw.Replace("`r`n", "`n")
-    $oldNorm = $OldText.Replace("`r`n", "`n")
-    $newNorm = $NewText.Replace("`r`n", "`n")
-    $count = ([regex]::Matches($rawNorm, [regex]::Escape($oldNorm))).Count
-    if ($count -ne 1) {
-        Write-Error "ABORT: '$Description' — esperaba 1 en '$Path', encontradas $count"
-        exit 1
-    }
-    $useCRLF = $raw.Contains("`r`n")
-    $patched = $rawNorm.Replace($oldNorm, $newNorm)
-    if ($useCRLF) { $patched = $patched.Replace("`n", "`r`n") }
-    [System.IO.File]::WriteAllText($Path, $patched, [System.Text.Encoding]::UTF8)
-    Write-Host "OK: $Description"
-}
-
-Patch-File $file `
-    '                return Results.Redirect("/login?error=invalid");
-            }
-        }).AllowAnonymous();
-        app.MapPost("/account/logout"' `
-    '                return Results.Redirect("/login?error=invalid");
-            }
-        }).AllowAnonymous().DisableAntiforgery();
-        app.MapPost("/account/logout"' `
-    "AdminAuthEndpoints: DisableAntiforgery en login"
-
-Patch-File $file `
-    '            return Results.Redirect("/login");
-        }).AllowAnonymous();
-    }
-}' `
-    '            return Results.Redirect("/login");
-        }).AllowAnonymous().DisableAntiforgery();
-    }
-}' `
-    "AdminAuthEndpoints: DisableAntiforgery en logout"
-
-Write-Host "Listo. Haz commit y push."
+Write-Host "`nTodos los patches aplicados correctamente." -ForegroundColor Green
+Write-Host "Recuerda: en Azure App Service, la variable de entorno 'DataProtection__KeyRingPath' ahora SI se usa (antes no tenia efecto)." -ForegroundColor Cyan
