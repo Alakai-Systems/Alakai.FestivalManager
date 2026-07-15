@@ -50,7 +50,7 @@ public static class AdminAuthEndpoints
                 await httpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);
 
                 string redirectTo = string.IsNullOrWhiteSpace(returnUrl) || !returnUrl.StartsWith('/')
-                    ? "/dashboard"
+                    ? "/"
                     : returnUrl;
 
                 return Results.Redirect(redirectTo);
