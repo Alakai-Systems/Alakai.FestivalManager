@@ -6,7 +6,15 @@ public static class InfrastructureDependencyInjectionExtension
     {
         services.AddDbContext<FestivalManagerDbContext>(options =>
             options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")));
+                configuration.GetConnectionString("DefaultConnection"),
+                sqlOptions =>
+                {
+                    sqlOptions.EnableRetryOnFailure(
+                        maxRetryCount: 5,
+                        maxRetryDelay: TimeSpan.FromSeconds(10),
+                        errorNumbersToAdd: null);
+                    sqlOptions.CommandTimeout(60);
+                }));
 
         services.AddScoped<IFestivalRepository, FestivalRepository>();
         services.AddScoped<IEditionRepository, EditionRepository>();
