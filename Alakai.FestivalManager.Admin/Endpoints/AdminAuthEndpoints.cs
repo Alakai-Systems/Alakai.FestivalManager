@@ -59,12 +59,12 @@ public static class AdminAuthEndpoints
             {
                 return Results.Redirect("/login?error=invalid");
             }
-        }).AllowAnonymous();
+        }).AllowAnonymous().DisableAntiforgery();
 
         app.MapPost("/account/logout", async (HttpContext httpContext) =>
         {
             await httpContext.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
             return Results.Redirect("/login");
-        }).AllowAnonymous();
+        }).AllowAnonymous().DisableAntiforgery();
     }
 }

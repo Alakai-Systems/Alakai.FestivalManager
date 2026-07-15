@@ -1,10 +1,9 @@
-# fix_admin_program.ps1
-# Añade ForwardedHeaders para que AntiForgery funcione detrás del proxy de Azure
-# Ejecutar desde la raiz del repo: .\tools\fix_admin_program.ps1
+# fix_antiforgery.ps1
+# Ejecutar desde la raiz del repo: .\tools\fix_antiforgery.ps1
 
 $ErrorActionPreference = "Stop"
 
-$file = "Alakai.FestivalManager.Admin\Program.cs"
+$file = "Alakai.FestivalManager.Admin\Endpoints\AdminAuthEndpoints.cs"
 
 if (-not (Test-Path $file)) {
     Write-Error "ABORT: No se encuentra $file"
@@ -30,21 +29,25 @@ function Patch-File {
 }
 
 Patch-File $file `
-    'var app = builder.Build();' `
-    'builder.Services.Configure<ForwardedHeadersOptions>(options =>
-{
-    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
-    options.KnownNetworks.Clear();
-    options.KnownProxies.Clear();
-});
-
-var app = builder.Build();' `
-    "Admin Program.cs: ForwardedHeaders para AntiForgery en Azure"
+    '                return Results.Redirect("/login?error=invalid");
+            }
+        }).AllowAnonymous();
+        app.MapPost("/account/logout"' `
+    '                return Results.Redirect("/login?error=invalid");
+            }
+        }).AllowAnonymous().DisableAntiforgery();
+        app.MapPost("/account/logout"' `
+    "AdminAuthEndpoints: DisableAntiforgery en login"
 
 Patch-File $file `
-    'app.UseHttpsRedirection();' `
-    'app.UseForwardedHeaders();
-app.UseHttpsRedirection();' `
-    "Admin Program.cs: UseForwardedHeaders antes de HTTPS"
+    '            return Results.Redirect("/login");
+        }).AllowAnonymous();
+    }
+}' `
+    '            return Results.Redirect("/login");
+        }).AllowAnonymous().DisableAntiforgery();
+    }
+}' `
+    "AdminAuthEndpoints: DisableAntiforgery en logout"
 
 Write-Host "Listo. Haz commit y push."
