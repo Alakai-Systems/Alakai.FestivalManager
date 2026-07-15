@@ -5,7 +5,7 @@
   location        = "UK South"
   subscription_id = var.subscription_id
 
-  app_service_sku = "F1"
+  app_service_sku = "P0v3"
   sql_sku         = "Basic"
 
   sql_admin_username   = var.sql_admin_username
