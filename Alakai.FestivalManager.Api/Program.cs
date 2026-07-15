@@ -1,4 +1,6 @@
-﻿QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
+﻿using Alakai.FestivalManager.Infrastructure.Persistence;
+
+QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -99,7 +101,7 @@ if (app.Environment.IsDevelopment())
 }
 using (IServiceScope scope = app.Services.CreateScope())
 {
-    AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    FestivalManagerDbContext db = scope.ServiceProvider.GetRequiredService<FestivalManagerDbContext>();
     db.Database.Migrate();
 }
 
