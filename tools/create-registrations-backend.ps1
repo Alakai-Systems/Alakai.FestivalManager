@@ -1,18 +1,27 @@
-# Fix-AdminAuth-Full.ps1
-# Consolida los dos fixes de autenticacion del Admin en produccion (Azure App Service Linux):
-#   1) Data Protection Keys no persistentes -> cookie ilegible tras reciclado de contenedor.
-#   2) Cookie AlakaiAdminAuth > 4096 bytes (JWTs completos como claims) -> el navegador
-#      la descarta en silencio.
+# Fix-IdentityPackageConflict.ps1  (v2 - robusto ante CRLF/LF)
 #
-# Este script:
-#   - Crea Services/Auth/MemoryCacheTicketStore.cs (si no existe ya)
-#   - Parchea Program.cs: using de DataProtection + AddDataProtection().PersistKeysToFileSystem()
-#   - Parchea Program.cs: registra IMemoryCache + ITicketStore y engancha options.SessionStore
+# CAUSA RAIZ del "AntiforgeryValidationException / MissingMethodException:
+# Method not found: Boolean Microsoft.AspNetCore.Cryptography.CryptoUtil.TimeConstantBuffersAreEqual(...)"
 #
-# Ejecutar desde la raiz del repo. Idempotente: se puede correr varias veces sin duplicar cambios.
+# Alakai.FestivalManager.Application referencia el paquete NuGet
+#   Microsoft.AspNetCore.Identity 2.3.11 (netstandard2.0, de la era ASP.NET Core 2.x)
+# solo para usar PasswordHasher<User>. Esa version antigua arrastra una copia vieja
+# de Microsoft.AspNetCore.Cryptography.Internal que se publica junto al binario y
+# choca con la version moderna de .NET 9 en tiempo de ejecucion en Azure Linux.
+#
+# Fix: quitar el PackageReference viejo y usar FrameworkReference al shared
+# framework de ASP.NET Core, que resuelve PasswordHasher<T> desde .NET 9 sin
+# arrastrar ninguna DLL antigua.
+#
+# v2: la version anterior fallaba con "anchor no encontrado" en checkouts donde
+# Git normaliza el archivo a CRLF (core.autocrlf=true). Esta version normaliza
+# saltos de linea antes de comparar, y respeta el estilo de salto de linea
+# original del archivo al guardar.
+#
+# Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$adminBase = "Alakai.FestivalManager.Admin"
+$applicationCsprojPath = "Alakai.FestivalManager.Application/Alakai.FestivalManager.Application.csproj"
 
 function Patch-File {
     param(
@@ -27,190 +36,80 @@ function Patch-File {
         return $false
     }
 
-    $content = Get-Content -Path $Path -Raw
+    $rawContent = Get-Content -Path $Path -Raw
+    $usesCrlf = $rawContent.Contains("`r`n")
 
-    if ($content.Contains($NewString)) {
+    # Normalizar todo a LF para comparar de forma independiente del estilo de salto de linea
+    $normalizedContent = $rawContent -replace "`r`n", "`n"
+    $normalizedOld = $OldString -replace "`r`n", "`n"
+    $normalizedNew = $NewString -replace "`r`n", "`n"
+
+    if ($normalizedContent.Contains($normalizedNew)) {
         Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
         return $true
     }
 
-    if (-not $content.Contains($OldString)) {
+    if (-not $normalizedContent.Contains($normalizedOld)) {
         Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow
         return $false
     }
 
-    $updated = $content.Replace($OldString, $NewString)
-    Set-Content -Path $Path -Value $updated -NoNewline
+    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
+
+    # Devolver al estilo de salto de linea original del archivo
+    if ($usesCrlf) {
+        $updatedFinal = $updatedNormalized -replace "`n", "`r`n"
+    } else {
+        $updatedFinal = $updatedNormalized
+    }
+
+    Set-Content -Path $Path -Value $updatedFinal -NoNewline
     Write-Host "OK: $Description" -ForegroundColor Green
     return $true
 }
 
-function New-FileIfMissing {
-    param(
-        [string]$Path,
-        [string]$Content,
-        [string]$Description
-    )
+$result = Patch-File -Path $applicationCsprojPath -Description "Reemplazar PackageReference Microsoft.AspNetCore.Identity 2.3.11 por FrameworkReference" -OldString @'
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.AspNetCore.Identity" Version="2.3.11" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.16" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+    <PackageReference Include="QuestPDF" Version="2026.6.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
+  </ItemGroup>
+'@ -NewString @'
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
-    if (Test-Path $Path) {
-        Write-Host "SKIP (ya existe): $Description" -ForegroundColor Cyan
-        return $true
-    }
-
-    $directory = Split-Path -Path $Path -Parent
-    if (-not (Test-Path $directory)) {
-        Write-Host "SKIP (carpeta no encontrada): $directory" -ForegroundColor Yellow
-        return $false
-    }
-
-    Set-Content -Path $Path -Value $Content -NoNewline
-    Write-Host "OK (creado): $Description" -ForegroundColor Green
-    return $true
-}
-
-$results = @()
-
-# --- 1) Crear MemoryCacheTicketStore.cs ---
-$ticketStorePath = Join-Path $adminBase "Services/Auth/MemoryCacheTicketStore.cs"
-
-$ticketStoreContent = @'
-using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Caching.Memory;
-
-namespace Alakai.FestivalManager.Admin.Services.Auth;
-
-/// <summary>
-/// Guarda el AuthenticationTicket completo (incluyendo access_token/refresh_token) en el servidor
-/// en lugar de serializarlo dentro de la cookie. La cookie del navegador solo contiene una clave
-/// de sesion, evitando que el ticket cifrado supere el limite de 4096 bytes por cookie.
-/// </summary>
-public class MemoryCacheTicketStore : ITicketStore
-{
-    private const string KeyPrefix = "AlakaiAdminAuthTicket-";
-    private readonly IMemoryCache _cache;
-
-    public MemoryCacheTicketStore(IMemoryCache cache)
-    {
-        _cache = cache;
-    }
-
-    public Task<string> StoreAsync(AuthenticationTicket ticket)
-    {
-        string key = KeyPrefix + Guid.NewGuid();
-        RenewAsync(key, ticket);
-        return Task.FromResult(key);
-    }
-
-    public Task RenewAsync(string key, AuthenticationTicket ticket)
-    {
-        MemoryCacheEntryOptions options = new();
-
-        DateTimeOffset? expiresUtc = ticket.Properties.ExpiresUtc;
-        if (expiresUtc.HasValue)
-        {
-            options.SetAbsoluteExpiration(expiresUtc.Value);
-        }
-        else
-        {
-            options.SetSlidingExpiration(TimeSpan.FromDays(7));
-        }
-
-        _cache.Set(key, ticket, options);
-        return Task.CompletedTask;
-    }
-
-    public Task<AuthenticationTicket?> RetrieveAsync(string key)
-    {
-        _cache.TryGetValue(key, out AuthenticationTicket? ticket);
-        return Task.FromResult(ticket);
-    }
-
-    public Task RemoveAsync(string key)
-    {
-        _cache.Remove(key);
-        return Task.CompletedTask;
-    }
-}
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="16.1.1" />
+    <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="9.0.16" />
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+    <PackageReference Include="QuestPDF" Version="2026.6.1" />
+    <PackageReference Include="SixLabors.ImageSharp" Version="3.1.5" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.19.1" />
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
+  </ItemGroup>
 '@
 
-$results += New-FileIfMissing -Path $ticketStorePath -Content $ticketStoreContent -Description "Crear MemoryCacheTicketStore.cs"
-
-# --- 2) Patches sobre Program.cs ---
-$programPath = Join-Path $adminBase "Program.cs"
-
-$patches = @()
-
-$patches += [PSCustomObject]@{
-    Old = 'using Microsoft.AspNetCore.HttpOverrides;'
-    New = @'
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.DataProtection;
-'@
-    Description = "Agregar using Microsoft.AspNetCore.DataProtection"
-}
-
-$patches += [PSCustomObject]@{
-    Old = @'
-builder.Services.AddCascadingAuthenticationState();
-
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-'@
-    New = @'
-builder.Services.AddCascadingAuthenticationState();
-
-builder.Services.AddMemoryCache();
-builder.Services.AddSingleton<Microsoft.AspNetCore.Authentication.Cookies.ITicketStore, MemoryCacheTicketStore>();
-
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-'@
-    Description = "Registrar IMemoryCache + ITicketStore (MemoryCacheTicketStore)"
-}
-
-$patches += [PSCustomObject]@{
-    Old = @'
-builder.Services.AddAuthorization(options =>
-'@
-    New = @'
-builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDefaults.AuthenticationScheme)
-    .Configure<Microsoft.AspNetCore.Authentication.Cookies.ITicketStore>((options, store) =>
-    {
-        options.SessionStore = store;
-    });
-
-builder.Services.AddAuthorization(options =>
-'@
-    Description = "Configurar options.SessionStore = ITicketStore (ticket fuera de la cookie)"
-}
-
-$patches += [PSCustomObject]@{
-    Old = @'
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-'@
-    New = @'
-string dataProtectionKeyPath = builder.Configuration["DataProtection:KeyRingPath"]
-    ?? "/home/DataProtection-Keys";
-
-builder.Services.AddDataProtection()
-    .SetApplicationName("Alakai.FestivalManager.Admin")
-    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeyPath));
-
-builder.Services.Configure<ForwardedHeadersOptions>(options =>
-'@
-    Description = "Configurar AddDataProtection().PersistKeysToFileSystem()"
-}
-
-foreach ($p in $patches) {
-    $results += Patch-File -Path $programPath -OldString $p.Old -NewString $p.New -Description $p.Description
-}
-
-# --- Resultado ---
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores. No se guardaron cambios parciales fuera de lo ya escrito." -ForegroundColor Red
+if (-not $result) {
+    Write-Host "`nSigue sin encontrar el anchor. Pega el contenido completo de tu csproj real para comparar directamente." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nTodo aplicado correctamente:" -ForegroundColor Green
-Write-Host " - MemoryCacheTicketStore.cs creado en Services/Auth/" -ForegroundColor Green
-Write-Host " - Data Protection Keys persistentes en /home/DataProtection-Keys (o DataProtection:KeyRingPath)" -ForegroundColor Green
-Write-Host " - Cookie AlakaiAdminAuth reducida a una clave de sesion; ticket completo en IMemoryCache" -ForegroundColor Green
-Write-Host "`nNOTA: IMemoryCache es por-instancia. Si escalas el App Service Plan a mas de una instancia, migra a cache distribuido (Redis/SQL) o activa ARR affinity." -ForegroundColor Yellow
+Write-Host "`nPatch aplicado. Proximos pasos OBLIGATORIOS:" -ForegroundColor Green
+Write-Host "  1. dotnet clean (en toda la solucion)" -ForegroundColor Yellow
+Write-Host "  2. Borrar manualmente las carpetas obj/ y bin/ de los 6 proyectos" -ForegroundColor Yellow
+Write-Host "  3. dotnet restore" -ForegroundColor Yellow
+Write-Host "  4. dotnet build" -ForegroundColor Yellow
+Write-Host "  5. Confirmar en obj/*/project.assets.json que YA NO aparece Microsoft.AspNetCore.DataProtection 2.3.0" -ForegroundColor Yellow
+Write-Host "  6. Redeploy a Azure" -ForegroundColor Yellow
