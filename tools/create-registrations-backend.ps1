@@ -1,11 +1,10 @@
-# fix_program_cs.ps1
-# 1. Añade migraciones automáticas al arrancar
-# 2. Corrige CORS para producción
-# Ejecutar desde la raiz del repo: .\tools\fix_program_cs.ps1
+# fix_admin_program.ps1
+# Añade ForwardedHeaders para que AntiForgery funcione detrás del proxy de Azure
+# Ejecutar desde la raiz del repo: .\tools\fix_admin_program.ps1
 
 $ErrorActionPreference = "Stop"
 
-$file = "Alakai.FestivalManager.Api\Program.cs"
+$file = "Alakai.FestivalManager.Admin\Program.cs"
 
 if (-not (Test-Path $file)) {
     Write-Error "ABORT: No se encuentra $file"
@@ -30,52 +29,22 @@ function Patch-File {
     Write-Host "OK: $Description"
 }
 
-# 1. Corregir CORS — añadir producción y arreglar nombre de policy
 Patch-File $file `
-    'builder.Services.AddCors(options =>
+    'var app = builder.Build();' `
+    'builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
-    options.AddPolicy("Admin",
-        policy =>
-        {
-            policy
-                .WithOrigins("https://localhost:7033")
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        });
-});' `
-    'builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Admin",
-        policy =>
-        {
-            policy
-                .WithOrigins(
-                    "https://localhost:7033",
-                    "https://app-alakai-swimout-admin-bpdebfdvbgdacyda.westus2-01.azurewebsites.net",
-                    "https://app-alakai-lajam-admin.azurewebsites.net"
-                )
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        });
-});' `
-    "Program.cs: CORS añadir producción"
+    options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
 
-# 2. Corregir nombre de policy UseCors
+var app = builder.Build();' `
+    "Admin Program.cs: ForwardedHeaders para AntiForgery en Azure"
+
 Patch-File $file `
-    'app.UseCors("AdminCors");' `
-    'app.UseCors("Admin");' `
-    "Program.cs: UseCors nombre correcto"
-
-# 3. Añadir migraciones automáticas
-Patch-File $file `
-    'app.UseMiddleware<GlobalExceptionMiddleware>();' `
-    'using (IServiceScope scope = app.Services.CreateScope())
-{
-    AppDbContext db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-    db.Database.Migrate();
-}
-
-app.UseMiddleware<GlobalExceptionMiddleware>();' `
-    "Program.cs: migraciones automáticas al arrancar"
+    'app.UseHttpsRedirection();' `
+    'app.UseForwardedHeaders();
+app.UseHttpsRedirection();' `
+    "Admin Program.cs: UseForwardedHeaders antes de HTTPS"
 
 Write-Host "Listo. Haz commit y push."
