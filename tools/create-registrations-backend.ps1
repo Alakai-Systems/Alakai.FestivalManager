@@ -1,23 +1,27 @@
-# Fix-SqlConnectionResiliency.ps1
+# Fix-TerraformModule-RunFromPackage.ps1
 #
-# Log de la API muestra: "Connection reset by peer" durante el handshake TLS/login
-# contra Azure SQL (tcp:sql-alakai-swimout.database.windows.net). Esto es un patron
-# conocido y documentado por Microsoft: Azure SQL corta agresivamente conexiones
-# cuyo handshake TLS tarda demasiado (proteccion anti "slow-drip"). Se agrava por
-# la distancia geografica: el App Service esta en West US 2 y el SQL Server en
-# UK South (~9000 km, RTT alto).
+# Anade dos ajustes al modulo reutilizable de Terraform (infrastructure/modules/client/main.tf)
+# para que cualquier cliente nuevo (empezando por La Jam) nazca sin los problemas
+# que hemos arreglado hoy a mano en Swim Out:
 #
-# Fix inmediato (este script): activar EnableRetryOnFailure de EF Core, que es la
-# recomendacion oficial de Microsoft para este tipo de fallo transitorio.
+#   1. WEBSITE_RUN_FROM_PACKAGE = 1 (en API y Admin)
+#      Evita deploys "sucios" donde Kudu fusiona el zip nuevo con archivos viejos
+#      en vez de sustituir todo atomicamente. Causa raiz del MissingMethodException
+#      de hoy (DLLs fosiles de un paquete NuGet ya eliminado del codigo).
 #
-# Fix estructural (pendiente, ya anotado en el roadmap de Terraform): migrar el
-# SQL Server a West US 2 para eliminar la latencia entre regiones. Este script
-# NO hace eso — solo mitiga el sintoma mientras se planifica la migracion.
+#   2. DataProtection__KeyRingPath = /home/DataProtection-Keys (en Admin)
+#      Persistencia de las claves de cifrado entre reinicios del contenedor Linux.
+#
+# NOTA IMPORTANTE: este cambio en el modulo NO afecta a los recursos de Swim Out
+# ya existentes (esos se crearon manualmente desde el portal, no via este modulo,
+# y siguen pendientes de "terraform import"). Este fix aplica automaticamente la
+# proxima vez que se cree un cliente desde cero con `terraform apply` — es decir,
+# La Jam.
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$infraPath = "Alakai.FestivalManager.Infrastructure/Extensions/InfrastructureDependencyInjectionExtension.cs"
+$modulePath = "infrastructure/modules/client/main.tf"
 
 function Patch-File {
     param(
@@ -62,30 +66,42 @@ function Patch-File {
     return $true
 }
 
-$result = Patch-File -Path $infraPath -Description "Activar EnableRetryOnFailure + timeout ampliado en UseSqlServer" -OldString @'
-        services.AddDbContext<FestivalManagerDbContext>(options =>
-            options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection")));
+$results = @()
+
+# --- Patch 1: API app_settings ---
+$results += Patch-File -Path $modulePath -Description "Anadir WEBSITE_RUN_FROM_PACKAGE al API" -OldString @'
+  app_settings = {
+    "ASPNETCORE_ENVIRONMENT"      = "Production"
+    "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.db.name};Persist Security Info=False;User ID=${var.sql_admin_username};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 '@ -NewString @'
-        services.AddDbContext<FestivalManagerDbContext>(options =>
-            options.UseSqlServer(
-                configuration.GetConnectionString("DefaultConnection"),
-                sqlOptions =>
-                {
-                    sqlOptions.EnableRetryOnFailure(
-                        maxRetryCount: 5,
-                        maxRetryDelay: TimeSpan.FromSeconds(10),
-                        errorNumbersToAdd: null);
-                    sqlOptions.CommandTimeout(60);
-                }));
+  app_settings = {
+    "WEBSITE_RUN_FROM_PACKAGE"    = "1"
+    "ASPNETCORE_ENVIRONMENT"      = "Production"
+    "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.db.name};Persist Security Info=False;User ID=${var.sql_admin_username};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
 '@
 
-if (-not $result) {
-    Write-Host "`nNo se pudo aplicar el patch. Pega el contenido actual del archivo para ajustar el anchor." -ForegroundColor Red
+# --- Patch 2: Admin app_settings ---
+$results += Patch-File -Path $modulePath -Description "Anadir WEBSITE_RUN_FROM_PACKAGE y DataProtection__KeyRingPath al Admin" -OldString @'
+  app_settings = {
+    "ASPNETCORE_ENVIRONMENT"  = "Production"
+    "ApiSettings__BaseUrl"    = "https://app-${local.prefix}-api.azurewebsites.net/"
+    "ExternalAuth__GoogleClientId" = var.google_client_id
+  }
+'@ -NewString @'
+  app_settings = {
+    "WEBSITE_RUN_FROM_PACKAGE"       = "1"
+    "ASPNETCORE_ENVIRONMENT"         = "Production"
+    "ApiSettings__BaseUrl"           = "https://app-${local.prefix}-api.azurewebsites.net/"
+    "ExternalAuth__GoogleClientId"   = var.google_client_id
+    "DataProtection__KeyRingPath"    = "/home/DataProtection-Keys"
+  }
+'@
+
+if ($results -contains $false) {
+    Write-Host "`nAlgun patch no se pudo aplicar. Pega el contenido actual de main.tf para ajustar el anchor." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nPatch aplicado: EnableRetryOnFailure activo (5 reintentos, hasta 10s de espera entre intentos)." -ForegroundColor Green
-Write-Host "Esto mitiga el sintoma (reintenta automaticamente ante un reset transitorio de handshake TLS)," -ForegroundColor Cyan
-Write-Host "pero NO elimina la causa de fondo: la distancia entre West US 2 (App Service) y UK South (SQL Server)." -ForegroundColor Cyan
-Write-Host "Esto sigue pendiente en el roadmap de Terraform: migrar/recrear el SQL Server en West US 2." -ForegroundColor Yellow
+Write-Host "`nModulo Terraform actualizado." -ForegroundColor Green
+Write-Host "Cuando lances 'terraform apply' para La Jam, nacera ya con WEBSITE_RUN_FROM_PACKAGE y DataProtection__KeyRingPath configurados." -ForegroundColor Cyan
+Write-Host "Para Swim Out, este cambio quedara reflejado en el state cuando hagas el 'terraform import' pendiente de los recursos existentes." -ForegroundColor Yellow

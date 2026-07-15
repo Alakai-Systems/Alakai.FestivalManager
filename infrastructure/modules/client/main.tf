@@ -1,4 +1,4 @@
-﻿terraform {
+terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
@@ -80,6 +80,7 @@ resource "azurerm_linux_web_app" "api" {
   }
 
   app_settings = {
+    "WEBSITE_RUN_FROM_PACKAGE"    = "1"
     "ASPNETCORE_ENVIRONMENT"      = "Production"
     "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.db.name};Persist Security Info=False;User ID=${var.sql_admin_username};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
     "Jwt__Issuer"                 = "AlakaiFestivalManager"
@@ -139,8 +140,10 @@ resource "azurerm_linux_web_app" "admin" {
   }
 
   app_settings = {
-    "ASPNETCORE_ENVIRONMENT"  = "Production"
-    "ApiSettings__BaseUrl"    = "https://app-${local.prefix}-api.azurewebsites.net/"
-    "ExternalAuth__GoogleClientId" = var.google_client_id
+    "WEBSITE_RUN_FROM_PACKAGE"       = "1"
+    "ASPNETCORE_ENVIRONMENT"         = "Production"
+    "ApiSettings__BaseUrl"           = "https://app-${local.prefix}-api.azurewebsites.net/"
+    "ExternalAuth__GoogleClientId"   = var.google_client_id
+    "DataProtection__KeyRingPath"    = "/home/DataProtection-Keys"
   }
 }
