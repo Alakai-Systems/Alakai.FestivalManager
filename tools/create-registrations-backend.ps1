@@ -1,27 +1,26 @@
-# Fix-TerraformModule-RunFromPackage.ps1
+# Fix-IdentityCoreVersionMismatch.ps1
 #
-# Anade dos ajustes al modulo reutilizable de Terraform (infrastructure/modules/client/main.tf)
-# para que cualquier cliente nuevo (empezando por La Jam) nazca sin los problemas
-# que hemos arreglado hoy a mano en Swim Out:
+# CAUSA RAIZ REAL del MissingMethodException de todo el dia:
+#   Method not found: Boolean Microsoft.AspNetCore.Cryptography.CryptoUtil.TimeConstantBuffersAreEqual(...)
 #
-#   1. WEBSITE_RUN_FROM_PACKAGE = 1 (en API y Admin)
-#      Evita deploys "sucios" donde Kudu fusiona el zip nuevo con archivos viejos
-#      en vez de sustituir todo atomicamente. Causa raiz del MissingMethodException
-#      de hoy (DLLs fosiles de un paquete NuGet ya eliminado del codigo).
+# Alakai.FestivalManager.Application referencia:
+#   Microsoft.Extensions.Identity.Core              Version="10.0.9"   <- linea de .NET 10
+#   Microsoft.Extensions.Options.ConfigurationExtensions Version="10.0.9"   <- linea de .NET 10
 #
-#   2. DataProtection__KeyRingPath = /home/DataProtection-Keys (en Admin)
-#      Persistencia de las claves de cifrado entre reinicios del contenedor Linux.
+# El proyecto compila para net9.0, y el framework compartido de la app (DataProtection,
+# incluido en Microsoft.AspNetCore.App para net9.0) espera trabajar con la linea 9.x de
+# Microsoft.AspNetCore.Cryptography.Internal. Pero Microsoft.Extensions.Identity.Core 10.0.9
+# arrastra Cryptography.Internal en su version 10.0.9 (linea .NET 10), que tiene cambios
+# internos incompatibles con lo que el DataProtection de net9.0 espera. De ahi el
+# MissingMethodException: dos "generaciones" de ASP.NET Core mezcladas en el mismo proceso.
 #
-# NOTA IMPORTANTE: este cambio en el modulo NO afecta a los recursos de Swim Out
-# ya existentes (esos se crearon manualmente desde el portal, no via este modulo,
-# y siguen pendientes de "terraform import"). Este fix aplica automaticamente la
-# proxima vez que se cree un cliente desde cero con `terraform apply` — es decir,
-# La Jam.
+# Fix: fijar ambos paquetes a la linea 9.x (9.0.9), coherente con el resto de la solucion
+# (net9.0, EF Core 9.0.16, etc.)
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$modulePath = "infrastructure/modules/client/main.tf"
+$applicationCsprojPath = "Alakai.FestivalManager.Application/Alakai.FestivalManager.Application.csproj"
 
 function Patch-File {
     param(
@@ -68,40 +67,28 @@ function Patch-File {
 
 $results = @()
 
-# --- Patch 1: API app_settings ---
-$results += Patch-File -Path $modulePath -Description "Anadir WEBSITE_RUN_FROM_PACKAGE al API" -OldString @'
-  app_settings = {
-    "ASPNETCORE_ENVIRONMENT"      = "Production"
-    "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.db.name};Persist Security Info=False;User ID=${var.sql_admin_username};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+$results += Patch-File -Path $applicationCsprojPath -Description "Bajar Microsoft.Extensions.Identity.Core de 10.0.9 a 9.0.9" -OldString @'
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="10.0.9" />
 '@ -NewString @'
-  app_settings = {
-    "WEBSITE_RUN_FROM_PACKAGE"    = "1"
-    "ASPNETCORE_ENVIRONMENT"      = "Production"
-    "ConnectionStrings__DefaultConnection" = "Server=tcp:${azurerm_mssql_server.sql.fully_qualified_domain_name},1433;Initial Catalog=${azurerm_mssql_database.db.name};Persist Security Info=False;User ID=${var.sql_admin_username};Password=${var.sql_admin_password};MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+    <PackageReference Include="Microsoft.Extensions.Identity.Core" Version="9.0.9" />
 '@
 
-# --- Patch 2: Admin app_settings ---
-$results += Patch-File -Path $modulePath -Description "Anadir WEBSITE_RUN_FROM_PACKAGE y DataProtection__KeyRingPath al Admin" -OldString @'
-  app_settings = {
-    "ASPNETCORE_ENVIRONMENT"  = "Production"
-    "ApiSettings__BaseUrl"    = "https://app-${local.prefix}-api.azurewebsites.net/"
-    "ExternalAuth__GoogleClientId" = var.google_client_id
-  }
+$results += Patch-File -Path $applicationCsprojPath -Description "Bajar Microsoft.Extensions.Options.ConfigurationExtensions de 10.0.9 a 9.0.9" -OldString @'
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
 '@ -NewString @'
-  app_settings = {
-    "WEBSITE_RUN_FROM_PACKAGE"       = "1"
-    "ASPNETCORE_ENVIRONMENT"         = "Production"
-    "ApiSettings__BaseUrl"           = "https://app-${local.prefix}-api.azurewebsites.net/"
-    "ExternalAuth__GoogleClientId"   = var.google_client_id
-    "DataProtection__KeyRingPath"    = "/home/DataProtection-Keys"
-  }
+    <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="9.0.9" />
 '@
 
 if ($results -contains $false) {
-    Write-Host "`nAlgun patch no se pudo aplicar. Pega el contenido actual de main.tf para ajustar el anchor." -ForegroundColor Red
+    Write-Host "`nAlgun patch no se pudo aplicar. Pega el contenido actual del csproj para ajustar el anchor." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nModulo Terraform actualizado." -ForegroundColor Green
-Write-Host "Cuando lances 'terraform apply' para La Jam, nacera ya con WEBSITE_RUN_FROM_PACKAGE y DataProtection__KeyRingPath configurados." -ForegroundColor Cyan
-Write-Host "Para Swim Out, este cambio quedara reflejado en el state cuando hagas el 'terraform import' pendiente de los recursos existentes." -ForegroundColor Yellow
+Write-Host "`nPatch aplicado. Proximos pasos OBLIGATORIOS:" -ForegroundColor Green
+Write-Host "  1. dotnet clean (en toda la solucion)" -ForegroundColor Yellow
+Write-Host "  2. Borrar manualmente las carpetas obj/ y bin/ de los 6 proyectos" -ForegroundColor Yellow
+Write-Host "  3. dotnet restore" -ForegroundColor Yellow
+Write-Host "  4. dotnet build" -ForegroundColor Yellow
+Write-Host "  5. Verificar en obj/Alakai.FestivalManager.Application/project.assets.json que" -ForegroundColor Yellow
+Write-Host "     Microsoft.AspNetCore.Cryptography.Internal resuelve ahora a la linea 9.x, no 10.x" -ForegroundColor Yellow
+Write-Host "  6. Commit + push + esperar el deploy" -ForegroundColor Yellow
