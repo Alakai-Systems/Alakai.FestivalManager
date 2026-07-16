@@ -18,6 +18,9 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<GetFestivalsHandler>();
         services.AddScoped<UpdateFestivalHandler>();
         services.AddScoped<DeleteFestivalHandler>();
+        services.AddScoped<UpsertFestivalCredentialsHandler>();
+        services.AddScoped<GetFestivalCredentialsByFestivalIdHandler>();
+        services.AddScoped<IFestivalCredentialsService, FestivalCredentialsService>();
 
         //Editions
         services.AddScoped<CreateEditionHandler>();

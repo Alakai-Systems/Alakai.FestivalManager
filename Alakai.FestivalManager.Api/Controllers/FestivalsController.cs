@@ -1,16 +1,37 @@
-﻿namespace Alakai.FestivalManager.Api.Controllers;
+namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/festivals")]
 public class FestivalsController : ControllerBase
 {
     private readonly IFestivalService _festivalService;
+    private readonly IFestivalCredentialsService _festivalCredentialsService;
     private readonly IMapper _mapper;
 
-    public FestivalsController(IFestivalService festivalService, IMapper mapper)
+    public FestivalsController(IFestivalService festivalService, IFestivalCredentialsService festivalCredentialsService, IMapper mapper)
     {
         _festivalService = festivalService;
+        _festivalCredentialsService = festivalCredentialsService;
         _mapper = mapper;
+    }
+
+    [HttpGet("{festivalId:guid}/credentials")]
+    public async Task<IActionResult> GetCredentials(Guid festivalId, CancellationToken cancellationToken)
+    {
+        ApiResponse<GetFestivalCredentialsResponse> response = await _festivalCredentialsService.GetByFestivalIdAsync(festivalId, cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpPut("{festivalId:guid}/credentials")]
+    public async Task<IActionResult> UpsertCredentials(Guid festivalId, [FromBody] UpsertFestivalCredentialsRequest request, CancellationToken cancellationToken)
+    {
+        UpsertFestivalCredentialsCommand command = _mapper.Map<UpsertFestivalCredentialsCommand>(request);
+        command.FestivalId = festivalId;
+
+        ApiResponse<UpsertFestivalCredentialsResponse> response = await _festivalCredentialsService.UpsertAsync(command, cancellationToken);
+
+        return Ok(response);
     }
 
     [HttpPost]

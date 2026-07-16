@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Domain.Enums;
+using Alakai.FestivalManager.Domain.Enums;
 
 namespace Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
 
@@ -11,6 +11,8 @@ public class FestivalDto
     public string? Website { get; set; }
     public string? LogoUrl { get; set; }
     public string? TermsUrl { get; set; }
+    public string? GoogleAnalyticsPropertyId { get; set; }
+    public string? FaviconUrl { get; set; }
     public bool IsActive { get; set; }
     public FestivalModule EnabledModules { get; set; }
 }

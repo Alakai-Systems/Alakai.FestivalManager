@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Application.Features.Payments.Services;
 
@@ -37,6 +37,13 @@ public class PaymentService : IPaymentService
             return new ApiResponse<RedsysPaymentFormDto> { Success = false, Data = null, Errors = ["There is no pending amount to pay."], Message = "Payment session failed" };
         }
 
+        FestivalCredentials? credentials = registration.Edition?.Festival?.Credentials;
+
+        if (credentials is null)
+        {
+            return new ApiResponse<RedsysPaymentFormDto> { Success = false, Data = null, Errors = ["Payment configuration missing for this festival."], Message = "Payment session failed" };
+        }
+
         string order = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() + Random.Shared.Next(10, 100).ToString();
         long amountInCents = command.AmountOverride.HasValue
             ? (long)Math.Round(command.AmountOverride.Value * 100m, MidpointRounding.AwayFromZero)
@@ -49,7 +56,7 @@ public class PaymentService : IPaymentService
         _registrationRepository.Update(registration);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
 
-        RedsysPaymentFormDto form = _redsysGateway.BuildPaymentForm(order, amountInCents, "Festival registration", command.UrlOk, command.UrlKo);
+        RedsysPaymentFormDto form = _redsysGateway.BuildPaymentForm(credentials, order, amountInCents, "Festival registration", command.UrlOk, command.UrlKo);
 
         _logger.LogInformation("Redsys payment session created. Order {Order}, registration {RegistrationId}, amount {Amount} cents.", order, registration.Id, amountInCents);
 
@@ -143,20 +150,38 @@ public class PaymentService : IPaymentService
 
     public async Task<bool> ProcessRedsysNotificationAsync(string merchantParameters, string signature, CancellationToken cancellationToken = default)
     {
-        RedsysNotificationDto? notification = _redsysGateway.ValidateNotification(merchantParameters, signature);
+        string? order = _redsysGateway.DecodeOrder(merchantParameters);
 
-        if (notification is null)
+        if (order is null)
         {
-            _logger.LogWarning("Redsys notification rejected: invalid signature or payload.");
+            _logger.LogWarning("Redsys notification rejected: could not decode order.");
 
             return false;
         }
 
-        Registration? registration = await _registrationRepository.GetByPaymentReferenceAsync(notification.Order, cancellationToken);
+        Registration? registration = await _registrationRepository.GetByPaymentReferenceAsync(order, cancellationToken);
 
         if (registration is null)
         {
-            _logger.LogWarning("Redsys notification for unknown order {Order}.", notification.Order);
+            _logger.LogWarning("Redsys notification for unknown order {Order}.", order);
+
+            return false;
+        }
+
+        FestivalCredentials? credentials = registration.Edition?.Festival?.Credentials;
+
+        if (credentials is null)
+        {
+            _logger.LogWarning("Redsys notification for order {Order} has no festival credentials configured.", order);
+
+            return false;
+        }
+
+        RedsysNotificationDto? notification = _redsysGateway.VerifySignature(credentials, order, merchantParameters, signature);
+
+        if (notification is null)
+        {
+            _logger.LogWarning("Redsys notification rejected: invalid signature or payload.");
 
             return false;
         }

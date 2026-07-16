@@ -1,4 +1,4 @@
-﻿
+
 using System.Text.Json;
 
 
@@ -44,6 +44,24 @@ public class FestivalApiClient
     {
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/festivals/{id}", cancellationToken);
         ApiResponse<DeleteFestivalResponse>? response = await ReadResponseAsync<DeleteFestivalResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+    }
+
+    public async Task<FestivalCredentialsDto?> GetCredentialsAsync(Guid festivalId, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.GetAsync($"api/festivals/{festivalId}/credentials", cancellationToken);
+        ApiResponse<GetFestivalCredentialsResponse>? response = await ReadResponseAsync<GetFestivalCredentialsResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+
+        return response!.Data?.Credentials;
+    }
+
+    public async Task UpsertCredentialsAsync(Guid festivalId, UpsertFestivalCredentialsRequest request, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/festivals/{festivalId}/credentials", request, cancellationToken);
+        ApiResponse<UpsertFestivalCredentialsResponse>? response = await ReadResponseAsync<UpsertFestivalCredentialsResponse>(httpResponse, cancellationToken);
 
         EnsureSuccess(httpResponse, response);
     }

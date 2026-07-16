@@ -1,11 +1,11 @@
-﻿module "swimout" {
+module "swimout" {
   source = "../../modules/client"
 
   client_name     = "swimout"
-  location        = "UK South"
+  location        = "West US 2"
   subscription_id = var.subscription_id
 
-  app_service_sku = "P0v3"
+  app_service_sku = "B1"
   sql_sku         = "Basic"
 
   sql_admin_username   = var.sql_admin_username

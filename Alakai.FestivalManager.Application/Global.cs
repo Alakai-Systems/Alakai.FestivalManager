@@ -1,4 +1,4 @@
-﻿global using Alakai.FestivalManager.Application.Common.Exceptions;
+global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Contracts.Repositories;
 global using Alakai.FestivalManager.Application.Features.Accommodations.Commands;
@@ -109,10 +109,12 @@ global using Alakai.FestivalManager.Application.Features.EmailTemplates.Services
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.CreateFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.DeleteFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.UpdateFestival;
+global using Alakai.FestivalManager.Application.Features.Festivals.Commands.UpsertFestivalCredentials;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Festivals.Queries.GetFestivalById;
+global using Alakai.FestivalManager.Application.Features.Festivals.Queries.GetFestivalCredentialsByFestivalId;
 global using Alakai.FestivalManager.Application.Features.Festivals.Queries.GetFestivals;
 global using Alakai.FestivalManager.Application.Features.Festivals.Services;
 global using Alakai.FestivalManager.Application.Features.Invoices.Commands.CreateInvoice;

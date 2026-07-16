@@ -1,4 +1,4 @@
-﻿variable "client_name" {
+variable "client_name" {
   description = "Short client identifier, used in resource names (e.g. 'swimout', 'lajam')"
   type        = string
 }
@@ -106,4 +106,16 @@ variable "google_analytics_credentials_json" {
 variable "tenant_id" {
   description = "Azure tenant ID"
   type        = string
+}
+
+variable "api_hostname_override" {
+  description = "Hostname real de la API si ya existe (ej. con sufijo aleatorio de Azure). Vacio = usar el nombre predecible sin sufijo."
+  type        = string
+  default     = ""
+}
+
+variable "admin_hostname_override" {
+  description = "Hostname real del Admin si ya existe (ej. con sufijo aleatorio de Azure). Vacio = usar el nombre predecible sin sufijo."
+  type        = string
+  default     = ""
 }

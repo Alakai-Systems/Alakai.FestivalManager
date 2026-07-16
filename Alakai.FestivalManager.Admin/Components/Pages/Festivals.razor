@@ -1,4 +1,4 @@
-﻿@page "/festivals"
+@page "/festivals"
 @using Alakai.FestivalManager.Admin.Contracts.Festivals
 @using Alakai.FestivalManager.Admin.Contracts.Festivals.Requests
 @inject FestivalApiClient FestivalApiClient
@@ -118,6 +118,9 @@
                                         </td>
                                         <td class="px-4 py-3">
                                             <div class="flex items-center justify-end gap-3">
+                                                <button type="button" class="text-purple" title="Payment Settings" @onclick="() => OpenCredentialsModal(festival)">
+                                                    <i class="ri-bank-card-line text-lg"></i>
+                                                </button>
                                                 <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(festival)">
                                                     <i class="ri-pencil-line text-lg"></i>
                                                 </button>
@@ -171,7 +174,28 @@
                     <input class="form-input" placeholder="Slug" @bind="createRequest.Slug" />
                     <input class="form-input" placeholder="Website" @bind="createRequest.Website" />
                     <input class="form-input" placeholder="Logo URL" @bind="createRequest.LogoUrl" />
+                    <input class="form-input" placeholder="Favicon URL" @bind="createRequest.FaviconUrl" />
+                    <input class="form-input" placeholder="Terms & Conditions URL" @bind="createRequest.TermsUrl" />
+                    <input class="form-input" placeholder="Google Analytics Property ID" @bind="createRequest.GoogleAnalyticsPropertyId" />
                     <textarea class="form-input" placeholder="Description" rows="3" @bind="createRequest.Description"></textarea>
+
+                    <div>
+                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateHasAccommodation" />
+                                Accommodation
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateHasTransport" />
+                                Transport
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateHasMeals" />
+                                Meals
+                            </label>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -214,6 +238,15 @@
 
                     <label class="block text-sm text-black/60 dark:text-white/60">Logo URL</label>
                     <input class="form-input" placeholder="Logo URL" @bind="updateRequest.LogoUrl" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Favicon URL</label>
+                    <input class="form-input" placeholder="Favicon URL" @bind="updateRequest.FaviconUrl" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Terms & Conditions URL</label>
+                    <input class="form-input" placeholder="Terms & Conditions URL" @bind="updateRequest.TermsUrl" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Google Analytics Property ID</label>
+                    <input class="form-input" placeholder="Google Analytics Property ID" @bind="updateRequest.GoogleAnalyticsPropertyId" />
 
                     <label class="block text-sm text-black/60 dark:text-white/60">Description</label>
                     <textarea class="form-input" placeholder="Description" rows="3" @bind="updateRequest.Description"></textarea>
@@ -278,6 +311,82 @@
     </div>
 }
 
+@if (showCredentialsModal && selectedFestivalForCredentials is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Payment Settings — @selectedFestivalForCredentials.Name</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
+                        <i class="ri-close-line text-2xl"></i>
+                    </button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                    {
+                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                    }
+
+                    @if (isLoadingCredentials)
+                    {
+                        <p class="text-sm text-black/50 dark:text-white/60">Loading payment settings...</p>
+                    }
+                    else
+                    {
+                        <p class="text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Redsys</p>
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
+                        <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
+                        <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
+                        <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
+                        <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
+
+                        <p class="pt-2 text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Email (SMTP)</p>
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Host</label>
+                        <input class="form-input" placeholder="smtp.example.com" @bind="credentialsRequest.EmailHost" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Port</label>
+                        <input type="number" class="form-input" placeholder="587" @bind="credentialsRequest.EmailPort" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Username</label>
+                        <input class="form-input" placeholder="Username" @bind="credentialsRequest.EmailUsername" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">Password</label>
+                        <input type="password" class="form-input" placeholder="@(hasEmailPassword ? "Already configured - leave blank to keep" : "Password")" @bind="credentialsRequest.EmailPassword" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">From Email</label>
+                        <input class="form-input" placeholder="info@example.com" @bind="credentialsRequest.EmailFromEmail" />
+
+                        <label class="block text-sm text-black/60 dark:text-white/60">From Name</label>
+                        <input class="form-input" placeholder="Festival Name" @bind="credentialsRequest.EmailFromName" />
+
+                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                            <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
+                            Use SSL/TLS
+                        </label>
+                    }
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@(isSaving || isLoadingCredentials)" @onclick="SaveCredentialsAsync">
+                        @(isSaving ? "Saving..." : "Save")
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @code {
     private bool UpdateHasCompetitions
     {
@@ -302,6 +411,24 @@
         get => (updateRequest.EnabledModules & (int)FestivalModule.Meals) != 0;
         set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | (int)FestivalModule.Meals : updateRequest.EnabledModules & ~(int)FestivalModule.Meals;
     }
+
+    private bool CreateHasAccommodation
+    {
+        get => (createRequest.EnabledModules & (int)FestivalModule.Accommodation) != 0;
+        set => createRequest.EnabledModules = value ? createRequest.EnabledModules | (int)FestivalModule.Accommodation : createRequest.EnabledModules & ~(int)FestivalModule.Accommodation;
+    }
+
+    private bool CreateHasTransport
+    {
+        get => (createRequest.EnabledModules & (int)FestivalModule.Transport) != 0;
+        set => createRequest.EnabledModules = value ? createRequest.EnabledModules | (int)FestivalModule.Transport : createRequest.EnabledModules & ~(int)FestivalModule.Transport;
+    }
+
+    private bool CreateHasMeals
+    {
+        get => (createRequest.EnabledModules & (int)FestivalModule.Meals) != 0;
+        set => createRequest.EnabledModules = value ? createRequest.EnabledModules | (int)FestivalModule.Meals : createRequest.EnabledModules & ~(int)FestivalModule.Meals;
+    }
     private IReadOnlyList<FestivalDto> allFestivals = [];
     private FestivalDto? selectedFestival;
     private CreateFestivalRequest createRequest = new();
@@ -317,6 +444,12 @@
     private bool showCreateModal;
     private bool showEditModal;
     private bool showDeleteModal;
+    private bool showCredentialsModal;
+    private bool isLoadingCredentials;
+    private bool hasRedsysSecretKey;
+    private bool hasEmailPassword;
+    private FestivalDto? selectedFestivalForCredentials;
+    private UpsertFestivalCredentialsRequest credentialsRequest = new();
 
     private string? successMessage;
     private string? errorMessage;
@@ -483,6 +616,9 @@
             Description = festival.Description,
             Website = festival.Website,
             LogoUrl = festival.LogoUrl,
+            TermsUrl = festival.TermsUrl,
+            GoogleAnalyticsPropertyId = festival.GoogleAnalyticsPropertyId,
+            FaviconUrl = festival.FaviconUrl,
             IsActive = festival.IsActive,
             EnabledModules = festival.EnabledModules
         };
@@ -501,8 +637,86 @@
         showCreateModal = false;
         showEditModal = false;
         showDeleteModal = false;
+        showCredentialsModal = false;
         selectedFestival = null;
+        selectedFestivalForCredentials = null;
         modalErrorMessage = null;
+    }
+
+    private async Task OpenCredentialsModal(FestivalDto festival)
+    {
+        selectedFestivalForCredentials = festival;
+        modalErrorMessage = null;
+        showCredentialsModal = true;
+        isLoadingCredentials = true;
+        credentialsRequest = new UpsertFestivalCredentialsRequest();
+        hasRedsysSecretKey = false;
+        hasEmailPassword = false;
+
+        try
+        {
+            FestivalCredentialsDto? existing = await FestivalApiClient.GetCredentialsAsync(festival.Id);
+
+            if (existing is not null)
+            {
+                credentialsRequest.RedsysMerchantCode = existing.RedsysMerchantCode;
+                credentialsRequest.RedsysTerminal = existing.RedsysTerminal;
+                credentialsRequest.RedsysMerchantName = existing.RedsysMerchantName;
+                credentialsRequest.EmailHost = existing.EmailHost;
+                credentialsRequest.EmailPort = existing.EmailPort;
+                credentialsRequest.EmailUsername = existing.EmailUsername;
+                credentialsRequest.EmailFromEmail = existing.EmailFromEmail;
+                credentialsRequest.EmailFromName = existing.EmailFromName;
+                credentialsRequest.EmailUseSSL = existing.EmailUseSSL;
+                hasRedsysSecretKey = existing.HasRedsysSecretKey;
+                hasEmailPassword = existing.HasEmailPassword;
+            }
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isLoadingCredentials = false;
+        }
+    }
+
+    private async Task SaveCredentialsAsync()
+    {
+        if (isSaving || selectedFestivalForCredentials is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            await FestivalApiClient.UpsertCredentialsAsync(selectedFestivalForCredentials.Id, credentialsRequest);
+
+            CloseModals();
+            successMessage = "Payment settings saved successfully.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
     }
 
     private async Task CreateFestivalAsync()

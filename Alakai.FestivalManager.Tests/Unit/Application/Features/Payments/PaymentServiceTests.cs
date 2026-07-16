@@ -66,13 +66,26 @@ public class PaymentServiceTests
         Registration registration = Builders.BuildRegistration(
             paymentStatus: PaymentStatus.Unpaid,
             finalPrice: 450m);
+        registration.Edition = new Edition
+        {
+            Festival = new Festival
+            {
+                Credentials = new FestivalCredentials
+                {
+                    RedsysMerchantCode = "999008881",
+                    RedsysTerminal = "1",
+                    RedsysSecretKey = Convert.ToBase64String(new byte[16]),
+                    RedsysMerchantName = "Test Festival"
+                }
+            }
+        };
         CreatePaymentSessionCommand command = new() { RegistrationId = registration.Id };
         RedsysPaymentFormDto expectedForm = new() { Url = "https://redsys.es/tpv", Order = "ORDER123" };
 
         _registrationRepo.Setup(r => r.GetByIdAsync(registration.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(registration);
         _redsysGateway.Setup(g => g.BuildPaymentForm(
-                It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>(),
+                It.IsAny<FestivalCredentials>(), It.IsAny<string>(), It.IsAny<long>(), It.IsAny<string>(),
                 It.IsAny<string?>(), It.IsAny<string?>()))
             .Returns(expectedForm);
 

@@ -19,7 +19,7 @@ public class RegistrationRepository : IRegistrationRepository
         return await _context.Registrations
             .Include(r => r.PassType)
             .Include(r => r.Level)
-            .Include(r => r.Edition)
+            .Include(r => r.Edition).ThenInclude(e => e.Festival).ThenInclude(f => f.Credentials)
             .Include(r => r.PartnerRegistration).ThenInclude(r => r.User)
             .FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
@@ -121,12 +121,14 @@ public class RegistrationRepository : IRegistrationRepository
     public async Task<Registration?> GetByOrderAsync(string order, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
+            .Include(r => r.Edition).ThenInclude(e => e.Festival).ThenInclude(f => f.Credentials)
             .FirstOrDefaultAsync(r => r.PaymentReference == order, cancellationToken);
     }
 
     public async Task<Registration?> GetByPaymentReferenceAsync(string paymentReference, CancellationToken cancellationToken = default)
     {
         return await _context.Registrations
+            .Include(r => r.Edition).ThenInclude(e => e.Festival).ThenInclude(f => f.Credentials)
             .FirstOrDefaultAsync(r => r.PaymentReference == paymentReference, cancellationToken);
     }
 

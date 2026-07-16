@@ -1,19 +1,12 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Email;
+namespace Alakai.FestivalManager.Infrastructure.Email;
 
 public class MailKitEmailSender : IEmailSender
 {
-    private readonly EmailOptions _options;
-
-    public MailKitEmailSender(IOptions<EmailOptions> options)
-    {
-        _options = options.Value;
-    }
-
-    public async Task SendAsync(EmailMessage message, CancellationToken cancellationToken = default)
+    public async Task SendAsync(EmailMessage message, EmailSenderSettings senderSettings, CancellationToken cancellationToken = default)
     {
         MimeMessage mimeMessage = new();
 
-        mimeMessage.From.Add(new MailboxAddress(_options.FromName, _options.FromEmail));
+        mimeMessage.From.Add(new MailboxAddress(senderSettings.FromName, senderSettings.FromEmail));
 
         mimeMessage.To.Add(new MailboxAddress(message.To.Name, message.To.Address));
 
@@ -48,21 +41,21 @@ public class MailKitEmailSender : IEmailSender
         using SmtpClient smtpClient = new();
 
         SecureSocketOptions socketOptions =
-            _options.UseSSL
+            senderSettings.UseSSL
                 ? SecureSocketOptions.StartTls
                 : SecureSocketOptions.None;
 
         await smtpClient.ConnectAsync(
-            _options.Host,
-            _options.Port,
+            senderSettings.Host,
+            senderSettings.Port,
             socketOptions,
             cancellationToken);
 
-        if (!string.IsNullOrWhiteSpace(_options.UserName))
+        if (!string.IsNullOrWhiteSpace(senderSettings.UserName))
         {
             await smtpClient.AuthenticateAsync(
-                _options.UserName,
-                _options.Password,
+                senderSettings.UserName,
+                senderSettings.Password,
                 cancellationToken);
         }
 

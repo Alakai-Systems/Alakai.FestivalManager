@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Infrastructure.Email;
+using Alakai.FestivalManager.Infrastructure.Email;
 
 namespace Alakai.FestivalManager.Application.Features.Emails.Services;
 
@@ -16,12 +16,14 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IMealPreferenceRepository _mealPreferenceRepository;
     private readonly IAccommodationBuildingRepository _accommodationBuildingRepository;
     private readonly IMapper _mapper;
+    private readonly SystemEmailOptions _systemEmailOptions;
 
     public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
         IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
         IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
         IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
-        IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository)
+        IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository,
+        IOptions<SystemEmailOptions> systemEmailOptions)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -35,6 +37,7 @@ public class EmailNotificationService : IEmailNotificationService
         _busReservationRepository = busReservationRepository;
         _mealPreferenceRepository = mealPreferenceRepository;
         _accommodationBuildingRepository = accommodationBuildingRepository;
+        _systemEmailOptions = systemEmailOptions.Value;
     }
 
     private const int EmailShellWidth = 640;
@@ -241,6 +244,30 @@ public class EmailNotificationService : IEmailNotificationService
             return null;
         }
 
+        Registration? registration = await _registrationRepository.GetByIdAsync(registrationId, cancellationToken);
+        FestivalCredentials? credentials = registration?.Edition?.Festival?.Credentials;
+
+        if (credentials is null)
+        {
+            emailLog.Status = EmailLogStatus.Failed;
+            emailLog.ErrorMessage = "Email configuration missing for this festival.";
+            _emailLogRepository.Update(emailLog);
+            await _emailLogRepository.SaveChangesAsync(cancellationToken);
+
+            return _mapper.Map<EmailLogDto>(emailLog);
+        }
+
+        EmailSenderSettings senderSettings = new()
+        {
+            Host = credentials.EmailHost,
+            Port = credentials.EmailPort,
+            UserName = credentials.EmailUsername,
+            Password = credentials.EmailPassword,
+            UseSSL = credentials.EmailUseSSL,
+            FromEmail = credentials.EmailFromEmail,
+            FromName = credentials.EmailFromName
+        };
+
         try
         {
             EmailMessage message = new()
@@ -255,7 +282,7 @@ public class EmailNotificationService : IEmailNotificationService
                 TextBody = emailLog.BodyText ?? string.Empty
             };
 
-            await _emailSender.SendAsync(message, cancellationToken);
+            await _emailSender.SendAsync(message, senderSettings, cancellationToken);
 
             emailLog.Status = EmailLogStatus.Sent;
             emailLog.SentAt = DateTime.UtcNow;
@@ -321,10 +348,21 @@ public class EmailNotificationService : IEmailNotificationService
         await _emailLogRepository.AddAsync(emailLog, cancellationToken);
         await _emailLogRepository.SaveChangesAsync(cancellationToken);
 
-        return await SendExistingEmailLogAsync(emailLog.Id, cancellationToken);
+        EmailSenderSettings systemSenderSettings = new()
+        {
+            Host = _systemEmailOptions.Host,
+            Port = _systemEmailOptions.Port,
+            UserName = _systemEmailOptions.UserName,
+            Password = _systemEmailOptions.Password,
+            UseSSL = _systemEmailOptions.UseSSL,
+            FromEmail = _systemEmailOptions.FromEmail,
+            FromName = _systemEmailOptions.FromName
+        };
+
+        return await SendExistingEmailLogAsync(emailLog.Id, systemSenderSettings, cancellationToken);
     }
 
-    private async Task<EmailLogDto?> SendExistingEmailLogAsync(Guid emailLogId, CancellationToken cancellationToken = default)
+    private async Task<EmailLogDto?> SendExistingEmailLogAsync(Guid emailLogId, EmailSenderSettings senderSettings, CancellationToken cancellationToken = default)
     {
         EmailLog? emailLog = await _emailLogRepository.GetByIdAsync(emailLogId, cancellationToken);
 
@@ -347,7 +385,7 @@ public class EmailNotificationService : IEmailNotificationService
                 TextBody = emailLog.BodyText ?? string.Empty
             };
 
-            await _emailSender.SendAsync(message, cancellationToken);
+            await _emailSender.SendAsync(message, senderSettings, cancellationToken);
 
             emailLog.Status = EmailLogStatus.Sent;
             emailLog.SentAt = DateTime.UtcNow;

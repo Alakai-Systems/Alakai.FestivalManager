@@ -17,6 +17,7 @@ public static class InfrastructureDependencyInjectionExtension
                 }));
 
         services.AddScoped<IFestivalRepository, FestivalRepository>();
+        services.AddScoped<IFestivalCredentialsRepository, FestivalCredentialsRepository>();
         services.AddScoped<IEditionRepository, EditionRepository>();
         services.AddScoped<IPassTypeRepository, PassTypeRepository>();
         services.AddScoped<ILevelRepository, LevelRepository>();
@@ -52,7 +53,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddSingleton<IExternalAuthService, ExternalAuthService>();
         services.Configure<RedsysOptions>(configuration.GetSection("Redsys"));
         services.AddSingleton<IRedsysGateway, RedsysGateway>();
-        services.Configure<EmailOptions>(configuration.GetSection("Email"));
+        services.Configure<Alakai.FestivalManager.Infrastructure.Email.SystemEmailOptions>(configuration.GetSection("Email"));
         services.AddScoped<IEmailSender, MailKitEmailSender>();
 
         return services;

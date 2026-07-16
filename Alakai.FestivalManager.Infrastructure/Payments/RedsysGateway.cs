@@ -18,27 +18,27 @@ public class RedsysGateway : IRedsysGateway
         _logger = logger;
     }
 
-    public RedsysPaymentFormDto BuildPaymentForm(string order, long amountInCents, string productDescription, string? urlOk = null, string? urlKo = null)
+    public RedsysPaymentFormDto BuildPaymentForm(FestivalCredentials credentials, string order, long amountInCents, string productDescription, string? urlOk = null, string? urlKo = null)
     {
         Dictionary<string, string> parameters = new()
         {
             ["DS_MERCHANT_AMOUNT"] = amountInCents.ToString(),
             ["DS_MERCHANT_ORDER"] = order,
-            ["DS_MERCHANT_MERCHANTCODE"] = _options.MerchantCode,
+            ["DS_MERCHANT_MERCHANTCODE"] = credentials.RedsysMerchantCode,
             ["DS_MERCHANT_CURRENCY"] = _options.Currency,
             ["DS_MERCHANT_TRANSACTIONTYPE"] = "0",
-            ["DS_MERCHANT_TERMINAL"] = _options.Terminal,
+            ["DS_MERCHANT_TERMINAL"] = credentials.RedsysTerminal,
             ["DS_MERCHANT_MERCHANTURL"] = _options.NotificationUrl,
             ["DS_MERCHANT_URLOK"] = urlOk ?? _options.UrlOk,
             ["DS_MERCHANT_URLKO"] = urlKo ?? _options.UrlKo,
             ["DS_MERCHANT_PRODUCTDESCRIPTION"] = productDescription,
-            ["DS_MERCHANT_MERCHANTNAME"] = _options.MerchantName,
+            ["DS_MERCHANT_MERCHANTNAME"] = credentials.RedsysMerchantName,
             ["DS_MERCHANT_CONSUMERLANGUAGE"] = "0"
         };
 
         string json = JsonSerializer.Serialize(parameters);
         string merchantParameters = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
-        string signature = Sign(order, merchantParameters);
+        string signature = Sign(order, merchantParameters, credentials.RedsysSecretKey);
 
         return new RedsysPaymentFormDto
         {
@@ -50,7 +50,26 @@ public class RedsysGateway : IRedsysGateway
         };
     }
 
-    public RedsysNotificationDto? ValidateNotification(string merchantParameters, string signature)
+    public string? DecodeOrder(string merchantParameters)
+    {
+        try
+        {
+            string json = Encoding.UTF8.GetString(FromBase64UrlSafe(merchantParameters));
+            using JsonDocument document = JsonDocument.Parse(json);
+
+            string order = GetString(document.RootElement, "Ds_Order");
+
+            return string.IsNullOrWhiteSpace(order) ? null : order;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Redsys order could not be decoded.");
+
+            return null;
+        }
+    }
+
+    public RedsysNotificationDto? VerifySignature(FestivalCredentials credentials, string order, string merchantParameters, string signature)
     {
         if (string.IsNullOrWhiteSpace(merchantParameters) || string.IsNullOrWhiteSpace(signature))
         {
@@ -63,15 +82,8 @@ public class RedsysGateway : IRedsysGateway
             using JsonDocument document = JsonDocument.Parse(json);
             JsonElement root = document.RootElement;
 
-            string order = GetString(root, "Ds_Order");
-
-            if (string.IsNullOrWhiteSpace(order))
-            {
-                return null;
-            }
-
             // Redsys signs the Ds_MerchantParameters value exactly as it was sent.
-            string expected = Sign(order, merchantParameters);
+            string expected = Sign(order, merchantParameters, credentials.RedsysSecretKey);
             byte[] expectedBytes = FromBase64UrlSafe(expected);
             byte[] receivedBytes = FromBase64UrlSafe(signature);
 
@@ -92,15 +104,15 @@ public class RedsysGateway : IRedsysGateway
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Redsys notification could not be parsed.");
+            _logger.LogWarning(ex, "Redsys notification could not be verified.");
 
             return null;
         }
     }
 
-    private string Sign(string order, string payload)
+    private static string Sign(string order, string payload, string secretKeyBase64)
     {
-        byte[] secretKey = Convert.FromBase64String(_options.SecretKey);
+        byte[] secretKey = Convert.FromBase64String(secretKeyBase64);
 
         using TripleDES tripleDes = TripleDES.Create();
         tripleDes.Mode = CipherMode.CBC;

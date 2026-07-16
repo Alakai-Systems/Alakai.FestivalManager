@@ -53,6 +53,7 @@ global using Alakai.FestivalManager.Application.Features.EmailTemplates.Contract
 global using Alakai.FestivalManager.Application.Features.EmailTemplates.Services;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.CreateFestival;
 global using Alakai.FestivalManager.Application.Features.Festivals.Commands.UpdateFestival;
+global using Alakai.FestivalManager.Application.Features.Festivals.Commands.UpsertFestivalCredentials;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.Festivals.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.Festivals.Services;

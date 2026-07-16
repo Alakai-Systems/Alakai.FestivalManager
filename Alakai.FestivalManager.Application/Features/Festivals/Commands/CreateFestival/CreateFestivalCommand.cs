@@ -9,5 +9,8 @@ public class CreateFestivalCommand
     public string? Description { get; set; }
     public string? Website { get; set; }
     public string? LogoUrl { get; set; }
+    public string? TermsUrl { get; set; }
+    public string? GoogleAnalyticsPropertyId { get; set; }
+    public string? FaviconUrl { get; set; }
     public FestivalModule EnabledModules { get; set; } = FestivalModule.Competitions;
 }

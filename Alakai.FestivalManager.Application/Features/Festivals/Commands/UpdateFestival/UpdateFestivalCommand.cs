@@ -10,6 +10,8 @@ public class UpdateFestivalCommand
     public string? Description { get; set; }
     public string? Website { get; set; }
     public string? LogoUrl { get; set; }
+    public string? GoogleAnalyticsPropertyId { get; set; }
+    public string? FaviconUrl { get; set; }
     public bool IsActive { get; set; }
     public FestivalModule EnabledModules { get; set; }
 }
