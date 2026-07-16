@@ -188,11 +188,16 @@
                             <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsSystem" />System template</label>
                             <div>
                                 <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Language</label>
-                                <select class="form-select" @bind="formModel.Language">
+                                <select class="form-select" @bind="formModel.Language" disabled="@(editingTemplate is not null)">
                                     <option value="en">English</option>
                                     <option value="es">Español</option>
                                     <option value="fr">Français</option>
+                                    <option value="ca">Català</option>
                                 </select>
+                                @if (editingTemplate is not null)
+                                {
+                                    <p class="mt-1 text-xs text-black/40 dark:text-white/40">Use "New Template" to create a version in another language.</p>
+                                }
                             </div>
 
                             <label class="inline-flex items-center gap-2"><InputCheckbox @bind-Value="formModel.IsActive" />Active</label>
@@ -487,7 +492,8 @@
             BodyHtml = template.BodyHtml,
             BodyText = template.BodyText,
             IsSystem = template.IsSystem,
-            IsActive = template.IsActive
+            IsActive = template.IsActive,
+            Language = template.Language
         };
         showModal = true;
     }

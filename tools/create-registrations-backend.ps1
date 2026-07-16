@@ -1,14 +1,22 @@
-# Fix-Step10-DocumentFieldInRegisterForm.ps1
+# Fix-Step15-EmailTemplateLanguageEditBug.ps1
 #
-# El backend ya soportaba DocumentNumber/DocumentCountry de punta a punta
-# (Registration entity, CreateRegistrationCommand, y el CreateRegistrationRequest
-# del Admin) - solo faltaba mostrarlo en el formulario publico. Se anade justo
-# despues de City, con el mismo estilo que el resto de campos, y sus
-# traducciones en EN/ES/FR/CA.
+# BUG REAL: OpenEditModal nunca copiaba template.Language al formulario, asi
+# que el desplegable siempre mostraba "English" por defecto al editar
+# cualquier plantilla, sin importar su idioma real. Si guardabas sin corregir
+# el desplegable a mano, se sobreescribia el idioma real de la plantilla.
+#
+# Fix:
+#   1) OpenEditModal ahora si copia el idioma real de la plantilla.
+#   2) El desplegable se BLOQUEA (disabled) mientras se edita una plantilla
+#      existente - evita el caso de "cambio idioma sin querer y guardo,
+#      sobreescribiendo otro idioma". Para crear la version en otro idioma,
+#      se sigue usando "New Template" (el desplegable ahi si esta libre).
+#   3) Se anade la opcion de Catalan (ca) que faltaba en el desplegable.
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/Emails.razor"
 
 function Patch-File {
     param(
@@ -30,7 +38,7 @@ function Patch-File {
     $normalizedOld = $OldString -replace "`r`n", "`n"
     $normalizedNew = $NewString -replace "`r`n", "`n"
 
-    if ($normalizedContent.Contains($normalizedNew)) {
+    if ($normalizedContent.Contains($normalizedNew) -and -not $normalizedContent.Contains($normalizedOld)) {
         Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
         return $true
     }
@@ -55,86 +63,64 @@ function Patch-File {
 
 $results = @()
 
-# --- 1. Register.razor: anadir los 2 campos tras City ---
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Register.razor" `
-    -Description "Anadir campos Document Number / Document Country tras City" `
-    -OldString @'
-                                <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("city")</label>
-                                    <input class="form-input" @bind="Form.City" placeholder="@T.Get("city")" />
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("group_code")</label>
-'@ `
-    -NewString @'
-                                <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("city")</label>
-                                    <input class="form-input" @bind="Form.City" placeholder="@T.Get("city")" />
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("document_number")</label>
-                                    <input class="form-input" @bind="Form.DocumentNumber" placeholder="@T.Get("document_number")" />
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("document_country")</label>
-                                    <select class="form-select" @bind="Form.DocumentCountry">
-                                        <option value="">-</option>
-                                        @foreach (string country in Countries)
-                                        {
-                                            <option value="@country">@country</option>
-                                        }
-                                    </select>
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("group_code")</label>
+# --- 1. OpenEditModal: copiar el idioma real ---
+$results += Patch-File -Path $path -Description "OpenEditModal: cargar el idioma real de la plantilla" -OldString @'
+    private void OpenEditModal(EmailTemplateDto template)
+    {
+        editingTemplate = template;
+        formModel = new EmailTemplateFormModel
+        {
+            EditionId = template.EditionId,
+            TemplateKey = template.TemplateKey,
+            Name = template.Name,
+            Subject = template.Subject,
+            BodyHtml = template.BodyHtml,
+            BodyText = template.BodyText,
+            IsSystem = template.IsSystem,
+            IsActive = template.IsActive
+        };
+        showModal = true;
+    }
+'@ -NewString @'
+    private void OpenEditModal(EmailTemplateDto template)
+    {
+        editingTemplate = template;
+        formModel = new EmailTemplateFormModel
+        {
+            EditionId = template.EditionId,
+            TemplateKey = template.TemplateKey,
+            Name = template.Name,
+            Subject = template.Subject,
+            BodyHtml = template.BodyHtml,
+            BodyText = template.BodyText,
+            IsSystem = template.IsSystem,
+            IsActive = template.IsActive,
+            Language = template.Language
+        };
+        showModal = true;
+    }
 '@
 
-# --- 2. Traducciones: en.json ---
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/wwwroot/i18n/en.json" `
-    -Description "en.json: anadir document_number / document_country" `
-    -OldString @'
-  "city": "City",
-'@ `
-    -NewString @'
-  "city": "City",
-  "document_number": "Document Number",
-  "document_country": "Document Issuing Country",
-'@
-
-# --- 3. Traducciones: es.json ---
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/wwwroot/i18n/es.json" `
-    -Description "es.json: anadir document_number / document_country" `
-    -OldString @'
-  "city": "Ciudad",
-'@ `
-    -NewString @'
-  "city": "Ciudad",
-  "document_number": "Número de documento",
-  "document_country": "País de emisión del documento",
-'@
-
-# --- 4. Traducciones: fr.json ---
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/wwwroot/i18n/fr.json" `
-    -Description "fr.json: anadir document_number / document_country" `
-    -OldString @'
-  "city": "Ville",
-'@ `
-    -NewString @'
-  "city": "Ville",
-  "document_number": "Numéro de document",
-  "document_country": "Pays de délivrance du document",
-'@
-
-# --- 5. Traducciones: ca.json ---
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/wwwroot/i18n/ca.json" `
-    -Description "ca.json: anadir document_number / document_country" `
-    -OldString @'
-  "city": "Ciutat",
-'@ `
-    -NewString @'
-  "city": "Ciutat",
-  "document_number": "Número de document",
-  "document_country": "País d'emissió del document",
+# --- 2. Bloquear el desplegable de idioma mientras se edita + anadir Catalan ---
+$results += Patch-File -Path $path -Description "Bloquear Language en modo edicion y anadir opcion de Catalan" -OldString @'
+                                <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Language</label>
+                                <select class="form-select" @bind="formModel.Language">
+                                    <option value="en">English</option>
+                                    <option value="es">Español</option>
+                                    <option value="fr">Français</option>
+                                </select>
+'@ -NewString @'
+                                <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Language</label>
+                                <select class="form-select" @bind="formModel.Language" disabled="@(editingTemplate is not null)">
+                                    <option value="en">English</option>
+                                    <option value="es">Español</option>
+                                    <option value="fr">Français</option>
+                                    <option value="ca">Català</option>
+                                </select>
+                                @if (editingTemplate is not null)
+                                {
+                                    <p class="mt-1 text-xs text-black/40 dark:text-white/40">Use "New Template" to create a version in another language.</p>
+                                }
 '@
 
 if ($results -contains $false) {
@@ -142,4 +128,4 @@ if ($results -contains $false) {
     exit 1
 }
 
-Write-Host "`nCampo de documentacion anadido en las 4 idiomas. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nBug de idioma en Email Templates corregido. dotnet build para confirmar." -ForegroundColor Green

@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Emails.Services;
+using Alakai.FestivalManager.Application.Features.Emails.Services;
 
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 
@@ -15,11 +15,13 @@ public class CreateRegistrationHandler
     private readonly IPasswordHasherService _passwordHasherService;
     private readonly IRegistrationPartnerService _registrationPartnerService;
     private readonly IMapper _mapper;
+    private readonly IServiceScopeFactory _serviceScopeFactory;
 
     public CreateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
         IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper,
         IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService,
-        IDiscountCodeRepository discountCodeRepository, IPasswordHasherService passwordHasherService, IRegistrationPartnerService registrationPartnerService)
+        IDiscountCodeRepository discountCodeRepository, IPasswordHasherService passwordHasherService, IRegistrationPartnerService registrationPartnerService,
+        IServiceScopeFactory serviceScopeFactory)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
@@ -32,6 +34,7 @@ public class CreateRegistrationHandler
         _discountCodeRepository = discountCodeRepository;
         _passwordHasherService = passwordHasherService;
         _registrationPartnerService = registrationPartnerService;
+        _serviceScopeFactory = serviceScopeFactory;
     }
 
     public async Task<RegistrationDto> HandleAsync(CreateRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -137,7 +140,24 @@ public class CreateRegistrationHandler
             }
         }
 
-        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.RegistrationCreated, registration.Id,cancellationToken);
+        Guid registrationIdForEmail = registration.Id;
+        IServiceScopeFactory scopeFactory = _serviceScopeFactory;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                using IServiceScope scope = scopeFactory.CreateScope();
+                IEmailNotificationService scopedEmailService = scope.ServiceProvider.GetRequiredService<IEmailNotificationService>();
+                await scopedEmailService.CreateAndSendEmailAsync(EmailTemplateKey.RegistrationCreated, registrationIdForEmail, CancellationToken.None);
+            }
+            catch
+            {
+                // Un fallo de email (SMTP lento, credenciales invalidas, etc.) nunca debe
+                // poder afectar al registro ya creado. Los fallos individuales ya quedan
+                // registrados como EmailLogStatus.Failed dentro de EmailNotificationService.
+            }
+        });
 
         RegistrationDto dto = _mapper.Map<RegistrationDto>(registration);
 

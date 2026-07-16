@@ -26,4 +26,5 @@ public class CreateRegistrationRequest
     public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;
     public decimal ManagementFee { get; set; }
     public decimal AmountPaid { get; set; }
+    public string Language { get; set; } = "en";
 }
