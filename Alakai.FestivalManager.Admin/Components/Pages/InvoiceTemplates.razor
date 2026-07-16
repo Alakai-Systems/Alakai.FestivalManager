@@ -1,4 +1,4 @@
-﻿@page "/settings/invoice-templates"
+@page "/settings/invoice-templates"
 
 @inject InvoiceTemplateApiClient InvoiceTemplateApiClient
 @inject EditionApiClient EditionApiClient
@@ -269,7 +269,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            ShowError(ex.Message);
         }
         finally
         {
@@ -410,7 +410,7 @@
         }
         catch (Exception ex)
         {
-            errorMessage = ex.Message;
+            ShowError($"Image upload failed: {ex.Message}");
         }
         finally
         {

@@ -40,7 +40,7 @@ public class LevelDto
                 values.Add($"I {CurrentIndividuals}/{IndividualCapacity}");
             }
 
-            return string.Join(" · ", values);
+            return string.Join(" | ", values);
         }
     }
 }

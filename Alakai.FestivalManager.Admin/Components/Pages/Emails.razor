@@ -1,4 +1,4 @@
-﻿@page "/emails"
+@page "/emails"
 @using Radzen.Blazor
 @inject EmailTemplateApiClient EmailTemplateApiClient
 @inject EditionApiClient EditionApiClient
@@ -513,7 +513,8 @@
                     Subject = formModel.Subject,
                     BodyHtml = formModel.BodyHtml,
                     BodyText = formModel.BodyText,
-                    IsSystem = formModel.IsSystem
+                    IsSystem = formModel.IsSystem,
+                    Language = formModel.Language
                 };
 
                 await EmailTemplateApiClient.CreateAsync(request);
@@ -531,7 +532,8 @@
                     BodyHtml = formModel.BodyHtml,
                     BodyText = formModel.BodyText,
                     IsSystem = formModel.IsSystem,
-                    IsActive = formModel.IsActive
+                    IsActive = formModel.IsActive,
+                    Language = formModel.Language
                 };
 
                 await EmailTemplateApiClient.UpdateAsync(editingTemplate.Id, request);

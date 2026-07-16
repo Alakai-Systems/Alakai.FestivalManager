@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Infrastructure.Persistence;
+using Alakai.FestivalManager.Infrastructure.Persistence;
 
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
@@ -109,6 +109,19 @@ app.UseMiddleware<GlobalExceptionMiddleware>();
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
+
+if (OperatingSystem.IsLinux())
+{
+    string persistentUploadsRoot = "/home/uploads";
+    Directory.CreateDirectory(persistentUploadsRoot);
+
+    app.UseStaticFiles(new StaticFileOptions
+    {
+        FileProvider = new Microsoft.Extensions.FileProviders.PhysicalFileProvider(persistentUploadsRoot),
+        RequestPath = "/uploads"
+    });
+}
+
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseCors("Admin");

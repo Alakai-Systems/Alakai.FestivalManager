@@ -8,6 +8,8 @@
   "phone_number": "Telèfon",
   "country": "País",
   "city": "Ciutat",
+  "document_number": "Número de document",
+  "document_country": "País d'emissió del document",
   "password": "Contrasenya",
   "select_pass": "Selecciona el teu passi",
   "select_level": "Selecciona el teu nivell",

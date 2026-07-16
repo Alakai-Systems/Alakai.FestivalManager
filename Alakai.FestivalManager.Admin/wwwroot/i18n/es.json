@@ -8,6 +8,8 @@
   "phone_number": "Teléfono",
   "country": "País",
   "city": "Ciudad",
+  "document_number": "Número de documento",
+  "document_country": "País de emisión del documento",
   "password": "Contraseña",
   "select_your_pass": "Selecciona tu pase",
   "select_your_level": "Selecciona tu nivel",

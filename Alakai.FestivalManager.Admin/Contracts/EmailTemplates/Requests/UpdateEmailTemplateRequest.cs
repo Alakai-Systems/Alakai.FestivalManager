@@ -10,4 +10,5 @@ public class UpdateEmailTemplateRequest
     public string? BodyText { get; set; }
     public bool IsSystem { get; set; }
     public bool IsActive { get; set; }
+    public string Language { get; set; } = "en";
 }

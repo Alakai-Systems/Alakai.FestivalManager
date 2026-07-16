@@ -1,4 +1,4 @@
-﻿@page "/"
+@page "/"
 @using System.Globalization
 @using System.Text
 @inject DashboardApiClient DashboardApiClient
@@ -407,8 +407,14 @@
             </div>
 
             <div class="flex flex-col gap-4">
-                <BusesSummaryWidget EditionId="@selectedEditionId" />
-                <MealsSummaryWidget EditionId="@selectedEditionId" />
+                @if (ActiveFestivalState.HasModule(FestivalModule.Transport))
+                {
+                    <BusesSummaryWidget EditionId="@selectedEditionId" />
+                }
+                @if (ActiveFestivalState.HasModule(FestivalModule.Meals))
+                {
+                    <MealsSummaryWidget EditionId="@selectedEditionId" />
+                }
             </div>
         </div>
     }

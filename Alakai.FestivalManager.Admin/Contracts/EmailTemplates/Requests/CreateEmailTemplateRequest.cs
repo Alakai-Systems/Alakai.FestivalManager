@@ -9,4 +9,5 @@ public class CreateEmailTemplateRequest
     public string BodyHtml { get; set; } = string.Empty;
     public string? BodyText { get; set; }
     public bool IsSystem { get; set; }
+    public string Language { get; set; } = "en";
 }

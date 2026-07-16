@@ -25,11 +25,11 @@ public class CreateEmailTemplateHandler
             }
         }
 
-        bool exists = await _emailTemplateRepository.ExistsByEditionAndTemplateKeyAsync(command.EditionId, command.TemplateKey, null, cancellationToken);
+        bool exists = await _emailTemplateRepository.ExistsByEditionAndTemplateKeyAsync(command.EditionId, command.TemplateKey, command.Language, null, cancellationToken);
 
         if (exists)
         {
-            throw new BusinessRuleException($"An email template with key '{command.TemplateKey}' already exists for this edition scope.");
+            throw new BusinessRuleException($"An email template with key '{command.TemplateKey}' and language '{command.Language}' already exists for this edition scope.");
         }
 
         EmailTemplate emailTemplate = _mapper.Map<EmailTemplate>(command);

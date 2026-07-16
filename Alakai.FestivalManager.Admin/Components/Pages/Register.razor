@@ -1,4 +1,4 @@
-﻿@page "/register/{Slug}"
+@page "/register/{Slug}"
 @page "/register/{Slug}/{Lang}"
 @layout AuthLayout
 @using Alakai.FestivalManager.Admin.Contracts.Registrations.Requests
@@ -249,6 +249,20 @@
                                 <div>
                                     <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("city")</label>
                                     <input class="form-input" @bind="Form.City" placeholder="@T.Get("city")" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("document_number")</label>
+                                    <input class="form-input" @bind="Form.DocumentNumber" placeholder="@T.Get("document_number")" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("document_country")</label>
+                                    <select class="form-select" @bind="Form.DocumentCountry">
+                                        <option value="">-</option>
+                                        @foreach (string country in Countries)
+                                        {
+                                            <option value="@country">@country</option>
+                                        }
+                                    </select>
                                 </div>
                                 <div>
                                     <label class="block text-xs text-muted" style="margin-bottom:0.375rem;">@T.Get("group_code")</label>
@@ -707,12 +721,13 @@
                 ? Math.Round(BasePrice * 0.5m + ManagementFee, 2, MidpointRounding.AwayFromZero)
                 : BasePrice + ManagementFee;
             string baseUrl = Navigation.BaseUri.TrimEnd('/');
+            string langSegment = string.IsNullOrWhiteSpace(Lang) ? string.Empty : $"/{Lang}";
             CreatePaymentSessionRequest payReq = new()
             {
                 RegistrationId = _createdRegistrationId.Value,
                 AmountOverride = amount,
-                UrlOk = $"{baseUrl}/register/{Slug}?payment=ok",
-                UrlKo = $"{baseUrl}/register/{Slug}?payment=ko"
+                UrlOk = $"{baseUrl}/register/{Slug}{langSegment}?payment=ok",
+                UrlKo = $"{baseUrl}/register/{Slug}{langSegment}?payment=ko"
             };
             RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(payReq);
             await JsRuntime.InvokeVoidAsync("redsysSubmit",

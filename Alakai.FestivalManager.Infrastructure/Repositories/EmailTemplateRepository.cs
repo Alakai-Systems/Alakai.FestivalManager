@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
+namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class EmailTemplateRepository : IEmailTemplateRepository
 {
@@ -47,10 +47,10 @@ public class EmailTemplateRepository : IEmailTemplateRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<bool> ExistsByEditionAndTemplateKeyAsync(Guid? editionId, EmailTemplateKey templateKey, Guid? excludeId = null, CancellationToken cancellationToken = default)
+    public async Task<bool> ExistsByEditionAndTemplateKeyAsync(Guid? editionId, EmailTemplateKey templateKey, string language, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         return await _context.EmailTemplates
-            .AnyAsync(e => e.EditionId == editionId && e.TemplateKey == templateKey && (!excludeId.HasValue || e.Id != excludeId.Value), cancellationToken);
+            .AnyAsync(e => e.EditionId == editionId && e.TemplateKey == templateKey && e.Language == language && (!excludeId.HasValue || e.Id != excludeId.Value), cancellationToken);
     }
 
     public async Task<EmailTemplate?> GetByKeyAsync(EmailTemplateKey templateKey, Guid? editionId, CancellationToken cancellationToken = default)
