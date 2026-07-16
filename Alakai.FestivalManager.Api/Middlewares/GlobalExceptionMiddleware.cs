@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Api.Middlewares;
+namespace Alakai.FestivalManager.Api.Middlewares;
 
 public class GlobalExceptionMiddleware
 {
@@ -52,6 +52,16 @@ public class GlobalExceptionMiddleware
                     context,
                     HttpStatusCode.Conflict,
                     "A record with the same unique value already exists.",
+                    []);
+                return;
+            }
+
+            if (ex.InnerException is SqlException fkEx && fkEx.Number == 547)
+            {
+                await HandleExceptionAsync(
+                    context,
+                    HttpStatusCode.Conflict,
+                    "This item cannot be deleted because it still has related data (e.g. editions, registrations) associated with it.",
                     []);
                 return;
             }
