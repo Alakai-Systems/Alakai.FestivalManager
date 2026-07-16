@@ -315,7 +315,7 @@
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-full max-w-2xl overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Payment Settings — @selectedFestivalForCredentials.Name</h3>
                     <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
@@ -323,53 +323,77 @@
                     </button>
                 </div>
 
-                <div class="p-5 space-y-4">
+                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
-                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                        <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
                     }
 
                     @if (isLoadingCredentials)
                     {
-                        <p class="text-sm text-black/50 dark:text-white/60">Loading payment settings...</p>
+                        <p class="text-sm md:col-span-2 text-black/50 dark:text-white/60">Loading payment settings...</p>
                     }
                     else
                     {
-                        <p class="text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Redsys</p>
+                        <div class="space-y-4">
+                            <p class="text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Redsys</p>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
-                        <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
+                                <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
-                        <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
+                                <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
-                        <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
+                                <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
-                        <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
+                                <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
+                            </div>
+                        </div>
 
-                        <p class="pt-2 text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Email (SMTP)</p>
+                        <div class="space-y-4">
+                            <p class="text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Email (SMTP)</p>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Host</label>
-                        <input class="form-input" placeholder="smtp.example.com" @bind="credentialsRequest.EmailHost" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Host</label>
+                                <input class="form-input" placeholder="smtp.example.com" @bind="credentialsRequest.EmailHost" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Port</label>
-                        <input type="number" class="form-input" placeholder="587" @bind="credentialsRequest.EmailPort" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Port</label>
+                                <input type="number" class="form-input" placeholder="587" @bind="credentialsRequest.EmailPort" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Username</label>
-                        <input class="form-input" placeholder="Username" @bind="credentialsRequest.EmailUsername" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Username</label>
+                                <input class="form-input" placeholder="Username" @bind="credentialsRequest.EmailUsername" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">Password</label>
-                        <input type="password" class="form-input" placeholder="@(hasEmailPassword ? "Already configured - leave blank to keep" : "Password")" @bind="credentialsRequest.EmailPassword" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Password</label>
+                                <input type="password" class="form-input" placeholder="@(hasEmailPassword ? "Already configured - leave blank to keep" : "Password")" @bind="credentialsRequest.EmailPassword" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">From Email</label>
-                        <input class="form-input" placeholder="info@example.com" @bind="credentialsRequest.EmailFromEmail" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">From Email</label>
+                                <input class="form-input" placeholder="info@example.com" @bind="credentialsRequest.EmailFromEmail" />
+                            </div>
 
-                        <label class="block text-sm text-black/60 dark:text-white/60">From Name</label>
-                        <input class="form-input" placeholder="Festival Name" @bind="credentialsRequest.EmailFromName" />
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">From Name</label>
+                                <input class="form-input" placeholder="Festival Name" @bind="credentialsRequest.EmailFromName" />
+                            </div>
+                        </div>
 
-                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white md:col-span-2">
                             <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
                             Use SSL/TLS
                         </label>
