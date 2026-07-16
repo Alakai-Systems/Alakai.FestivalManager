@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Extensions;
+namespace Alakai.FestivalManager.Application.Extensions;
 
 public static class ApiCLientsDependencyInjectionExtension
 {
@@ -189,7 +189,9 @@ public static class ApiCLientsDependencyInjectionExtension
 
         services.AddHttpClient<EmailNotificationApiClient>(client =>
         {
-            client.BaseAddress = new Uri("https://localhost:7157/");
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
         });
 
         services.AddScoped<ITokenStorageService, TokenStorageService>();

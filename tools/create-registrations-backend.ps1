@@ -1,11 +1,15 @@
-# Fix-Step16-CreateRegistrationHandlerTests.ps1
-# El Paso 13 anadio IServiceScopeFactory al constructor de CreateRegistrationHandler.
-# Este test todavia llamaba al constructor con la firma vieja.
+# Fix-Step17-EmailNotificationApiClientHardcodedUrl.ps1
+#
+# BUG REAL (preexistente, no de hoy): EmailNotificationApiClient tenia
+# "https://localhost:7157/" hardcodeado como BaseAddress, en vez de leer
+# ApiSettings:BaseUrl de la configuracion como TODOS los demas clientes.
+# En produccion, cualquier llamada a traves de este cliente intenta conectar
+# a localhost:7157 (que no existe en el contenedor de Azure), fallando con
+# "Cannot assign requested address".
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Tests/Unit/Application/Features/Registrations/CreateRegistrationHandlerTests.cs"
 
 function Patch-File {
     param(
@@ -50,58 +54,26 @@ function Patch-File {
     return $true
 }
 
-$results = @()
-
-$results += Patch-File -Path $path -Description "Anadir using Microsoft.Extensions.DependencyInjection" -OldString @'
-using Alakai.FestivalManager.Application.Services.Security;
-using Alakai.FestivalManager.Tests.Unit.Application.Common;
-using AutoMapper;
-'@ -NewString @'
-using Alakai.FestivalManager.Application.Services.Security;
-using Alakai.FestivalManager.Tests.Unit.Application.Common;
-using AutoMapper;
-using Microsoft.Extensions.DependencyInjection;
+$result = Patch-File -Path "Alakai.FestivalManager.Admin/Extensions/ApplicationDependencyInjectionExtension.cs" `
+    -Description "EmailNotificationApiClient: leer ApiSettings:BaseUrl en vez de localhost hardcodeado" `
+    -OldString @'
+        services.AddHttpClient<EmailNotificationApiClient>(client =>
+        {
+            client.BaseAddress = new Uri("https://localhost:7157/");
+        });
+'@ `
+    -NewString @'
+        services.AddHttpClient<EmailNotificationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
 '@
 
-$results += Patch-File -Path $path -Description "Anadir Mock<IServiceScopeFactory> y pasarlo al constructor" -OldString @'
-    private readonly Mock<IRegistrationPartnerService> _partnerSvc = new();
-    private readonly Mock<IMapper> _mapper = new();
-    private readonly CreateRegistrationHandler _sut;
-
-    private readonly Edition _edition = new() { IsActive = true };
-    private readonly PassType _passType = new();
-    private readonly Level _level = new() { RegularPrice = 450m };
-
-    public CreateRegistrationHandlerTests()
-    {
-        _sut = new CreateRegistrationHandler(
-            _regRepo.Object, _editionRepo.Object, _passTypeRepo.Object, _levelRepo.Object,
-            _userRepo.Object, _mapper.Object, _emailSvc.Object, _discountSvc.Object,
-            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object);
-'@ -NewString @'
-    private readonly Mock<IRegistrationPartnerService> _partnerSvc = new();
-    private readonly Mock<IMapper> _mapper = new();
-    private readonly Mock<IServiceScopeFactory> _serviceScopeFactory = new();
-    private readonly CreateRegistrationHandler _sut;
-
-    private readonly Edition _edition = new() { IsActive = true };
-    private readonly PassType _passType = new();
-    private readonly Level _level = new() { RegularPrice = 450m };
-
-    public CreateRegistrationHandlerTests()
-    {
-        _sut = new CreateRegistrationHandler(
-            _regRepo.Object, _editionRepo.Object, _passTypeRepo.Object, _levelRepo.Object,
-            _userRepo.Object, _mapper.Object, _emailSvc.Object, _discountSvc.Object,
-            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object, _serviceScopeFactory.Object);
-'@
-
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
+if (-not $result) {
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual alrededor de EmailNotificationApiClient." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nTest corregido. dotnet build / dotnet test para confirmar." -ForegroundColor Green
-Write-Host "Nota: como el envio de email ahora es fire-and-forget con su propio try/catch," -ForegroundColor Yellow
-Write-Host "no hace falta configurar el mock de IServiceScopeFactory a fondo para este test -" -ForegroundColor Yellow
-Write-Host "cualquier fallo ahi se traga silenciosamente, igual que en produccion." -ForegroundColor Yellow
+Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
