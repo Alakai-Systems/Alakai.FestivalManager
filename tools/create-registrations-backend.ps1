@@ -1,22 +1,11 @@
-# Fix-Step15-EmailTemplateLanguageEditBug.ps1
-#
-# BUG REAL: OpenEditModal nunca copiaba template.Language al formulario, asi
-# que el desplegable siempre mostraba "English" por defecto al editar
-# cualquier plantilla, sin importar su idioma real. Si guardabas sin corregir
-# el desplegable a mano, se sobreescribia el idioma real de la plantilla.
-#
-# Fix:
-#   1) OpenEditModal ahora si copia el idioma real de la plantilla.
-#   2) El desplegable se BLOQUEA (disabled) mientras se edita una plantilla
-#      existente - evita el caso de "cambio idioma sin querer y guardo,
-#      sobreescribiendo otro idioma". Para crear la version en otro idioma,
-#      se sigue usando "New Template" (el desplegable ahi si esta libre).
-#   3) Se anade la opcion de Catalan (ca) que faltaba en el desplegable.
+# Fix-Step16-CreateRegistrationHandlerTests.ps1
+# El Paso 13 anadio IServiceScopeFactory al constructor de CreateRegistrationHandler.
+# Este test todavia llamaba al constructor con la firma vieja.
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Components/Pages/Emails.razor"
+$path = "Alakai.FestivalManager.Tests/Unit/Application/Features/Registrations/CreateRegistrationHandlerTests.cs"
 
 function Patch-File {
     param(
@@ -63,64 +52,48 @@ function Patch-File {
 
 $results = @()
 
-# --- 1. OpenEditModal: copiar el idioma real ---
-$results += Patch-File -Path $path -Description "OpenEditModal: cargar el idioma real de la plantilla" -OldString @'
-    private void OpenEditModal(EmailTemplateDto template)
-    {
-        editingTemplate = template;
-        formModel = new EmailTemplateFormModel
-        {
-            EditionId = template.EditionId,
-            TemplateKey = template.TemplateKey,
-            Name = template.Name,
-            Subject = template.Subject,
-            BodyHtml = template.BodyHtml,
-            BodyText = template.BodyText,
-            IsSystem = template.IsSystem,
-            IsActive = template.IsActive
-        };
-        showModal = true;
-    }
+$results += Patch-File -Path $path -Description "Anadir using Microsoft.Extensions.DependencyInjection" -OldString @'
+using Alakai.FestivalManager.Application.Services.Security;
+using Alakai.FestivalManager.Tests.Unit.Application.Common;
+using AutoMapper;
 '@ -NewString @'
-    private void OpenEditModal(EmailTemplateDto template)
-    {
-        editingTemplate = template;
-        formModel = new EmailTemplateFormModel
-        {
-            EditionId = template.EditionId,
-            TemplateKey = template.TemplateKey,
-            Name = template.Name,
-            Subject = template.Subject,
-            BodyHtml = template.BodyHtml,
-            BodyText = template.BodyText,
-            IsSystem = template.IsSystem,
-            IsActive = template.IsActive,
-            Language = template.Language
-        };
-        showModal = true;
-    }
+using Alakai.FestivalManager.Application.Services.Security;
+using Alakai.FestivalManager.Tests.Unit.Application.Common;
+using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 '@
 
-# --- 2. Bloquear el desplegable de idioma mientras se edita + anadir Catalan ---
-$results += Patch-File -Path $path -Description "Bloquear Language en modo edicion y anadir opcion de Catalan" -OldString @'
-                                <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Language</label>
-                                <select class="form-select" @bind="formModel.Language">
-                                    <option value="en">English</option>
-                                    <option value="es">Español</option>
-                                    <option value="fr">Français</option>
-                                </select>
+$results += Patch-File -Path $path -Description "Anadir Mock<IServiceScopeFactory> y pasarlo al constructor" -OldString @'
+    private readonly Mock<IRegistrationPartnerService> _partnerSvc = new();
+    private readonly Mock<IMapper> _mapper = new();
+    private readonly CreateRegistrationHandler _sut;
+
+    private readonly Edition _edition = new() { IsActive = true };
+    private readonly PassType _passType = new();
+    private readonly Level _level = new() { RegularPrice = 450m };
+
+    public CreateRegistrationHandlerTests()
+    {
+        _sut = new CreateRegistrationHandler(
+            _regRepo.Object, _editionRepo.Object, _passTypeRepo.Object, _levelRepo.Object,
+            _userRepo.Object, _mapper.Object, _emailSvc.Object, _discountSvc.Object,
+            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object);
 '@ -NewString @'
-                                <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Language</label>
-                                <select class="form-select" @bind="formModel.Language" disabled="@(editingTemplate is not null)">
-                                    <option value="en">English</option>
-                                    <option value="es">Español</option>
-                                    <option value="fr">Français</option>
-                                    <option value="ca">Català</option>
-                                </select>
-                                @if (editingTemplate is not null)
-                                {
-                                    <p class="mt-1 text-xs text-black/40 dark:text-white/40">Use "New Template" to create a version in another language.</p>
-                                }
+    private readonly Mock<IRegistrationPartnerService> _partnerSvc = new();
+    private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<IServiceScopeFactory> _serviceScopeFactory = new();
+    private readonly CreateRegistrationHandler _sut;
+
+    private readonly Edition _edition = new() { IsActive = true };
+    private readonly PassType _passType = new();
+    private readonly Level _level = new() { RegularPrice = 450m };
+
+    public CreateRegistrationHandlerTests()
+    {
+        _sut = new CreateRegistrationHandler(
+            _regRepo.Object, _editionRepo.Object, _passTypeRepo.Object, _levelRepo.Object,
+            _userRepo.Object, _mapper.Object, _emailSvc.Object, _discountSvc.Object,
+            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object, _serviceScopeFactory.Object);
 '@
 
 if ($results -contains $false) {
@@ -128,4 +101,7 @@ if ($results -contains $false) {
     exit 1
 }
 
-Write-Host "`nBug de idioma en Email Templates corregido. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nTest corregido. dotnet build / dotnet test para confirmar." -ForegroundColor Green
+Write-Host "Nota: como el envio de email ahora es fire-and-forget con su propio try/catch," -ForegroundColor Yellow
+Write-Host "no hace falta configurar el mock de IServiceScopeFactory a fondo para este test -" -ForegroundColor Yellow
+Write-Host "cualquier fallo ahi se traga silenciosamente, igual que en produccion." -ForegroundColor Yellow

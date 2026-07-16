@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Emails.Services;
+using Alakai.FestivalManager.Application.Features.Emails.Services;
 using Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
 using Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
 using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
@@ -6,6 +6,7 @@ using Alakai.FestivalManager.Application.Features.Registrations.Services;
 using Alakai.FestivalManager.Application.Services.Security;
 using Alakai.FestivalManager.Tests.Unit.Application.Common;
 using AutoMapper;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Alakai.FestivalManager.Tests.Unit.Application.Features.Registrations;
 
@@ -22,6 +23,7 @@ public class CreateRegistrationHandlerTests
     private readonly Mock<IPasswordHasherService> _passwordHasher = new();
     private readonly Mock<IRegistrationPartnerService> _partnerSvc = new();
     private readonly Mock<IMapper> _mapper = new();
+    private readonly Mock<IServiceScopeFactory> _serviceScopeFactory = new();
     private readonly CreateRegistrationHandler _sut;
 
     private readonly Edition _edition = new() { IsActive = true };
@@ -33,7 +35,7 @@ public class CreateRegistrationHandlerTests
         _sut = new CreateRegistrationHandler(
             _regRepo.Object, _editionRepo.Object, _passTypeRepo.Object, _levelRepo.Object,
             _userRepo.Object, _mapper.Object, _emailSvc.Object, _discountSvc.Object,
-            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object);
+            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object, _serviceScopeFactory.Object);
 
         // Defaults: happy path
         _editionRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(_edition);
