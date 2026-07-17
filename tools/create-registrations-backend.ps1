@@ -1,13 +1,15 @@
-# Fix-Step31-PartnerYesValueMismatch.ps1
-# BUG REAL (preexistente): el <option> de "Si" tenia value="yes", pero TODAS
-# las comprobaciones del codigo (linea 175, 439, 640) comparan contra "si".
-# Por eso el campo de email de pareja nunca aparecia, sin importar que se
-# eligiera "Si" en el desplegable.
+# Fix-Step32-RowColorPrecedenceBug.ps1
+# BUG REAL (preexistente): falta de parentesis hacia que "isOverdue" solo
+# aplicara a la rama de DeferredTenDays, no a la de SplitFiftyFifty (por la
+# precedencia de && sobre || en C#). Cualquier reserva con pago 50/50
+# parcialmente pagada se pintaba en rojo de inmediato, sin comprobar si de
+# verdad estaba vencida - y como el codigo salia con return ahi, nunca
+# llegaba a la comprobacion de pareja pendiente (amarillo).
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Components/Pages/Register.razor"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/Registrations.razor"
 
 function Patch-File {
     param(
@@ -52,23 +54,26 @@ function Patch-File {
     return $true
 }
 
-$result = Patch-File -Path $path -Description "Corregir value=yes -> value=si para que coincida con el resto del codigo" -OldString @'
-                                <select class="form-select" @bind="WithPartner" @bind:after="OnWithPartnerChanged">
-                                    <option value="">-</option>
-                                    <option value="yes">@T.Get("yes")</option>
-                                    <option value="no">No</option>
-                                </select>
+$result = Patch-File -Path $path -Description "Anadir parentesis para que isOverdue aplique a ambas ramas" -OldString @'
+        if (isOverdue &&
+            (registration.PaymentPlan == PaymentPlan.DeferredTenDays && registration.PaymentStatus != PaymentStatus.Paid) ||
+            (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.PaymentStatus == PaymentStatus.PartiallyPaid))
+        {
+            return "bg-danger/10";
+        }
 '@ -NewString @'
-                                <select class="form-select" @bind="WithPartner" @bind:after="OnWithPartnerChanged">
-                                    <option value="">-</option>
-                                    <option value="si">@T.Get("yes")</option>
-                                    <option value="no">No</option>
-                                </select>
+        if (isOverdue &&
+            ((registration.PaymentPlan == PaymentPlan.DeferredTenDays && registration.PaymentStatus != PaymentStatus.Paid) ||
+             (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.PaymentStatus == PaymentStatus.PartiallyPaid)))
+        {
+            return "bg-danger/10";
+        }
 '@
 
 if (-not $result) {
-    Write-Host "`nNo se pudo aplicar. Pega el contenido actual alrededor del select 'con pareja' en Register.razor." -ForegroundColor Red
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual de GetRowClass en Registrations.razor." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "`nBug corregido. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "Ahora el rojo solo aparece cuando de verdad esta vencido, y el amarillo de pareja pendiente vuelve a mostrarse correctamente." -ForegroundColor Green

@@ -1,4 +1,4 @@
-﻿@page "/registrations"
+@page "/registrations"
 
 @inject EmailNotificationApiClient EmailNotificationApiClient
 @inject RegistrationApiClient RegistrationApiClient
@@ -638,8 +638,8 @@
         bool isOverdue = registration.PaymentDueAt.HasValue && registration.PaymentDueAt.Value < now;
 
         if (isOverdue &&
-            (registration.PaymentPlan == PaymentPlan.DeferredTenDays && registration.PaymentStatus != PaymentStatus.Paid) ||
-            (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.PaymentStatus == PaymentStatus.PartiallyPaid))
+            ((registration.PaymentPlan == PaymentPlan.DeferredTenDays && registration.PaymentStatus != PaymentStatus.Paid) ||
+             (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.PaymentStatus == PaymentStatus.PartiallyPaid)))
         {
             return "bg-danger/10";
         }
