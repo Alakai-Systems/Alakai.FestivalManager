@@ -63,13 +63,6 @@
                 <PageTitle>@Availability.EditionName</PageTitle>
             }
 
-            @if (!string.IsNullOrWhiteSpace(festivalResponse?.FaviconUrl))
-            {
-                <HeadContent>
-                    <link rel="icon" href="@festivalResponse.FaviconUrl" />
-                </HeadContent>
-            }
-
             <!-- Festival header -->
             <div class="mb-6 text-center">
                 <div class="text-2xl font-bold text-black">@Availability?.EditionName</div>

@@ -28,13 +28,6 @@
     <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
 }
 
-@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.FaviconUrl))
-{
-    <HeadContent>
-        <link rel="icon" href="@Dashboard.Registration.FaviconUrl" />
-    </HeadContent>
-}
-
 <PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
 
 @if (IsLoading)

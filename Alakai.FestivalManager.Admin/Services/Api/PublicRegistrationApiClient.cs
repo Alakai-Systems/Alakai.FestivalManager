@@ -16,6 +16,18 @@ public class PublicRegistrationApiClient
         return await _httpClient.GetFromJsonAsync<PublicFestivalSlugDto>($"api/public/festivals/by-slug/{slug}", cancellationToken);
     }
 
+    public async Task<PublicFestivalBrandingDto?> GetFestivalByDomainAsync(string domain, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<PublicFestivalBrandingDto>($"api/public/festivals/by-domain/{domain}", cancellationToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<PublicRegistrationAvailabilityDto?> GetAvailabilityAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
         return await _httpClient.GetFromJsonAsync<PublicRegistrationAvailabilityDto>($"api/public/registrations/availability/{editionId}", cancellationToken);
@@ -48,3 +60,5 @@ public class PublicRegistrationApiClient
 }
 
 public record PublicFestivalSlugDto(Guid? ActiveEditionId, bool HasAccommodation, string? TermsUrl, string? FaviconUrl);
+
+public record PublicFestivalBrandingDto(string Name, string? FaviconUrl);

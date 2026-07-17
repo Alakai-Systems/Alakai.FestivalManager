@@ -1,4 +1,6 @@
 @using Radzen.Blazor
+@inject IHttpContextAccessor HttpContextAccessor
+@inject Alakai.FestivalManager.Admin.Services.Api.PublicRegistrationApiClient PublicApi
 <!DOCTYPE html>
 <html lang="en" x-data="{ direction: $store.app.direction }" x-bind:dir="$store.app.direction" class="group/item" x-bind:data-mode="$store.app.mode" x-bind:data-sidebar="$store.app.sidebarMode">
 
@@ -8,9 +10,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <base href="/" />
 
-    <title>Alakai Festival Manager</title>
+    <title>@(Branding?.Name is not null ? $"{Branding.Name} - Alakai Festival Manager" : "Alakai Festival Manager")</title>
 
-    <link rel="shortcut icon" href="assets/images/favicon.ico">
+    @if (!string.IsNullOrWhiteSpace(Branding?.FaviconUrl))
+    {
+        <link rel="icon" href="@Branding.FaviconUrl">
+    }
+    else
+    {
+        <link rel="shortcut icon" href="assets/images/favicon.ico">
+    }
+
     <link rel="stylesheet" href="assets/css/plugins.css">
     <link rel="stylesheet" href="assets/css/remixicon.css">
     <link rel="stylesheet" href="assets/css/tailwind.css">
@@ -98,3 +108,24 @@
 </body>
 
 </html>
+
+@code {
+    private Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            string? host = HttpContextAccessor.HttpContext?.Request.Host.Host;
+
+            if (!string.IsNullOrWhiteSpace(host))
+            {
+                Branding = await PublicApi.GetFestivalByDomainAsync(host);
+            }
+        }
+        catch
+        {
+            // Sin marca especifica para este dominio - se usan los valores por defecto.
+        }
+    }
+}

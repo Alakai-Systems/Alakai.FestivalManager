@@ -1,18 +1,5 @@
 @using Radzen.Blazor
 @inherits LayoutComponentBase
-@implements IDisposable
-@inject ActiveFestivalState ActiveFestivalState
-
-<HeadContent>
-    @if (!string.IsNullOrWhiteSpace(ActiveFestivalState.Active?.FaviconUrl))
-    {
-        <link rel="icon" href="@ActiveFestivalState.Active.FaviconUrl" />
-    }
-    @if (!string.IsNullOrWhiteSpace(ActiveFestivalState.Active?.Name))
-    {
-        <title>@ActiveFestivalState.Active.Name - Alakai Festival Manager</title>
-    }
-</HeadContent>
 
 <AuthorizeView Policy="AdminAccess">
     <Authorized>
@@ -41,15 +28,3 @@
         <RedirectToLogin />
     </NotAuthorized>
 </AuthorizeView>
-
-@code {
-    protected override void OnInitialized()
-    {
-        ActiveFestivalState.OnChange += StateHasChanged;
-    }
-
-    public void Dispose()
-    {
-        ActiveFestivalState.OnChange -= StateHasChanged;
-    }
-}

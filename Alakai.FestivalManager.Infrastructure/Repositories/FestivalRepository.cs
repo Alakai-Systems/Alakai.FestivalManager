@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
+namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class FestivalRepository : IFestivalRepository
 {
@@ -28,6 +28,13 @@ public class FestivalRepository : IFestivalRepository
         return await _context.Festivals
             .AsNoTracking()
             .FirstOrDefaultAsync(f => f.Slug == slug, cancellationToken);
+    }
+
+    public async Task<Festival?> GetByCustomDomainAsync(string domain, CancellationToken cancellationToken = default)
+    {
+        return await _context.Festivals
+            .AsNoTracking()
+            .FirstOrDefaultAsync(f => f.CustomDomain == domain, cancellationToken);
     }
 
     public async Task<bool> ExistsBySlugAsync(string slug, CancellationToken cancellationToken = default)

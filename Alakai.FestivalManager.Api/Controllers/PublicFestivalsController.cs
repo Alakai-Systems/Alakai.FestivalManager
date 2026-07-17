@@ -43,4 +43,21 @@ public class PublicFestivalsController : ControllerBase
             FaviconUrl = festival.FaviconUrl
         });
     }
+
+    [HttpGet("by-domain/{domain}")]
+    public async Task<IActionResult> GetByDomain(string domain, CancellationToken cancellationToken)
+    {
+        Festival? festival = await _festivalRepository.GetByCustomDomainAsync(domain, cancellationToken);
+
+        if (festival is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new
+        {
+            Name = festival.Name,
+            FaviconUrl = festival.FaviconUrl
+        });
+    }
 }
