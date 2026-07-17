@@ -163,9 +163,9 @@ public class CompetitionEntryService : ICompetitionEntryService
     {
         CompetitionEntryDto existingEntryDto = await _getCompetitionEntryByIdHandler.HandleAsync(new GetCompetitionEntryByIdQuery { Id = id }, cancellationToken);
 
-        await _deleteCompetitionEntryHandler.HandleAsync(new DeleteCompetitionEntryCommand { Id = id }, cancellationToken);
-
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, existingEntryDto.RegistrationId, cancellationToken);
+
+        await _deleteCompetitionEntryHandler.HandleAsync(new DeleteCompetitionEntryCommand { Id = id }, cancellationToken);
 
         ApiResponse<DeleteCompetitionEntryResponse> response = new()
         {
