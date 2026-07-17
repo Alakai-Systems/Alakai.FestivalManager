@@ -1,6 +1,7 @@
 @using Radzen
 @using Radzen.Blazor
 @inject UploadsApiClient UploadsApiClient
+@inject IJSRuntime JsRuntime
 
 <div class="email-rte-wrapper">
     <RadzenHtmlEditor @ref="EditorRef"
@@ -43,6 +44,10 @@
     </RadzenHtmlEditor>
 
     <div class="email-rte-upload">
+        <label class="email-rte-width-label">
+            Width (px):
+            <input type="number" min="10" max="2000" class="email-rte-width-input" @bind="UploadImageWidth" />
+        </label>
         <InputFile OnChange="@OnImageSelectedAsync" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" id="@UploadInputId" />
         <label for="@UploadInputId" class="email-rte-upload-button">
             @(IsUploadingImage ? "Uploading..." : "📷 Upload image")
@@ -72,6 +77,25 @@
            overriding it caused all the layout breakage we saw earlier. */
     .email-rte-upload {
         margin-top: 10px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .email-rte-width-label {
+        font-size: 0.8rem;
+        color: #374151;
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .email-rte-width-input {
+        width: 70px;
+        padding: 4px 6px;
+        border: 1px solid #d1d5db;
+        border-radius: 6px;
+        font-size: 0.8rem;
     }
 
     .email-rte-upload-button {
@@ -119,7 +143,24 @@
         }
 </style>
 
+<script>
+    window.getImageDimensions = window.getImageDimensions || function (url) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
+            img.onerror = reject;
+            img.src = url;
+        });
+    };
+</script>
+
 @code {
+    private class ImageDimensions
+    {
+        public int Width { get; set; }
+        public int Height { get; set; }
+    }
+
     [Parameter] public string Value { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public List<string>? Variables { get; set; }
@@ -127,7 +168,7 @@
     private RadzenHtmlEditor EditorRef { get; set; } = default!;
     private bool IsUploadingImage { get; set; }
     private readonly string UploadInputId = $"email-rte-upload-{Guid.NewGuid():N}";
-    private int UploadImageWidth { get; set; } = 600;
+    public int UploadImageWidth { get; set; } = 600;
 
     private async Task OnEditorChange(string html)
     {
@@ -161,9 +202,25 @@
             using Stream stream = e.File.OpenReadStream(maxFileSize);
             string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
 
+            int actualWidth = UploadImageWidth;
+            int actualHeight = 0;
+
+            try
+            {
+                ImageDimensions dimensions = await JsRuntime.InvokeAsync<ImageDimensions>("getImageDimensions", url);
+                actualWidth = dimensions.Width;
+                actualHeight = dimensions.Height;
+            }
+            catch
+            {
+                // Si por lo que sea no se pueden leer las dimensiones reales (red, formato raro),
+                // seguimos adelante solo con el ancho elegido - height:auto en el CSS cubre el resto.
+            }
+
+            string heightAttribute = actualHeight > 0 ? $" height=\"{actualHeight}\"" : string.Empty;
+
             await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<span contenteditable=\"false\" style=\"display:inline-block; resize:both; overflow:hidden; max-width:100%; border:1px dashed transparent;\">" +
-                $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"width:100%; height:auto; display:block;\" /></span>&nbsp;");
+                $"<img src=\"{url}\" width=\"{actualWidth}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
         }
         finally
         {
