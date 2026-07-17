@@ -11,6 +11,8 @@ public class EmailLayoutConfiguration : IEntityTypeConfiguration<EmailLayout>
         builder.Property(e => e.HeaderText);
         builder.Property(e => e.FooterHtml).IsRequired();
         builder.Property(e => e.FooterText);
+        builder.Property(e => e.HeaderImageWidth);
+        builder.Property(e => e.FooterImageWidth);
         builder.Property(e => e.IsActive).IsRequired();
         builder.Property(e => e.CreatedAt).IsRequired();
         builder.Property(e => e.UpdatedAt);

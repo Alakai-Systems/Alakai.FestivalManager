@@ -164,11 +164,23 @@
     [Parameter] public string Value { get; set; } = string.Empty;
     [Parameter] public EventCallback<string> ValueChanged { get; set; }
     [Parameter] public List<string>? Variables { get; set; }
+    [Parameter] public int InitialWidth { get; set; } = 600;
+    [Parameter] public EventCallback<int> WidthChanged { get; set; }
 
     private RadzenHtmlEditor EditorRef { get; set; } = default!;
     private bool IsUploadingImage { get; set; }
     private readonly string UploadInputId = $"email-rte-upload-{Guid.NewGuid():N}";
     public int UploadImageWidth { get; set; } = 600;
+    private bool _widthInitializedFromParameter;
+
+    protected override void OnParametersSet()
+    {
+        if (!_widthInitializedFromParameter)
+        {
+            UploadImageWidth = InitialWidth;
+            _widthInitializedFromParameter = true;
+        }
+    }
 
     private async Task OnEditorChange(string html)
     {
@@ -221,6 +233,8 @@
 
             await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
                 $"<img src=\"{url}\" width=\"{actualWidth}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
+
+            await WidthChanged.InvokeAsync(UploadImageWidth);
         }
         finally
         {

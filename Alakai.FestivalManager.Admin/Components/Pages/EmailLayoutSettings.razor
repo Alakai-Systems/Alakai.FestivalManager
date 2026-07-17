@@ -1,4 +1,4 @@
-﻿@page "/email-layout"
+@page "/email-layout"
 @using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.EmailLayouts.Requests
 
@@ -137,7 +137,9 @@
 
                         <div class="md:col-span-2">
                             <label class="block text-sm text-black/60 dark:text-white/60">Header (HTML)</label>
-                            <EmailTemplateEditor @bind-Value="formModel.HeaderHtml" />
+                            <EmailTemplateEditor @bind-Value="formModel.HeaderHtml"
+                                                  InitialWidth="@(formModel.HeaderImageWidth ?? 600)"
+                                                  WidthChanged="@(w => formModel.HeaderImageWidth = w)" />
                         </div>
 
                         <div class="md:col-span-2">
@@ -147,7 +149,9 @@
 
                         <div class="md:col-span-2">
                             <label class="block text-sm text-black/60 dark:text-white/60">Footer (HTML)</label>
-                            <EmailTemplateEditor @bind-Value="formModel.FooterHtml" />
+                            <EmailTemplateEditor @bind-Value="formModel.FooterHtml"
+                                                  InitialWidth="@(formModel.FooterImageWidth ?? 600)"
+                                                  WidthChanged="@(w => formModel.FooterImageWidth = w)" />
                         </div>
 
                         <div class="md:col-span-2">
@@ -346,6 +350,8 @@
             HeaderText = layout.HeaderText,
             FooterHtml = layout.FooterHtml,
             FooterText = layout.FooterText,
+            HeaderImageWidth = layout.HeaderImageWidth,
+            FooterImageWidth = layout.FooterImageWidth,
             IsActive = layout.IsActive
         };
         showModal = true;
@@ -394,6 +400,8 @@
                     HeaderText = formModel.HeaderText,
                     FooterHtml = formModel.FooterHtml,
                     FooterText = formModel.FooterText,
+                    HeaderImageWidth = formModel.HeaderImageWidth,
+                    FooterImageWidth = formModel.FooterImageWidth,
                     IsActive = formModel.IsActive
                 };
 
@@ -410,6 +418,8 @@
                     HeaderText = formModel.HeaderText,
                     FooterHtml = formModel.FooterHtml,
                     FooterText = formModel.FooterText,
+                    HeaderImageWidth = formModel.HeaderImageWidth,
+                    FooterImageWidth = formModel.FooterImageWidth,
                     IsActive = formModel.IsActive
                 };
 
@@ -474,6 +484,8 @@
         public string HeaderHtml { get; set; } = string.Empty;
         public string? HeaderText { get; set; }
         public string FooterHtml { get; set; } = string.Empty;
+        public int? HeaderImageWidth { get; set; }
+        public int? FooterImageWidth { get; set; }
         public string? FooterText { get; set; }
         public bool IsActive { get; set; } = true;
     }

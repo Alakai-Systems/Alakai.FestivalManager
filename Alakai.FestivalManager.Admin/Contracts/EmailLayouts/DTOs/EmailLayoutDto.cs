@@ -10,5 +10,7 @@ public class EmailLayoutDto
     public string? HeaderText { get; set; }
     public string FooterHtml { get; set; } = string.Empty;
     public string? FooterText { get; set; }
+    public int? HeaderImageWidth { get; set; }
+    public int? FooterImageWidth { get; set; }
     public bool IsActive { get; set; }
 }

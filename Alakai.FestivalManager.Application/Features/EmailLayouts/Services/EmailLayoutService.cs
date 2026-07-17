@@ -34,6 +34,8 @@ public class EmailLayoutService : IEmailLayoutService
             HeaderText = request.HeaderText,
             FooterHtml = request.FooterHtml,
             FooterText = request.FooterText,
+            HeaderImageWidth = request.HeaderImageWidth,
+            FooterImageWidth = request.FooterImageWidth,
             IsActive = request.IsActive
         };
 
@@ -72,6 +74,8 @@ public class EmailLayoutService : IEmailLayoutService
         emailLayout.HeaderText = request.HeaderText;
         emailLayout.FooterHtml = request.FooterHtml;
         emailLayout.FooterText = request.FooterText;
+        emailLayout.HeaderImageWidth = request.HeaderImageWidth;
+        emailLayout.FooterImageWidth = request.FooterImageWidth;
         emailLayout.IsActive = request.IsActive;
         emailLayout.SetUpdated();
 
@@ -128,6 +132,8 @@ public class EmailLayoutService : IEmailLayoutService
             HeaderText = emailLayout.HeaderText,
             FooterHtml = emailLayout.FooterHtml,
             FooterText = emailLayout.FooterText,
+            HeaderImageWidth = emailLayout.HeaderImageWidth,
+            FooterImageWidth = emailLayout.FooterImageWidth,
             IsActive = emailLayout.IsActive,
             CreatedAt = emailLayout.CreatedAt,
             UpdatedAt = emailLayout.UpdatedAt

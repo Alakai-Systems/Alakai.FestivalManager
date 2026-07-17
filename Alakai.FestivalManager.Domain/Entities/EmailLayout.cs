@@ -13,5 +13,8 @@ public class EmailLayout : BaseEntity
     public string FooterHtml { get; set; } = string.Empty;
     public string? FooterText { get; set; }
 
+    public int? HeaderImageWidth { get; set; }
+    public int? FooterImageWidth { get; set; }
+
     public bool IsActive { get; set; } = true;
 }
