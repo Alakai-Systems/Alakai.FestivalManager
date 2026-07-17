@@ -1,8 +1,18 @@
 @using Radzen.Blazor
 @inherits LayoutComponentBase
 @implements IDisposable
-@inject IJSRuntime JsRuntime
 @inject ActiveFestivalState ActiveFestivalState
+
+<HeadContent>
+    @if (!string.IsNullOrWhiteSpace(ActiveFestivalState.Active?.FaviconUrl))
+    {
+        <link rel="icon" href="@ActiveFestivalState.Active.FaviconUrl" />
+    }
+    @if (!string.IsNullOrWhiteSpace(ActiveFestivalState.Active?.Name))
+    {
+        <title>@ActiveFestivalState.Active.Name - Alakai Festival Manager</title>
+    }
+</HeadContent>
 
 <AuthorizeView Policy="AdminAccess">
     <Authorized>
@@ -32,59 +42,14 @@
     </NotAuthorized>
 </AuthorizeView>
 
-<script>
-    window.setFavicon = window.setFavicon || function (url) {
-        document.querySelectorAll("link[rel~='icon']").forEach(el => el.remove());
-        const link = document.createElement('link');
-        link.rel = 'icon';
-        link.href = url;
-        document.head.appendChild(link);
-    };
-
-    window.setPageTitle = window.setPageTitle || function (title) {
-        document.title = title;
-    };
-</script>
-
 @code {
     protected override void OnInitialized()
     {
-        ActiveFestivalState.OnChange += OnActiveFestivalChanged;
-        UpdateFaviconAsync();
-    }
-
-    private void OnActiveFestivalChanged()
-    {
-        UpdateFaviconAsync();
-        InvokeAsync(StateHasChanged);
-    }
-
-    private async void UpdateFaviconAsync()
-    {
-        string? url = ActiveFestivalState.Active?.FaviconUrl;
-        string? name = ActiveFestivalState.Active?.Name;
-
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(url))
-            {
-                await JsRuntime.InvokeVoidAsync("setFavicon", url);
-            }
-
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                await JsRuntime.InvokeVoidAsync("setPageTitle", $"{name} - Alakai Festival Manager");
-            }
-        }
-        catch
-        {
-            // Si falla (por ejemplo, durante el prerenderizado antes de tener JS disponible),
-            // simplemente se mantiene el favicon/titulo actual - no es critico.
-        }
+        ActiveFestivalState.OnChange += StateHasChanged;
     }
 
     public void Dispose()
     {
-        ActiveFestivalState.OnChange -= OnActiveFestivalChanged;
+        ActiveFestivalState.OnChange -= StateHasChanged;
     }
 }

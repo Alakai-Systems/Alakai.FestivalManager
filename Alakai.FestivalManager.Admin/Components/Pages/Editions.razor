@@ -1,4 +1,4 @@
-﻿@page "/editions"
+@page "/editions"
 @using Alakai.FestivalManager.Admin.Contracts.Editions.Requests
 @using Alakai.FestivalManager.Admin.Contracts.Festivals
 @inject EditionApiClient EditionApiClient
@@ -197,8 +197,18 @@
 
                     <input class="form-input" placeholder="Name" @bind="createRequest.Name" />
                     <input class="form-input" placeholder="Year" type="number" @bind="createRequest.Year" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
                     <InputDate class="form-input" @bind-Value="createRequest.StartDate" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
                     <InputDate class="form-input" @bind-Value="createRequest.EndDate" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
+                    <InputDate class="form-input" @bind-Value="createRequest.RegistrationOpenDate" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
+                    <InputDate class="form-input" @bind-Value="createRequest.RegistrationCloseDate" />
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -250,6 +260,12 @@
 
                     <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
                     <InputDate class="form-input" @bind-Value="updateRequest.EndDate" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
+                    <InputDate class="form-input" @bind-Value="updateRequest.RegistrationOpenDate" />
+
+                    <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
+                    <InputDate class="form-input" @bind-Value="updateRequest.RegistrationCloseDate" />
 
                     <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                         <input type="checkbox" @bind="updateRequest.IsActive" />

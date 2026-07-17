@@ -20,6 +20,7 @@ public class UserPanelRepository : IUserPanelRepository
         return await _context.Registrations
             .Include(r => r.PassType)
             .Include(r => r.Level)
+            .Include(r => r.Edition).ThenInclude(e => e.Festival)
             .Where(r => r.UserId == userId && r.IsActive)
             .OrderByDescending(r => r.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);

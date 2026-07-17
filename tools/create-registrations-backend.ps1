@@ -1,18 +1,13 @@
-# Fix-Step38-FaviconFixes.ps1
-#
-# 1) User Panel usa @layout UserPanelLayout, NO MainLayout - por eso el
-#    mecanismo de favicon/titulo de los Pasos 36/37 (que vive en MainLayout)
-#    nunca se ejecutaba ahi. Ademas ActiveFestivalState es un concepto de
-#    staff, no aplica a un participante. Se anade FaviconUrl al registro del
-#    dashboard y se usa HeadContent, igual que en Register.razor.
-#
-# 2) Admin: cambiar solo el href de un <link> de favicon existente no siempre
-#    fuerza a algunos navegadores a recargarlo. Se hace mas fiable quitando
-#    el link viejo y creando uno nuevo cada vez.
+# Fix-Step41-UserPanelMissingIncludes.ps1
+# BUG REAL: GetLatestRegistrationByUserIdAsync solo incluia PassType y Level -
+# nunca Edition ni Festival. Por eso EditionName y FaviconUrl del Paso 37/38
+# siempre salian null, sin importar nada del mecanismo de HeadContent - los
+# datos nunca llegaban a cargarse.
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$path = "Alakai.FestivalManager.Infrastructure/Repositories/UserPanelRepository.cs"
 
 function Patch-File {
     param(
@@ -57,81 +52,27 @@ function Patch-File {
     return $true
 }
 
-$results = @()
-
-# ── 1. Admin: hacer setFavicon mas fiable (quitar+recrear el link) ─────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" `
-    -Description "setFavicon: quitar y recrear el link en vez de solo cambiar el href" -OldString @'
-    window.setFavicon = window.setFavicon || function (url) {
-        let link = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
-        }
-        link.href = url;
-    };
+$result = Patch-File -Path $path -Description "Anadir Include de Edition->Festival a GetLatestRegistrationByUserIdAsync" -OldString @'
+        return await _context.Registrations
+            .Include(r => r.PassType)
+            .Include(r => r.Level)
+            .Where(r => r.UserId == userId && r.IsActive)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 '@ -NewString @'
-    window.setFavicon = window.setFavicon || function (url) {
-        document.querySelectorAll("link[rel~='icon']").forEach(el => el.remove());
-        const link = document.createElement('link');
-        link.rel = 'icon';
-        link.href = url;
-        document.head.appendChild(link);
-    };
+        return await _context.Registrations
+            .Include(r => r.PassType)
+            .Include(r => r.Level)
+            .Include(r => r.Edition).ThenInclude(e => e.Festival)
+            .Where(r => r.UserId == userId && r.IsActive)
+            .OrderByDescending(r => r.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
 '@
 
-# ── 2. Application/Admin: anadir FaviconUrl al registro del dashboard ──────
-$results += Patch-File -Path "Alakai.FestivalManager.Application/Features/UserPanel/Contracts/DTOs/UserPanelRegistrationDto.cs" `
-    -Description "Application DTO: anadir FaviconUrl" -OldString @'
-    public string? EditionName { get; set; }
-'@ -NewString @'
-    public string? EditionName { get; set; }
-    public string? FaviconUrl { get; set; }
-'@
-
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Contracts/UserPanel/DTOs/UserPanelRegistrationDto.cs" `
-    -Description "Admin DTO: anadir FaviconUrl" -OldString @'
-    public string? EditionName { get; set; }
-'@ -NewString @'
-    public string? EditionName { get; set; }
-    public string? FaviconUrl { get; set; }
-'@
-
-$results += Patch-File -Path "Alakai.FestivalManager.Application/Features/UserPanel/Services/UserPanelService.cs" `
-    -Description "Service: rellenar FaviconUrl (via Edition.Festival)" -OldString @'
-                EditionName = registration.Edition?.Name,
-'@ -NewString @'
-                EditionName = registration.Edition?.Name,
-                FaviconUrl = registration.Edition?.Festival?.FaviconUrl,
-'@
-
-# ── 3. UserPanel.razor: HeadContent con el favicon real ────────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor" `
-    -Description "UserPanel.razor: anadir HeadContent con el favicon" -OldString @'
-@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.EditionName))
-{
-    <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
-}
-'@ -NewString @'
-@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.EditionName))
-{
-    <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
-}
-
-@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.FaviconUrl))
-{
-    <HeadContent>
-        <link rel="icon" href="@Dashboard.Registration.FaviconUrl" />
-    </HeadContent>
-}
-'@
-
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
+if (-not $result) {
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual de GetLatestRegistrationByUserIdAsync." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
-Write-Host "IMPORTANTE: verifica que la URL del favicon de Swim Out cargue de verdad pegandola en el navegador -" -ForegroundColor Yellow
-Write-Host "si es una URL antigua/rota (de antes de hoy), el remove+recrear el link no la arreglara por si solo." -ForegroundColor Yellow
+Write-Host "Ahora EditionName y FaviconUrl del panel de usuario deberian rellenarse de verdad." -ForegroundColor Green
