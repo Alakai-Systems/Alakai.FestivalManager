@@ -1,6 +1,8 @@
 @using Radzen.Blazor
 @inherits LayoutComponentBase
+@implements IDisposable
 @inject IJSRuntime JsRuntime
+@inject ActiveFestivalState ActiveFestivalState
 
 <AuthorizeView Policy="AdminAccess">
     <Authorized>
@@ -29,3 +31,62 @@
         <RedirectToLogin />
     </NotAuthorized>
 </AuthorizeView>
+
+<script>
+    window.setFavicon = window.setFavicon || function (url) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = url;
+    };
+
+    window.setPageTitle = window.setPageTitle || function (title) {
+        document.title = title;
+    };
+</script>
+
+@code {
+    protected override void OnInitialized()
+    {
+        ActiveFestivalState.OnChange += OnActiveFestivalChanged;
+        UpdateFaviconAsync();
+    }
+
+    private void OnActiveFestivalChanged()
+    {
+        UpdateFaviconAsync();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async void UpdateFaviconAsync()
+    {
+        string? url = ActiveFestivalState.Active?.FaviconUrl;
+        string? name = ActiveFestivalState.Active?.Name;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                await JsRuntime.InvokeVoidAsync("setFavicon", url);
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                await JsRuntime.InvokeVoidAsync("setPageTitle", $"{name} - Alakai Festival Manager");
+            }
+        }
+        catch
+        {
+            // Si falla (por ejemplo, durante el prerenderizado antes de tener JS disponible),
+            // simplemente se mantiene el favicon/titulo actual - no es critico.
+        }
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= OnActiveFestivalChanged;
+    }
+}

@@ -1,11 +1,16 @@
-# Fix-Step34b-CustomDomainUI.ps1
-# Anade el input de Custom Domain a los modales Create/Edit de Festivals.razor,
-# y lo precarga en OpenEditModal. Ejecutar despues de Fix-Step34.
+# Fix-Step37-DynamicPageTitles.ps1
+#
+# Titulo de pestana dinamico en los 3 sitios:
+#   1) Admin: usa ActiveFestivalState.Active.Name, se actualiza junto con el
+#      favicon (mismo OnChange, mismo mecanismo del Paso 36).
+#   2) Formulario publico (Register.razor): usa Availability.EditionName, que
+#      ya estaba disponible - no hace falta ningun dato nuevo.
+#   3) Panel de usuario (UserPanel.razor): necesitaba anadir EditionName al
+#      registro que ya se carga (no existia en el DTO todavia).
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor"
 
 function Patch-File {
     param(
@@ -52,38 +57,151 @@ function Patch-File {
 
 $results = @()
 
-# --- 1. Create modal: anadir input de Custom Domain tras Favicon URL ---
-$results += Patch-File -Path $path -Description "Create modal: anadir Custom Domain" -OldString @'
-                    <input class="form-input" placeholder="Favicon URL" @bind="createRequest.FaviconUrl" />
+# ── 1. Admin: actualizar document.title junto con el favicon ───────────────
+$layoutPath = "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor"
+
+$results += Patch-File -Path $layoutPath -Description "MainLayout: anadir setPageTitle al script existente" -OldString @'
+<script>
+    window.setFavicon = window.setFavicon || function (url) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = url;
+    };
+</script>
 '@ -NewString @'
-                    <input class="form-input" placeholder="Favicon URL" @bind="createRequest.FaviconUrl" />
-                    <input class="form-input" placeholder="Custom Domain (ej. app.midominio.com)" @bind="createRequest.CustomDomain" />
+<script>
+    window.setFavicon = window.setFavicon || function (url) {
+        let link = document.querySelector("link[rel~='icon']");
+        if (!link) {
+            link = document.createElement('link');
+            link.rel = 'icon';
+            document.head.appendChild(link);
+        }
+        link.href = url;
+    };
+
+    window.setPageTitle = window.setPageTitle || function (title) {
+        document.title = title;
+    };
+</script>
 '@
 
-# --- 2. Edit modal: anadir input de Custom Domain tras Favicon URL ---
-$results += Patch-File -Path $path -Description "Edit modal: anadir Custom Domain" -OldString @'
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Favicon URL</label>
-                        <input class="form-input" placeholder="Favicon URL" @bind="updateRequest.FaviconUrl" />
-                    </div>
-'@ -NewString @'
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Favicon URL</label>
-                        <input class="form-input" placeholder="Favicon URL" @bind="updateRequest.FaviconUrl" />
-                    </div>
+$results += Patch-File -Path $layoutPath -Description "MainLayout: llamar a setPageTitle junto con el favicon" -OldString @'
+    private async void UpdateFaviconAsync()
+    {
+        string? url = ActiveFestivalState.Active?.FaviconUrl;
 
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Custom Domain</label>
-                        <input class="form-input" placeholder="app.midominio.com" @bind="updateRequest.CustomDomain" />
-                    </div>
+        if (!string.IsNullOrWhiteSpace(url))
+        {
+            try
+            {
+                await JsRuntime.InvokeVoidAsync("setFavicon", url);
+            }
+            catch
+            {
+                // Si falla (por ejemplo, durante el prerenderizado antes de tener JS disponible),
+                // simplemente se mantiene el favicon actual - no es critico.
+            }
+        }
+    }
+'@ -NewString @'
+    private async void UpdateFaviconAsync()
+    {
+        string? url = ActiveFestivalState.Active?.FaviconUrl;
+        string? name = ActiveFestivalState.Active?.Name;
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(url))
+            {
+                await JsRuntime.InvokeVoidAsync("setFavicon", url);
+            }
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                await JsRuntime.InvokeVoidAsync("setPageTitle", $"{name} - Alakai Festival Manager");
+            }
+        }
+        catch
+        {
+            // Si falla (por ejemplo, durante el prerenderizado antes de tener JS disponible),
+            // simplemente se mantiene el favicon/titulo actual - no es critico.
+        }
+    }
 '@
 
-# --- 3. OpenEditModal: precargar CustomDomain ---
-$results += Patch-File -Path $path -Description "OpenEditModal: precargar CustomDomain" -OldString @'
-            FaviconUrl = festival.FaviconUrl,
+# ── 2. Formulario publico: PageTitle con el nombre de la edicion ────────────
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Register.razor" `
+    -Description "Register.razor: anadir PageTitle dinamico" -OldString @'
+            @if (!string.IsNullOrWhiteSpace(festivalResponse?.FaviconUrl))
+            {
+                <HeadContent>
+                    <link rel="icon" href="@festivalResponse.FaviconUrl" />
+                </HeadContent>
+            }
 '@ -NewString @'
-            FaviconUrl = festival.FaviconUrl,
-            CustomDomain = festival.CustomDomain,
+            @if (!string.IsNullOrWhiteSpace(Availability?.EditionName))
+            {
+                <PageTitle>@Availability.EditionName</PageTitle>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(festivalResponse?.FaviconUrl))
+            {
+                <HeadContent>
+                    <link rel="icon" href="@festivalResponse.FaviconUrl" />
+                </HeadContent>
+            }
+'@
+
+# ── 3. Panel de usuario: anadir EditionName al registro (Application + Admin + Service) ──
+$results += Patch-File -Path "Alakai.FestivalManager.Application/Features/UserPanel/Contracts/DTOs/UserPanelRegistrationDto.cs" `
+    -Description "Application DTO: anadir EditionName" -OldString @'
+    public Guid Id { get; set; }
+    public string RegistrationStatus { get; set; } = string.Empty;
+'@ -NewString @'
+    public Guid Id { get; set; }
+    public string? EditionName { get; set; }
+    public string RegistrationStatus { get; set; } = string.Empty;
+'@
+
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Contracts/UserPanel/DTOs/UserPanelRegistrationDto.cs" `
+    -Description "Admin DTO: anadir EditionName" -OldString @'
+    public Guid Id { get; set; }
+    public string RegistrationStatus { get; set; } = string.Empty;
+'@ -NewString @'
+    public Guid Id { get; set; }
+    public string? EditionName { get; set; }
+    public string RegistrationStatus { get; set; } = string.Empty;
+'@
+
+$results += Patch-File -Path "Alakai.FestivalManager.Application/Features/UserPanel/Services/UserPanelService.cs" `
+    -Description "Service: rellenar EditionName al construir el DTO" -OldString @'
+            Registration = registration is null ? null : new UserPanelRegistrationDto
+            {
+                Id = registration.Id,
+                RegistrationStatus = registration.Status.ToString(),
+'@ -NewString @'
+            Registration = registration is null ? null : new UserPanelRegistrationDto
+            {
+                Id = registration.Id,
+                EditionName = registration.Edition?.Name,
+                RegistrationStatus = registration.Status.ToString(),
+'@
+
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor" `
+    -Description "UserPanel.razor: anadir PageTitle dinamico" -OldString @'
+<PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
+'@ -NewString @'
+@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.EditionName))
+{
+    <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
+}
+
+<PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
 '@
 
 if ($results -contains $false) {
@@ -91,4 +209,4 @@ if ($results -contains $false) {
     exit 1
 }
 
-Write-Host "`nCampo Custom Domain anadido. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nTitulos dinamicos anadidos en los 3 sitios. dotnet build para confirmar." -ForegroundColor Green

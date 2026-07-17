@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Domain.Entities;
+using Alakai.FestivalManager.Domain.Entities;
 
 namespace Alakai.FestivalManager.Api.Controllers;
 
@@ -39,7 +39,8 @@ public class PublicFestivalsController : ControllerBase
         {
             ActiveEditionId = active?.Id,
             HasAccommodation = hasAccommodation,
-            TermsUrl = festival.TermsUrl
+            TermsUrl = festival.TermsUrl,
+            FaviconUrl = festival.FaviconUrl
         });
     }
 }

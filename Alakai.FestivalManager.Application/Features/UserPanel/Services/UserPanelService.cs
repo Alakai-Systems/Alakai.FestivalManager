@@ -91,6 +91,7 @@ public class UserPanelService : IUserPanelService
             Registration = registration is null ? null : new UserPanelRegistrationDto
             {
                 Id = registration.Id,
+                EditionName = registration.Edition?.Name,
                 RegistrationStatus = registration.Status.ToString(),
                 PaymentStatus = registration.PaymentStatus.ToString(),
                 PassTypeName = registration.PassType.Name,

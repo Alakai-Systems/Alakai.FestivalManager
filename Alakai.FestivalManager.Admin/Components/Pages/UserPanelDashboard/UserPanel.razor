@@ -1,4 +1,4 @@
-﻿@page "/user-panel/dashboard"
+@page "/user-panel/dashboard"
 @page "/user-panel/dashboard/{Lang}"
 @layout UserPanelLayout
 
@@ -22,6 +22,11 @@
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
 @inject IJSRuntime JsRuntime
+
+@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.EditionName))
+{
+    <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
+}
 
 <PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
 

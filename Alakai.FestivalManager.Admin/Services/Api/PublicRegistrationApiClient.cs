@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
+using Alakai.FestivalManager.Application.Features.Registrations.Contracts.Responses;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
@@ -47,4 +47,4 @@ public class PublicRegistrationApiClient
     }
 }
 
-public record PublicFestivalSlugDto(Guid? ActiveEditionId, bool HasAccommodation, string? TermsUrl);
+public record PublicFestivalSlugDto(Guid? ActiveEditionId, bool HasAccommodation, string? TermsUrl, string? FaviconUrl);

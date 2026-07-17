@@ -1,8 +1,9 @@
-﻿namespace Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs;
+namespace Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs;
 
 public class UserPanelRegistrationDto
 {
     public Guid Id { get; set; }
+    public string? EditionName { get; set; }
     public string RegistrationStatus { get; set; } = string.Empty;
     public string PaymentStatus { get; set; } = string.Empty;
     public string PassTypeName { get; set; } = string.Empty;

@@ -58,6 +58,18 @@
         }
         else
         {
+            @if (!string.IsNullOrWhiteSpace(Availability?.EditionName))
+            {
+                <PageTitle>@Availability.EditionName</PageTitle>
+            }
+
+            @if (!string.IsNullOrWhiteSpace(festivalResponse?.FaviconUrl))
+            {
+                <HeadContent>
+                    <link rel="icon" href="@festivalResponse.FaviconUrl" />
+                </HeadContent>
+            }
+
             <!-- Festival header -->
             <div class="mb-6 text-center">
                 <div class="text-2xl font-bold text-black">@Availability?.EditionName</div>
@@ -375,6 +387,7 @@
     private string? ErrorMessage;
     private string? SubmitError;
     private PublicRegistrationAvailabilityDto? Availability;
+    private PublicFestivalSlugDto? festivalResponse;
     private bool HasAccommodation;
     private string? TermsUrl;
     // Grouped passes for the optgroup selector
@@ -483,7 +496,7 @@
                     return;
                 }
             }
-            PublicFestivalSlugDto? festivalResponse = await PublicApi.GetFestivalBySlugAsync(Slug);
+            festivalResponse = await PublicApi.GetFestivalBySlugAsync(Slug);
             if (festivalResponse?.ActiveEditionId is null)
             {
                 ErrorMessage = "This festival is not currently open for registration.";
