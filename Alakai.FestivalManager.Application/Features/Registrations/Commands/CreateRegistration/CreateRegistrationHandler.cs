@@ -15,13 +15,13 @@ public class CreateRegistrationHandler
     private readonly IPasswordHasherService _passwordHasherService;
     private readonly IRegistrationPartnerService _registrationPartnerService;
     private readonly IMapper _mapper;
-    private readonly IServiceScopeFactory _serviceScopeFactory;
+    private readonly IBackgroundTaskQueue _backgroundTaskQueue;
 
     public CreateRegistrationHandler(IRegistrationRepository registrationRepository, IEditionRepository editionRepository, 
         IPassTypeRepository passTypeRepository, ILevelRepository levelRepository, IUserRepository userRepository, IMapper mapper,
         IEmailNotificationService emailNotificationService, IDiscountCalculationService discountCalculationService,
         IDiscountCodeRepository discountCodeRepository, IPasswordHasherService passwordHasherService, IRegistrationPartnerService registrationPartnerService,
-        IServiceScopeFactory serviceScopeFactory)
+        IBackgroundTaskQueue backgroundTaskQueue)
     {
         _registrationRepository = registrationRepository;
         _editionRepository = editionRepository;
@@ -34,7 +34,7 @@ public class CreateRegistrationHandler
         _discountCodeRepository = discountCodeRepository;
         _passwordHasherService = passwordHasherService;
         _registrationPartnerService = registrationPartnerService;
-        _serviceScopeFactory = serviceScopeFactory;
+        _backgroundTaskQueue = backgroundTaskQueue;
     }
 
     public async Task<RegistrationDto> HandleAsync(CreateRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -141,22 +141,11 @@ public class CreateRegistrationHandler
         }
 
         Guid registrationIdForEmail = registration.Id;
-        IServiceScopeFactory scopeFactory = _serviceScopeFactory;
 
-        _ = Task.Run(async () =>
+        _backgroundTaskQueue.QueueBackgroundWorkItem(async (serviceProvider, ct) =>
         {
-            try
-            {
-                using IServiceScope scope = scopeFactory.CreateScope();
-                IEmailNotificationService scopedEmailService = scope.ServiceProvider.GetRequiredService<IEmailNotificationService>();
-                await scopedEmailService.CreateAndSendEmailAsync(EmailTemplateKey.RegistrationCreated, registrationIdForEmail, CancellationToken.None);
-            }
-            catch
-            {
-                // Un fallo de email (SMTP lento, credenciales invalidas, etc.) nunca debe
-                // poder afectar al registro ya creado. Los fallos individuales ya quedan
-                // registrados como EmailLogStatus.Failed dentro de EmailNotificationService.
-            }
+            IEmailNotificationService scopedEmailService = serviceProvider.GetRequiredService<IEmailNotificationService>();
+            await scopedEmailService.CreateAndSendEmailAsync(EmailTemplateKey.RegistrationCreated, registrationIdForEmail, ct);
         });
 
         RegistrationDto dto = _mapper.Map<RegistrationDto>(registration);

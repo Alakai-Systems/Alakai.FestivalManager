@@ -1,4 +1,4 @@
-﻿@using Radzen
+@using Radzen
 @using Radzen.Blazor
 @inject UploadsApiClient UploadsApiClient
 
@@ -36,7 +36,6 @@
         <RadzenHtmlEditorSeparator />
         <RadzenHtmlEditorLink />
         <RadzenHtmlEditorUnlink />
-        <RadzenHtmlEditorImage />
         <RadzenHtmlEditorTable />
         <RadzenHtmlEditorSeparator />
         <RadzenHtmlEditorSource />
@@ -162,7 +161,9 @@
             using Stream stream = e.File.OpenReadStream(maxFileSize);
             string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
 
-            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"max-width:100%;\" />");
+            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
+                $"<span contenteditable=\"false\" style=\"display:inline-block; resize:both; overflow:hidden; max-width:100%; border:1px dashed transparent;\">" +
+                $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"width:100%; height:auto; display:block;\" /></span>&nbsp;");
         }
         finally
         {

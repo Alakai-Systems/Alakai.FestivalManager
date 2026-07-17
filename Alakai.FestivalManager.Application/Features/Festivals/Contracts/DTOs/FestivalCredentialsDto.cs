@@ -11,6 +11,7 @@ public class FestivalCredentialsDto
     public string RedsysTerminal { get; set; } = string.Empty;
     public bool HasRedsysSecretKey { get; set; }
     public string RedsysMerchantName { get; set; } = string.Empty;
+    public string? RedsysPaymentUrl { get; set; }
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; }
     public string EmailUsername { get; set; } = string.Empty;

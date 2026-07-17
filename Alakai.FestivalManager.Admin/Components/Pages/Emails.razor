@@ -15,6 +15,7 @@
 
                 <select class="form-select md:w-56" @bind="festivalFilter" @bind:after="OnFestivalFilterChangedAsync">
                     <option value="">All festivals</option>
+                    <option value="GLOBAL">Global (no festival)</option>
                     @foreach (FestivalDto f in festivals)
                     {
                         <option value="@f.Id">@f.Name</option>
@@ -244,9 +245,11 @@
     private string festivalFilter = string.Empty;
 
     private List<EditionDto> EditionsForSelectedFestival =>
-        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
-            ? editions
-            : editions.Where(e => e.FestivalId == fid).ToList();
+        festivalFilter == "GLOBAL"
+            ? []
+            : string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+                ? editions
+                : editions.Where(e => e.FestivalId == fid).ToList();
 
     private void OnFestivalFilterChanged()
     {
@@ -409,6 +412,11 @@
         get
         {
             IEnumerable<EmailTemplateDto> query = templates;
+
+            if (festivalFilter == "GLOBAL")
+            {
+                query = query.Where(c => c.EditionId is null);
+            }
 
             if (!string.IsNullOrWhiteSpace(searchText))
             {
@@ -606,6 +614,11 @@
                 "FullName", "UserEmail", "PortalUrl", "PassTypeName",
                 "FinalPrice", "PartnerEmail", "ResetPasswordUrl"
             };
+
+            if (ActiveFestivalState.HasModule(FestivalModule.Competitions))
+            {
+                vars.Add("CompetitionName");
+            }
 
             if (ActiveFestivalState.HasModule(FestivalModule.Accommodation))
             {

@@ -9,6 +9,7 @@ public class UpsertFestivalCredentialsCommand
     /// <summary>Vacio = conservar la clave ya guardada (no se sobreescribe).</summary>
     public string? RedsysSecretKey { get; set; }
     public string RedsysMerchantName { get; set; } = string.Empty;
+    public string? RedsysPaymentUrl { get; set; }
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; }
     public string EmailUsername { get; set; } = string.Empty;

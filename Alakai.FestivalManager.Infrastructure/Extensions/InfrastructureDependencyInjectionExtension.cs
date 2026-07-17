@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Infrastructure.BackgroundTasks;
+
 namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
 public static class InfrastructureDependencyInjectionExtension
@@ -16,6 +18,8 @@ public static class InfrastructureDependencyInjectionExtension
                     sqlOptions.CommandTimeout(60);
                 }));
 
+        services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
+        services.AddHostedService<QueuedHostedService>();
         services.AddScoped<IFestivalRepository, FestivalRepository>();
         services.AddScoped<IFestivalCredentialsRepository, FestivalCredentialsRepository>();
         services.AddScoped<IEditionRepository, EditionRepository>();

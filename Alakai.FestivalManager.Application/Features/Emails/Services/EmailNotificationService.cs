@@ -15,6 +15,7 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IBusReservationRepository _busReservationRepository;
     private readonly IMealPreferenceRepository _mealPreferenceRepository;
     private readonly IAccommodationBuildingRepository _accommodationBuildingRepository;
+    private readonly ICompetitionEntryRepository _competitionEntryRepository;
     private readonly IMapper _mapper;
     private readonly SystemEmailOptions _systemEmailOptions;
 
@@ -23,7 +24,7 @@ public class EmailNotificationService : IEmailNotificationService
         IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
         IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
         IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository,
-        IOptions<SystemEmailOptions> systemEmailOptions)
+        IOptions<SystemEmailOptions> systemEmailOptions, ICompetitionEntryRepository competitionEntryRepository)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -38,6 +39,7 @@ public class EmailNotificationService : IEmailNotificationService
         _mealPreferenceRepository = mealPreferenceRepository;
         _accommodationBuildingRepository = accommodationBuildingRepository;
         _systemEmailOptions = systemEmailOptions.Value;
+        _competitionEntryRepository = competitionEntryRepository;
     }
 
     private const int EmailShellWidth = 640;
@@ -115,6 +117,7 @@ public class EmailNotificationService : IEmailNotificationService
         await AddAccommodationVariablesAsync(variables, registration.Id, cancellationToken);
         await AddBusVariablesAsync(variables, registration.Id, cancellationToken);
         await AddMealVariablesAsync(variables, registration.Id, cancellationToken);
+        await AddCompetitionVariablesAsync(variables, registration.Id, cancellationToken);
 
         string subject = _emailTemplateRendererService.Render(template.Subject, variables);
         string renderedBodyHtml = _emailTemplateRendererService.Render(template.BodyHtml, variables);
@@ -149,6 +152,20 @@ public class EmailNotificationService : IEmailNotificationService
         return dto;
     }
 
+
+    private async Task AddCompetitionVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
+    {
+        variables["CompetitionName"] = string.Empty;
+
+        IReadOnlyList<CompetitionEntry> entries = await _competitionEntryRepository.GetByRegistrationIdAsync(registrationId, cancellationToken);
+
+        CompetitionEntry? entry = entries.FirstOrDefault(e => e.IsActive) ?? entries.FirstOrDefault();
+
+        if (entry?.Competition is not null)
+        {
+            variables["CompetitionName"] = entry.Competition.Name;
+        }
+    }
 
     private async Task AddAccommodationVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
     {

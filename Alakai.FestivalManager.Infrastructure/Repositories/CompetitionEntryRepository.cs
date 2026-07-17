@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 
 namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
@@ -33,7 +33,10 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
 
     public async Task<IReadOnlyList<CompetitionEntry>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
-        return await _context.CompetitionEntries.Where(e => e.RegistrationId == registrationId).ToListAsync(cancellationToken);
+        return await _context.CompetitionEntries
+            .Include(e => e.Competition)
+            .Where(e => e.RegistrationId == registrationId)
+            .ToListAsync(cancellationToken);
     }
 
     public async Task<IReadOnlyList<CompetitionEntry>> GetByPartnerRegistrationIdAsync(Guid partnerRegistrationId, CancellationToken cancellationToken = default)

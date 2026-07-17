@@ -40,9 +40,13 @@ public class RedsysGateway : IRedsysGateway
         string merchantParameters = Convert.ToBase64String(Encoding.UTF8.GetBytes(json));
         string signature = Sign(order, merchantParameters, credentials.RedsysSecretKey);
 
+        string paymentUrl = string.IsNullOrWhiteSpace(credentials.RedsysPaymentUrl)
+            ? _options.PaymentUrl
+            : credentials.RedsysPaymentUrl;
+
         return new RedsysPaymentFormDto
         {
-            Url = _options.PaymentUrl,
+            Url = paymentUrl,
             SignatureVersion = SignatureVersion,
             MerchantParameters = merchantParameters,
             Signature = signature,

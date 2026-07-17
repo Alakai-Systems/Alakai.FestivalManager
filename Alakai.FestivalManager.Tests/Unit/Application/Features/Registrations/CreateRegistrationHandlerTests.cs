@@ -23,7 +23,7 @@ public class CreateRegistrationHandlerTests
     private readonly Mock<IPasswordHasherService> _passwordHasher = new();
     private readonly Mock<IRegistrationPartnerService> _partnerSvc = new();
     private readonly Mock<IMapper> _mapper = new();
-    private readonly Mock<IServiceScopeFactory> _serviceScopeFactory = new();
+    private readonly Mock<IBackgroundTaskQueue> _backgroundTaskQueue = new();
     private readonly CreateRegistrationHandler _sut;
 
     private readonly Edition _edition = new() { IsActive = true };
@@ -35,7 +35,7 @@ public class CreateRegistrationHandlerTests
         _sut = new CreateRegistrationHandler(
             _regRepo.Object, _editionRepo.Object, _passTypeRepo.Object, _levelRepo.Object,
             _userRepo.Object, _mapper.Object, _emailSvc.Object, _discountSvc.Object,
-            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object, _serviceScopeFactory.Object);
+            _discountRepo.Object, _passwordHasher.Object, _partnerSvc.Object, _backgroundTaskQueue.Object);
 
         // Defaults: happy path
         _editionRepo.Setup(r => r.GetByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(_edition);

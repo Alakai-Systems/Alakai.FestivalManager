@@ -1,119 +1,72 @@
-# Fix-Step20-SmtpProtocolByPort.ps1
-#
-# CAUSA RAIZ REAL (no solo un timeout): el codigo siempre usaba
-# SecureSocketOptions.StartTls para cifrar, sea cual sea el puerto. Pero:
-#   - Puerto 587 -> STARTTLS (conectar en plano, luego subir a TLS) - correcto.
-#   - Puerto 465 -> SSL/TLS IMPLICITO desde el primer byte - StartTls es el
-#     protocolo EQUIVOCADO para este puerto.
-#
-# Las credenciales SMTP tanto de La Jam como de Swim Out usan el puerto 465,
-# asi que estabamos negociando STARTTLS contra un servidor que espera TLS
-# implicito desde el primer byte. Muchos servidores, ante esa negociacion
-# incorrecta, no la rechazan limpiamente - simplemente no responden nada,
-# lo que produce exactamente el "se queda colgado" que estabas viendo.
-#
-# Fix: elegir el modo correcto segun el puerto (465 -> SslOnConnect,
-# 587 -> StartTls), manteniendo tambien un timeout de seguridad de 20s por si
-# el servidor de verdad no responde por otro motivo (red, firewall, etc.).
+# Fix-Step28-ResizableUploadedImage.ps1
+# Al insertar la imagen subida via InsertHtml generico, no queda con asas de
+# redimensionar (a diferencia de las imagenes insertadas por el icono nativo
+# de Radzen, que ya quitamos por romper Gmail). Se envuelve en un contenedor
+# con "resize: both" de CSS - soporte nativo del navegador para arrastrar y
+# redimensionar, sin depender de ninguna API interna de Radzen.
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Infrastructure/Email/MailKitEmailSender.cs"
+$path = "Alakai.FestivalManager.Admin/Components/Layout/EmailTemplateEditor.razor"
 
-if (-not (Test-Path $path)) {
-    Write-Host "SKIP (archivo no encontrado): $path" -ForegroundColor Yellow
+function Patch-File {
+    param(
+        [string]$Path,
+        [string]$OldString,
+        [string]$NewString,
+        [string]$Description
+    )
+
+    if (-not (Test-Path $Path)) {
+        Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow
+        return $false
+    }
+
+    $rawContent = Get-Content -Path $Path -Raw
+    $usesCrlf = $rawContent.Contains("`r`n")
+
+    $normalizedContent = $rawContent -replace "`r`n", "`n"
+    $normalizedOld = $OldString -replace "`r`n", "`n"
+    $normalizedNew = $NewString -replace "`r`n", "`n"
+
+    if ($normalizedContent.Contains($normalizedNew) -and -not $normalizedContent.Contains($normalizedOld)) {
+        Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
+        return $true
+    }
+
+    if (-not $normalizedContent.Contains($normalizedOld)) {
+        Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow
+        return $false
+    }
+
+    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
+
+    if ($usesCrlf) {
+        $updatedFinal = $updatedNormalized -replace "`n", "`r`n"
+    } else {
+        $updatedFinal = $updatedNormalized
+    }
+
+    Set-Content -Path $Path -Value $updatedFinal -NoNewline
+    Write-Host "OK: $Description" -ForegroundColor Green
+    return $true
+}
+
+$result = Patch-File -Path $path -Description "Insertar la imagen dentro de un contenedor redimensionable (resize:both)" -OldString @'
+            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml, $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"max-width:100%;\" />");
+'@ -NewString @'
+            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
+                $"<span contenteditable=\"false\" style=\"display:inline-block; resize:both; overflow:hidden; max-width:100%; border:1px dashed transparent;\">" +
+                $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"width:100%; height:auto; display:block;\" /></span>&nbsp;");
+'@
+
+if (-not $result) {
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual de OnImageSelectedAsync en EmailTemplateEditor.razor." -ForegroundColor Red
     exit 1
 }
 
-$content = @'
-namespace Alakai.FestivalManager.Infrastructure.Email;
-
-public class MailKitEmailSender : IEmailSender
-{
-    private static readonly TimeSpan SmtpOperationTimeout = TimeSpan.FromSeconds(20);
-
-    public async Task SendAsync(EmailMessage message, EmailSenderSettings senderSettings, CancellationToken cancellationToken = default)
-    {
-        MimeMessage mimeMessage = new();
-
-        mimeMessage.From.Add(new MailboxAddress(senderSettings.FromName, senderSettings.FromEmail));
-
-        mimeMessage.To.Add(new MailboxAddress(message.To.Name, message.To.Address));
-
-        foreach (EmailAddress cc in message.Cc)
-        {
-            mimeMessage.Cc.Add(new MailboxAddress(cc.Name, cc.Address));
-        }
-
-        foreach (EmailAddress bcc in message.Bcc)
-        {
-            mimeMessage.Bcc.Add(new MailboxAddress(bcc.Name, bcc.Address));
-        }
-
-        mimeMessage.Subject = message.Subject;
-
-        BodyBuilder bodyBuilder = new()
-        {
-            HtmlBody = message.HtmlBody,
-            TextBody = message.TextBody
-        };
-
-        foreach (EmailAttachment attachment in message.Attachments)
-        {
-            bodyBuilder.Attachments.Add(
-                attachment.FileName,
-                attachment.Content,
-                ContentType.Parse(attachment.ContentType));
-        }
-
-        mimeMessage.Body = bodyBuilder.ToMessageBody();
-
-        using SmtpClient smtpClient = new();
-
-        // Puerto 465 = SSL/TLS implicito desde el primer byte (SslOnConnect).
-        // Puerto 587 (u otros) = conectar en plano y subir a TLS (StartTls).
-        // Usar StartTls contra un servidor en el puerto 465 hace que muchos
-        // servidores no respondan nada, en vez de rechazar limpiamente.
-        SecureSocketOptions socketOptions = senderSettings switch
-        {
-            { UseSSL: false } => SecureSocketOptions.None,
-            { Port: 465 } => SecureSocketOptions.SslOnConnect,
-            _ => SecureSocketOptions.StartTls
-        };
-
-        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCts.CancelAfter(SmtpOperationTimeout);
-
-        try
-        {
-            await smtpClient.ConnectAsync(
-                senderSettings.Host,
-                senderSettings.Port,
-                socketOptions,
-                timeoutCts.Token);
-
-            if (!string.IsNullOrWhiteSpace(senderSettings.UserName))
-            {
-                await smtpClient.AuthenticateAsync(
-                    senderSettings.UserName,
-                    senderSettings.Password,
-                    timeoutCts.Token);
-            }
-
-            await smtpClient.SendAsync(mimeMessage, timeoutCts.Token);
-
-            await smtpClient.DisconnectAsync(true, timeoutCts.Token);
-        }
-        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
-        {
-            throw new TimeoutException(
-                $"Could not complete the SMTP operation with '{senderSettings.Host}:{senderSettings.Port}' within {SmtpOperationTimeout.TotalSeconds} seconds. Check the email server settings for this festival.");
-        }
-    }
-}
-'@
-
-Set-Content -Path $path -Value $content -NoNewline
-Write-Host "OK: MailKitEmailSender.cs corregido (SslOnConnect para puerto 465)." -ForegroundColor Green
-Write-Host "dotnet build para confirmar." -ForegroundColor Yellow
+Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "Tras subir una imagen, arrastra la esquina inferior derecha del recuadro para redimensionarla." -ForegroundColor Cyan
+Write-Host "IMPORTANTE: ese span envoltorio es solo para editar comodamente - el 'width' del <img>" -ForegroundColor Yellow
+Write-Host "es lo que de verdad importa para el email final (Gmail no respeta CSS resize)." -ForegroundColor Yellow

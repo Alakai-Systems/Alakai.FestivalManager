@@ -371,6 +371,11 @@
                             </div>
 
                             <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Payment URL (test o produccion)</label>
+                                <input class="form-input" placeholder="https://sis.redsys.es/sis/realizarPago" @bind="credentialsRequest.RedsysPaymentUrl" />
+                            </div>
+
+                            <div>
                                 <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
                                 <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
                             </div>
@@ -703,6 +708,7 @@
                 credentialsRequest.RedsysMerchantCode = existing.RedsysMerchantCode;
                 credentialsRequest.RedsysTerminal = existing.RedsysTerminal;
                 credentialsRequest.RedsysMerchantName = existing.RedsysMerchantName;
+                credentialsRequest.RedsysPaymentUrl = existing.RedsysPaymentUrl;
                 credentialsRequest.EmailHost = existing.EmailHost;
                 credentialsRequest.EmailPort = existing.EmailPort;
                 credentialsRequest.EmailUsername = existing.EmailUsername;

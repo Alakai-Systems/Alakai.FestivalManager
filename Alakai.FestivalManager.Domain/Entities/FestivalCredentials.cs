@@ -16,6 +16,9 @@ public class FestivalCredentials : BaseEntity
     public string RedsysSecretKey { get; set; } = string.Empty;
     public string RedsysMerchantName { get; set; } = string.Empty;
 
+    /// <summary>URL del endpoint de Redsys para este festival (test o produccion). Vacio = usa el fallback global.</summary>
+    public string? RedsysPaymentUrl { get; set; }
+
     // Email (SMTP)
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; } = 587;

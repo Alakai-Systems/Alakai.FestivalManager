@@ -8,6 +8,7 @@ public class UpsertFestivalCredentialsRequest
     /// <summary>Vacio = conservar la clave ya guardada.</summary>
     public string? RedsysSecretKey { get; set; }
     public string RedsysMerchantName { get; set; } = string.Empty;
+    public string? RedsysPaymentUrl { get; set; }
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; } = 587;
     public string EmailUsername { get; set; } = string.Empty;

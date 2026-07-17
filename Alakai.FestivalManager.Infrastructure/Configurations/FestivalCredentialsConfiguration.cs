@@ -27,6 +27,9 @@ public class FestivalCredentialsConfiguration : IEntityTypeConfiguration<Festiva
             .IsRequired()
             .HasMaxLength(150);
 
+        builder.Property(fc => fc.RedsysPaymentUrl)
+            .HasMaxLength(300);
+
         builder.Property(fc => fc.EmailHost)
             .IsRequired()
             .HasMaxLength(200);
