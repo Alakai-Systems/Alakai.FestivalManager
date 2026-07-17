@@ -1,79 +1,119 @@
-# Fix-Step17-EmailNotificationApiClientHardcodedUrl.ps1
+# Fix-Step20-SmtpProtocolByPort.ps1
 #
-# BUG REAL (preexistente, no de hoy): EmailNotificationApiClient tenia
-# "https://localhost:7157/" hardcodeado como BaseAddress, en vez de leer
-# ApiSettings:BaseUrl de la configuracion como TODOS los demas clientes.
-# En produccion, cualquier llamada a traves de este cliente intenta conectar
-# a localhost:7157 (que no existe en el contenedor de Azure), fallando con
-# "Cannot assign requested address".
+# CAUSA RAIZ REAL (no solo un timeout): el codigo siempre usaba
+# SecureSocketOptions.StartTls para cifrar, sea cual sea el puerto. Pero:
+#   - Puerto 587 -> STARTTLS (conectar en plano, luego subir a TLS) - correcto.
+#   - Puerto 465 -> SSL/TLS IMPLICITO desde el primer byte - StartTls es el
+#     protocolo EQUIVOCADO para este puerto.
+#
+# Las credenciales SMTP tanto de La Jam como de Swim Out usan el puerto 465,
+# asi que estabamos negociando STARTTLS contra un servidor que espera TLS
+# implicito desde el primer byte. Muchos servidores, ante esa negociacion
+# incorrecta, no la rechazan limpiamente - simplemente no responden nada,
+# lo que produce exactamente el "se queda colgado" que estabas viendo.
+#
+# Fix: elegir el modo correcto segun el puerto (465 -> SslOnConnect,
+# 587 -> StartTls), manteniendo tambien un timeout de seguridad de 20s por si
+# el servidor de verdad no responde por otro motivo (red, firewall, etc.).
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$path = "Alakai.FestivalManager.Infrastructure/Email/MailKitEmailSender.cs"
 
-function Patch-File {
-    param(
-        [string]$Path,
-        [string]$OldString,
-        [string]$NewString,
-        [string]$Description
-    )
-
-    if (-not (Test-Path $Path)) {
-        Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow
-        return $false
-    }
-
-    $rawContent = Get-Content -Path $Path -Raw
-    $usesCrlf = $rawContent.Contains("`r`n")
-
-    $normalizedContent = $rawContent -replace "`r`n", "`n"
-    $normalizedOld = $OldString -replace "`r`n", "`n"
-    $normalizedNew = $NewString -replace "`r`n", "`n"
-
-    if ($normalizedContent.Contains($normalizedNew) -and -not $normalizedContent.Contains($normalizedOld)) {
-        Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
-        return $true
-    }
-
-    if (-not $normalizedContent.Contains($normalizedOld)) {
-        Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow
-        return $false
-    }
-
-    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
-
-    if ($usesCrlf) {
-        $updatedFinal = $updatedNormalized -replace "`n", "`r`n"
-    } else {
-        $updatedFinal = $updatedNormalized
-    }
-
-    Set-Content -Path $Path -Value $updatedFinal -NoNewline
-    Write-Host "OK: $Description" -ForegroundColor Green
-    return $true
-}
-
-$result = Patch-File -Path "Alakai.FestivalManager.Admin/Extensions/ApplicationDependencyInjectionExtension.cs" `
-    -Description "EmailNotificationApiClient: leer ApiSettings:BaseUrl en vez de localhost hardcodeado" `
-    -OldString @'
-        services.AddHttpClient<EmailNotificationApiClient>(client =>
-        {
-            client.BaseAddress = new Uri("https://localhost:7157/");
-        });
-'@ `
-    -NewString @'
-        services.AddHttpClient<EmailNotificationApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        });
-'@
-
-if (-not $result) {
-    Write-Host "`nNo se pudo aplicar. Pega el contenido actual alrededor de EmailNotificationApiClient." -ForegroundColor Red
+if (-not (Test-Path $path)) {
+    Write-Host "SKIP (archivo no encontrado): $path" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
+$content = @'
+namespace Alakai.FestivalManager.Infrastructure.Email;
+
+public class MailKitEmailSender : IEmailSender
+{
+    private static readonly TimeSpan SmtpOperationTimeout = TimeSpan.FromSeconds(20);
+
+    public async Task SendAsync(EmailMessage message, EmailSenderSettings senderSettings, CancellationToken cancellationToken = default)
+    {
+        MimeMessage mimeMessage = new();
+
+        mimeMessage.From.Add(new MailboxAddress(senderSettings.FromName, senderSettings.FromEmail));
+
+        mimeMessage.To.Add(new MailboxAddress(message.To.Name, message.To.Address));
+
+        foreach (EmailAddress cc in message.Cc)
+        {
+            mimeMessage.Cc.Add(new MailboxAddress(cc.Name, cc.Address));
+        }
+
+        foreach (EmailAddress bcc in message.Bcc)
+        {
+            mimeMessage.Bcc.Add(new MailboxAddress(bcc.Name, bcc.Address));
+        }
+
+        mimeMessage.Subject = message.Subject;
+
+        BodyBuilder bodyBuilder = new()
+        {
+            HtmlBody = message.HtmlBody,
+            TextBody = message.TextBody
+        };
+
+        foreach (EmailAttachment attachment in message.Attachments)
+        {
+            bodyBuilder.Attachments.Add(
+                attachment.FileName,
+                attachment.Content,
+                ContentType.Parse(attachment.ContentType));
+        }
+
+        mimeMessage.Body = bodyBuilder.ToMessageBody();
+
+        using SmtpClient smtpClient = new();
+
+        // Puerto 465 = SSL/TLS implicito desde el primer byte (SslOnConnect).
+        // Puerto 587 (u otros) = conectar en plano y subir a TLS (StartTls).
+        // Usar StartTls contra un servidor en el puerto 465 hace que muchos
+        // servidores no respondan nada, en vez de rechazar limpiamente.
+        SecureSocketOptions socketOptions = senderSettings switch
+        {
+            { UseSSL: false } => SecureSocketOptions.None,
+            { Port: 465 } => SecureSocketOptions.SslOnConnect,
+            _ => SecureSocketOptions.StartTls
+        };
+
+        using CancellationTokenSource timeoutCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        timeoutCts.CancelAfter(SmtpOperationTimeout);
+
+        try
+        {
+            await smtpClient.ConnectAsync(
+                senderSettings.Host,
+                senderSettings.Port,
+                socketOptions,
+                timeoutCts.Token);
+
+            if (!string.IsNullOrWhiteSpace(senderSettings.UserName))
+            {
+                await smtpClient.AuthenticateAsync(
+                    senderSettings.UserName,
+                    senderSettings.Password,
+                    timeoutCts.Token);
+            }
+
+            await smtpClient.SendAsync(mimeMessage, timeoutCts.Token);
+
+            await smtpClient.DisconnectAsync(true, timeoutCts.Token);
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            throw new TimeoutException(
+                $"Could not complete the SMTP operation with '{senderSettings.Host}:{senderSettings.Port}' within {SmtpOperationTimeout.TotalSeconds} seconds. Check the email server settings for this festival.");
+        }
+    }
+}
+'@
+
+Set-Content -Path $path -Value $content -NoNewline
+Write-Host "OK: MailKitEmailSender.cs corregido (SslOnConnect para puerto 465)." -ForegroundColor Green
+Write-Host "dotnet build para confirmar." -ForegroundColor Yellow

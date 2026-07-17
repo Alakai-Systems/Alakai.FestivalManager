@@ -79,6 +79,7 @@
                             <th class="px-3 py-3 font-semibold">Name</th>
                             <th class="px-3 py-3 font-semibold">Key</th>
                             <th class="px-3 py-3 font-semibold">Subject</th>
+                            <th class="px-3 py-3 font-semibold">Language</th>
                             <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Edition")'>Edition @SortIcon("Edition")</button></th>
                             <th class="px-3 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
                             <th class="px-3 py-3 font-semibold text-right">Actions</th>
@@ -88,7 +89,7 @@
                         @if (FilteredEmailTemplates.Count == 0)
                         {
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No email templates found.</td>
+                                <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No email templates found.</td>
                             </tr>
                         }
                         else
@@ -99,6 +100,7 @@
                                     <td class="px-3 py-3">@template.Name</td>
                                     <td class="px-3 py-3">@template.TemplateKey</td>
                                     <td class="px-3 py-3">@template.Subject</td>
+                                    <td class="px-3 py-3">@template.Language.ToUpperInvariant()</td>
                                     <td class="px-3 py-3">@GetEditionName(template.EditionId)</td>
                                     <td class="px-3 py-3"><span class="@GetStatusClass(template.IsActive)">@(template.IsActive ? "Active" : "Inactive")</span></td>
                                     <td class="px-3 py-3">
