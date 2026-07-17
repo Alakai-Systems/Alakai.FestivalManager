@@ -16,6 +16,7 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly IMealPreferenceRepository _mealPreferenceRepository;
     private readonly IAccommodationBuildingRepository _accommodationBuildingRepository;
     private readonly ICompetitionEntryRepository _competitionEntryRepository;
+    private readonly ApplicationUrlsOptions _applicationUrlsOptions;
     private readonly IMapper _mapper;
     private readonly SystemEmailOptions _systemEmailOptions;
 
@@ -24,7 +25,8 @@ public class EmailNotificationService : IEmailNotificationService
         IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
         IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
         IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository,
-        IOptions<SystemEmailOptions> systemEmailOptions, ICompetitionEntryRepository competitionEntryRepository)
+        IOptions<SystemEmailOptions> systemEmailOptions, ICompetitionEntryRepository competitionEntryRepository,
+        IOptions<ApplicationUrlsOptions> applicationUrlsOptions)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -40,6 +42,7 @@ public class EmailNotificationService : IEmailNotificationService
         _accommodationBuildingRepository = accommodationBuildingRepository;
         _systemEmailOptions = systemEmailOptions.Value;
         _competitionEntryRepository = competitionEntryRepository;
+        _applicationUrlsOptions = applicationUrlsOptions.Value;
     }
 
     private const int EmailShellWidth = 640;
@@ -111,7 +114,7 @@ public class EmailNotificationService : IEmailNotificationService
             ["RegistrationId"] = registration.Id.ToString(),
             ["FestivalName"] = registration.Edition.Name ?? string.Empty,
             ["PanelUser"] = registration.Email,
-            ["PortalUrl"] = "https://lajambarcelona.com/account",
+            ["PortalUrl"] = BuildPortalUrl(registration.Edition?.Festival?.CustomDomain),
         };
 
         await AddAccommodationVariablesAsync(variables, registration.Id, cancellationToken);
@@ -153,6 +156,12 @@ public class EmailNotificationService : IEmailNotificationService
     }
 
 
+    private string BuildPortalUrl(string? customDomain)
+    {
+        return string.IsNullOrWhiteSpace(customDomain)
+            ? _applicationUrlsOptions.PortalUrl
+            : $"https://{customDomain}/user-panel/dashboard";
+    }
     private async Task AddCompetitionVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
     {
         variables["CompetitionName"] = string.Empty;

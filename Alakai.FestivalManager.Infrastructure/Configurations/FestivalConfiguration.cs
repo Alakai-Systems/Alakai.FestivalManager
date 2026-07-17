@@ -44,6 +44,18 @@ public class FestivalConfiguration : IEntityTypeConfiguration<Festival>
 
         builder.Property(f => f.FaviconUrl)
             .HasMaxLength(500);
+
+        builder.Property(f => f.CustomDomain)
+            .HasMaxLength(255);
+
+        builder.Property(f => f.CustomDomain)
+            .HasMaxLength(255);
+
+        builder.Property(f => f.CustomDomain)
+            .HasMaxLength(255);
+
+        builder.Property(f => f.CustomDomain)
+            .HasMaxLength(255);
     }
 }
 

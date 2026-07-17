@@ -12,6 +12,10 @@ public class Festival : BaseEntity
     public string? GoogleAnalyticsPropertyId { get; set; }
     public string? TermsUrl { get; set; }
     public string? FaviconUrl { get; set; }
+
+    /// <summary>Dominio propio del festival (ej. "app.lajambarcelona.com"), sin esquema ni ruta. Vacio = usa el dominio de Azure por defecto.</summary>
+    public string? CustomDomain { get; set; }
+
     public FestivalModule EnabledModules { get; set; } = FestivalModule.Competitions;
     public ICollection<Edition> Editions { get; set; } = new List<Edition>();
     public FestivalCredentials? Credentials { get; set; }

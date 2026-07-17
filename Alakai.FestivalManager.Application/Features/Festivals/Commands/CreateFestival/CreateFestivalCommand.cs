@@ -12,5 +12,6 @@ public class CreateFestivalCommand
     public string? TermsUrl { get; set; }
     public string? GoogleAnalyticsPropertyId { get; set; }
     public string? FaviconUrl { get; set; }
+    public string? CustomDomain { get; set; }
     public FestivalModule EnabledModules { get; set; } = FestivalModule.Competitions;
 }

@@ -175,6 +175,7 @@
                     <input class="form-input" placeholder="Website" @bind="createRequest.Website" />
                     <input class="form-input" placeholder="Logo URL" @bind="createRequest.LogoUrl" />
                     <input class="form-input" placeholder="Favicon URL" @bind="createRequest.FaviconUrl" />
+                    <input class="form-input" placeholder="Custom Domain (ej. app.midominio.com)" @bind="createRequest.CustomDomain" />
                     <input class="form-input" placeholder="Terms & Conditions URL" @bind="createRequest.TermsUrl" />
                     <input class="form-input" placeholder="Google Analytics Property ID" @bind="createRequest.GoogleAnalyticsPropertyId" />
                     <textarea class="form-input md:col-span-2" placeholder="Description" rows="3" @bind="createRequest.Description"></textarea>
@@ -250,6 +251,11 @@
                     <div>
                         <label class="block text-sm text-black/60 dark:text-white/60">Favicon URL</label>
                         <input class="form-input" placeholder="Favicon URL" @bind="updateRequest.FaviconUrl" />
+                    </div>
+
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Custom Domain</label>
+                        <input class="form-input" placeholder="app.midominio.com" @bind="updateRequest.CustomDomain" />
                     </div>
 
                     <div>
@@ -665,6 +671,7 @@
             TermsUrl = festival.TermsUrl,
             GoogleAnalyticsPropertyId = festival.GoogleAnalyticsPropertyId,
             FaviconUrl = festival.FaviconUrl,
+            CustomDomain = festival.CustomDomain,
             IsActive = festival.IsActive,
             EnabledModules = festival.EnabledModules
         };
