@@ -92,6 +92,7 @@ public class UserPanelService : IUserPanelService
             {
                 Id = registration.Id,
                 EditionName = registration.Edition?.Name,
+                FaviconUrl = registration.Edition?.Festival?.FaviconUrl,
                 RegistrationStatus = registration.Status.ToString(),
                 PaymentStatus = registration.PaymentStatus.ToString(),
                 PassTypeName = registration.PassType.Name,

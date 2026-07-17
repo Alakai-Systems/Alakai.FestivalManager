@@ -1,12 +1,14 @@
-# Fix-Step37-DynamicPageTitles.ps1
+# Fix-Step38-FaviconFixes.ps1
 #
-# Titulo de pestana dinamico en los 3 sitios:
-#   1) Admin: usa ActiveFestivalState.Active.Name, se actualiza junto con el
-#      favicon (mismo OnChange, mismo mecanismo del Paso 36).
-#   2) Formulario publico (Register.razor): usa Availability.EditionName, que
-#      ya estaba disponible - no hace falta ningun dato nuevo.
-#   3) Panel de usuario (UserPanel.razor): necesitaba anadir EditionName al
-#      registro que ya se carga (no existia en el DTO todavia).
+# 1) User Panel usa @layout UserPanelLayout, NO MainLayout - por eso el
+#    mecanismo de favicon/titulo de los Pasos 36/37 (que vive en MainLayout)
+#    nunca se ejecutaba ahi. Ademas ActiveFestivalState es un concepto de
+#    staff, no aplica a un participante. Se anade FaviconUrl al registro del
+#    dashboard y se usa HeadContent, igual que en Register.razor.
+#
+# 2) Admin: cambiar solo el href de un <link> de favicon existente no siempre
+#    fuerza a algunos navegadores a recargarlo. Se hace mas fiable quitando
+#    el link viejo y creando uno nuevo cada vez.
 #
 # Ejecutar desde la raiz del repo.
 
@@ -57,11 +59,9 @@ function Patch-File {
 
 $results = @()
 
-# ── 1. Admin: actualizar document.title junto con el favicon ───────────────
-$layoutPath = "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor"
-
-$results += Patch-File -Path $layoutPath -Description "MainLayout: anadir setPageTitle al script existente" -OldString @'
-<script>
+# ── 1. Admin: hacer setFavicon mas fiable (quitar+recrear el link) ─────────
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" `
+    -Description "setFavicon: quitar y recrear el link en vez de solo cambiar el href" -OldString @'
     window.setFavicon = window.setFavicon || function (url) {
         let link = document.querySelector("link[rel~='icon']");
         if (!link) {
@@ -71,137 +71,60 @@ $results += Patch-File -Path $layoutPath -Description "MainLayout: anadir setPag
         }
         link.href = url;
     };
-</script>
 '@ -NewString @'
-<script>
     window.setFavicon = window.setFavicon || function (url) {
-        let link = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
-        }
+        document.querySelectorAll("link[rel~='icon']").forEach(el => el.remove());
+        const link = document.createElement('link');
+        link.rel = 'icon';
         link.href = url;
+        document.head.appendChild(link);
     };
-
-    window.setPageTitle = window.setPageTitle || function (title) {
-        document.title = title;
-    };
-</script>
 '@
 
-$results += Patch-File -Path $layoutPath -Description "MainLayout: llamar a setPageTitle junto con el favicon" -OldString @'
-    private async void UpdateFaviconAsync()
-    {
-        string? url = ActiveFestivalState.Active?.FaviconUrl;
-
-        if (!string.IsNullOrWhiteSpace(url))
-        {
-            try
-            {
-                await JsRuntime.InvokeVoidAsync("setFavicon", url);
-            }
-            catch
-            {
-                // Si falla (por ejemplo, durante el prerenderizado antes de tener JS disponible),
-                // simplemente se mantiene el favicon actual - no es critico.
-            }
-        }
-    }
-'@ -NewString @'
-    private async void UpdateFaviconAsync()
-    {
-        string? url = ActiveFestivalState.Active?.FaviconUrl;
-        string? name = ActiveFestivalState.Active?.Name;
-
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(url))
-            {
-                await JsRuntime.InvokeVoidAsync("setFavicon", url);
-            }
-
-            if (!string.IsNullOrWhiteSpace(name))
-            {
-                await JsRuntime.InvokeVoidAsync("setPageTitle", $"{name} - Alakai Festival Manager");
-            }
-        }
-        catch
-        {
-            // Si falla (por ejemplo, durante el prerenderizado antes de tener JS disponible),
-            // simplemente se mantiene el favicon/titulo actual - no es critico.
-        }
-    }
-'@
-
-# ── 2. Formulario publico: PageTitle con el nombre de la edicion ────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Register.razor" `
-    -Description "Register.razor: anadir PageTitle dinamico" -OldString @'
-            @if (!string.IsNullOrWhiteSpace(festivalResponse?.FaviconUrl))
-            {
-                <HeadContent>
-                    <link rel="icon" href="@festivalResponse.FaviconUrl" />
-                </HeadContent>
-            }
-'@ -NewString @'
-            @if (!string.IsNullOrWhiteSpace(Availability?.EditionName))
-            {
-                <PageTitle>@Availability.EditionName</PageTitle>
-            }
-
-            @if (!string.IsNullOrWhiteSpace(festivalResponse?.FaviconUrl))
-            {
-                <HeadContent>
-                    <link rel="icon" href="@festivalResponse.FaviconUrl" />
-                </HeadContent>
-            }
-'@
-
-# ── 3. Panel de usuario: anadir EditionName al registro (Application + Admin + Service) ──
+# ── 2. Application/Admin: anadir FaviconUrl al registro del dashboard ──────
 $results += Patch-File -Path "Alakai.FestivalManager.Application/Features/UserPanel/Contracts/DTOs/UserPanelRegistrationDto.cs" `
-    -Description "Application DTO: anadir EditionName" -OldString @'
-    public Guid Id { get; set; }
-    public string RegistrationStatus { get; set; } = string.Empty;
-'@ -NewString @'
-    public Guid Id { get; set; }
+    -Description "Application DTO: anadir FaviconUrl" -OldString @'
     public string? EditionName { get; set; }
-    public string RegistrationStatus { get; set; } = string.Empty;
+'@ -NewString @'
+    public string? EditionName { get; set; }
+    public string? FaviconUrl { get; set; }
 '@
 
 $results += Patch-File -Path "Alakai.FestivalManager.Admin/Contracts/UserPanel/DTOs/UserPanelRegistrationDto.cs" `
-    -Description "Admin DTO: anadir EditionName" -OldString @'
-    public Guid Id { get; set; }
-    public string RegistrationStatus { get; set; } = string.Empty;
-'@ -NewString @'
-    public Guid Id { get; set; }
+    -Description "Admin DTO: anadir FaviconUrl" -OldString @'
     public string? EditionName { get; set; }
-    public string RegistrationStatus { get; set; } = string.Empty;
+'@ -NewString @'
+    public string? EditionName { get; set; }
+    public string? FaviconUrl { get; set; }
 '@
 
 $results += Patch-File -Path "Alakai.FestivalManager.Application/Features/UserPanel/Services/UserPanelService.cs" `
-    -Description "Service: rellenar EditionName al construir el DTO" -OldString @'
-            Registration = registration is null ? null : new UserPanelRegistrationDto
-            {
-                Id = registration.Id,
-                RegistrationStatus = registration.Status.ToString(),
-'@ -NewString @'
-            Registration = registration is null ? null : new UserPanelRegistrationDto
-            {
-                Id = registration.Id,
+    -Description "Service: rellenar FaviconUrl (via Edition.Festival)" -OldString @'
                 EditionName = registration.Edition?.Name,
-                RegistrationStatus = registration.Status.ToString(),
+'@ -NewString @'
+                EditionName = registration.Edition?.Name,
+                FaviconUrl = registration.Edition?.Festival?.FaviconUrl,
 '@
 
+# ── 3. UserPanel.razor: HeadContent con el favicon real ────────────────────
 $results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor" `
-    -Description "UserPanel.razor: anadir PageTitle dinamico" -OldString @'
-<PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
+    -Description "UserPanel.razor: anadir HeadContent con el favicon" -OldString @'
+@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.EditionName))
+{
+    <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
+}
 '@ -NewString @'
 @if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.EditionName))
 {
     <PageTitle>@Dashboard.Registration.EditionName</PageTitle>
 }
 
-<PageHeader Title="User Panel" pTitle="Dashboard"></PageHeader>
+@if (!string.IsNullOrWhiteSpace(Dashboard?.Registration?.FaviconUrl))
+{
+    <HeadContent>
+        <link rel="icon" href="@Dashboard.Registration.FaviconUrl" />
+    </HeadContent>
+}
 '@
 
 if ($results -contains $false) {
@@ -209,4 +132,6 @@ if ($results -contains $false) {
     exit 1
 }
 
-Write-Host "`nTitulos dinamicos anadidos en los 3 sitios. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "IMPORTANTE: verifica que la URL del favicon de Swim Out cargue de verdad pegandola en el navegador -" -ForegroundColor Yellow
+Write-Host "si es una URL antigua/rota (de antes de hoy), el remove+recrear el link no la arreglara por si solo." -ForegroundColor Yellow

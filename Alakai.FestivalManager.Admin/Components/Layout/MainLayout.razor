@@ -34,13 +34,11 @@
 
 <script>
     window.setFavicon = window.setFavicon || function (url) {
-        let link = document.querySelector("link[rel~='icon']");
-        if (!link) {
-            link = document.createElement('link');
-            link.rel = 'icon';
-            document.head.appendChild(link);
-        }
+        document.querySelectorAll("link[rel~='icon']").forEach(el => el.remove());
+        const link = document.createElement('link');
+        link.rel = 'icon';
         link.href = url;
+        document.head.appendChild(link);
     };
 
     window.setPageTitle = window.setPageTitle || function (title) {
