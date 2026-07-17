@@ -1,18 +1,13 @@
-# Fix-Step30-AutoDetectImageHeight.ps1
-#
-# Anade deteccion automatica del alto real de la imagen ya subida (via un
-# Image() de JS, leyendo naturalWidth/naturalHeight - no requiere CORS, solo
-# lee dimensiones, no pixeles). Como el servidor ya redimensiono la imagen de
-# forma proporcional al ancho elegido, el alto detectado es siempre el
-# correcto - se pone como atributo HTML junto al ancho, sin riesgo de
-# deformar nada. height:auto se mantiene en el CSS para que siga escalando
-# bien de forma responsive en clientes modernos; el atributo HTML sirve de
-# respaldo para clientes de correo que ignoran CSS.
+# Fix-Step31-PartnerYesValueMismatch.ps1
+# BUG REAL (preexistente): el <option> de "Si" tenia value="yes", pero TODAS
+# las comprobaciones del codigo (linea 175, 439, 640) comparan contra "si".
+# Por eso el campo de email de pareja nunca aparecia, sin importar que se
+# eligiera "Si" en el desplegable.
 #
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Components/Layout/EmailTemplateEditor.razor"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/Register.razor"
 
 function Patch-File {
     param(
@@ -57,88 +52,23 @@ function Patch-File {
     return $true
 }
 
-$results = @()
-
-# --- 1. Inyectar IJSRuntime ---
-$results += Patch-File -Path $path -Description "Inyectar IJSRuntime" -OldString @'
-@using Radzen
-@using Radzen.Blazor
-@inject UploadsApiClient UploadsApiClient
+$result = Patch-File -Path $path -Description "Corregir value=yes -> value=si para que coincida con el resto del codigo" -OldString @'
+                                <select class="form-select" @bind="WithPartner" @bind:after="OnWithPartnerChanged">
+                                    <option value="">-</option>
+                                    <option value="yes">@T.Get("yes")</option>
+                                    <option value="no">No</option>
+                                </select>
 '@ -NewString @'
-@using Radzen
-@using Radzen.Blazor
-@inject UploadsApiClient UploadsApiClient
-@inject IJSRuntime JsRuntime
+                                <select class="form-select" @bind="WithPartner" @bind:after="OnWithPartnerChanged">
+                                    <option value="">-</option>
+                                    <option value="si">@T.Get("yes")</option>
+                                    <option value="no">No</option>
+                                </select>
 '@
 
-# --- 2. Anadir el script de deteccion de dimensiones, justo antes de @code ---
-$results += Patch-File -Path $path -Description "Anadir script getImageDimensions" -OldString @'
-        .email-rte-variable-chip:hover {
-            background: #e0e7ff;
-        }
-</style>
-
-@code {
-'@ -NewString @'
-        .email-rte-variable-chip:hover {
-            background: #e0e7ff;
-        }
-</style>
-
-<script>
-    window.getImageDimensions = window.getImageDimensions || function (url) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-            img.onerror = reject;
-            img.src = url;
-        });
-    };
-</script>
-
-@code {
-    private class ImageDimensions
-    {
-        public int Width { get; set; }
-        public int Height { get; set; }
-    }
-
-'@
-
-# --- 3. Usar la deteccion real al insertar la imagen ---
-$results += Patch-File -Path $path -Description "Detectar el alto real y ponerlo como atributo junto al ancho" -OldString @'
-            string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
-
-            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<img src=\"{url}\" width=\"{UploadImageWidth}\" style=\"max-width:100%; height:auto; display:block;\" />");
-'@ -NewString @'
-            string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
-
-            int actualWidth = UploadImageWidth;
-            int actualHeight = 0;
-
-            try
-            {
-                ImageDimensions dimensions = await JsRuntime.InvokeAsync<ImageDimensions>("getImageDimensions", url);
-                actualWidth = dimensions.Width;
-                actualHeight = dimensions.Height;
-            }
-            catch
-            {
-                // Si por lo que sea no se pueden leer las dimensiones reales (red, formato raro),
-                // seguimos adelante solo con el ancho elegido - height:auto en el CSS cubre el resto.
-            }
-
-            string heightAttribute = actualHeight > 0 ? $" height=\"{actualHeight}\"" : string.Empty;
-
-            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<img src=\"{url}\" width=\"{actualWidth}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
-'@
-
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
+if (-not $result) {
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual alrededor del select 'con pareja' en Register.razor." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nDeteccion automatica de alto anadida. dotnet build para confirmar." -ForegroundColor Green
-Write-Host "Ahora cada imagen subida lleva width Y height reales en el HTML, sin riesgo de deformarse." -ForegroundColor Cyan
+Write-Host "`nBug corregido. dotnet build para confirmar." -ForegroundColor Green
