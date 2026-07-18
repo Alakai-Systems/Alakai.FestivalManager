@@ -1,4 +1,4 @@
-﻿@using FestivalDto = Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs.FestivalDto
+@using FestivalDto = Alakai.FestivalManager.Admin.Contracts.Festivals.DTOs.FestivalDto
 @using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 @inject IJSRuntime JsRuntime
@@ -10,7 +10,7 @@
 <!-- Start Topbar -->
 <div class="bg-white dark:bg-darklight dark:border-darkborder flex gap-4 lg:z-10 items-center justify-between px-4 h-[60px] border-b border-black/10 detached-topbar relative">
     <div class="flex items-center flex-1 gap-2 sm:gap-4">
-        <button type="button" class="flex items-center justify-center text-black dark:text-white/80" @onclick="ToggleSidebar">
+        <button type="button" class="flex items-center justify-center text-black dark:text-white/80" x-on:click="$store.app.toggleSidebar()">
             <i class="ri-menu-2-line"></i>
         </button>
 

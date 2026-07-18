@@ -108,7 +108,7 @@ public class EmailNotificationService : IEmailNotificationService
         <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background:#f3f4f6; margin:0; padding:24px 0;"">
           <tr>
             <td align=""center"">
-              <table role=""presentation"" width=""{EmailShellWidth}"" cellpadding=""0"" cellspacing=""0"" class=""email-shell"" style=""width:{EmailShellWidth}px; max-width:100%; background:#ffffff;"">
+              <table role=""presentation"" cellpadding=""0"" cellspacing=""0"" class=""email-shell"" style=""width:{EmailShellWidth}px; max-width:100%; background:#ffffff;"">
                 <tr>
                   <td class=""email-header-cell"" style=""overflow:auto;"">{headerHtml}</td>
                 </tr>

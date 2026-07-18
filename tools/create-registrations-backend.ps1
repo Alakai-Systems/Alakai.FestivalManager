@@ -1,12 +1,9 @@
-# Fix-Step51-ModalWidthMatchesApp.ps1
-# Los modales de vista previa de email (Pasos 47 y 49) usaban 95vw - mucho mas
-# ancho que el resto de modales de la app. El resto de modales de 2 columnas
-# (Festivals, Discount Codes, Payment Settings) usan max-w-lg de forma
-# consistente. Se ajustan ambos visores a ese mismo ancho - como el email ya
-# es responsive (EmailShellWidth + max-width:100%), deberia encogerse bien
-# dentro de ese contenedor mas estrecho, igual que en movil.
+# Fix-Step56-FormHeaderFooter.ps1
 #
-# Ejecutar DESPUES de Fix-Step47 y Fix-Step49.
+# Reutiliza el Header/Footer de Email (Comunicacion -> Email Layout Settings)
+# tambien en el formulario publico de inscripcion. Mismo contenido en los dos
+# sitios, sin duplicar nada - tal como se decidio.
+#
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
@@ -56,103 +53,148 @@ function Patch-File {
 
 $results = @()
 
-# ── 1. EmailLogs.razor: ajustar el modal de Preview ─────────────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/EmailLogs.razor" `
-    -Description "EmailLogs: ajustar el modal a max-w-lg (igual que el resto de la app)" -OldString @'
-    <div class="fixed inset-0 bg-black/60 z-[999]">
-        <div class="flex items-center justify-center h-screen p-4">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder flex flex-col" style="width:95vw; height:95vh;">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder shrink-0">
-                    <div>
-                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
-                        <p class="text-xs text-black/50 dark:text-white/60">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
-                    </div>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
-                </div>
+# ── 1. Api: inyectar IEmailLayoutRepository + nuevo endpoint publico ────────
+$results += Patch-File -Path "Alakai.FestivalManager.Api/Controllers/PublicFestivalsController.cs" `
+    -Description "Inyectar IEmailLayoutRepository" -OldString @'
+    private readonly IFestivalRepository _festivalRepository;
+    private readonly IEditionRepository _editionRepository;
 
-                <div class="flex-1 bg-gray-100 p-2">
-                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:100%; height:100%; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
-                </div>
-            </div>
-        </div>
-    </div>
+    public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository)
+    {
+        _festivalRepository = festivalRepository;
+        _editionRepository = editionRepository;
+    }
 '@ -NewString @'
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <div>
-                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
-                        <p class="text-xs text-black/50 dark:text-white/60">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
-                    </div>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
-                </div>
+    private readonly IFestivalRepository _festivalRepository;
+    private readonly IEditionRepository _editionRepository;
+    private readonly IEmailLayoutRepository _emailLayoutRepository;
 
-                <div class="p-2 bg-gray-100">
-                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:100%; height:75vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
-                </div>
-            </div>
-        </div>
-    </div>
-'@
+    public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository,
+        IEmailLayoutRepository emailLayoutRepository)
+    {
+        _festivalRepository = festivalRepository;
+        _editionRepository = editionRepository;
+        _emailLayoutRepository = emailLayoutRepository;
+    }
 
-# ── 2. Emails.razor: ajustar el modal de Preview de plantilla ───────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Emails.razor" `
-    -Description "Emails: ajustar el modal a max-w-lg (igual que el resto de la app)" -OldString @'
-    <div class="fixed inset-0 bg-black/60 z-[999]">
-        <div class="flex items-center justify-center h-screen p-4">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder flex flex-col" style="width:95vw; height:95vh;">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder shrink-0">
-                    <div>
-                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewSubject</h3>
-                        <p class="text-xs text-black/50 dark:text-white/60">Design preview - sample data, not a real send</p>
-                    </div>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
-                </div>
+    [HttpGet("email-layout/{editionId:guid}")]
+    public async Task<IActionResult> GetEmailLayout(Guid editionId, CancellationToken cancellationToken)
+    {
+        EmailLayout? layout = await _emailLayoutRepository.GetForEditionAsync(editionId, cancellationToken);
 
-                <div class="flex-1 bg-gray-100 p-2">
-                    @if (previewHtml is null)
-                    {
-                        <p class="text-center text-black/50 mt-10">Loading...</p>
-                    }
-                    else
-                    {
-                        <iframe srcdoc="@previewHtml" style="width:100%; height:100%; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
-'@ -NewString @'
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <div>
-                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewSubject</h3>
-                        <p class="text-xs text-black/50 dark:text-white/60">Design preview - sample data, not a real send</p>
-                    </div>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-
-                <div class="p-2 bg-gray-100">
-                    @if (previewHtml is null)
-                    {
-                        <p class="text-center text-black/50 py-10">Loading...</p>
-                    }
-                    else
-                    {
-                        <iframe srcdoc="@previewHtml" style="width:100%; height:75vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
-                    }
-                </div>
-            </div>
-        </div>
-    </div>
+        return Ok(new
+        {
+            headerHtml = layout?.HeaderHtml ?? string.Empty,
+            footerHtml = layout?.FooterHtml ?? string.Empty
+        });
+    }
 '@
 
 if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
+    Write-Host "`nAlgun paso no se pudo aplicar (Api). Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nAmbos visores ajustados a max-w-lg (mismo ancho que el resto de modales de la app). dotnet build para confirmar." -ForegroundColor Green
+# ── 2. Admin: cliente + DTO ──────────────────────────────────────────────────
+$results2 = Patch-File -Path "Alakai.FestivalManager.Admin/Services/Api/PublicRegistrationApiClient.cs" `
+    -Description "Cliente: anadir GetEmailLayoutAsync" -OldString @'
+    public async Task<PublicFestivalBrandingDto?> GetFestivalByDomainAsync(string domain, CancellationToken cancellationToken = default)
+'@ -NewString @'
+    public async Task<PublicEmailLayoutDto?> GetEmailLayoutAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await _httpClient.GetFromJsonAsync<PublicEmailLayoutDto>($"api/public/festivals/email-layout/{editionId}", cancellationToken);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public async Task<PublicFestivalBrandingDto?> GetFestivalByDomainAsync(string domain, CancellationToken cancellationToken = default)
+'@
+
+if (-not $results2) {
+    Write-Host "`nNo se pudo aplicar el patch del cliente (metodo)." -ForegroundColor Red
+    exit 1
+}
+
+$results3 = Patch-File -Path "Alakai.FestivalManager.Admin/Services/Api/PublicRegistrationApiClient.cs" `
+    -Description "Anadir el record PublicEmailLayoutDto" -OldString @'
+public record PublicFestivalBrandingDto(string Name, string? FaviconUrl);
+'@ -NewString @'
+public record PublicFestivalBrandingDto(string Name, string? FaviconUrl);
+
+public record PublicEmailLayoutDto(string HeaderHtml, string FooterHtml);
+'@
+
+if (-not $results3) {
+    Write-Host "`nNo se pudo aplicar el patch del cliente (DTO)." -ForegroundColor Red
+    exit 1
+}
+
+# ── 3. Register.razor: cargar y mostrar Header/Footer ───────────────────────
+$results4 = Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Register.razor" `
+    -Description "Cargar el layout tras conocer la edicion" -OldString @'
+            Form.EditionId = festivalResponse.ActiveEditionId.Value;
+            HasAccommodation = festivalResponse.HasAccommodation;
+'@ -NewString @'
+            Form.EditionId = festivalResponse.ActiveEditionId.Value;
+            HasAccommodation = festivalResponse.HasAccommodation;
+
+            try
+            {
+                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
+                HeaderHtml = layout?.HeaderHtml;
+                FooterHtml = layout?.FooterHtml;
+            }
+            catch
+            {
+                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
+            }
+'@
+
+if (-not $results4) {
+    Write-Host "`nNo se pudo aplicar el patch de carga del layout en Register.razor." -ForegroundColor Red
+    exit 1
+}
+
+$results5 = Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Register.razor" `
+    -Description "Anadir los campos HeaderHtml/FooterHtml" -OldString @'
+    private PublicFestivalSlugDto? festivalResponse;
+'@ -NewString @'
+    private PublicFestivalSlugDto? festivalResponse;
+    private string? HeaderHtml;
+    private string? FooterHtml;
+'@
+
+if (-not $results5) {
+    Write-Host "`nNo se pudo aplicar el patch de los campos en Register.razor." -ForegroundColor Red
+    exit 1
+}
+
+# ── 4. Mostrar el Header antes del formulario ───────────────────────────────
+$results6 = Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Register.razor" `
+    -Description "Mostrar el Header antes del formulario" -OldString @'
+            <!-- Festival header -->
+'@ -NewString @'
+            @if (!string.IsNullOrWhiteSpace(HeaderHtml))
+            {
+                <div class="mb-6 overflow-hidden rounded-lg">
+                    @((MarkupString)HeaderHtml)
+                </div>
+            }
+
+            <!-- Festival header -->
+'@
+
+if (-not $results6) {
+    Write-Host "`nNo se pudo aplicar el patch de mostrar el Header." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "`nBackend + carga del Header completos." -ForegroundColor Green
+Write-Host "IMPORTANTE: falta anadir el Footer al final del formulario - pegame el final del archivo" -ForegroundColor Yellow
+Write-Host "Register.razor (donde termina el @if principal, antes del cierre) para colocarlo con precision." -ForegroundColor Yellow
+Write-Host "dotnet build para confirmar esta parte mientras tanto." -ForegroundColor Cyan

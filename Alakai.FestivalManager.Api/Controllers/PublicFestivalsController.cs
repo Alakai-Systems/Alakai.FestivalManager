@@ -9,11 +9,26 @@ public class PublicFestivalsController : ControllerBase
 {
     private readonly IFestivalRepository _festivalRepository;
     private readonly IEditionRepository _editionRepository;
+    private readonly IEmailLayoutRepository _emailLayoutRepository;
 
-    public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository)
+    public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository,
+        IEmailLayoutRepository emailLayoutRepository)
     {
         _festivalRepository = festivalRepository;
         _editionRepository = editionRepository;
+        _emailLayoutRepository = emailLayoutRepository;
+    }
+
+    [HttpGet("email-layout/{editionId:guid}")]
+    public async Task<IActionResult> GetEmailLayout(Guid editionId, CancellationToken cancellationToken)
+    {
+        EmailLayout? layout = await _emailLayoutRepository.GetForEditionAsync(editionId, cancellationToken);
+
+        return Ok(new
+        {
+            headerHtml = layout?.HeaderHtml ?? string.Empty,
+            footerHtml = layout?.FooterHtml ?? string.Empty
+        });
     }
 
     [HttpGet("by-slug/{slug}")]

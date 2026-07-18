@@ -63,6 +63,13 @@
                 <PageTitle>@Availability.EditionName</PageTitle>
             }
 
+            @if (!string.IsNullOrWhiteSpace(HeaderHtml))
+            {
+                <div class="mb-6 overflow-hidden rounded-lg">
+                    @((MarkupString)HeaderHtml)
+                </div>
+            }
+
             <!-- Festival header -->
             <div class="mb-6 text-center">
                 <div class="text-2xl font-bold text-black">@Availability?.EditionName</div>
@@ -381,6 +388,10 @@
     private string? SubmitError;
     private PublicRegistrationAvailabilityDto? Availability;
     private PublicFestivalSlugDto? festivalResponse;
+    private string? HeaderHtml;
+    private string? FooterHtml;
+    private string? HeaderHtml;
+    private string? FooterHtml;
     private bool HasAccommodation;
     private string? TermsUrl;
     // Grouped passes for the optgroup selector
@@ -503,6 +514,50 @@
             }
             Form.EditionId = festivalResponse.ActiveEditionId.Value;
             HasAccommodation = festivalResponse.HasAccommodation;
+
+            try
+            {
+                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
+                HeaderHtml = layout?.HeaderHtml;
+                FooterHtml = layout?.FooterHtml;
+            }
+            catch
+            {
+                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
+            }
+
+            try
+            {
+                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
+                HeaderHtml = layout?.HeaderHtml;
+                FooterHtml = layout?.FooterHtml;
+            }
+            catch
+            {
+                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
+            }
+
+            try
+            {
+                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
+                HeaderHtml = layout?.HeaderHtml;
+                FooterHtml = layout?.FooterHtml;
+            }
+            catch
+            {
+                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
+            }
+
+            try
+            {
+                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
+                HeaderHtml = layout?.HeaderHtml;
+                FooterHtml = layout?.FooterHtml;
+            }
+            catch
+            {
+                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
+            }
             TermsUrl = festivalResponse.TermsUrl;
             BuildPassGroups();
             Form.Language = T.Language;
