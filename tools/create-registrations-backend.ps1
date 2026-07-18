@@ -1,13 +1,15 @@
-# Fix-Step50-ResendFromEmailLogs.ps1
-# Anade un boton "Resend" en Email Logs, reutilizando el mismo endpoint que
-# ya usan los iconos de reenvio de Registrations.razor. Se deshabilita cuando
-# el log no tiene RegistrationId (por ejemplo, PasswordReset, que va por
-# usuario, no por registro). El Preview existente no se toca.
+# Fix-Step51-ModalWidthMatchesApp.ps1
+# Los modales de vista previa de email (Pasos 47 y 49) usaban 95vw - mucho mas
+# ancho que el resto de modales de la app. El resto de modales de 2 columnas
+# (Festivals, Discount Codes, Payment Settings) usan max-w-lg de forma
+# consistente. Se ajustan ambos visores a ese mismo ancho - como el email ya
+# es responsive (EmailShellWidth + max-width:100%), deberia encogerse bien
+# dentro de ese contenedor mas estrecho, igual que en movil.
 #
+# Ejecutar DESPUES de Fix-Step47 y Fix-Step49.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Components/Pages/EmailLogs.razor"
 
 function Patch-File {
     param(
@@ -54,44 +56,98 @@ function Patch-File {
 
 $results = @()
 
-# ── 1. Inyectar EmailNotificationApiClient ──────────────────────────────────
-$results += Patch-File -Path $path -Description "Inyectar EmailNotificationApiClient" -OldString @'
-@inject ActiveFestivalState ActiveFestivalState
+# ── 1. EmailLogs.razor: ajustar el modal de Preview ─────────────────────────
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/EmailLogs.razor" `
+    -Description "EmailLogs: ajustar el modal a max-w-lg (igual que el resto de la app)" -OldString @'
+    <div class="fixed inset-0 bg-black/60 z-[999]">
+        <div class="flex items-center justify-center h-screen p-4">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder flex flex-col" style="width:95vw; height:95vh;">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder shrink-0">
+                    <div>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
+                        <p class="text-xs text-black/50 dark:text-white/60">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
+                    </div>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="flex-1 bg-gray-100 p-2">
+                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:100%; height:100%; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
 '@ -NewString @'
-@inject ActiveFestivalState ActiveFestivalState
-@inject EmailNotificationApiClient EmailNotificationApiClient
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <div>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
+                        <p class="text-xs text-black/50 dark:text-white/60">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
+                    </div>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="p-2 bg-gray-100">
+                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:100%; height:75vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                </div>
+            </div>
+        </div>
+    </div>
 '@
 
-# ── 2. Banner de exito, junto al de error ya existente ──────────────────────
-$results += Patch-File -Path $path -Description "Anadir banner de exito para el reenvio" -OldString @'
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-'@ -NewString @'
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
+# ── 2. Emails.razor: ajustar el modal de Preview de plantilla ───────────────
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Emails.razor" `
+    -Description "Emails: ajustar el modal a max-w-lg (igual que el resto de la app)" -OldString @'
+    <div class="fixed inset-0 bg-black/60 z-[999]">
+        <div class="flex items-center justify-center h-screen p-4">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder flex flex-col" style="width:95vw; height:95vh;">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder shrink-0">
+                    <div>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewSubject</h3>
+                        <p class="text-xs text-black/50 dark:text-white/60">Design preview - sample data, not a real send</p>
+                    </div>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                </div>
 
-        @if (!string.IsNullOrWhiteSpace(resendMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@resendMessage</div>
-        }
-'@
-
-# ── 3. Boton de Resend junto al de Preview ──────────────────────────────────
-$results += Patch-File -Path $path -Description "Anadir boton Resend" -OldString @'
-                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
-                                            <i class="ri-eye-line text-lg"></i>
-                                        </button>
+                <div class="flex-1 bg-gray-100 p-2">
+                    @if (previewHtml is null)
+                    {
+                        <p class="text-center text-black/50 mt-10">Loading...</p>
+                    }
+                    else
+                    {
+                        <iframe srcdoc="@previewHtml" style="width:100%; height:100%; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 '@ -NewString @'
-                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
-                                            <i class="ri-eye-line text-lg"></i>
-                                        </button>
-                                        <button type="button" class="text-black dark:text-white/80 disabled:opacity-30" title="@(log.RegistrationId.HasValue ? "Resend" : "Cannot resend - not linked to a registration")" disabled="@(!log.RegistrationId.HasValue || resendingLogId == log.Id)" @onclick="() => ResendAsync(log)">
-                                            <i class="@(resendingLogId == log.Id ? "ri-loader-4-line animate-spin" : "ri-send-plane-line") text-lg"></i>
-                                        </button>
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <div>
+                        <h3 class="text-lg font-semibold text-black dark:text-white">@previewSubject</h3>
+                        <p class="text-xs text-black/50 dark:text-white/60">Design preview - sample data, not a real send</p>
+                    </div>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="p-2 bg-gray-100">
+                    @if (previewHtml is null)
+                    {
+                        <p class="text-center text-black/50 py-10">Loading...</p>
+                    }
+                    else
+                    {
+                        <iframe srcdoc="@previewHtml" style="width:100%; height:75vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
 '@
 
 if ($results -contains $false) {
@@ -99,45 +155,4 @@ if ($results -contains $false) {
     exit 1
 }
 
-# ── 4. @code: estado + metodo ResendAsync ───────────────────────────────────
-$results2 = Patch-File -Path $path -Description "Anadir el estado y el metodo ResendAsync" -OldString @'
-    private EmailLogDto? previewingLog;
-'@ -NewString @'
-    private EmailLogDto? previewingLog;
-    private string? resendMessage;
-    private Guid? resendingLogId;
-
-    private async Task ResendAsync(EmailLogDto log)
-    {
-        if (!log.RegistrationId.HasValue)
-        {
-            return;
-        }
-
-        resendingLogId = log.Id;
-        resendMessage = null;
-        errorMessage = null;
-
-        try
-        {
-            await EmailNotificationApiClient.SendRegistrationEmailAsync(log.RegistrationId.Value, log.TemplateKey);
-            resendMessage = $"Email resent to {log.RecipientEmail}.";
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            resendingLogId = null;
-        }
-    }
-'@
-
-if (-not $results2) {
-    Write-Host "`nNo se pudo aplicar el patch del @code. Puede que el nombre del metodo de carga no sea LoadLogsAsync - avisame." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`nBoton de reenviar anadido, Preview sin tocar. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nAmbos visores ajustados a max-w-lg (mismo ancho que el resto de modales de la app). dotnet build para confirmar." -ForegroundColor Green

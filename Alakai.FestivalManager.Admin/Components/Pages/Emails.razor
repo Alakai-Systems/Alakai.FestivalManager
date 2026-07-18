@@ -241,10 +241,10 @@
 @implements IDisposable
 @if (previewSubject is not null)
 {
-    <div class="fixed inset-0 bg-black/60 z-[999]">
-        <div class="flex items-center justify-center h-screen p-4">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder flex flex-col" style="width:95vw; height:95vh;">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder shrink-0">
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
                     <div>
                         <h3 class="text-lg font-semibold text-black dark:text-white">@previewSubject</h3>
                         <p class="text-xs text-black/50 dark:text-white/60">Design preview - sample data, not a real send</p>
@@ -252,14 +252,14 @@
                     <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
                 </div>
 
-                <div class="flex-1 bg-gray-100 p-2">
+                <div class="p-2 bg-gray-100">
                     @if (previewHtml is null)
                     {
-                        <p class="text-center text-black/50 mt-10">Loading...</p>
+                        <p class="text-center text-black/50 py-10">Loading...</p>
                     }
                     else
                     {
-                        <iframe srcdoc="@previewHtml" style="width:100%; height:100%; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                        <iframe srcdoc="@previewHtml" style="width:100%; height:75vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
                     }
                 </div>
             </div>
