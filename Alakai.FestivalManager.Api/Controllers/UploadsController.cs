@@ -88,4 +88,20 @@ public class UploadsController : ControllerBase
             createdAt = a.CreatedAt
         }));
     }
+
+    [HttpDelete("gallery/{id:guid}")]
+    public async Task<IActionResult> DeleteGalleryImage(Guid id, CancellationToken cancellationToken)
+    {
+        MediaAsset? asset = await _mediaAssetRepository.GetByIdAsync(id, cancellationToken);
+
+        if (asset is null)
+        {
+            return NotFound();
+        }
+
+        _mediaAssetRepository.Delete(asset);
+        await _mediaAssetRepository.SaveChangesAsync(cancellationToken);
+
+        return NoContent();
+    }
 }

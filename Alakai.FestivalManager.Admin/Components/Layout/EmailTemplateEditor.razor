@@ -73,9 +73,14 @@
             {
                 @foreach (GalleryImageDto image in GalleryImages)
                 {
-                    <button type="button" class="email-rte-gallery-item" @onclick="() => InsertFromGalleryAsync(image)" title="@($"{image.Width}x{image.Height}")">
-                        <img src="@image.Url" alt="" />
-                    </button>
+                    <div class="email-rte-gallery-item-wrapper">
+                        <button type="button" class="email-rte-gallery-item" @onclick="() => InsertFromGalleryAsync(image)" title="@($"{image.Width}x{image.Height}")">
+                            <img src="@image.Url" alt="" />
+                        </button>
+                        <button type="button" class="email-rte-gallery-delete" title="Delete" @onclick="() => DeleteGalleryImageAsync(image)" @onclick:stopPropagation="true">
+                            <i class="ri-close-circle-fill"></i>
+                        </button>
+                    </div>
                 }
             }
         </div>
@@ -156,6 +161,23 @@
         height: 100%;
         object-fit: cover;
         display: block;
+    }
+
+    .email-rte-gallery-item-wrapper {
+        position: relative;
+    }
+
+    .email-rte-gallery-delete {
+        position: absolute;
+        top: -6px;
+        right: -6px;
+        background: #fff;
+        border-radius: 9999px;
+        color: #f1416c;
+        font-size: 18px;
+        line-height: 1;
+        border: none;
+        cursor: pointer;
     }
 
     .email-rte-upload-button {
@@ -258,12 +280,20 @@
 
     private async Task InsertFromGalleryAsync(GalleryImageDto image)
     {
-        string heightAttribute = image.Height > 0 ? $" height=\"{image.Height}\"" : string.Empty;
-
         await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-            $"<img src=\"{image.Url}\" width=\"{image.Width}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
+            $"<img src=\"{image.Url}\" style=\"max-width:100%; width:{image.Width}px; height:auto; display:block;\" />");
 
         ShowGallery = false;
+    }
+
+    private async Task DeleteGalleryImageAsync(GalleryImageDto image)
+    {
+        await UploadsApiClient.DeleteGalleryImageAsync(image.Id);
+
+        if (GalleryImages is not null)
+        {
+            GalleryImages.Remove(image);
+        }
     }
 
     private async Task OnEditorChange(string html)
@@ -299,10 +329,8 @@
             UploadImageDetailResult uploaded = await UploadsApiClient.UploadImageWithDetailsAsync(
                 stream, e.File.Name, e.File.ContentType, ActiveFestivalState.Active?.Id, UploadImageWidth);
 
-            string heightAttribute = uploaded.Height > 0 ? $" height=\"{uploaded.Height}\"" : string.Empty;
-
             await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<img src=\"{uploaded.Url}\" width=\"{uploaded.Width}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
+                $"<img src=\"{uploaded.Url}\" style=\"max-width:100%; width:{uploaded.Width}px; height:auto; display:block;\" />");
 
             await WidthChanged.InvokeAsync(UploadImageWidth);
         }

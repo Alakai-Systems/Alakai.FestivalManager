@@ -2,7 +2,7 @@
 @inject ActiveFestivalState ActiveFestivalState
 
 <!-- Start Sidebar -->
-<nav class="sidebar lg:z-[9] z-[10]" x-on:click="if ($event.target.closest('a') && window.innerWidth < 1024 && $store.app.sidebar) { $store.app.toggleSidebar() }">
+<nav class="sidebar lg:z-[9] z-[10]" x-on:click="const link = $event.target.closest('a'); if (link && link.getAttribute('href') !== 'javascript:;' && window.innerWidth < 1024 && $store.app.sidebar) { $store.app.toggleSidebar() }">
     <div class="h-full bg-white dark:bg-darklight group-data-[sidebar=dark]/item:bg-darklight group-data-[sidebar=brand]/item:bg-sky-950">
         <div class="p-4">
             <NavLink href="/" class="w-full main-logo flex items-center justify-center py-2">

@@ -71,6 +71,11 @@ public class UploadsApiClient
         return result ?? [];
     }
 
+    public async Task DeleteGalleryImageAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await _httpClient.DeleteAsync($"api/uploads/gallery/{id}", cancellationToken);
+    }
+
     public async Task<string> UploadImageAsync(Stream content, string fileName, string contentType, int? width = null, CancellationToken cancellationToken = default)
     {
         using MultipartFormDataContent form = new();
