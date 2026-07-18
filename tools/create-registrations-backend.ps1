@@ -1,18 +1,13 @@
-# Fix-Step45-GalleryPicker.ps1
+# Fix-Step50-ResendFromEmailLogs.ps1
+# Anade un boton "Resend" en Email Logs, reutilizando el mismo endpoint que
+# ya usan los iconos de reenvio de Registrations.razor. Se deshabilita cuando
+# el log no tiene RegistrationId (por ejemplo, PasswordReset, que va por
+# usuario, no por registro). El Preview existente no se toca.
 #
-# Parte 2: cliente + UI. Anade:
-#   1) UploadsApiClient.UploadImageWithDetailsAsync (con FestivalId, devuelve
-#      Width/Height reales del backend - ya no hace falta el JS de deteccion
-#      de dimensiones del Paso 30, se simplifica).
-#   2) UploadsApiClient.GetGalleryAsync (listar lo ya subido para un festival).
-#   3) EmailTemplateEditor.razor: boton "Gallery" junto a "Upload image", que
-#      abre un panel con miniaturas de lo ya subido - clicar una la inserta
-#      directamente, con su ancho/alto reales (sin deformar).
-#
-# Ejecutar despues de Fix-Step44-MediaGallery.ps1.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/EmailLogs.razor"
 
 function Patch-File {
     param(
@@ -58,289 +53,91 @@ function Patch-File {
 }
 
 $results = @()
-$clientPath = "Alakai.FestivalManager.Admin/Services/Api/UploadsApiClient.cs"
-$editorPath = "Alakai.FestivalManager.Admin/Components/Layout/EmailTemplateEditor.razor"
 
-# ── 1. UploadsApiClient: nuevos metodos + DTOs ──────────────────────────────
-$results += Patch-File -Path $clientPath -Description "Anadir UploadImageWithDetailsAsync + GetGalleryAsync + DTOs" -OldString @'
-    public async Task<string> UploadImageAsync(Stream content, string fileName, string contentType, int? width = null, CancellationToken cancellationToken = default)
-    {
+# ── 1. Inyectar EmailNotificationApiClient ──────────────────────────────────
+$results += Patch-File -Path $path -Description "Inyectar EmailNotificationApiClient" -OldString @'
+@inject ActiveFestivalState ActiveFestivalState
 '@ -NewString @'
-    public async Task<UploadImageDetailResult> UploadImageWithDetailsAsync(Stream content, string fileName, string contentType, Guid? festivalId, int? width = null, CancellationToken cancellationToken = default)
-    {
-        using MultipartFormDataContent form = new();
-        using StreamContent streamContent = new(content);
-        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
-        form.Add(streamContent, "file", fileName);
-
-        if (width.HasValue)
-        {
-            form.Add(new StringContent(width.Value.ToString()), "width");
-        }
-
-        if (festivalId.HasValue)
-        {
-            form.Add(new StringContent(festivalId.Value.ToString()), "festivalId");
-        }
-
-        HttpResponseMessage httpResponse = await _httpClient.PostAsync("api/uploads/images", form, cancellationToken);
-
-        if (!httpResponse.IsSuccessStatusCode)
-        {
-            string errorBody = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
-            throw new ApiClientException($"Image upload failed: {errorBody}", null);
-        }
-
-        UploadImageDetailResult? result = await httpResponse.Content.ReadFromJsonAsync<UploadImageDetailResult>(cancellationToken: cancellationToken);
-
-        if (result is null || string.IsNullOrWhiteSpace(result.Url))
-        {
-            throw new ApiClientException("Image upload returned an empty URL.", null);
-        }
-
-        return result;
-    }
-
-    public async Task<List<GalleryImageDto>> GetGalleryAsync(Guid festivalId, CancellationToken cancellationToken = default)
-    {
-        List<GalleryImageDto>? result = await _httpClient.GetFromJsonAsync<List<GalleryImageDto>>($"api/uploads/gallery?festivalId={festivalId}", cancellationToken);
-        return result ?? [];
-    }
-
-    public async Task<string> UploadImageAsync(Stream content, string fileName, string contentType, int? width = null, CancellationToken cancellationToken = default)
-    {
+@inject ActiveFestivalState ActiveFestivalState
+@inject EmailNotificationApiClient EmailNotificationApiClient
 '@
 
-$results += Patch-File -Path $clientPath -Description "Anadir los DTOs UploadImageDetailResult y GalleryImageDto" -OldString @'
-public class UploadImageResult
-{
-    public string Url { get; set; } = string.Empty;
-}
+# ── 2. Banner de exito, junto al de error ya existente ──────────────────────
+$results += Patch-File -Path $path -Description "Anadir banner de exito para el reenvio" -OldString @'
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
 '@ -NewString @'
-public class UploadImageResult
-{
-    public string Url { get; set; } = string.Empty;
-}
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
 
-public class UploadImageDetailResult
-{
-    public string Url { get; set; } = string.Empty;
-    public int Width { get; set; }
-    public int Height { get; set; }
-}
+        @if (!string.IsNullOrWhiteSpace(resendMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@resendMessage</div>
+        }
+'@
 
-public class GalleryImageDto
-{
-    public Guid Id { get; set; }
-    public string Url { get; set; } = string.Empty;
-    public int Width { get; set; }
-    public int Height { get; set; }
-    public DateTime CreatedAt { get; set; }
-}
+# ── 3. Boton de Resend junto al de Preview ──────────────────────────────────
+$results += Patch-File -Path $path -Description "Anadir boton Resend" -OldString @'
+                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
+                                            <i class="ri-eye-line text-lg"></i>
+                                        </button>
+'@ -NewString @'
+                                        <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
+                                            <i class="ri-eye-line text-lg"></i>
+                                        </button>
+                                        <button type="button" class="text-black dark:text-white/80 disabled:opacity-30" title="@(log.RegistrationId.HasValue ? "Resend" : "Cannot resend - not linked to a registration")" disabled="@(!log.RegistrationId.HasValue || resendingLogId == log.Id)" @onclick="() => ResendAsync(log)">
+                                            <i class="@(resendingLogId == log.Id ? "ri-loader-4-line animate-spin" : "ri-send-plane-line") text-lg"></i>
+                                        </button>
 '@
 
 if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar en UploadsApiClient.cs. Revisa los mensajes anteriores." -ForegroundColor Red
+    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-# ── 2. EmailTemplateEditor.razor: inyectar ActiveFestivalState ──────────────
-$results2 = @()
-
-$results2 += Patch-File -Path $editorPath -Description "Inyectar ActiveFestivalState" -OldString @'
-@inject UploadsApiClient UploadsApiClient
-@inject IJSRuntime JsRuntime
+# ── 4. @code: estado + metodo ResendAsync ───────────────────────────────────
+$results2 = Patch-File -Path $path -Description "Anadir el estado y el metodo ResendAsync" -OldString @'
+    private EmailLogDto? previewingLog;
 '@ -NewString @'
-@inject UploadsApiClient UploadsApiClient
-@inject IJSRuntime JsRuntime
-@inject ActiveFestivalState ActiveFestivalState
-'@
+    private EmailLogDto? previewingLog;
+    private string? resendMessage;
+    private Guid? resendingLogId;
 
-# ── 3. Boton "Gallery" junto al de Upload ────────────────────────────────────
-$results2 += Patch-File -Path $editorPath -Description "Anadir boton Gallery y el panel de miniaturas" -OldString @'
-        <InputFile OnChange="@OnImageSelectedAsync" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" id="@UploadInputId" />
-        <label for="@UploadInputId" class="email-rte-upload-button">
-            @(IsUploadingImage ? "Uploading..." : "📷 Upload image")
-        </label>
-    </div>
-'@ -NewString @'
-        <InputFile OnChange="@OnImageSelectedAsync" accept="image/png,image/jpeg,image/gif,image/webp" style="display:none;" id="@UploadInputId" />
-        <label for="@UploadInputId" class="email-rte-upload-button">
-            @(IsUploadingImage ? "Uploading..." : "📷 Upload image")
-        </label>
-        <button type="button" class="email-rte-upload-button" @onclick="ToggleGalleryAsync">
-            🖼️ Choose from gallery
-        </button>
-    </div>
-
-    @if (ShowGallery)
+    private async Task ResendAsync(EmailLogDto log)
     {
-        <div class="email-rte-gallery">
-            @if (GalleryImages is null)
-            {
-                <p>Loading...</p>
-            }
-            else if (GalleryImages.Count == 0)
-            {
-                <p>No images uploaded yet for this festival.</p>
-            }
-            else
-            {
-                @foreach (GalleryImageDto image in GalleryImages)
-                {
-                    <button type="button" class="email-rte-gallery-item" @onclick="() => InsertFromGalleryAsync(image)" title="@($"{image.Width}x{image.Height}")">
-                        <img src="@image.Url" alt="" />
-                    </button>
-                }
-            }
-        </div>
-    }
-'@
-
-# ── 4. Estilos del panel de galeria ──────────────────────────────────────────
-$results2 += Patch-File -Path $editorPath -Description "Anadir estilos del panel de galeria" -OldString @'
-    .email-rte-width-input {
-        width: 70px;
-        padding: 4px 6px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 0.8rem;
-    }
-'@ -NewString @'
-    .email-rte-width-input {
-        width: 70px;
-        padding: 4px 6px;
-        border: 1px solid #d1d5db;
-        border-radius: 6px;
-        font-size: 0.8rem;
-    }
-
-    .email-rte-gallery {
-        margin-top: 10px;
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
-        gap: 8px;
-        max-height: 260px;
-        overflow-y: auto;
-        padding: 10px;
-        border: 1px solid #e5e7eb;
-        border-radius: 8px;
-    }
-
-    .email-rte-gallery-item {
-        border: 1px solid #e5e7eb;
-        border-radius: 6px;
-        padding: 0;
-        overflow: hidden;
-        background: none;
-        cursor: pointer;
-        aspect-ratio: 1;
-    }
-
-    .email-rte-gallery-item:hover {
-        border-color: #6D28D9;
-    }
-
-    .email-rte-gallery-item img {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-        display: block;
-    }
-'@
-
-# ── 5. @code: estado de la galeria + metodos ─────────────────────────────────
-$results2 += Patch-File -Path $editorPath -Description "Anadir el estado y los metodos de la galeria" -OldString @'
-    protected override void OnParametersSet()
-    {
-        if (!_widthInitializedFromParameter)
+        if (!log.RegistrationId.HasValue)
         {
-            UploadImageWidth = InitialWidth;
-            _widthInitializedFromParameter = true;
+            return;
+        }
+
+        resendingLogId = log.Id;
+        resendMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await EmailNotificationApiClient.SendRegistrationEmailAsync(log.RegistrationId.Value, log.TemplateKey);
+            resendMessage = $"Email resent to {log.RecipientEmail}.";
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            resendingLogId = null;
         }
     }
-'@ -NewString @'
-    protected override void OnParametersSet()
-    {
-        if (!_widthInitializedFromParameter)
-        {
-            UploadImageWidth = InitialWidth;
-            _widthInitializedFromParameter = true;
-        }
-    }
-
-    private bool ShowGallery { get; set; }
-    private List<GalleryImageDto>? GalleryImages { get; set; }
-
-    private async Task ToggleGalleryAsync()
-    {
-        ShowGallery = !ShowGallery;
-
-        if (ShowGallery && ActiveFestivalState.Active is not null)
-        {
-            GalleryImages = null;
-            GalleryImages = await UploadsApiClient.GetGalleryAsync(ActiveFestivalState.Active.Id);
-        }
-    }
-
-    private async Task InsertFromGalleryAsync(GalleryImageDto image)
-    {
-        string heightAttribute = image.Height > 0 ? $" height=\"{image.Height}\"" : string.Empty;
-
-        await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-            $"<img src=\"{image.Url}\" width=\"{image.Width}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
-
-        ShowGallery = false;
-    }
 '@
 
-if ($results2 -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar (galeria). Revisa los mensajes anteriores." -ForegroundColor Red
+if (-not $results2) {
+    Write-Host "`nNo se pudo aplicar el patch del @code. Puede que el nombre del metodo de carga no sea LoadLogsAsync - avisame." -ForegroundColor Red
     exit 1
 }
 
-# ── 6. OnImageSelectedAsync: usar el nuevo metodo con FestivalId, ya sin JS ──
-$results3 = Patch-File -Path $editorPath -Description "Usar UploadImageWithDetailsAsync en vez del metodo simple + deteccion JS" -OldString @'
-            string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
-
-            int actualWidth = UploadImageWidth;
-            int actualHeight = 0;
-
-            try
-            {
-                ImageDimensions dimensions = await JsRuntime.InvokeAsync<ImageDimensions>("getImageDimensions", url);
-                actualWidth = dimensions.Width;
-                actualHeight = dimensions.Height;
-            }
-            catch
-            {
-                // Si por lo que sea no se pueden leer las dimensiones reales (red, formato raro),
-                // seguimos adelante solo con el ancho elegido - height:auto en el CSS cubre el resto.
-            }
-
-            string heightAttribute = actualHeight > 0 ? $" height=\"{actualHeight}\"" : string.Empty;
-
-            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<img src=\"{url}\" width=\"{actualWidth}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
-
-            await WidthChanged.InvokeAsync(UploadImageWidth);
-'@ -NewString @'
-            UploadImageDetailResult uploaded = await UploadsApiClient.UploadImageWithDetailsAsync(
-                stream, e.File.Name, e.File.ContentType, ActiveFestivalState.Active?.Id, UploadImageWidth);
-
-            string heightAttribute = uploaded.Height > 0 ? $" height=\"{uploaded.Height}\"" : string.Empty;
-
-            await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<img src=\"{uploaded.Url}\" width=\"{uploaded.Width}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
-
-            await WidthChanged.InvokeAsync(UploadImageWidth);
-'@
-
-if (-not $results3) {
-    Write-Host "`nNo se pudo aplicar el patch de OnImageSelectedAsync." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`nGaleria anadida. dotnet build para confirmar." -ForegroundColor Green
-Write-Host "Nota: el metodo getImageDimensions (JS) y la clase ImageDimensions ya no se usan aqui," -ForegroundColor Yellow
-Write-Host "pero se dejan sin borrar por si algo mas los referencia - no hacen dano estando ahi." -ForegroundColor Yellow
+Write-Host "`nBoton de reenviar anadido, Preview sin tocar. dotnet build para confirmar." -ForegroundColor Green

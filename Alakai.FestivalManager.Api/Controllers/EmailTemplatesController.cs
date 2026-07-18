@@ -6,11 +6,27 @@ public class EmailTemplatesController : ControllerBase
 {
     private readonly IEmailTemplateService _emailTemplateService;
     private readonly IMapper _mapper;
+    private readonly Alakai.FestivalManager.Application.Features.Emails.Services.IEmailNotificationService _emailNotificationService;
 
-    public EmailTemplatesController(IEmailTemplateService emailTemplateService, IMapper mapper)
+    public EmailTemplatesController(IEmailTemplateService emailTemplateService, IMapper mapper,
+        Alakai.FestivalManager.Application.Features.Emails.Services.IEmailNotificationService emailNotificationService)
     {
         _emailTemplateService = emailTemplateService;
         _mapper = mapper;
+        _emailNotificationService = emailNotificationService;
+    }
+
+    [HttpGet("{id:guid}/preview")]
+    public async Task<IActionResult> Preview(Guid id, CancellationToken cancellationToken)
+    {
+        (string Subject, string Html)? preview = await _emailNotificationService.PreviewTemplateAsync(id, cancellationToken);
+
+        if (preview is null)
+        {
+            return NotFound();
+        }
+
+        return Ok(new { subject = preview.Value.Subject, html = preview.Value.Html });
     }
 
     [HttpPost]

@@ -2,6 +2,12 @@ using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
+public class EmailTemplatePreviewResult
+{
+    public string Subject { get; set; } = string.Empty;
+    public string Html { get; set; } = string.Empty;
+}
+
 public class EmailTemplateApiClient
 {
     private readonly HttpClient _httpClient;
@@ -33,6 +39,11 @@ public class EmailTemplateApiClient
         }
 
         return response.Data?.EmailTemplates ?? [];
+    }
+
+    public async Task<EmailTemplatePreviewResult?> PreviewAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        return await _httpClient.GetFromJsonAsync<EmailTemplatePreviewResult>($"api/email-templates/{id}/preview", cancellationToken);
     }
 
     public async Task CreateAsync(CreateEmailTemplateRequest request, CancellationToken cancellationToken = default)

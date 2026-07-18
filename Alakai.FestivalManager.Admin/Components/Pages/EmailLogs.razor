@@ -1,9 +1,10 @@
-﻿@page "/email-logs"
+@page "/email-logs"
 
 @inject EmailLogApiClient EmailLogApiClient
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
 @inject ActiveFestivalState ActiveFestivalState
+@inject EmailNotificationApiClient EmailNotificationApiClient
 
 <PageHeader Title="Communication" pTitle="Email Logs"></PageHeader>
 
@@ -50,6 +51,11 @@
             <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
         }
 
+        @if (!string.IsNullOrWhiteSpace(resendMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@resendMessage</div>
+        }
+
         @if (isLoading)
         {
             <p class="text-sm text-black/50 dark:text-white/60">Loading email logs...</p>
@@ -92,6 +98,9 @@
                                         <button type="button" class="text-black dark:text-white/80" title="Preview" @onclick="() => OpenPreview(log)">
                                             <i class="ri-eye-line text-lg"></i>
                                         </button>
+                                        <button type="button" class="text-black dark:text-white/80 disabled:opacity-30" title="@(log.RegistrationId.HasValue ? "Resend" : "Cannot resend - not linked to a registration")" disabled="@(!log.RegistrationId.HasValue || resendingLogId == log.Id)" @onclick="() => ResendAsync(log)">
+                                            <i class="@(resendingLogId == log.Id ? "ri-loader-4-line animate-spin" : "ri-send-plane-line") text-lg"></i>
+                                        </button>
                                     </td>
                                 </tr>
                             }
@@ -117,10 +126,10 @@
 
 @if (previewingLog is not null)
 {
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width:760px; max-width:95vw;">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+    <div class="fixed inset-0 bg-black/60 z-[999]">
+        <div class="flex items-center justify-center h-screen p-4">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder flex flex-col" style="width:95vw; height:95vh;">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder shrink-0">
                     <div>
                         <h3 class="text-lg font-semibold text-black dark:text-white">@previewingLog.Subject</h3>
                         <p class="text-xs text-black/50 dark:text-white/60">@previewingLog.RecipientEmail - @previewingLog.TemplateKey</p>
@@ -128,8 +137,8 @@
                     <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="ClosePreview"><i class="ri-close-line text-2xl"></i></button>
                 </div>
 
-                <div class="p-2 flex justify-center bg-gray-100">
-                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:680px; max-width:100%; height:70vh; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
+                <div class="flex-1 bg-gray-100 p-2">
+                    <iframe srcdoc="@previewingLog.BodyHtml" style="width:100%; height:100%; border:1px solid #e5e7eb; border-radius:6px; background:#fff;"></iframe>
                 </div>
             </div>
         </div>
@@ -142,6 +151,35 @@
     private List<EditionDto> editions = [];
     private List<FestivalDto> festivals = [];
     private EmailLogDto? previewingLog;
+    private string? resendMessage;
+    private Guid? resendingLogId;
+
+    private async Task ResendAsync(EmailLogDto log)
+    {
+        if (!log.RegistrationId.HasValue)
+        {
+            return;
+        }
+
+        resendingLogId = log.Id;
+        resendMessage = null;
+        errorMessage = null;
+
+        try
+        {
+            await EmailNotificationApiClient.SendRegistrationEmailAsync(log.RegistrationId.Value, log.TemplateKey);
+            resendMessage = $"Email resent to {log.RecipientEmail}.";
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            resendingLogId = null;
+        }
+    }
     private string searchText = string.Empty;
     private string statusFilter = string.Empty;
     private Guid festivalFilter = Guid.Empty;

@@ -47,6 +47,39 @@ public class EmailNotificationService : IEmailNotificationService
 
     private const int EmailShellWidth = 640;
 
+    public async Task<(string Subject, string Html)?> PreviewTemplateAsync(Guid templateId, CancellationToken cancellationToken = default)
+    {
+        EmailTemplate? template = await _emailTemplateRepository.GetByIdAsync(templateId, cancellationToken);
+
+        if (template is null)
+        {
+            return null;
+        }
+
+        Dictionary<string, string> sampleVariables = new()
+        {
+            ["FestivalName"] = "Sample Festival",
+            ["EditionName"] = "Sample Edition 2027",
+            ["FirstName"] = "Jose",
+            ["LastName"] = "Garcia",
+            ["FullName"] = "Jose Garcia",
+            ["UserEmail"] = "jose@example.com",
+            ["PortalUrl"] = "https://example.com/user-panel/dashboard",
+            ["PassTypeName"] = "Sample Pass",
+            ["FinalPrice"] = "250.00",
+            ["PartnerEmail"] = "partner@example.com",
+            ["ResetPasswordUrl"] = "https://example.com/reset-password",
+            ["CompetitionName"] = "Sample Competition"
+        };
+
+        string renderedSubject = _emailTemplateRendererService.Render(template.Subject, sampleVariables);
+        string renderedBody = _emailTemplateRendererService.Render(template.BodyHtml, sampleVariables);
+
+        (string html, string? _) = await ApplyLayoutAsync(renderedBody, null, template.EditionId, cancellationToken);
+
+        return (renderedSubject, html);
+    }
+
     private async Task<(string Html, string? Text)> ApplyLayoutAsync(string bodyHtml, string? bodyText, Guid? editionId, CancellationToken cancellationToken)
     {
         EmailLayout? layout = await _emailLayoutRepository.GetForEditionAsync(editionId, cancellationToken);
@@ -54,27 +87,46 @@ public class EmailNotificationService : IEmailNotificationService
         string headerHtml = layout?.HeaderHtml ?? string.Empty;
         string footerHtml = layout?.FooterHtml ?? string.Empty;
 
-        string wrappedHtml = $@"
+        string wrappedHtml = $@"<!DOCTYPE html>
+        <html lang=""es"">
+        <head>
+          <meta charset=""UTF-8"" />
+          <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+          <meta http-equiv=""X-UA-Compatible"" content=""IE=edge"" />
+          <title></title>
+          <style>
+            body {{ margin:0; padding:0; }}
+            @media only screen and (max-width: 600px) {{
+              .email-shell {{ width:100% !important; }}
+              .email-body-cell {{ padding:18px !important; font-size:16px !important; line-height:1.5 !important; }}
+              .email-footer-cell {{ padding:16px 18px !important; font-size:13px !important; }}
+              .email-body-cell img, .email-header-cell img, .email-footer-cell img {{ height:auto !important; }}
+            }}
+          </style>
+        </head>
+        <body style=""margin:0; padding:0;"">
         <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background:#f3f4f6; margin:0; padding:24px 0;"">
           <tr>
             <td align=""center"">
-              <table role=""presentation"" width=""{EmailShellWidth}"" cellpadding=""0"" cellspacing=""0"" style=""width:{EmailShellWidth}px; max-width:100%; background:#ffffff;"">
+              <table role=""presentation"" width=""{EmailShellWidth}"" cellpadding=""0"" cellspacing=""0"" class=""email-shell"" style=""width:{EmailShellWidth}px; max-width:100%; background:#ffffff;"">
                 <tr>
-                  <td style=""overflow:auto;"">{headerHtml}</td>
+                  <td class=""email-header-cell"" style=""overflow:auto;"">{headerHtml}</td>
                 </tr>
                 <tr>
-                  <td style=""padding:24px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111827;"">{bodyHtml}</td>
+                  <td class=""email-body-cell"" style=""padding:24px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111827;"">{bodyHtml}</td>
                 </tr>
                 <tr>
                   <td style=""padding:0 24px;""><hr style=""border:none; border-top:1px solid #e5e7eb; margin:0;"" /></td>
                 </tr>
                 <tr>
-                  <td style=""overflow:auto; padding:20px 24px; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#6b7280;"">{footerHtml}</td>
+                  <td class=""email-footer-cell"" style=""overflow:auto; padding:20px 24px; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#6b7280;"">{footerHtml}</td>
                 </tr>
               </table>
             </td>
           </tr>
-        </table>";
+        </table>
+        </body>
+        </html>";
 
         string? wrappedText = bodyText is null
             ? null
