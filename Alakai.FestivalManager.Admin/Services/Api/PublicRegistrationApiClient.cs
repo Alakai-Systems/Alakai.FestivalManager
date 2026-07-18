@@ -28,41 +28,8 @@ public class PublicRegistrationApiClient
         }
     }
 
-    public async Task<PublicEmailLayoutDto?> GetEmailLayoutAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await _httpClient.GetFromJsonAsync<PublicEmailLayoutDto>($"api/public/festivals/email-layout/{editionId}", cancellationToken);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
-    public async Task<PublicEmailLayoutDto?> GetEmailLayoutAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await _httpClient.GetFromJsonAsync<PublicEmailLayoutDto>($"api/public/festivals/email-layout/{editionId}", cancellationToken);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
-    public async Task<PublicEmailLayoutDto?> GetEmailLayoutAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        try
-        {
-            return await _httpClient.GetFromJsonAsync<PublicEmailLayoutDto>($"api/public/festivals/email-layout/{editionId}", cancellationToken);
-        }
-        catch
-        {
-            return null;
-        }
-    }
 
     public async Task<PublicFestivalBrandingDto?> GetFestivalByDomainAsync(string domain, CancellationToken cancellationToken = default)
     {
@@ -113,8 +80,5 @@ public record PublicFestivalBrandingDto(string Name, string? FaviconUrl);
 
 public record PublicEmailLayoutDto(string HeaderHtml, string FooterHtml);
 
-public record PublicEmailLayoutDto(string HeaderHtml, string FooterHtml);
 
-public record PublicEmailLayoutDto(string HeaderHtml, string FooterHtml);
 
-public record PublicEmailLayoutDto(string HeaderHtml, string FooterHtml);
