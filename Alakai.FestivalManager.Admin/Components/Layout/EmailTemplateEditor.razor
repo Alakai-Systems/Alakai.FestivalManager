@@ -2,6 +2,7 @@
 @using Radzen.Blazor
 @inject UploadsApiClient UploadsApiClient
 @inject IJSRuntime JsRuntime
+@inject ActiveFestivalState ActiveFestivalState
 
 <div class="email-rte-wrapper">
     <RadzenHtmlEditor @ref="EditorRef"
@@ -52,7 +53,33 @@
         <label for="@UploadInputId" class="email-rte-upload-button">
             @(IsUploadingImage ? "Uploading..." : "📷 Upload image")
         </label>
+        <button type="button" class="email-rte-upload-button" @onclick="ToggleGalleryAsync">
+            🖼️ Choose from gallery
+        </button>
     </div>
+
+    @if (ShowGallery)
+    {
+        <div class="email-rte-gallery">
+            @if (GalleryImages is null)
+            {
+                <p>Loading...</p>
+            }
+            else if (GalleryImages.Count == 0)
+            {
+                <p>No images uploaded yet for this festival.</p>
+            }
+            else
+            {
+                @foreach (GalleryImageDto image in GalleryImages)
+                {
+                    <button type="button" class="email-rte-gallery-item" @onclick="() => InsertFromGalleryAsync(image)" title="@($"{image.Width}x{image.Height}")">
+                        <img src="@image.Url" alt="" />
+                    </button>
+                }
+            }
+        </div>
+    }
 
     @if (Variables is { Count: > 0 })
     {
@@ -96,6 +123,39 @@
         border: 1px solid #d1d5db;
         border-radius: 6px;
         font-size: 0.8rem;
+    }
+
+    .email-rte-gallery {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+        gap: 8px;
+        max-height: 260px;
+        overflow-y: auto;
+        padding: 10px;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+    }
+
+    .email-rte-gallery-item {
+        border: 1px solid #e5e7eb;
+        border-radius: 6px;
+        padding: 0;
+        overflow: hidden;
+        background: none;
+        cursor: pointer;
+        aspect-ratio: 1;
+    }
+
+    .email-rte-gallery-item:hover {
+        border-color: #6D28D9;
+    }
+
+    .email-rte-gallery-item img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
     }
 
     .email-rte-upload-button {
@@ -182,6 +242,30 @@
         }
     }
 
+    private bool ShowGallery { get; set; }
+    private List<GalleryImageDto>? GalleryImages { get; set; }
+
+    private async Task ToggleGalleryAsync()
+    {
+        ShowGallery = !ShowGallery;
+
+        if (ShowGallery && ActiveFestivalState.Active is not null)
+        {
+            GalleryImages = null;
+            GalleryImages = await UploadsApiClient.GetGalleryAsync(ActiveFestivalState.Active.Id);
+        }
+    }
+
+    private async Task InsertFromGalleryAsync(GalleryImageDto image)
+    {
+        string heightAttribute = image.Height > 0 ? $" height=\"{image.Height}\"" : string.Empty;
+
+        await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
+            $"<img src=\"{image.Url}\" width=\"{image.Width}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
+
+        ShowGallery = false;
+    }
+
     private async Task OnEditorChange(string html)
     {
         Value = html;
@@ -212,27 +296,13 @@
         try
         {
             using Stream stream = e.File.OpenReadStream(maxFileSize);
-            string url = await UploadsApiClient.UploadImageAsync(stream, e.File.Name, e.File.ContentType, UploadImageWidth);
+            UploadImageDetailResult uploaded = await UploadsApiClient.UploadImageWithDetailsAsync(
+                stream, e.File.Name, e.File.ContentType, ActiveFestivalState.Active?.Id, UploadImageWidth);
 
-            int actualWidth = UploadImageWidth;
-            int actualHeight = 0;
-
-            try
-            {
-                ImageDimensions dimensions = await JsRuntime.InvokeAsync<ImageDimensions>("getImageDimensions", url);
-                actualWidth = dimensions.Width;
-                actualHeight = dimensions.Height;
-            }
-            catch
-            {
-                // Si por lo que sea no se pueden leer las dimensiones reales (red, formato raro),
-                // seguimos adelante solo con el ancho elegido - height:auto en el CSS cubre el resto.
-            }
-
-            string heightAttribute = actualHeight > 0 ? $" height=\"{actualHeight}\"" : string.Empty;
+            string heightAttribute = uploaded.Height > 0 ? $" height=\"{uploaded.Height}\"" : string.Empty;
 
             await EditorRef.ExecuteCommandAsync(HtmlEditorCommands.InsertHtml,
-                $"<img src=\"{url}\" width=\"{actualWidth}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
+                $"<img src=\"{uploaded.Url}\" width=\"{uploaded.Width}\"{heightAttribute} style=\"max-width:100%; height:auto; display:block;\" />");
 
             await WidthChanged.InvokeAsync(UploadImageWidth);
         }

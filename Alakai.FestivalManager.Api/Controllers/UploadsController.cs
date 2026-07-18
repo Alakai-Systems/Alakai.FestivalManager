@@ -1,4 +1,6 @@
 using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Application.Interfaces.Repositories;
+using Alakai.FestivalManager.Domain.Entities;
 
 namespace Alakai.FestivalManager.Api.Controllers;
 
@@ -6,6 +8,7 @@ public class UploadImageForm
 {
     public IFormFile File { get; set; } = default!;
     public int? Width { get; set; }
+    public Guid? FestivalId { get; set; }
 }
 
 [ApiController]
@@ -13,6 +16,7 @@ public class UploadImageForm
 public class UploadsController : ControllerBase
 {
     private readonly IFileStorageService _fileStorageService;
+    private readonly IMediaAssetRepository _mediaAssetRepository;
 
     private static readonly HashSet<string> AllowedContentTypes = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -21,10 +25,12 @@ public class UploadsController : ControllerBase
 
     private const long MaxFileSizeBytes = 5 * 1024 * 1024; // 5 MB
 
-    public UploadsController(IFileStorageService fileStorageService)
+    public UploadsController(IFileStorageService fileStorageService, IMediaAssetRepository mediaAssetRepository)
     {
         _fileStorageService = fileStorageService;
+        _mediaAssetRepository = mediaAssetRepository;
     }
+
     [HttpPost("images")]
     [RequestSizeLimit(MaxFileSizeBytes)]
     public async Task<IActionResult> UploadImage([FromForm] UploadImageForm form, CancellationToken cancellationToken)
@@ -48,8 +54,38 @@ public class UploadsController : ControllerBase
         }
 
         using Stream stream = file.OpenReadStream();
-        string url = await _fileStorageService.SaveImageAsync(stream, file.FileName, file.ContentType, width, cancellationToken);
+        SavedImageResult saved = await _fileStorageService.SaveImageWithDimensionsAsync(stream, file.FileName, file.ContentType, width, cancellationToken);
 
-        return Ok(new { url });
+        if (form.FestivalId.HasValue && form.FestivalId.Value != Guid.Empty)
+        {
+            MediaAsset mediaAsset = new()
+            {
+                FestivalId = form.FestivalId.Value,
+                Url = saved.Url,
+                FileName = file.FileName,
+                Width = saved.Width,
+                Height = saved.Height
+            };
+
+            await _mediaAssetRepository.AddAsync(mediaAsset, cancellationToken);
+            await _mediaAssetRepository.SaveChangesAsync(cancellationToken);
+        }
+
+        return Ok(new { url = saved.Url, width = saved.Width, height = saved.Height });
+    }
+
+    [HttpGet("gallery")]
+    public async Task<IActionResult> GetGallery([FromQuery] Guid festivalId, CancellationToken cancellationToken)
+    {
+        IReadOnlyList<MediaAsset> assets = await _mediaAssetRepository.GetByFestivalIdAsync(festivalId, cancellationToken);
+
+        return Ok(assets.Select(a => new
+        {
+            id = a.Id,
+            url = a.Url,
+            width = a.Width,
+            height = a.Height,
+            createdAt = a.CreatedAt
+        }));
     }
 }

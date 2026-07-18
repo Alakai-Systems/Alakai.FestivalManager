@@ -53,6 +53,47 @@ public class LocalFileStorageService : IFileStorageService
         return $"{_options.PublicBaseUrl.TrimEnd('/')}/{uniqueFileName}";
     }
 
+    public async Task<SavedImageResult> SaveImageWithDimensionsAsync(Stream content, string fileName, string contentType, int? targetWidth = null, CancellationToken cancellationToken = default)
+    {
+        string extension = Path.GetExtension(fileName);
+
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            extension = contentType switch
+            {
+                "image/png" => ".png",
+                "image/jpeg" => ".jpg",
+                "image/gif" => ".gif",
+                "image/webp" => ".webp",
+                _ => ".bin"
+            };
+        }
+
+        string uniqueFileName = $"{Guid.NewGuid()}{extension}";
+        string physicalFolder = Path.Combine(Directory.GetCurrentDirectory(), _options.RootPath);
+
+        Directory.CreateDirectory(physicalFolder);
+
+        string physicalPath = Path.Combine(physicalFolder, uniqueFileName);
+
+        using SixLabors.ImageSharp.Image image = await SixLabors.ImageSharp.Image.LoadAsync(content, cancellationToken);
+
+        if (targetWidth.HasValue && targetWidth.Value > 0 && targetWidth.Value < image.Width)
+        {
+            image.Mutate(x => x.Resize(new ResizeOptions
+            {
+                Mode = ResizeMode.Max,
+                Size = new Size(targetWidth.Value, 0)
+            }));
+        }
+
+        await image.SaveAsync(physicalPath, cancellationToken);
+
+        string url = $"{_options.PublicBaseUrl.TrimEnd('/')}/{uniqueFileName}";
+
+        return new SavedImageResult(url, image.Width, image.Height);
+    }
+
     public async Task<string> SaveFileAsync(Stream content, string fileName, CancellationToken cancellationToken = default)
     {
         string extension = Path.GetExtension(fileName);

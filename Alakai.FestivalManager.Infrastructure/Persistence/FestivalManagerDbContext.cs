@@ -7,6 +7,7 @@ public class FestivalManagerDbContext : DbContext
     {
     }
     public DbSet<Festival> Festivals => Set<Festival>();
+    public DbSet<MediaAsset> MediaAssets => Set<MediaAsset>();
     public DbSet<FestivalCredentials> FestivalCredentials => Set<FestivalCredentials>();
     public DbSet<Edition> Editions => Set<Edition>();
     public DbSet<PassType> PassTypes => Set<PassType>();

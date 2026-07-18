@@ -21,6 +21,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddSingleton<IBackgroundTaskQueue, BackgroundTaskQueue>();
         services.AddHostedService<QueuedHostedService>();
         services.AddScoped<IFestivalRepository, FestivalRepository>();
+        services.AddScoped<IMediaAssetRepository, MediaAssetRepository>();
         services.AddScoped<IFestivalCredentialsRepository, FestivalCredentialsRepository>();
         services.AddScoped<IEditionRepository, EditionRepository>();
         services.AddScoped<IPassTypeRepository, PassTypeRepository>();
