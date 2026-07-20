@@ -1,13 +1,15 @@
-# Fix-Step63-LoginPageImprovements.ps1
+# Fix-Step66-EyeIconInlineStyle.ps1
 #
-# Tres cambios en las paginas de Login (Admin y User Panel):
-#   1) Divisor minimalista "o" en vez del texto "Or with Email".
-#   2) Borde negro solido + redondeado, y boton de mostrar/ocultar contrasena.
-#   3) Logo del festival encima del formulario, resuelto por el dominio de la
-#      URL (reutiliza la resolucion del Paso 42, via CascadingValue desde
-#      App.razor - sin llamadas de red adicionales).
+# BUG REAL, mismo patron que el problema de dark mode de antes: use clases de
+# Tailwind (-translate-y-1/2, top-1/2, right-3, pr-11) que NO se usan en
+# ningun otro sitio del proyecto, asi que no tienen regla CSS en el bundle
+# precompilado - el boton del ojo quedaba sin ningun posicionamiento real.
 #
-# Ejecutar DESPUES de Fix-Step42.
+# Fix: usar CSS en linea (style="...") en vez de clases de Tailwind para el
+# posicionamiento - el CSS en linea siempre funciona, no depende de que
+# Tailwind lo haya compilado de antemano.
+#
+# Ejecutar DESPUES de Fix-Step63/64.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
@@ -55,165 +57,46 @@ function Patch-File {
     return $true
 }
 
+$authLoginPath = "Alakai.FestivalManager.Admin/Components/Pages/Auth/Login.razor"
+$adminLoginPath = "Alakai.FestivalManager.Admin/Components/Pages/AdminAuth/Login.razor"
+
 $results = @()
 
-# ── 1. Api: anadir LogoUrl al endpoint by-domain ─────────────────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Api/Controllers/PublicFestivalsController.cs" `
-    -Description "Anadir LogoUrl a la respuesta de by-domain" -OldString @'
-        return Ok(new
-        {
-            Name = festival.Name,
-            FaviconUrl = festival.FaviconUrl
-        });
-    }
-}
-'@ -NewString @'
-        return Ok(new
-        {
-            Name = festival.Name,
-            FaviconUrl = festival.FaviconUrl,
-            LogoUrl = festival.LogoUrl
-        });
-    }
-}
-'@
-
-# ── 2. Admin: anadir LogoUrl al DTO ──────────────────────────────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Services/Api/PublicRegistrationApiClient.cs" `
-    -Description "Anadir LogoUrl al record PublicFestivalBrandingDto" -OldString @'
-public record PublicFestivalBrandingDto(string Name, string? FaviconUrl);
-'@ -NewString @'
-public record PublicFestivalBrandingDto(string Name, string? FaviconUrl, string? LogoUrl);
-'@
-
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar (backend). Revisa los mensajes anteriores." -ForegroundColor Red
-    exit 1
-}
-
-# ── 3. App.razor: exponer Branding a los hijos via CascadingValue ───────────
-$appRazorResult = Patch-File -Path "Alakai.FestivalManager.Admin/Components/App.razor" `
-    -Description "Envolver Routes en CascadingValue para compartir Branding" -OldString @'
-    <Routes @rendermode="InteractiveServer" />
-'@ -NewString @'
-    <CascadingValue Value="Branding">
-        <Routes @rendermode="InteractiveServer" />
-    </CascadingValue>
-'@
-
-if (-not $appRazorResult) {
-    Write-Host "`nNo se pudo aplicar el patch de App.razor." -ForegroundColor Red
-    exit 1
-}
-
-# ── 4. Login de participantes (User Panel) ───────────────────────────────────
-$authLoginPath = "Alakai.FestivalManager.Admin/Components/Pages/Auth/Login.razor"
-
-$results2 = @()
-
-$results2 += Patch-File -Path $authLoginPath -Description "Recibir Branding en cascada" -OldString @'
-@implements IAsyncDisposable
-'@ -NewString @'
-@implements IAsyncDisposable
-
-@code {
-    [CascadingParameter]
-    public Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding { get; set; }
-}
-'@
-
-$results2 += Patch-File -Path $authLoginPath -Description "Borde negro solido + logo encima del titulo" -OldString @'
-    <div class="max-w-[550px] flex-none w-full bg-white border border-black/10 p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-darkborder">
-        <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Sign In</MudText>
-'@ -NewString @'
-    <div class="max-w-[550px] flex-none w-full bg-white border-2 border-black p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-white">
-        @if (!string.IsNullOrWhiteSpace(Branding?.LogoUrl))
-        {
-            <img src="@Branding.LogoUrl" alt="@Branding.Name" class="max-h-16 mx-auto mb-6 object-contain" />
-        }
-        <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Sign In</MudText>
-'@
-
-$results2 += Patch-File -Path $authLoginPath -Description "Divisor minimalista o en vez del texto" -OldString @'
-            <div class="flex items-center mb-7">
-                <div class="w-full h-[2px] bg-black/10 dark:bg-darkborder"></div>
-                <div class="px-5 capitalize text-muted whitespace-nowrap dark:text-darkmuted">Or with Email</div>
-                <div class="w-full h-[2px] bg-black/10 dark:bg-darkborder"></div>
-            </div>
-'@ -NewString @'
-            <div class="flex items-center mb-7">
-                <div class="w-full h-[2px] bg-black/10 dark:bg-darkborder"></div>
-                <div class="px-4 text-muted whitespace-nowrap dark:text-darkmuted">o</div>
-                <div class="w-full h-[2px] bg-black/10 dark:bg-darkborder"></div>
-            </div>
-'@
-
-$results2 += Patch-File -Path $authLoginPath -Description "Boton de mostrar/ocultar contrasena" -OldString @'
-                <div>
-                    <InputText @bind-Value="LoginModel.Password" placeholder="Password" type="password" class="form-input" />
-                </div>
-'@ -NewString @'
+$results += Patch-File -Path $authLoginPath -Description "Auth: posicionar el icono del ojo con CSS en linea" -OldString @'
                 <div class="relative">
                     <InputText id="userPanelPassword" @bind-Value="LoginModel.Password" placeholder="Password" type="password" class="form-input pr-11" />
                     <button type="button" onclick="const i=document.getElementById('userPanelPassword'); const isPw=i.type==='password'; i.type=isPw?'text':'password'; this.querySelector('i').className=isPw?'ri-eye-line':'ri-eye-off-line';" class="absolute -translate-y-1/2 right-3 top-1/2 text-black/50 dark:text-white/60">
                         <i class="ri-eye-off-line"></i>
                     </button>
                 </div>
+'@ -NewString @'
+                <div style="position:relative;">
+                    <InputText id="userPanelPassword" @bind-Value="LoginModel.Password" placeholder="Password" type="password" class="form-input" style="padding-right:44px;" />
+                    <button type="button" onclick="const i=document.getElementById('userPanelPassword'); const isPw=i.type==='password'; i.type=isPw?'text':'password'; this.querySelector('i').className=isPw?'ri-eye-line':'ri-eye-off-line';" class="text-black/50 dark:text-white/60" style="position:absolute; top:50%; right:12px; transform:translateY(-50%); background:none; border:none; padding:0; cursor:pointer;">
+                        <i class="ri-eye-off-line"></i>
+                    </button>
+                </div>
 '@
 
-if ($results2 -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar (login de participantes). Revisa los mensajes anteriores." -ForegroundColor Red
-    exit 1
-}
-
-# ── 5. Login del Admin (equipo organizador) ──────────────────────────────────
-$adminLoginPath = "Alakai.FestivalManager.Admin/Components/Pages/AdminAuth/Login.razor"
-
-$results3 = @()
-
-$results3 += Patch-File -Path $adminLoginPath -Description "Borde negro solido + logo encima del titulo" -OldString @'
-    <div class="max-w-[550px] flex-none w-full bg-white border border-black/10 p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-darkborder">
-        <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Admin Sign In</MudText>
-'@ -NewString @'
-    <div class="max-w-[550px] flex-none w-full bg-white border-2 border-black p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-white">
-        @if (!string.IsNullOrWhiteSpace(Branding?.LogoUrl))
-        {
-            <img src="@Branding.LogoUrl" alt="@Branding.Name" class="max-h-16 mx-auto mb-6 object-contain" />
-        }
-        <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Admin Sign In</MudText>
-'@
-
-$results3 += Patch-File -Path $adminLoginPath -Description "Boton de mostrar/ocultar contrasena" -OldString @'
-            <div>
-                <input name="password" type="password" placeholder="Password" class="form-input" required />
-            </div>
-'@ -NewString @'
+$results += Patch-File -Path $adminLoginPath -Description "AdminAuth: posicionar el icono del ojo con CSS en linea" -OldString @'
             <div class="relative">
                 <input id="adminPassword" name="password" type="password" placeholder="Password" class="form-input pr-11" required />
                 <button type="button" onclick="const i=document.getElementById('adminPassword'); const isPw=i.type==='password'; i.type=isPw?'text':'password'; this.querySelector('i').className=isPw?'ri-eye-line':'ri-eye-off-line';" class="absolute -translate-y-1/2 right-3 top-1/2 text-black/50 dark:text-white/60">
                     <i class="ri-eye-off-line"></i>
                 </button>
             </div>
-'@
-
-$results3 += Patch-File -Path $adminLoginPath -Description "Recibir Branding en cascada" -OldString @'
-@code {
-    [SupplyParameterFromQuery(Name = "error")]
-    public string? Error { get; set; }
 '@ -NewString @'
-@code {
-    [CascadingParameter]
-    public Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding { get; set; }
-
-    [SupplyParameterFromQuery(Name = "error")]
-    public string? Error { get; set; }
+            <div style="position:relative;">
+                <input id="adminPassword" name="password" type="password" placeholder="Password" class="form-input" style="padding-right:44px;" required />
+                <button type="button" onclick="const i=document.getElementById('adminPassword'); const isPw=i.type==='password'; i.type=isPw?'text':'password'; this.querySelector('i').className=isPw?'ri-eye-line':'ri-eye-off-line';" class="text-black/50 dark:text-white/60" style="position:absolute; top:50%; right:12px; transform:translateY(-50%); background:none; border:none; padding:0; cursor:pointer;">
+                    <i class="ri-eye-off-line"></i>
+                </button>
+            </div>
 '@
 
-if ($results3 -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar (login de admin). Revisa los mensajes anteriores." -ForegroundColor Red
+if ($results -contains $false) {
+    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nTodo aplicado. dotnet build para confirmar." -ForegroundColor Green
-Write-Host "El logo solo aparecera si el festival tiene un dominio propio configurado" -ForegroundColor Yellow
-Write-Host "(Custom Domain) y ese festival tiene un Logo URL puesto en sus ajustes." -ForegroundColor Yellow
+Write-Host "`nCorregido con CSS en linea (siempre funciona, no depende del bundle de Tailwind). dotnet build para confirmar." -ForegroundColor Green

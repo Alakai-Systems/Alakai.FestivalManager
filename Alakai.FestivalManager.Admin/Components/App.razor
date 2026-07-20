@@ -1,6 +1,8 @@
 @using Radzen.Blazor
 @inject IHttpContextAccessor HttpContextAccessor
 @inject Alakai.FestivalManager.Admin.Services.Api.PublicRegistrationApiClient PublicApi
+@inject PersistentComponentState ApplicationState
+@implements IDisposable
 <!DOCTYPE html>
 <html lang="en" x-data="{ direction: $store.app.direction }" x-bind:dir="$store.app.direction" class="group/item" x-bind:data-mode="$store.app.mode" x-bind:data-sidebar="$store.app.sidebarMode">
 
@@ -113,9 +115,20 @@
 
 @code {
     private Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding;
+    private PersistingComponentStateSubscription _persistingSubscription;
 
     protected override async Task OnInitializedAsync()
     {
+        _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistBranding);
+
+        if (ApplicationState.TryTakeFromJson("branding", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+        {
+            // Segunda pasada (circuito interactivo ya conectado) - reutilizar lo
+            // calculado en el prerender, sin volver a necesitar HttpContext.
+            Branding = restored;
+            return;
+        }
+
         try
         {
             string? host = HttpContextAccessor.HttpContext?.Request.Host.Host;
@@ -129,5 +142,16 @@
         {
             // Sin marca especifica para este dominio - se usan los valores por defecto.
         }
+    }
+
+    private Task PersistBranding()
+    {
+        ApplicationState.PersistAsJson("branding", Branding);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _persistingSubscription.Dispose();
     }
 }
