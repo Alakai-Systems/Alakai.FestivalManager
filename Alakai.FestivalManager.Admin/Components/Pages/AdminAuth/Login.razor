@@ -1,6 +1,10 @@
 @page "/login"
 @layout AuthLayout
 @attribute [AllowAnonymous]
+@implements IDisposable
+@inject Microsoft.AspNetCore.Http.IHttpContextAccessor HttpContextAccessor
+@inject Alakai.FestivalManager.Admin.Services.Api.PublicRegistrationApiClient PublicApi
+@inject PersistentComponentState ApplicationState
 
 
 <PageTitle>Admin Sign In</PageTitle>
@@ -9,8 +13,8 @@
     <div class="max-w-[550px] flex-none w-full bg-white border border-black/10 p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-darkborder">
         @if (!string.IsNullOrWhiteSpace(Branding?.LogoUrl))
         {
-            <div class="flex items-center justify-center h-10 mb-6">
-                <img src="@Branding.LogoUrl" alt="@Branding.Name" class="object-contain max-w-full max-h-10" />
+            <div style="display:flex; align-items:center; justify-content:center; height:40px; margin-bottom:24px;">
+                <img src="@Branding.LogoUrl" alt="@Branding.Name" style="max-width:100%; max-height:40px; object-fit:contain;" />
             </div>
         }
         <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Admin Sign In</MudText>
@@ -50,8 +54,44 @@
 </div>
 
 @code {
-    [CascadingParameter]
-    public Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding { get; set; }
+    private Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding;
+    private PersistingComponentStateSubscription _persistingSubscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistBranding);
+
+        if (ApplicationState.TryTakeFromJson("branding", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+        {
+            Branding = restored;
+            return;
+        }
+
+        try
+        {
+            string? host = HttpContextAccessor.HttpContext?.Request.Host.Host;
+
+            if (!string.IsNullOrWhiteSpace(host))
+            {
+                Branding = await PublicApi.GetFestivalByDomainAsync(host);
+            }
+        }
+        catch
+        {
+            // Sin marca especifica para este dominio - se usan los valores por defecto.
+        }
+    }
+
+    private Task PersistBranding()
+    {
+        ApplicationState.PersistAsJson("branding", Branding);
+        return Task.CompletedTask;
+    }
+
+    public void Dispose()
+    {
+        _persistingSubscription.Dispose();
+    }
 
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
