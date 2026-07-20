@@ -72,7 +72,8 @@ public class PublicFestivalsController : ControllerBase
         return Ok(new
         {
             Name = festival.Name,
-            FaviconUrl = festival.FaviconUrl
+            FaviconUrl = festival.FaviconUrl,
+            LogoUrl = festival.LogoUrl
         });
     }
 }

@@ -45,7 +45,9 @@
       x-bind:class="[ $store.app.sidebar ? 'toggle-sidebar' : '', $store.app.fullscreen ? 'full' : '', $store.app.hasCreative ? 'detached ' : '', $store.app.hasdetached ? 'detached detached-simple ' : '', $store.app.layout ]"
       class="relative overflow-x-hidden text-sm antialiased font-normal text-black font-cerebri dark:text-white vertical">
 
-    <Routes @rendermode="InteractiveServer" />
+    <CascadingValue Value="Branding">
+        <Routes @rendermode="InteractiveServer" />
+    </CascadingValue>
 
     <script src="assets/js/pages/alpine-collaspe.min.js"></script>
     <script src="assets/js/pages/alpine-persist.min.js"></script>

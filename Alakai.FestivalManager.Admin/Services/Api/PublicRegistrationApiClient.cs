@@ -76,7 +76,7 @@ public class PublicRegistrationApiClient
 
 public record PublicFestivalSlugDto(Guid? ActiveEditionId, bool HasAccommodation, string? TermsUrl, string? FaviconUrl);
 
-public record PublicFestivalBrandingDto(string Name, string? FaviconUrl);
+public record PublicFestivalBrandingDto(string Name, string? FaviconUrl, string? LogoUrl);
 
 public record PublicEmailLayoutDto(string HeaderHtml, string FooterHtml);
 

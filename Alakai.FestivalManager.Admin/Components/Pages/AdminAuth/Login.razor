@@ -1,4 +1,4 @@
-﻿@page "/login"
+@page "/login"
 @layout AuthLayout
 @attribute [AllowAnonymous]
 
@@ -6,7 +6,11 @@
 <PageTitle>Admin Sign In</PageTitle>
 
 <div class="min-h-[calc(100vh-134px)] py-4 px-4 sm:px-12 flex justify-center items-center max-w-[1440px] mx-auto bg-light/60 dark:bg-dark">
-    <div class="max-w-[550px] flex-none w-full bg-white border border-black/10 p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-darkborder">
+    <div class="max-w-[550px] flex-none w-full bg-white border-2 border-black p-6 sm:p-10 lg:px-10 lg:py-14 rounded-2xl loginform shadow-3xl shadow-black/10 dark:bg-darklight dark:border-white">
+        @if (!string.IsNullOrWhiteSpace(Branding?.LogoUrl))
+        {
+            <img src="@Branding.LogoUrl" alt="@Branding.Name" class="max-h-16 mx-auto mb-6 object-contain" />
+        }
         <MudText Typo="Typo.h1" Class="mb-2 text-2xl font-semibold text-center dark:text-white">Admin Sign In</MudText>
         <MudText Class="text-center text-muted mb-7 dark:text-darkmuted">Enter your admin credentials to access the dashboard.</MudText>
 
@@ -25,8 +29,11 @@
                 <input name="email" type="email" placeholder="Email" class="form-input" required />
             </div>
 
-            <div>
-                <input name="password" type="password" placeholder="Password" class="form-input" required />
+            <div class="relative">
+                <input id="adminPassword" name="password" type="password" placeholder="Password" class="form-input pr-11" required />
+                <button type="button" onclick="const i=document.getElementById('adminPassword'); const isPw=i.type==='password'; i.type=isPw?'text':'password'; this.querySelector('i').className=isPw?'ri-eye-line':'ri-eye-off-line';" class="absolute -translate-y-1/2 right-3 top-1/2 text-black/50 dark:text-white/60">
+                    <i class="ri-eye-off-line"></i>
+                </button>
             </div>
 
             <div class="ltr:text-right rtl:text-left">
@@ -41,6 +48,9 @@
 </div>
 
 @code {
+    [CascadingParameter]
+    public Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding { get; set; }
+
     [SupplyParameterFromQuery(Name = "error")]
     public string? Error { get; set; }
 
