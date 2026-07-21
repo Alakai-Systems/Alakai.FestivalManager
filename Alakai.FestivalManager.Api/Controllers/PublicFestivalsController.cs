@@ -10,13 +10,15 @@ public class PublicFestivalsController : ControllerBase
     private readonly IFestivalRepository _festivalRepository;
     private readonly IEditionRepository _editionRepository;
     private readonly IEmailLayoutRepository _emailLayoutRepository;
+    private readonly IConfiguration _configuration;
 
     public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository,
-        IEmailLayoutRepository emailLayoutRepository)
+        IEmailLayoutRepository emailLayoutRepository, IConfiguration configuration)
     {
         _festivalRepository = festivalRepository;
         _editionRepository = editionRepository;
         _emailLayoutRepository = emailLayoutRepository;
+        _configuration = configuration;
     }
 
     [HttpGet("email-layout/{editionId:guid}")]
@@ -64,16 +66,25 @@ public class PublicFestivalsController : ControllerBase
     {
         Festival? festival = await _festivalRepository.GetByCustomDomainAsync(domain, cancellationToken);
 
-        if (festival is null)
+        if (festival is not null)
         {
-            return NotFound();
+            return Ok(new
+            {
+                Name = festival.Name,
+                FaviconUrl = festival.FaviconUrl,
+                LogoUrl = festival.LogoUrl
+            });
         }
+
+        string platformName = _configuration["PlatformBranding:Name"] ?? "Alakai Festival Manager";
+        string? platformLogoUrl = _configuration["PlatformBranding:LogoUrl"];
+        string? platformFaviconUrl = _configuration["PlatformBranding:FaviconUrl"];
 
         return Ok(new
         {
-            Name = festival.Name,
-            FaviconUrl = festival.FaviconUrl,
-            LogoUrl = festival.LogoUrl
+            Name = platformName,
+            FaviconUrl = string.IsNullOrWhiteSpace(platformFaviconUrl) ? null : platformFaviconUrl,
+            LogoUrl = string.IsNullOrWhiteSpace(platformLogoUrl) ? null : platformLogoUrl
         });
     }
 }
