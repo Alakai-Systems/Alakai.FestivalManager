@@ -1,11 +1,14 @@
-# Fix-Step75-InvoiceEditDeleteUI.ps1
-# Parte 2: cliente del Admin + botones y modales en Invoices.razor, con el
-# mismo estilo estandar del resto de la app (visto en DiscountCodes.razor).
+# Fix-Step76-InvoiceSuccessErrorAlerts.ps1
+# Anade el patron ShowSuccess/ShowError con auto-cierre a los 3.5s (igual que
+# en el resto de la app, por ejemplo DiscountCodes.razor) a las acciones de
+# Editar y Eliminar factura, que se quedaron sin el, con solo un mensaje de
+# error suelto dentro del modal.
 #
-# Ejecutar DESPUES de Fix-Step74-InvoiceEditDelete.ps1.
+# Ejecutar DESPUES de Fix-Step75.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/Invoices.razor"
 
 function Patch-File {
     param(
@@ -52,226 +55,81 @@ function Patch-File {
 
 $results = @()
 
-# ── 1. Admin InvoiceDto: anadir campos de direccion fiscal ──────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Contracts/Invoices/DTOs/InvoiceDto.cs" `
-    -Description "Admin InvoiceDto: anadir Address/City/PostalCode/Country" -OldString @'
-    public string FiscalName { get; set; } = string.Empty;
-    public string TaxId { get; set; } = string.Empty;
-    public string? CustomerFirstName { get; set; }
-'@ -NewString @'
-    public string FiscalName { get; set; } = string.Empty;
-    public string TaxId { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
-    public string City { get; set; } = string.Empty;
-    public string PostalCode { get; set; } = string.Empty;
-    public string Country { get; set; } = string.Empty;
-    public string? CustomerFirstName { get; set; }
-'@
-
-# ── 2. InvoiceApiClient: UpdateAsync + DeleteAsync + request DTO ────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Services/Api/InvoiceApiClient.cs" `
-    -Description "Cliente: anadir UpdateAsync y DeleteAsync" -OldString @'
-        return response.Data?.Invoices ?? [];
-    }
-}
-'@ -NewString @'
-        return response.Data?.Invoices ?? [];
-    }
-
-    public async Task UpdateAsync(Guid id, UpdateInvoiceRequest request, CancellationToken cancellationToken = default)
-    {
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/invoices/{id}", request, cancellationToken);
-
-        if (!httpResponse.IsSuccessStatusCode)
+# ── 1. Markup: banner de exito junto al de error ya existente ──────────────
+$results += Patch-File -Path $path -Description "Anadir el banner de exito" -OldString @'
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
         {
-            string errorBody = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
-            throw new ApiClientException($"Could not update invoice: {errorBody}", null);
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
         }
-    }
-
-    public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
-    {
-        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/invoices/{id}", cancellationToken);
-
-        if (!httpResponse.IsSuccessStatusCode)
+'@ -NewString @'
+        @if (!string.IsNullOrWhiteSpace(successMessage))
         {
-            string errorBody = await httpResponse.Content.ReadAsStringAsync(cancellationToken);
-            throw new ApiClientException($"Could not delete invoice: {errorBody}", null);
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
         }
-    }
-}
 
-public class UpdateInvoiceRequest
-{
-    public string FiscalName { get; set; } = string.Empty;
-    public string TaxId { get; set; } = string.Empty;
-    public string Address { get; set; } = string.Empty;
-    public string City { get; set; } = string.Empty;
-    public string PostalCode { get; set; } = string.Empty;
-    public string Country { get; set; } = string.Empty;
-}
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
 '@
 
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
-    exit 1
-}
-
-# ── 3. Invoices.razor: botones Edit/Delete junto al de Download ─────────────
-$path = "Alakai.FestivalManager.Admin/Components/Pages/Invoices.razor"
-$results2 = @()
-
-$results2 += Patch-File -Path $path -Description "Anadir botones Edit y Delete junto al de Download" -OldString @'
-                                <td class="px-3 py-3 text-right">
-                                    <a href="@invoice.PdfUrl" target="_blank" class="text-black dark:text-white/80" title="Download">
-                                        <i class="ri-download-line text-lg"></i>
-                                    </a>
-                                </td>
-'@ -NewString @'
-                                <td class="px-3 py-3 text-right">
-                                    <div class="flex items-center justify-end gap-3">
-                                        <a href="@invoice.PdfUrl" target="_blank" class="text-black dark:text-white/80" title="Download">
-                                            <i class="ri-download-line text-lg"></i>
-                                        </a>
-                                        <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(invoice)"><i class="ri-pencil-line text-lg"></i></button>
-                                        <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(invoice)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                    </div>
-                                </td>
-'@
-
-# ── 4. Modales de Edit y Delete, antes de "@implements IDisposable" ────────
-$results2 += Patch-File -Path $path -Description "Anadir los modales de Edit y Delete" -OldString @'
-@implements IDisposable
-@code {
-'@ -NewString @'
-@if (editingInvoice is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold">Edit Invoice @editingInvoice.Number</h3>
-                    <button type="button" @onclick="CloseEditModal"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-
-                <EditForm Model="editFormModel" OnValidSubmit="SaveEditAsync">
-                    <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                        <div class="md:col-span-2">
-                            <label class="form-label">Fiscal Name</label>
-                            <InputText class="form-input" @bind-Value="editFormModel.FiscalName" />
-                        </div>
-
-                        <div>
-                            <label class="form-label">Tax ID</label>
-                            <InputText class="form-input" @bind-Value="editFormModel.TaxId" />
-                        </div>
-
-                        <div>
-                            <label class="form-label">Country</label>
-                            <InputText class="form-input" @bind-Value="editFormModel.Country" />
-                        </div>
-
-                        <div class="md:col-span-2">
-                            <label class="form-label">Address</label>
-                            <InputText class="form-input" @bind-Value="editFormModel.Address" />
-                        </div>
-
-                        <div>
-                            <label class="form-label">City</label>
-                            <InputText class="form-input" @bind-Value="editFormModel.City" />
-                        </div>
-
-                        <div>
-                            <label class="form-label">Postal Code</label>
-                            <InputText class="form-input" @bind-Value="editFormModel.PostalCode" />
-                        </div>
-                    </div>
-
+# ── 2. Quitar el mensaje de error suelto dentro del modal de Edit ──────────
+$results += Patch-File -Path $path -Description "Quitar el mensaje de error suelto del modal de Edit" -OldString @'
                     @if (!string.IsNullOrWhiteSpace(editErrorMessage))
                     {
                         <div class="px-5 pb-3 text-sm text-danger">@editErrorMessage</div>
                     }
 
                     <div class="flex justify-end gap-3 p-5 border-t">
-                        <button type="button" class="btn border" @onclick="CloseEditModal">Cancel</button>
-                        <button type="submit" class="btn bg-purple text-white" disabled="@isSavingEdit">@(isSavingEdit ? "Saving..." : "Save")</button>
-                    </div>
-                </EditForm>
-            </div>
-        </div>
-    </div>
-}
-
-@if (deletingInvoice is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Invoice</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete invoice <strong>@deletingInvoice.Number</strong>? This cannot be undone.</p>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@isDeletingInvoice" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isDeletingInvoice" @onclick="ConfirmDeleteAsync">@(isDeletingInvoice ? "Deleting..." : "Delete")</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@implements IDisposable
-@code {
+'@ -NewString @'
+                    <div class="flex justify-end gap-3 p-5 border-t">
 '@
 
-if ($results2 -contains $false) {
+if ($results -contains $false) {
     Write-Host "`nAlgun paso no se pudo aplicar (markup). Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-# ── 5. @code: estado + metodos de Edit/Delete ───────────────────────────────
-$results3 = Patch-File -Path $path -Description "Anadir el estado y los metodos de Edit/Delete" -OldString @'
+# ── 3. @code: successMessage + ShowSuccess/ShowError + usarlos en Save/Delete ──
+$results2 = Patch-File -Path $path -Description "Anadir successMessage y los metodos ShowSuccess/ShowError" -OldString @'
     private bool isLoading = true;
     private string? errorMessage;
 '@ -NewString @'
     private bool isLoading = true;
     private string? errorMessage;
+    private string? successMessage;
 
-    private InvoiceDto? editingInvoice;
-    private UpdateInvoiceRequest editFormModel = new();
-    private bool isSavingEdit;
-    private string? editErrorMessage;
-
-    private InvoiceDto? deletingInvoice;
-    private bool isDeletingInvoice;
-
-    private void OpenEditModal(InvoiceDto invoice)
+    private void ShowSuccess(string message)
     {
-        editingInvoice = invoice;
-        editErrorMessage = null;
-        editFormModel = new UpdateInvoiceRequest
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
         {
-            FiscalName = invoice.FiscalName,
-            TaxId = invoice.TaxId,
-            Address = invoice.Address,
-            City = invoice.City,
-            PostalCode = invoice.PostalCode,
-            Country = invoice.Country
-        };
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
     }
 
-    private void CloseEditModal()
+    private void ShowError(string message)
     {
-        editingInvoice = null;
-    }
-
-    private async Task SaveEditAsync()
-    {
-        if (editingInvoice is null)
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
         {
-            return;
-        }
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+'@
 
+if (-not $results2) {
+    Write-Host "`nNo se pudo aplicar el patch de ShowSuccess/ShowError." -ForegroundColor Red
+    exit 1
+}
+
+$results3 = Patch-File -Path $path -Description "SaveEditAsync: usar ShowSuccess/ShowError" -OldString @'
         isSavingEdit = true;
         editErrorMessage = null;
 
@@ -290,24 +148,34 @@ $results3 = Patch-File -Path $path -Description "Anadir el estado y los metodos 
             isSavingEdit = false;
         }
     }
+'@ -NewString @'
+        isSavingEdit = true;
 
-    private void OpenDeleteModal(InvoiceDto invoice)
-    {
-        deletingInvoice = invoice;
-    }
-
-    private void CloseDeleteModal()
-    {
-        deletingInvoice = null;
-    }
-
-    private async Task ConfirmDeleteAsync()
-    {
-        if (deletingInvoice is null)
+        try
         {
-            return;
+            await InvoiceApiClient.UpdateAsync(editingInvoice.Id, editFormModel);
+            string number = editingInvoice.Number;
+            editingInvoice = null;
+            await LoadDataAsync();
+            ShowSuccess($"Invoice {number} updated successfully.");
         }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isSavingEdit = false;
+        }
+    }
+'@
 
+if (-not $results3) {
+    Write-Host "`nNo se pudo aplicar el patch de SaveEditAsync." -ForegroundColor Red
+    exit 1
+}
+
+$results4 = Patch-File -Path $path -Description "ConfirmDeleteAsync: usar ShowSuccess/ShowError" -OldString @'
         isDeletingInvoice = true;
 
         try
@@ -325,11 +193,43 @@ $results3 = Patch-File -Path $path -Description "Anadir el estado y los metodos 
             isDeletingInvoice = false;
         }
     }
+'@ -NewString @'
+        isDeletingInvoice = true;
+
+        try
+        {
+            string number = deletingInvoice.Number;
+            await InvoiceApiClient.DeleteAsync(deletingInvoice.Id);
+            deletingInvoice = null;
+            await LoadDataAsync();
+            ShowSuccess($"Invoice {number} deleted successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isDeletingInvoice = false;
+        }
+    }
 '@
 
-if (-not $results3) {
-    Write-Host "`nNo se pudo aplicar el patch del @code." -ForegroundColor Red
+if (-not $results4) {
+    Write-Host "`nNo se pudo aplicar el patch de ConfirmDeleteAsync." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nBoton y modales de Edit/Delete anadidos, mismo estilo que el resto de la app. dotnet build para confirmar." -ForegroundColor Green
+# ── 4. Quitar el campo editErrorMessage que ya no se usa ────────────────────
+$results5 = Patch-File -Path $path -Description "Quitar el campo editErrorMessage (ya no se usa)" -OldString @'
+    private bool isSavingEdit;
+    private string? editErrorMessage;
+'@ -NewString @'
+    private bool isSavingEdit;
+'@
+
+if (-not $results5) {
+    Write-Host "`nNo se pudo quitar editErrorMessage - no es grave si se queda, simplemente sin usar." -ForegroundColor Yellow
+}
+
+Write-Host "`nHecho. dotnet build para confirmar." -ForegroundColor Green
