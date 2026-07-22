@@ -13,6 +13,10 @@ public class InvoiceDto
     public string PdfUrl { get; set; } = string.Empty;
     public string FiscalName { get; set; } = string.Empty;
     public string TaxId { get; set; } = string.Empty;
+    public string Address { get; set; } = string.Empty;
+    public string City { get; set; } = string.Empty;
+    public string PostalCode { get; set; } = string.Empty;
+    public string Country { get; set; } = string.Empty;
     public string? CustomerFirstName { get; set; }
     public string? CustomerLastName { get; set; }
     public string? CustomerEmail { get; set; }

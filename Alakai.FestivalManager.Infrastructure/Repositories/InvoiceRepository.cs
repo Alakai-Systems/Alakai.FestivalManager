@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Repositories;
+namespace Alakai.FestivalManager.Infrastructure.Repositories;
 
 public class InvoiceRepository : IInvoiceRepository
 {
@@ -17,7 +17,8 @@ public class InvoiceRepository : IInvoiceRepository
     public async Task<Invoice?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Invoices
-            .Include(i => i.Registration)
+            .Include(i => i.Registration).ThenInclude(r => r.Edition)
+            .Include(i => i.Registration).ThenInclude(r => r.PassType)
             .FirstOrDefaultAsync(i => i.Id == id, cancellationToken);
     }
 
@@ -48,6 +49,11 @@ public class InvoiceRepository : IInvoiceRepository
         return await _context.Invoices
             .Where(i => i.Year == year)
             .MaxAsync(i => i.SequenceNumber, cancellationToken);
+    }
+
+    public void Update(Invoice invoice)
+    {
+        _context.Invoices.Update(invoice);
     }
 
     public void Delete(Invoice invoice)

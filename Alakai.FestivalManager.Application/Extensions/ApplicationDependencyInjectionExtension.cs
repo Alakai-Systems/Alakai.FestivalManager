@@ -85,6 +85,8 @@ public static class ApplicationDependencyInjectionExtension
 
         //Invoices
         services.AddScoped<CreateInvoiceHandler>();
+        services.AddScoped<Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoice.UpdateInvoiceHandler>();
+        services.AddScoped<Alakai.FestivalManager.Application.Features.Invoices.Commands.DeleteInvoice.DeleteInvoiceHandler>();
         services.AddScoped<IInvoiceService, InvoiceService>();
         services.AddScoped<UpdateInvoiceSettingsHandler>();
         services.AddScoped<IInvoiceSettingsService, InvoiceSettingsService>();
