@@ -1,4 +1,4 @@
-﻿@page "/reports"
+@page "/reports"
 
 @inject ReportApiClient ReportApiClient
 @inject EditionApiClient EditionApiClient
@@ -8,16 +8,16 @@
 
 <PageHeader Title="Reports" pTitle="Downloads"></PageHeader>
 
-<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+<div class="grid grid-cols-1 gap-4 min-h-[calc(100vh-212px)]">
     <div class="card">
         <div class="flex flex-col gap-3 md:flex-row md:items-center">
-            <select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
+            <select class="form-select w-full md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
                 @foreach (FestivalDto festival in festivals)
                 {
                     <option value="@festival.Id">@festival.Name</option>
                 }
             </select>
-            <select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
+            <select class="form-select w-full md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">
                 @foreach (EditionDto edition in editionsForSelectedFestival)
                 {
                     <option value="@edition.Id">@edition.Name</option>

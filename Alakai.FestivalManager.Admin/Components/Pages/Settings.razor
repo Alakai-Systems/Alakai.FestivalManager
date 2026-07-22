@@ -1,4 +1,4 @@
-﻿@page "/settings"
+@page "/settings"
 @using Microsoft.AspNetCore.Components.Authorization
 
 @inject UserApiClient UserApiClient
@@ -73,7 +73,8 @@
         </div>
     </div>
 
-    <div class="card mt-4">
+    <div class="grid grid-cols-1 gap-4 mt-4">
+    <div class="card">
         <h2 class="mb-4 text-lg font-semibold text-black dark:text-white">Admin Users</h2>
 
         @if (IsLoadingUsers)
@@ -138,6 +139,7 @@
                 </table>
             </div>
         }
+    </div>
     </div>
 }
 else

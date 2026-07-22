@@ -1,12 +1,6 @@
-# Fix-Step69-PlatformDefaultBranding.ps1
-#
-# Anade una marca "por defecto" de Alakai Systems, usada cuando el dominio de
-# la peticion NO coincide con el CustomDomain de ningun festival (por ejemplo,
-# vuestro propio dominio neutro app.alakai-systems.com, o la URL generica de
-# Azure). Como App.razor y las 2 paginas de Login ya llaman todas al MISMO
-# endpoint (by-domain), basta con que ESE endpoint tenga un fallback sensato
-# en vez de devolver "no encontrado" - no hace falta tocar nada mas en ningun
-# otro sitio.
+# Fix-Step72-ReportsFilter.ps1
+# Reports.razor tenia el mismo bug que las otras 6 paginas (falta w-full
+# antes de md:wXX en los filtros).
 #
 # Ejecutar desde la raiz del repo.
 
@@ -55,114 +49,14 @@ function Patch-File {
     return $true
 }
 
+$p = "Alakai.FestivalManager.Admin/Components/Pages/Reports.razor"
 $results = @()
-
-# ── 1. appsettings.json: seccion PlatformBranding (rellena las URLs cuando las tengas) ──
-$results += Patch-File -Path "Alakai.FestivalManager.Api/appsettings.json" `
-    -Description "Anadir la seccion PlatformBranding" -OldString @'
-  "GoogleAnalytics": {
-'@ -NewString @'
-  "PlatformBranding": {
-    "Name": "Alakai Systems",
-    "LogoUrl": "",
-    "FaviconUrl": ""
-  },
-  "GoogleAnalytics": {
-'@
+$results += Patch-File -Path $p -Description "Reports: filtro festival" -OldString '<select class="form-select md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">' -NewString '<select class="form-select w-full md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">'
+$results += Patch-File -Path $p -Description "Reports: filtro edicion" -OldString '<select class="form-select md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">' -NewString '<select class="form-select w-full md:w-64" @bind="selectedEditionId" @bind:after="OnEditionChangedAsync">'
 
 if ($results -contains $false) {
-    Write-Host "`nNo se pudo aplicar el patch de appsettings.json. Revisa el mensaje anterior." -ForegroundColor Red
+    Write-Host "`nAlgun paso no se pudo aplicar." -ForegroundColor Red
     exit 1
 }
 
-# ── 2. PublicFestivalsController: usar la config como fallback ─────────────
-$results2 = @()
-
-$results2 += Patch-File -Path "Alakai.FestivalManager.Api/Controllers/PublicFestivalsController.cs" `
-    -Description "Inyectar IConfiguration" -OldString @'
-    private readonly IFestivalRepository _festivalRepository;
-    private readonly IEditionRepository _editionRepository;
-    private readonly IEmailLayoutRepository _emailLayoutRepository;
-
-    public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository,
-        IEmailLayoutRepository emailLayoutRepository)
-    {
-        _festivalRepository = festivalRepository;
-        _editionRepository = editionRepository;
-        _emailLayoutRepository = emailLayoutRepository;
-    }
-'@ -NewString @'
-    private readonly IFestivalRepository _festivalRepository;
-    private readonly IEditionRepository _editionRepository;
-    private readonly IEmailLayoutRepository _emailLayoutRepository;
-    private readonly IConfiguration _configuration;
-
-    public PublicFestivalsController(IFestivalRepository festivalRepository, IEditionRepository editionRepository,
-        IEmailLayoutRepository emailLayoutRepository, IConfiguration configuration)
-    {
-        _festivalRepository = festivalRepository;
-        _editionRepository = editionRepository;
-        _emailLayoutRepository = emailLayoutRepository;
-        _configuration = configuration;
-    }
-'@
-
-$results2 += Patch-File -Path "Alakai.FestivalManager.Api/Controllers/PublicFestivalsController.cs" `
-    -Description "GetByDomain: usar PlatformBranding como fallback en vez de NotFound" -OldString @'
-    [HttpGet("by-domain/{domain}")]
-    public async Task<IActionResult> GetByDomain(string domain, CancellationToken cancellationToken)
-    {
-        Festival? festival = await _festivalRepository.GetByCustomDomainAsync(domain, cancellationToken);
-
-        if (festival is null)
-        {
-            return NotFound();
-        }
-
-        return Ok(new
-        {
-            Name = festival.Name,
-            FaviconUrl = festival.FaviconUrl,
-            LogoUrl = festival.LogoUrl
-        });
-    }
-'@ -NewString @'
-    [HttpGet("by-domain/{domain}")]
-    public async Task<IActionResult> GetByDomain(string domain, CancellationToken cancellationToken)
-    {
-        Festival? festival = await _festivalRepository.GetByCustomDomainAsync(domain, cancellationToken);
-
-        if (festival is not null)
-        {
-            return Ok(new
-            {
-                Name = festival.Name,
-                FaviconUrl = festival.FaviconUrl,
-                LogoUrl = festival.LogoUrl
-            });
-        }
-
-        string platformName = _configuration["PlatformBranding:Name"] ?? "Alakai Festival Manager";
-        string? platformLogoUrl = _configuration["PlatformBranding:LogoUrl"];
-        string? platformFaviconUrl = _configuration["PlatformBranding:FaviconUrl"];
-
-        return Ok(new
-        {
-            Name = platformName,
-            FaviconUrl = string.IsNullOrWhiteSpace(platformFaviconUrl) ? null : platformFaviconUrl,
-            LogoUrl = string.IsNullOrWhiteSpace(platformLogoUrl) ? null : platformLogoUrl
-        });
-    }
-'@
-
-if ($results2 -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar (controlador). Revisa los mensajes anteriores." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`nHecho. dotnet build para confirmar." -ForegroundColor Green
-Write-Host ""
-Write-Host "Para que aparezca de verdad el logo/favicon de Alakai Systems, rellena" -ForegroundColor Yellow
-Write-Host "LogoUrl y FaviconUrl en la seccion PlatformBranding de appsettings.json" -ForegroundColor Yellow
-Write-Host "(o en la variable de entorno equivalente en Azure) con las URLs reales." -ForegroundColor Yellow
-Write-Host "Mientras esten vacias, se usara el favicon/logo por defecto del sistema." -ForegroundColor Cyan
+Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
