@@ -17,6 +17,15 @@ builder.Services.AddRadzenComponents();
 builder.Services.AddMudServices();
 builder.Services.AddApiClients(builder.Configuration);
 
+string dataProtectionKeysPath = builder.Configuration["DataProtection:KeyRingPath"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "keys");
+
+Directory.CreateDirectory(dataProtectionKeysPath);
+
+builder.Services.AddDataProtection()
+    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
+    .SetApplicationName("AlakaiFestivalManagerAdmin");
+
 builder.Services.AddCascadingAuthenticationState();
 
 builder.Services.AddMemoryCache();
