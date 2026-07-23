@@ -56,11 +56,7 @@ public class UserPanelService : IUserPanelService
             };
         }
 
-        IReadOnlyList<Registration> registrations = await _userPanelRepository.GetRegistrationsByUserIdAsync(userId, cancellationToken);
-
-        IReadOnlyList<Guid> registrationIds = registrations
-            .Select(r => r.Id)
-            .ToList();
+        IReadOnlyList<Guid> registrationIds = [registration.Id];
 
         IReadOnlyList<CompetitionEntry> competitionEntries = registrationIds.Count == 0
             ? []
