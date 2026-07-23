@@ -124,6 +124,13 @@ public static class ApiCLientsDependencyInjectionExtension
             client.BaseAddress = new Uri(baseUrl);
         });
 
+        services.AddHttpClient<Alakai.FestivalManager.Admin.Services.Api.ImpersonationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
         services.AddHttpClient<InvoiceSettingsApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]
