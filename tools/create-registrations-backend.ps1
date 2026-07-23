@@ -1,13 +1,15 @@
-# Fix-Step81-ImpersonationShowError.ps1
-# Los metodos ImpersonateAsync (Registrations.razor y AccommodationOperations.razor)
-# asignaban el mensaje de error directamente en vez de usar ShowError, que ya
-# existe en ambos archivos con su auto-cierre a los 3.5s. Se corrige para que
-# use el mismo patron que el resto de la pagina.
+# Fix-Step82-ImpersonateRouteFix.ps1
+# BUG REAL: la ruta de verdad del panel de usuario es
+# "/user-panel/dashboard/{Lang}" (con el idioma obligatorio en la URL). La
+# pagina de aterrizaje de impersonacion navegaba a "/user-panel/dashboard"
+# sin idioma, lo que causaba un desajuste de ruta - de ahi el aspecto raro
+# durante un instante y la posterior caida al login.
 #
-# Ejecutar DESPUES de Fix-Step78 (y preferiblemente Fix-Step80 tambien).
+# Ejecutar DESPUES de Fix-Step78.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/Impersonate.razor"
 
 function Patch-File {
     param(
@@ -52,87 +54,16 @@ function Patch-File {
     return $true
 }
 
-$results = @()
-
-# ── Registrations.razor ──────────────────────────────────────────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Registrations.razor" `
-    -Description "Registrations: ImpersonateAsync usa ShowError" -OldString @'
-    private async Task ImpersonateAsync(Guid registrationId)
-    {
-        try
-        {
-            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
-
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-    }
+$result = Patch-File -Path $path -Description "Navegar a la ruta real, con idioma incluido" -OldString @'
+        Navigation.NavigateTo("/user-panel/dashboard", forceLoad: true);
 '@ -NewString @'
-    private async Task ImpersonateAsync(Guid registrationId)
-    {
-        try
-        {
-            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
-
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
-            }
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
+        Navigation.NavigateTo("/user-panel/dashboard/en", forceLoad: true);
 '@
 
-# ── AccommodationOperations.razor ────────────────────────────────────────────
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/AccommodationOperations.razor" `
-    -Description "Accommodation: ImpersonateAsync usa ShowError" -OldString @'
-    private async Task ImpersonateAsync(Guid registrationId)
-    {
-        try
-        {
-            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
-
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-    }
-'@ -NewString @'
-    private async Task ImpersonateAsync(Guid registrationId)
-    {
-        try
-        {
-            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
-
-            if (!string.IsNullOrWhiteSpace(token))
-            {
-                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
-            }
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
-'@
-
-if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
+if (-not $result) {
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual de Impersonate.razor." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nCorregido en los dos archivos. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "Nota: se navega siempre en ingles ('en') por defecto, ya que la impersonacion no conoce el idioma preferido del participante." -ForegroundColor Cyan
