@@ -1,0 +1,22 @@
+@page "/impersonate"
+@inject Alakai.FestivalManager.Admin.Services.Auth.ITokenStorageService TokenStorageService
+@inject NavigationManager Navigation
+
+<div class="flex items-center justify-center min-h-screen">
+    <p class="text-sm text-black/60 dark:text-white/60">Signing you in...</p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Token))
+        {
+            await TokenStorageService.SetTokenAsync(Token);
+        }
+
+        Navigation.NavigateTo("/user-panel/dashboard", forceLoad: true);
+    }
+}

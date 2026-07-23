@@ -1,4 +1,4 @@
-﻿@page "/accommodation-operations"
+@page "/accommodation-operations"
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
 
@@ -6,6 +6,9 @@
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
 @inject ActiveFestivalState ActiveFestivalState
+@inject Alakai.FestivalManager.Admin.Services.Api.ImpersonationApiClient ImpersonationApiClient
+@inject IJSRuntime JsRuntime
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageHeader Title="Operations" pTitle="Accommodation"></PageHeader>
 
@@ -99,13 +102,17 @@
                                         {
                                             <div class="flex items-center justify-between gap-2 px-3 py-2 text-xs border-t border-black/5 dark:border-white/5 @(occupant.IsResponsible ? "bg-black/5 dark:bg-white/5 font-semibold" : "")">
                                                 <span class="truncate">@GetDisplayName(occupant)</span>
-                                                @if (occupant.IsResponsible)
-                                                {
-                                                    <div class="flex items-center gap-2 shrink-0">
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    @if (IsSuperAdmin && occupant.RegistrationId.HasValue)
+                                                    {
+                                                        <button type="button" class="text-black dark:text-white/80" title="View user panel" @onclick="() => ImpersonateAsync(occupant.RegistrationId.Value)"><i class="ri-key-2-line"></i></button>
+                                                    }
+                                                    @if (occupant.IsResponsible)
+                                                    {
                                                         <button type="button" class="text-black dark:text-white/80" title="Edit reservation" @onclick="() => OpenEditModal(occupant)"><i class="ri-pencil-line"></i></button>
                                                         <button type="button" class="text-danger" title="Cancel reservation" @onclick="() => OpenCancelModal(occupant)"><i class="ri-delete-bin-line"></i></button>
-                                                    </div>
-                                                }
+                                                    }
+                                                </div>
                                             </div>
                                         }
                                     </div>
@@ -189,6 +196,28 @@
 
 @implements IDisposable
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool IsSuperAdmin { get; set; }
+
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
+        {
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
     private List<FestivalDto> festivals = [];
     private List<EditionDto> editions = [];
     private List<AccommodationBuildingSummaryDto> buildings = [];
@@ -217,6 +246,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (AuthenticationStateTask is not null)
+        {
+            AuthenticationState authState = await AuthenticationStateTask;
+            IsSuperAdmin = authState.User.IsInRole("SuperAdmin");
+        }
+
         ActiveFestivalState.OnChange += HandleFestivalStateChanged;
 
         try

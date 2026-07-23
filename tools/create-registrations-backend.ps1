@@ -1,14 +1,12 @@
-# Fix-Step76-InvoiceSuccessErrorAlerts.ps1
-# Anade el patron ShowSuccess/ShowError con auto-cierre a los 3.5s (igual que
-# en el resto de la app, por ejemplo DiscountCodes.razor) a las acciones de
-# Editar y Eliminar factura, que se quedaron sin el, con solo un mensaje de
-# error suelto dentro del modal.
+# Fix-Step78-ImpersonationUI.ps1
+# Parte 2: cliente del Admin, pagina de aterrizaje, y botones en Registros y
+# Alojamiento (junto al nombre de cada ocupante que tenga cuenta propia).
+# Solo visible/funcional para SuperAdmin.
 #
-# Ejecutar DESPUES de Fix-Step75.
+# Ejecutar DESPUES de Fix-Step77-ImpersonationBackend.ps1.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Components/Pages/Invoices.razor"
 
 function Patch-File {
     param(
@@ -53,183 +51,266 @@ function Patch-File {
     return $true
 }
 
+function New-FileIfMissing {
+    param([string]$Path, [string]$Content, [string]$Description)
+
+    if (Test-Path $Path) {
+        Write-Host "SKIP (ya existe): $Description" -ForegroundColor Cyan
+        return $true
+    }
+
+    $directory = Split-Path -Path $Path -Parent
+    if (-not (Test-Path $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    Set-Content -Path $Path -Value $Content -NoNewline
+    Write-Host "OK (creado): $Description" -ForegroundColor Green
+    return $true
+}
+
 $results = @()
 
-# ── 1. Markup: banner de exito junto al de error ya existente ──────────────
-$results += Patch-File -Path $path -Description "Anadir el banner de exito" -OldString @'
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
+# ── 1. Admin: cliente de impersonacion ──────────────────────────────────────
+$results += New-FileIfMissing -Path "Alakai.FestivalManager.Admin/Services/Api/ImpersonationApiClient.cs" -Description "ImpersonationApiClient" -Content @'
+namespace Alakai.FestivalManager.Admin.Services.Api;
+
+public class ImpersonationApiClient
+{
+    private readonly HttpClient _httpClient;
+
+    public ImpersonationApiClient(HttpClient httpClient)
+    {
+        _httpClient = httpClient;
+    }
+
+    public async Task<string?> GetTokenForRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage response = await _httpClient.PostAsync($"api/admin/impersonation/by-registration/{registrationId}", null, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
         {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
-'@ -NewString @'
-        @if (!string.IsNullOrWhiteSpace(successMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+            string body = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ApiClientException($"Could not start impersonation: {body}", null);
         }
 
-        @if (!string.IsNullOrWhiteSpace(errorMessage))
-        {
-            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
-        }
+        ImpersonationTokenResult? result = await response.Content.ReadFromJsonAsync<ImpersonationTokenResult>(cancellationToken: cancellationToken);
+        return result?.AccessToken;
+    }
+}
+
+public class ImpersonationTokenResult
+{
+    public string AccessToken { get; set; } = string.Empty;
+}
 '@
 
-# ── 2. Quitar el mensaje de error suelto dentro del modal de Edit ──────────
-$results += Patch-File -Path $path -Description "Quitar el mensaje de error suelto del modal de Edit" -OldString @'
-                    @if (!string.IsNullOrWhiteSpace(editErrorMessage))
-                    {
-                        <div class="px-5 pb-3 text-sm text-danger">@editErrorMessage</div>
-                    }
+# ── 2. Pagina de aterrizaje: /impersonate ───────────────────────────────────
+$results += New-FileIfMissing -Path "Alakai.FestivalManager.Admin/Components/Pages/Impersonate.razor" -Description "Pagina Impersonate.razor" -Content @'
+@page "/impersonate"
+@inject Alakai.FestivalManager.Admin.Services.Auth.ITokenStorageService TokenStorageService
+@inject NavigationManager Navigation
 
-                    <div class="flex justify-end gap-3 p-5 border-t">
-'@ -NewString @'
-                    <div class="flex justify-end gap-3 p-5 border-t">
+<div class="flex items-center justify-center min-h-screen">
+    <p class="text-sm text-black/60 dark:text-white/60">Signing you in...</p>
+</div>
+
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Token))
+        {
+            await TokenStorageService.SetTokenAsync(Token);
+        }
+
+        Navigation.NavigateTo("/user-panel/dashboard", forceLoad: true);
+    }
+}
 '@
 
 if ($results -contains $false) {
-    Write-Host "`nAlgun paso no se pudo aplicar (markup). Revisa los mensajes anteriores." -ForegroundColor Red
+    Write-Host "`nAlgun archivo nuevo no se pudo crear. Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-# ── 3. @code: successMessage + ShowSuccess/ShowError + usarlos en Save/Delete ──
-$results2 = Patch-File -Path $path -Description "Anadir successMessage y los metodos ShowSuccess/ShowError" -OldString @'
-    private bool isLoading = true;
-    private string? errorMessage;
+# ── 3. Registrations.razor ───────────────────────────────────────────────────
+$regPath = "Alakai.FestivalManager.Admin/Components/Pages/Registrations.razor"
+$results2 = @()
+
+$results2 += Patch-File -Path $regPath -Description "Registrations: inyecciones necesarias" -OldString @'
+@inject ActiveFestivalState ActiveFestivalState
 '@ -NewString @'
-    private bool isLoading = true;
-    private string? errorMessage;
-    private string? successMessage;
-
-    private void ShowSuccess(string message)
-    {
-        successMessage = message;
-        errorMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            successMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private void ShowError(string message)
-    {
-        errorMessage = message;
-        successMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            errorMessage = null;
-            StateHasChanged();
-        });
-    }
+@inject ActiveFestivalState ActiveFestivalState
+@inject Alakai.FestivalManager.Admin.Services.Api.ImpersonationApiClient ImpersonationApiClient
+@inject IJSRuntime JsRuntime
+@using Microsoft.AspNetCore.Components.Authorization
 '@
 
-if (-not $results2) {
-    Write-Host "`nNo se pudo aplicar el patch de ShowSuccess/ShowError." -ForegroundColor Red
-    exit 1
-}
-
-$results3 = Patch-File -Path $path -Description "SaveEditAsync: usar ShowSuccess/ShowError" -OldString @'
-        isSavingEdit = true;
-        editErrorMessage = null;
-
-        try
-        {
-            await InvoiceApiClient.UpdateAsync(editingInvoice.Id, editFormModel);
-            editingInvoice = null;
-            await LoadDataAsync();
-        }
-        catch (Exception ex)
-        {
-            editErrorMessage = ex.Message;
-        }
-        finally
-        {
-            isSavingEdit = false;
-        }
-    }
+$results2 += Patch-File -Path $regPath -Description "Registrations: boton de impersonar junto a Edit/Delete" -OldString @'
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
+                                            <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
 '@ -NewString @'
-        isSavingEdit = true;
-
-        try
-        {
-            await InvoiceApiClient.UpdateAsync(editingInvoice.Id, editFormModel);
-            string number = editingInvoice.Number;
-            editingInvoice = null;
-            await LoadDataAsync();
-            ShowSuccess($"Invoice {number} updated successfully.");
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            isSavingEdit = false;
-        }
-    }
+                                            @if (IsSuperAdmin)
+                                            {
+                                                <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="View user panel" @onclick="() => ImpersonateAsync(registration.Id)"><i class="ri-key-2-line"></i></button>
+                                            }
+                                            <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
+                                            <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
 '@
 
-if (-not $results3) {
-    Write-Host "`nNo se pudo aplicar el patch de SaveEditAsync." -ForegroundColor Red
-    exit 1
-}
+$results2 += Patch-File -Path $regPath -Description "Registrations: estado y metodo de impersonacion" -OldString @'
+@code {
+    private List<RegistrationDto> registrations = [];
+'@ -NewString @'
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
 
-$results4 = Patch-File -Path $path -Description "ConfirmDeleteAsync: usar ShowSuccess/ShowError" -OldString @'
-        isDeletingInvoice = true;
+    private bool IsSuperAdmin { get; set; }
 
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
         try
         {
-            await InvoiceApiClient.DeleteAsync(deletingInvoice.Id);
-            deletingInvoice = null;
-            await LoadDataAsync();
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
         }
         catch (Exception ex)
         {
             errorMessage = ex.Message;
         }
-        finally
-        {
-            isDeletingInvoice = false;
-        }
     }
-'@ -NewString @'
-        isDeletingInvoice = true;
 
-        try
-        {
-            string number = deletingInvoice.Number;
-            await InvoiceApiClient.DeleteAsync(deletingInvoice.Id);
-            deletingInvoice = null;
-            await LoadDataAsync();
-            ShowSuccess($"Invoice {number} deleted successfully.");
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            isDeletingInvoice = false;
-        }
-    }
+    private List<RegistrationDto> registrations = [];
 '@
 
-if (-not $results4) {
-    Write-Host "`nNo se pudo aplicar el patch de ConfirmDeleteAsync." -ForegroundColor Red
+if ($results2 -contains $false) {
+    Write-Host "`nAlgun paso no se pudo aplicar (Registrations.razor). Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-# ── 4. Quitar el campo editErrorMessage que ya no se usa ────────────────────
-$results5 = Patch-File -Path $path -Description "Quitar el campo editErrorMessage (ya no se usa)" -OldString @'
-    private bool isSavingEdit;
-    private string? editErrorMessage;
+$resultRegInit = Patch-File -Path $regPath -Description "Registrations: comprobar SuperAdmin en OnInitializedAsync" -OldString @'
+    protected override async Task OnInitializedAsync()
+    {
 '@ -NewString @'
-    private bool isSavingEdit;
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask is not null)
+        {
+            AuthenticationState authState = await AuthenticationStateTask;
+            IsSuperAdmin = authState.User.IsInRole("SuperAdmin");
+        }
+
 '@
 
-if (-not $results5) {
-    Write-Host "`nNo se pudo quitar editErrorMessage - no es grave si se queda, simplemente sin usar." -ForegroundColor Yellow
+if (-not $resultRegInit) {
+    Write-Host "`nNo se pudo aplicar el patch de OnInitializedAsync en Registrations.razor - puede que el nombre del metodo de inicio difiera. Pegame ese metodo para localizarlo a mano." -ForegroundColor Yellow
 }
 
-Write-Host "`nHecho. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "`nRegistrations.razor completo." -ForegroundColor Green
+Write-Host "Siguiente: AccommodationOperations.razor" -ForegroundColor Cyan
+
+# ── 4. AccommodationOperations.razor ─────────────────────────────────────────
+$accPath = "Alakai.FestivalManager.Admin/Components/Pages/AccommodationOperations.razor"
+$results3 = @()
+
+$results3 += Patch-File -Path $accPath -Description "Accommodation: inyecciones necesarias" -OldString @'
+@inject ActiveFestivalState ActiveFestivalState
+'@ -NewString @'
+@inject ActiveFestivalState ActiveFestivalState
+@inject Alakai.FestivalManager.Admin.Services.Api.ImpersonationApiClient ImpersonationApiClient
+@inject IJSRuntime JsRuntime
+@using Microsoft.AspNetCore.Components.Authorization
+'@
+
+$results3 += Patch-File -Path $accPath -Description "Accommodation: boton de impersonar junto al nombre del ocupante" -OldString @'
+                                            <div class="flex items-center justify-between gap-2 px-3 py-2 text-xs border-t border-black/5 dark:border-white/5 @(occupant.IsResponsible ? "bg-black/5 dark:bg-white/5 font-semibold" : "")">
+                                                <span class="truncate">@GetDisplayName(occupant)</span>
+                                                @if (occupant.IsResponsible)
+                                                {
+                                                    <div class="flex items-center gap-2 shrink-0">
+                                                        <button type="button" class="text-black dark:text-white/80" title="Edit reservation" @onclick="() => OpenEditModal(occupant)"><i class="ri-pencil-line"></i></button>
+                                                        <button type="button" class="text-danger" title="Cancel reservation" @onclick="() => OpenCancelModal(occupant)"><i class="ri-delete-bin-line"></i></button>
+                                                    </div>
+                                                }
+                                            </div>
+'@ -NewString @'
+                                            <div class="flex items-center justify-between gap-2 px-3 py-2 text-xs border-t border-black/5 dark:border-white/5 @(occupant.IsResponsible ? "bg-black/5 dark:bg-white/5 font-semibold" : "")">
+                                                <span class="truncate">@GetDisplayName(occupant)</span>
+                                                <div class="flex items-center gap-2 shrink-0">
+                                                    @if (IsSuperAdmin && occupant.RegistrationId.HasValue)
+                                                    {
+                                                        <button type="button" class="text-black dark:text-white/80" title="View user panel" @onclick="() => ImpersonateAsync(occupant.RegistrationId.Value)"><i class="ri-key-2-line"></i></button>
+                                                    }
+                                                    @if (occupant.IsResponsible)
+                                                    {
+                                                        <button type="button" class="text-black dark:text-white/80" title="Edit reservation" @onclick="() => OpenEditModal(occupant)"><i class="ri-pencil-line"></i></button>
+                                                        <button type="button" class="text-danger" title="Cancel reservation" @onclick="() => OpenCancelModal(occupant)"><i class="ri-delete-bin-line"></i></button>
+                                                    }
+                                                </div>
+                                            </div>
+'@
+
+$results3 += Patch-File -Path $accPath -Description "Accommodation: estado y metodo de impersonacion" -OldString @'
+@code {
+    private List<FestivalDto> festivals = [];
+'@ -NewString @'
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool IsSuperAdmin { get; set; }
+    private string? errorMessage;
+
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
+        {
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
+    private List<FestivalDto> festivals = [];
+'@
+
+if ($results3 -contains $false) {
+    Write-Host "`nAlgun paso no se pudo aplicar (AccommodationOperations.razor). Revisa los mensajes anteriores." -ForegroundColor Red
+    exit 1
+}
+
+$resultAccInit = Patch-File -Path $accPath -Description "Accommodation: comprobar SuperAdmin en OnInitializedAsync" -OldString @'
+    protected override async Task OnInitializedAsync()
+    {
+'@ -NewString @'
+    protected override async Task OnInitializedAsync()
+    {
+        if (AuthenticationStateTask is not null)
+        {
+            AuthenticationState authState = await AuthenticationStateTask;
+            IsSuperAdmin = authState.User.IsInRole("SuperAdmin");
+        }
+
+'@
+
+if (-not $resultAccInit) {
+    Write-Host "`nNo se pudo aplicar el patch de OnInitializedAsync en AccommodationOperations.razor - puede que el nombre del metodo de inicio difiera. Pegame ese metodo para localizarlo a mano." -ForegroundColor Yellow
+}
+
+Write-Host "`nTodo completo. dotnet build para confirmar." -ForegroundColor Green
+Write-Host "El boton solo aparece para SuperAdmin, y en Alojamiento solo para ocupantes que tengan cuenta propia (con Registration asociado)." -ForegroundColor Cyan

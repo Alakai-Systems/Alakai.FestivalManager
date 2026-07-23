@@ -7,6 +7,9 @@
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
 @inject ActiveFestivalState ActiveFestivalState
+@inject Alakai.FestivalManager.Admin.Services.Api.ImpersonationApiClient ImpersonationApiClient
+@inject IJSRuntime JsRuntime
+@using Microsoft.AspNetCore.Components.Authorization
 
 <PageHeader Title="Operations" pTitle="Registrations"></PageHeader>
 
@@ -153,6 +156,10 @@
                                             <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Payment confirmation email" @onclick='() => OpenEmailConfirmModal("payment confirmation", registration)'><i class="ri-bank-card-line"></i></button>
                                             <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Unpaid reminder email" @onclick='() => OpenEmailConfirmModal("unpaid reminder", registration)'><i class="ri-error-warning-line"></i></button>
                                             <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Missing partner email" @onclick='() => OpenEmailConfirmModal("missing partner", registration)'><i class="ri-user-follow-line"></i></button>
+                                            @if (IsSuperAdmin)
+                                            {
+                                                <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="View user panel" @onclick="() => ImpersonateAsync(registration.Id)"><i class="ri-key-2-line"></i></button>
+                                            }
                                             <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
                                             <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
                                         </div>
@@ -354,6 +361,28 @@
 
 @implements IDisposable
 @code {
+    [CascadingParameter]
+    private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    private bool IsSuperAdmin { get; set; }
+
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
+        {
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
     private List<RegistrationDto> registrations = [];
     private List<PassTypeDto> passTypes = [];
     private List<LevelDto> levels = [];
@@ -393,6 +422,12 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (AuthenticationStateTask is not null)
+        {
+            AuthenticationState authState = await AuthenticationStateTask;
+            IsSuperAdmin = authState.User.IsInRole("SuperAdmin");
+        }
+
         ActiveFestivalState.OnChange += HandleFestivalStateChanged;
         await LoadDataAsync();
     }
