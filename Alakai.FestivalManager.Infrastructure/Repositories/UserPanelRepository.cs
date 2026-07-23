@@ -15,13 +15,28 @@ public class UserPanelRepository : IUserPanelRepository
             .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
     }
 
-    public async Task<Registration?> GetLatestRegistrationByUserIdAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<Registration?> GetLatestRegistrationByUserIdAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        return await _context.Registrations
+        IQueryable<Registration> baseQuery = _context.Registrations
             .Include(r => r.PassType)
             .Include(r => r.Level)
             .Include(r => r.Edition).ThenInclude(e => e.Festival)
-            .Where(r => r.UserId == userId && r.IsActive)
+            .Where(r => r.UserId == userId && r.IsActive);
+
+        if (!string.IsNullOrWhiteSpace(domain))
+        {
+            Registration? scopedToFestival = await baseQuery
+                .Where(r => r.Edition.Festival.CustomDomain == domain)
+                .OrderByDescending(r => r.CreatedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (scopedToFestival is not null)
+            {
+                return scopedToFestival;
+            }
+        }
+
+        return await baseQuery
             .OrderByDescending(r => r.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
     }

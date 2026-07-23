@@ -28,7 +28,7 @@ public class UserPanelService : IUserPanelService
         _invoiceService = invoiceService;
     }
 
-    public async Task<ApiResponse<GetUserPanelDashboardResponse>> GetDashboardAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> GetDashboardAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
         User? user = await _userPanelRepository.GetUserByIdAsync(userId, cancellationToken);
 
@@ -43,7 +43,7 @@ public class UserPanelService : IUserPanelService
             };
         }
 
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if(registration is null)
         {
@@ -181,7 +181,7 @@ public class UserPanelService : IUserPanelService
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
 
         if (registration is null)
         {
@@ -203,7 +203,7 @@ public class UserPanelService : IUserPanelService
 
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registration.Id, cancellationToken);
 
-        return await GetDashboardAsync(userId, cancellationToken);
+        return await GetDashboardAsync(userId, null, cancellationToken);
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
@@ -232,7 +232,7 @@ public class UserPanelService : IUserPanelService
 
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registrationId, cancellationToken);
 
-        return await GetDashboardAsync(userId, cancellationToken);
+        return await GetDashboardAsync(userId, null, cancellationToken);
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, Guid competitionEntryId, CancellationToken cancellationToken = default)
@@ -256,7 +256,7 @@ public class UserPanelService : IUserPanelService
 
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, registrationId, cancellationToken);
 
-        return await GetDashboardAsync(userId, cancellationToken);
+        return await GetDashboardAsync(userId, null, cancellationToken);
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
@@ -274,7 +274,7 @@ public class UserPanelService : IUserPanelService
             };
         }
 
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
 
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
@@ -297,12 +297,12 @@ public class UserPanelService : IUserPanelService
 
         await _userPanelRepository.SaveChangesAsync(cancellationToken);
 
-        return await GetDashboardAsync(userId, cancellationToken);
+        return await GetDashboardAsync(userId, null, cancellationToken);
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
 
         if (registration is null)
         {
@@ -328,6 +328,6 @@ public class UserPanelService : IUserPanelService
 
         await _invoiceService.CreateAsync(command, cancellationToken);
 
-        return await GetDashboardAsync(userId, cancellationToken);
+        return await GetDashboardAsync(userId, null, cancellationToken);
     }
 }

@@ -209,7 +209,11 @@
 
             if (!string.IsNullOrWhiteSpace(token))
             {
-                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+                string url = !string.IsNullOrWhiteSpace(ActiveFestivalState.Active?.CustomDomain)
+                    ? $"https://{ActiveFestivalState.Active.CustomDomain}/impersonate?token={Uri.EscapeDataString(token)}"
+                    : $"/impersonate?token={Uri.EscapeDataString(token)}";
+
+                await JsRuntime.InvokeVoidAsync("open", url, "_blank");
             }
         }
         catch (Exception ex)

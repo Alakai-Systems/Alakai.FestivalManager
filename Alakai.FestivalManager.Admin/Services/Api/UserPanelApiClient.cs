@@ -11,7 +11,7 @@ public class UserPanelApiClient
         _tokenStorageService = tokenStorageService;
     }
 
-    public async Task<UserPanelDashboardDto?> GetDashboardAsync(CancellationToken cancellationToken = default)
+    public async Task<UserPanelDashboardDto?> GetDashboardAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -22,7 +22,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<GetUserPanelDashboardResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>("api/user-panel/dashboard", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/dashboard"
+            : $"api/user-panel/dashboard?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetUserPanelDashboardResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(url, cancellationToken);
 
         if (response?.Success is not true)
         {

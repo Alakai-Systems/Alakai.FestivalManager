@@ -13,7 +13,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("dashboard")]
-    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> GetDashboard(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> GetDashboard([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -22,7 +22,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.GetDashboardAsync(userId, cancellationToken);
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.GetDashboardAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
