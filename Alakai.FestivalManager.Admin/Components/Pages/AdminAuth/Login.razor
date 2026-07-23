@@ -61,7 +61,7 @@
     {
         _persistingSubscription = ApplicationState.RegisterOnPersisting(PersistBranding);
 
-        if (ApplicationState.TryTakeFromJson("branding", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+        if (ApplicationState.TryTakeFromJson("branding-admin-login", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
         {
             Branding = restored;
             return;
@@ -84,7 +84,7 @@
 
     private Task PersistBranding()
     {
-        ApplicationState.PersistAsJson("branding", Branding);
+        ApplicationState.PersistAsJson("branding-admin-login", Branding);
         return Task.CompletedTask;
     }
 

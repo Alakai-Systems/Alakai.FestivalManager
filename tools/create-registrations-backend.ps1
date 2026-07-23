@@ -1,33 +1,101 @@
-# Fix-Step87-InternalDashboardCalls.ps1
-# Corrige las 5 llamadas internas a GetDashboardAsync(userId, cancellationToken)
-# dentro de UserPanelService.cs (usadas por otros metodos para devolver el
-# panel actualizado tras un cambio) - todas identicas, todas necesitan el
-# mismo arreglo: anadir "null" como dominio (sin cambio de comportamiento en
-# esos metodos todavia, se corrigen de verdad en el siguiente paso).
+# Fix-Step88-PersistentStateKeyCollision.ps1
 #
-# Ejecutar DESPUES de Fix-Step86.
+# BUG REAL CONFIRMADO: App.razor y las 2 paginas de Login usan la MISMA clave
+# ("branding") en PersistentComponentState, que se comparte entre TODOS los
+# componentes del mismo circuito. Al intentar guardar/leer bajo el mismo
+# nombre desde 2 sitios distintos en la misma peticion, chocan entre si.
+#
+# Fix: darle a cada uno su propia clave unica, sin tocar ninguna otra logica.
+#
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Application/Features/UserPanel/Services/UserPanelService.cs"
 
-if (-not (Test-Path $path)) {
-    Write-Host "SKIP (archivo no encontrado): $path" -ForegroundColor Yellow
+function Patch-File {
+    param(
+        [string]$Path,
+        [string]$OldString,
+        [string]$NewString,
+        [string]$Description
+    )
+
+    if (-not (Test-Path $Path)) {
+        Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow
+        return $false
+    }
+
+    $rawContent = Get-Content -Path $Path -Raw
+    $usesCrlf = $rawContent.Contains("`r`n")
+
+    $normalizedContent = $rawContent -replace "`r`n", "`n"
+    $normalizedOld = $OldString -replace "`r`n", "`n"
+    $normalizedNew = $NewString -replace "`r`n", "`n"
+
+    if ($normalizedContent.Contains($normalizedNew)) {
+        Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
+        return $true
+    }
+
+    if (-not $normalizedContent.Contains($normalizedOld)) {
+        Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow
+        return $false
+    }
+
+    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
+
+    if ($usesCrlf) {
+        $updatedFinal = $updatedNormalized -replace "`n", "`r`n"
+    } else {
+        $updatedFinal = $updatedNormalized
+    }
+
+    Set-Content -Path $Path -Value $updatedFinal -NoNewline
+    Write-Host "OK: $Description" -ForegroundColor Green
+    return $true
+}
+
+$results = @()
+
+# App.razor se queda con "branding" (no se toca).
+
+# Auth/Login.razor -> "branding-participant-login"
+$authPath = "Alakai.FestivalManager.Admin/Components/Pages/Auth/Login.razor"
+$results += Patch-File -Path $authPath -Description "Auth/Login.razor: clave unica al leer" -OldString @'
+        if (ApplicationState.TryTakeFromJson("branding", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+'@ -NewString @'
+        if (ApplicationState.TryTakeFromJson("branding-participant-login", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+'@
+
+$results += Patch-File -Path $authPath -Description "Auth/Login.razor: clave unica al guardar" -OldString @'
+        ApplicationState.PersistAsJson("branding", Branding);
+'@ -NewString @'
+        ApplicationState.PersistAsJson("branding-participant-login", Branding);
+'@
+
+if ($results -contains $false) {
+    Write-Host "`nAlgun paso no se pudo aplicar (Auth/Login.razor). Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-$content = Get-Content -Path $path -Raw
-$before = "GetDashboardAsync(userId, cancellationToken)"
-$after = "GetDashboardAsync(userId, null, cancellationToken)"
+# AdminAuth/Login.razor -> "branding-admin-login"
+$adminPath = "Alakai.FestivalManager.Admin/Components/Pages/AdminAuth/Login.razor"
+$results2 = @()
 
-$occurrences = ([regex]::Matches($content, [regex]::Escape($before))).Count
+$results2 += Patch-File -Path $adminPath -Description "AdminAuth/Login.razor: clave unica al leer" -OldString @'
+        if (ApplicationState.TryTakeFromJson("branding", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+'@ -NewString @'
+        if (ApplicationState.TryTakeFromJson("branding-admin-login", out Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? restored))
+'@
 
-if ($occurrences -eq 0) {
-    Write-Host "SKIP: no se encontro ninguna llamada con la firma antigua (puede que ya se haya aplicado)." -ForegroundColor Cyan
-} else {
-    $content = $content.Replace($before, $after)
-    Set-Content -Path $path -Value $content -NoNewline
-    Write-Host "OK: $occurrences llamada(s) interna(s) corregida(s)." -ForegroundColor Green
+$results2 += Patch-File -Path $adminPath -Description "AdminAuth/Login.razor: clave unica al guardar" -OldString @'
+        ApplicationState.PersistAsJson("branding", Branding);
+'@ -NewString @'
+        ApplicationState.PersistAsJson("branding-admin-login", Branding);
+'@
+
+if ($results2 -contains $false) {
+    Write-Host "`nAlgun paso no se pudo aplicar (AdminAuth/Login.razor). Revisa los mensajes anteriores." -ForegroundColor Red
+    exit 1
 }
 
-Write-Host "`ndotnet build para confirmar que ya compila del todo." -ForegroundColor Green
+Write-Host "`nCorregido - cada componente tiene ya su propia clave, sin colisiones. dotnet build para confirmar." -ForegroundColor Green
