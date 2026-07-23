@@ -10,13 +10,16 @@
     [SupplyParameterFromQuery(Name = "token")]
     public string? Token { get; set; }
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!string.IsNullOrWhiteSpace(Token))
+        if (firstRender)
         {
-            await TokenStorageService.SetTokenAsync(Token);
-        }
+            if (!string.IsNullOrWhiteSpace(Token))
+            {
+                await TokenStorageService.SetTokenAsync(Token);
+            }
 
-        Navigation.NavigateTo("/user-panel/dashboard/en", forceLoad: true);
+            Navigation.NavigateTo("/user-panel/dashboard/en", forceLoad: true);
+        }
     }
 }

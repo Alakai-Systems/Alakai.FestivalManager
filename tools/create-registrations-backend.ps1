@@ -1,22 +1,24 @@
-# Fix-Step83-DataProtectionPersistence.ps1
+# Fix-Step84-ImpersonateLifecycleTiming.ps1
 #
-# BUG REAL, y de fondo (no especifico de la impersonacion): la app no tenia
-# configurado donde guardar las claves de cifrado de Data Protection (las
-# que usa ProtectedLocalStorage para el token del participante). Sin
-# configuracion explicita, ASP.NET Core usa una resolucion por defecto que
-# puede fallar entre reinicios/recompilaciones frecuentes de la app - la
-# clave que cifro un valor deja de estar disponible para descifrarlo despues,
-# dando exactamente el error "The key {...} was not found in the key ring."
+# BUG REAL, y probablemente la causa de fondo de todo: Impersonate.razor
+# llamaba a TokenStorageService.SetTokenAsync (que usa ProtectedLocalStorage,
+# necesita JS interop) dentro de OnInitializedAsync - un momento del ciclo de
+# vida de Blazor Server donde el circuito interactivo puede NO estar listo
+# todavia para JS interop, especialmente en una pestana nueva recien abierta.
 #
-# Esto afecta a CUALQUIER login normal tambien (no solo a la impersonacion),
-# simplemente se ha hecho visible ahora por las muchas recompilaciones
-# seguidas de esta sesion. Fix: persistir las claves en una carpeta fija del
-# disco, para que sobrevivan entre reinicios.
+# El login normal SI funciona porque alli SetTokenAsync se llama desde un
+# manejador de clic de boton (@onclick) - en ese momento el circuito YA esta
+# totalmente interactivo por definicion (el usuario pudo hacer clic).
 #
+# Fix: mover la llamada a OnAfterRenderAsync(firstRender), el momento correcto
+# del ciclo de vida para JS interop - exactamente como hace el propio panel de
+# usuario para cargar sus datos.
+#
+# Ejecutar DESPUES de Fix-Step78.
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Program.cs"
+$path = "Alakai.FestivalManager.Admin/Components/Pages/Impersonate.razor"
 
 function Patch-File {
     param(
@@ -61,31 +63,45 @@ function Patch-File {
     return $true
 }
 
-$result = Patch-File -Path $path -Description "Persistir las claves de Data Protection en una carpeta fija" -OldString @'
-builder.Services.AddCascadingAuthenticationState();
+$result = Patch-File -Path $path -Description "Mover SetTokenAsync a OnAfterRenderAsync (momento correcto para JS interop)" -OldString @'
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Token))
+        {
+            await TokenStorageService.SetTokenAsync(Token);
+        }
+
+        Navigation.NavigateTo("/user-panel/dashboard/en", forceLoad: true);
+    }
+}
 '@ -NewString @'
-string dataProtectionKeysPath = builder.Configuration["DataProtection:KeyRingPath"]
-    ?? Path.Combine(builder.Environment.ContentRootPath, "keys");
+@code {
+    [SupplyParameterFromQuery(Name = "token")]
+    public string? Token { get; set; }
 
-Directory.CreateDirectory(dataProtectionKeysPath);
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            if (!string.IsNullOrWhiteSpace(Token))
+            {
+                await TokenStorageService.SetTokenAsync(Token);
+            }
 
-builder.Services.AddDataProtection()
-    .PersistKeysToFileSystem(new DirectoryInfo(dataProtectionKeysPath))
-    .SetApplicationName("AlakaiFestivalManagerAdmin");
-
-builder.Services.AddCascadingAuthenticationState();
+            Navigation.NavigateTo("/user-panel/dashboard/en", forceLoad: true);
+        }
+    }
+}
 '@
 
 if (-not $result) {
-    Write-Host "`nNo se pudo aplicar. Pega el contenido actual de Program.cs (Admin) alrededor de AddCascadingAuthenticationState." -ForegroundColor Red
+    Write-Host "`nNo se pudo aplicar. Pega el contenido actual de Impersonate.razor." -ForegroundColor Red
     exit 1
 }
 
 Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
-Write-Host ""
-Write-Host "IMPORTANTE: se crea una carpeta 'keys' junto al ejecutable del Admin (o donde" -ForegroundColor Yellow
-Write-Host "indiques con la App Setting DataProtection__KeyRingPath en Azure). Anadela a" -ForegroundColor Yellow
-Write-Host ".gitignore si no quieres que esas claves entren al repo." -ForegroundColor Yellow
-Write-Host ""
-Write-Host "Tras aplicar esto, cierra la app, borra la carpeta 'keys' si ya se creo antes" -ForegroundColor Cyan
-Write-Host "de este fix (para partir de cero), y vuelve a probar login e impersonacion." -ForegroundColor Cyan
+Write-Host "Prueba de nuevo, con el navegador ya limpio de antes." -ForegroundColor Cyan
