@@ -446,6 +446,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
         try
         {
             festivals = (await FestivalApiClient.GetAllAsync()).Where(f => f.IsActive).ToList();

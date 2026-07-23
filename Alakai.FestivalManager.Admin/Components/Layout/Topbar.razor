@@ -85,6 +85,11 @@
 
     protected override async Task OnInitializedAsync()
     {
+        if (!RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
         UserProfileState.OnChange += HandleProfileChanged;
         ActiveFestivalState.OnChange += HandleProfileChanged;
 

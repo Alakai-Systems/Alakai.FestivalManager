@@ -2305,7 +2305,8 @@
 
         try
         {
-            Dashboard = await UserPanelApiClient.GetDashboardAsync();
+            string? currentDomain = new Uri(Navigation.BaseUri).Host;
+            Dashboard = await UserPanelApiClient.GetDashboardAsync(currentDomain);
             if (Dashboard?.Registration is not null && string.IsNullOrWhiteSpace(Lang))
             {
                 await T.SetLanguageAsync(Dashboard.Registration.Language);

@@ -57,7 +57,7 @@
 
     private async Task LoadDashboardAsync()
     {
-        string? currentDomain = HttpContextAccessor.HttpContext?.Request.Host.Host;
+        string? currentDomain = new Uri(Navigation.BaseUri).Host;
         Dashboard = await UserPanelApiClient.GetDashboardAsync(currentDomain);
 
         if(Dashboard is not null)
