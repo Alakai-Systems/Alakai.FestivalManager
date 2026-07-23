@@ -1,12 +1,13 @@
-# Fix-Step79-RegisterImpersonationClient.ps1
-# BUG REAL: ImpersonationApiClient (Paso 78) nunca se registro en el
-# contenedor de DI - las paginas que lo inyectan con @inject fallaban por
-# completo al cargar, con un error generico de ASP.NET Core.
+# Fix-Step81-ImpersonationShowError.ps1
+# Los metodos ImpersonateAsync (Registrations.razor y AccommodationOperations.razor)
+# asignaban el mensaje de error directamente en vez de usar ShowError, que ya
+# existe en ambos archivos con su auto-cierre a los 3.5s. Se corrige para que
+# use el mismo patron que el resto de la pagina.
 #
+# Ejecutar DESPUES de Fix-Step78 (y preferiblemente Fix-Step80 tambien).
 # Ejecutar desde la raiz del repo.
 
 $ErrorActionPreference = "Stop"
-$path = "Alakai.FestivalManager.Admin/Extensions/ApplicationDependencyInjectionExtension.cs"
 
 function Patch-File {
     param(
@@ -51,33 +52,87 @@ function Patch-File {
     return $true
 }
 
-$result = Patch-File -Path $path -Description "Registrar ImpersonationApiClient" -OldString @'
-        services.AddHttpClient<InvoiceApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        });
-'@ -NewString @'
-        services.AddHttpClient<InvoiceApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        });
+$results = @()
 
-        services.AddHttpClient<Alakai.FestivalManager.Admin.Services.Api.ImpersonationApiClient>(client =>
+# ── Registrations.razor ──────────────────────────────────────────────────────
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/Registrations.razor" `
+    -Description "Registrations: ImpersonateAsync usa ShowError" -OldString @'
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
         {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        });
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+'@ -NewString @'
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
+        {
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
 '@
 
-if (-not $result) {
-    Write-Host "`nNo se pudo aplicar. Pega el contenido de ApplicationDependencyInjectionExtension.cs para localizar el sitio correcto." -ForegroundColor Red
+# ── AccommodationOperations.razor ────────────────────────────────────────────
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Pages/AccommodationOperations.razor" `
+    -Description "Accommodation: ImpersonateAsync usa ShowError" -OldString @'
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
+        {
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+'@ -NewString @'
+    private async Task ImpersonateAsync(Guid registrationId)
+    {
+        try
+        {
+            string? token = await ImpersonationApiClient.GetTokenForRegistrationAsync(registrationId);
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                await JsRuntime.InvokeVoidAsync("open", $"/impersonate?token={Uri.EscapeDataString(token)}", "_blank");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+    }
+'@
+
+if ($results -contains $false) {
+    Write-Host "`nAlgun paso no se pudo aplicar. Revisa los mensajes anteriores." -ForegroundColor Red
     exit 1
 }
 
-Write-Host "`nCorregido. dotnet build para confirmar." -ForegroundColor Green
-Write-Host "Prueba Registrations y Accommodation Operations de nuevo tras esto." -ForegroundColor Cyan
+Write-Host "`nCorregido en los dos archivos. dotnet build para confirmar." -ForegroundColor Green
