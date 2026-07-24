@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
@@ -5,14 +7,28 @@ namespace Alakai.FestivalManager.Admin.Services.Api;
 public class CompetitionApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public CompetitionApiClient(HttpClient httpClient)
+    public CompetitionApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<CompetitionDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetCompetitionsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetCompetitionsResponse>>("api/competitions", cancellationToken);
 
         if (response?.Success is not true)
@@ -25,6 +41,8 @@ public class CompetitionApiClient
 
     public async Task<IReadOnlyList<CompetitionDto>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetCompetitionsByEditionIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetCompetitionsByEditionIdResponse>>($"api/competitions/by-edition/{editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -37,6 +55,8 @@ public class CompetitionApiClient
 
     public async Task CreateAsync(CreateCompetitionRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/competitions", request, cancellationToken);
         ApiResponse<CreateCompetitionResponse>? response = await ReadResponseAsync<CreateCompetitionResponse>(httpResponse, cancellationToken);
 
@@ -45,6 +65,8 @@ public class CompetitionApiClient
 
     public async Task UpdateAsync(Guid id, UpdateCompetitionRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/competitions/{id}", request, cancellationToken);
         ApiResponse<UpdateCompetitionResponse>? response = await ReadResponseAsync<UpdateCompetitionResponse>(httpResponse, cancellationToken);
 
@@ -53,6 +75,8 @@ public class CompetitionApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/competitions/{id}", cancellationToken);
         ApiResponse<DeleteCompetitionResponse>? response = await ReadResponseAsync<DeleteCompetitionResponse>(httpResponse, cancellationToken);
 

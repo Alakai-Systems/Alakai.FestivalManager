@@ -1,16 +1,32 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class LevelApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public LevelApiClient(HttpClient httpClient)
+    public LevelApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<LevelDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetLevelsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetLevelsResponse>>("api/levels", cancellationToken);
 
         if (response?.Success is not true)
@@ -23,6 +39,8 @@ public class LevelApiClient
 
     public async Task<IReadOnlyList<LevelDto>> GetByPassTypeIdAsync(Guid passTypeId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetLevelsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetLevelsResponse>>($"api/levels/by-pass-type/{passTypeId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -35,6 +53,8 @@ public class LevelApiClient
 
     public async Task<LevelDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetLevelByIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetLevelByIdResponse>>($"api/levels/{id}", cancellationToken);
 
         if (response?.Success is not true)
@@ -47,6 +67,8 @@ public class LevelApiClient
 
     public async Task CreateAsync(CreateLevelRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/levels", request, cancellationToken);
         ApiResponse<CreateLevelResponse>? response = await ReadResponseAsync<CreateLevelResponse>(httpResponse, cancellationToken);
 
@@ -55,6 +77,8 @@ public class LevelApiClient
 
     public async Task UpdateAsync(Guid id, UpdateLevelRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/levels/{id}", request, cancellationToken);
         ApiResponse<UpdateLevelResponse>? response = await ReadResponseAsync<UpdateLevelResponse>(httpResponse, cancellationToken);
 
@@ -63,6 +87,8 @@ public class LevelApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/levels/{id}", cancellationToken);
         ApiResponse<DeleteLevelResponse>? response = await ReadResponseAsync<DeleteLevelResponse>(httpResponse, cancellationToken);
 

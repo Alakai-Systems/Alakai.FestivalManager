@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class DashboardStatsDto
@@ -89,14 +91,28 @@ internal class RevenueApiResponse
 public class DashboardApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public DashboardApiClient(HttpClient httpClient)
+    public DashboardApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<DashboardStatsDto> GetStatsAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         DashboardStatsApiResponse? response = await _httpClient.GetFromJsonAsync<DashboardStatsApiResponse>(
             $"api/dashboard/stats?editionId={editionId}", cancellationToken);
 
@@ -110,6 +126,8 @@ public class DashboardApiClient
 
     public async Task<List<RevenuePointDto>> GetRevenueAsync(Guid editionId, string range, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         RevenueApiResponse? response = await _httpClient.GetFromJsonAsync<RevenueApiResponse>(
             $"api/dashboard/revenue?editionId={editionId}&range={range}", cancellationToken);
 

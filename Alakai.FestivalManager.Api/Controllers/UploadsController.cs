@@ -13,6 +13,7 @@ public class UploadImageForm
 
 [ApiController]
 [Route("api/uploads")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class UploadsController : ControllerBase
 {
     private readonly IFileStorageService _fileStorageService;

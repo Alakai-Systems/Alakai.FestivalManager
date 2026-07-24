@@ -1,4 +1,6 @@
-﻿using System.Text.Json;
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
+using System.Text.Json;
 using Alakai.FestivalManager.Admin.Contracts.Editions.Requests;
 using Alakai.FestivalManager.Admin.Contracts.Editions.Responses;
 
@@ -7,14 +9,28 @@ namespace Alakai.FestivalManager.Admin.Services.Api;
 public class EditionApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public EditionApiClient(HttpClient httpClient)
+    public EditionApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<EditionDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetEditionsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEditionsResponse>>("api/editions", cancellationToken);
 
         if (response?.Success is not true)
@@ -27,6 +43,8 @@ public class EditionApiClient
 
     public async Task<IReadOnlyList<EditionDto>> GetByFestivalIdAsync(Guid festivalId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetEditionsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEditionsResponse>>($"api/editions/by-festival/{festivalId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -39,6 +57,8 @@ public class EditionApiClient
 
     public async Task<EditionDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetEditionByIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEditionByIdResponse>>($"api/editions/{id}", cancellationToken);
 
         if (response?.Success is not true)
@@ -51,6 +71,8 @@ public class EditionApiClient
 
     public async Task CreateAsync(CreateEditionRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/editions", request, cancellationToken);
         ApiResponse<CreateEditionResponse>? response = await ReadResponseAsync<CreateEditionResponse>(httpResponse, cancellationToken);
 
@@ -59,6 +81,8 @@ public class EditionApiClient
 
     public async Task UpdateAsync(Guid id, UpdateEditionRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/editions/{id}", request, cancellationToken);
         ApiResponse<UpdateEditionResponse>? response = await ReadResponseAsync<UpdateEditionResponse>(httpResponse, cancellationToken);
 
@@ -67,6 +91,8 @@ public class EditionApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/editions/{id}", cancellationToken);
         ApiResponse<DeleteEditionResponse>? response = await ReadResponseAsync<DeleteEditionResponse>(httpResponse, cancellationToken);
 

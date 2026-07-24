@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class AnalyticsOverviewDto
@@ -51,12 +53,27 @@ internal class AnalyticsApiResponse
 public class AnalyticsApiClient
 {
     private readonly HttpClient _httpClient;
-    public AnalyticsApiClient(HttpClient httpClient)
+    private readonly IAdminTokenProvider _adminTokenProvider;
+
+    public AnalyticsApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
     public async Task<AnalyticsStatsDto> GetAnalyticsAsync(Guid festivalId, DateOnly startDate, DateOnly endDate, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         string start = startDate.ToString("yyyy-MM-dd");
         string end = endDate.ToString("yyyy-MM-dd");
         AnalyticsApiResponse? response = await _httpClient.GetFromJsonAsync<AnalyticsApiResponse>(

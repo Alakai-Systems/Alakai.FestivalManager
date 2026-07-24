@@ -271,7 +271,6 @@ public static class ApiCLientsDependencyInjectionExtension
         services.AddScoped<UserProfileState>();
 
         services.AddScoped<IAdminTokenProvider, AdminTokenProvider>();
-        services.AddTransient<AdminBearerTokenHandler>();
 
         services.AddScoped<ProtectedLocalStorage>();
 

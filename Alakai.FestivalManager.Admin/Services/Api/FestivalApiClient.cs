@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 
 using System.Text.Json;
 
@@ -7,14 +9,28 @@ namespace Alakai.FestivalManager.Admin.Services.Api;
 public class FestivalApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public FestivalApiClient(HttpClient httpClient)
+    public FestivalApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<FestivalDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetFestivalsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetFestivalsResponse>>("api/festivals", cancellationToken);
         if (response?.Success is not true)
         {
@@ -26,6 +42,8 @@ public class FestivalApiClient
 
     public async Task CreateAsync(CreateFestivalRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/festivals", request, cancellationToken);
         ApiResponse<CreateFestivalResponse>? response = await ReadResponseAsync<CreateFestivalResponse>(httpResponse, cancellationToken);
 
@@ -34,6 +52,8 @@ public class FestivalApiClient
 
     public async Task UpdateAsync(Guid id, UpdateFestivalRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/festivals/{id}", request, cancellationToken);
         ApiResponse<UpdateFestivalResponse>? response = await ReadResponseAsync<UpdateFestivalResponse>(httpResponse, cancellationToken);
 
@@ -42,6 +62,8 @@ public class FestivalApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/festivals/{id}", cancellationToken);
         ApiResponse<DeleteFestivalResponse>? response = await ReadResponseAsync<DeleteFestivalResponse>(httpResponse, cancellationToken);
 
@@ -50,6 +72,8 @@ public class FestivalApiClient
 
     public async Task<FestivalCredentialsDto?> GetCredentialsAsync(Guid festivalId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.GetAsync($"api/festivals/{festivalId}/credentials", cancellationToken);
         ApiResponse<GetFestivalCredentialsResponse>? response = await ReadResponseAsync<GetFestivalCredentialsResponse>(httpResponse, cancellationToken);
 
@@ -60,6 +84,8 @@ public class FestivalApiClient
 
     public async Task UpsertCredentialsAsync(Guid festivalId, UpsertFestivalCredentialsRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/festivals/{festivalId}/credentials", request, cancellationToken);
         ApiResponse<UpsertFestivalCredentialsResponse>? response = await ReadResponseAsync<UpsertFestivalCredentialsResponse>(httpResponse, cancellationToken);
 

@@ -1,16 +1,32 @@
-﻿namespace Alakai.FestivalManager.Admin.Services.Api;
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
+namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class EmailNotificationApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public EmailNotificationApiClient(HttpClient httpClient)
+    public EmailNotificationApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task SendRegistrationEmailAsync(Guid registrationId, EmailTemplateKey templateKey, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsync($"api/emails/registrations/{registrationId}/{templateKey}/send", null, cancellationToken);
 
         ApiResponse<EmailLogDto>? response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<EmailLogDto>>(cancellationToken);

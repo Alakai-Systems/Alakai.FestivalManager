@@ -1,16 +1,32 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class BusApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public BusApiClient(HttpClient httpClient)
+    public BusApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<BusDto>> GetAllAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetBusesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusesResponse>>($"api/buses?editionId={editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -23,6 +39,8 @@ public class BusApiClient
 
     public async Task<IReadOnlyList<BusDto>> GetAvailableForRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetBusesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusesResponse>>($"api/buses/available-for-registration/{registrationId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -35,6 +53,8 @@ public class BusApiClient
 
     public async Task<BusDto> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetBusResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusResponse>>($"api/buses/{id}", cancellationToken);
 
         if (response?.Success is not true || response.Data is null)
@@ -47,6 +67,8 @@ public class BusApiClient
 
     public async Task<BusDto> CreateAsync(CreateBusRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/buses", request, cancellationToken);
         ApiResponse<CreateBusResponse>? response = await ReadResponseAsync<CreateBusResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -55,6 +77,8 @@ public class BusApiClient
 
     public async Task UpdateAsync(Guid id, UpdateBusRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/buses/{id}", request, cancellationToken);
         ApiResponse<UpdateBusResponse>? response = await ReadResponseAsync<UpdateBusResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -62,6 +86,8 @@ public class BusApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/buses/{id}", cancellationToken);
         ApiResponse<DeleteBusResponse>? response = await ReadResponseAsync<DeleteBusResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -69,6 +95,8 @@ public class BusApiClient
 
     public async Task<IReadOnlyList<BusReservationDto>> GetReservationsByBusAsync(Guid busId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetBusReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusReservationsResponse>>($"api/bus-reservations/by-bus/{busId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -81,6 +109,8 @@ public class BusApiClient
 
     public async Task<IReadOnlyList<BusReservationDto>> GetReservationsByEditionAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetBusReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusReservationsResponse>>($"api/bus-reservations/by-edition/{editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -93,6 +123,8 @@ public class BusApiClient
 
     public async Task<IReadOnlyList<BusReservationDto>> GetReservationsByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetBusReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusReservationsResponse>>($"api/bus-reservations/by-registration/{registrationId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -105,6 +137,8 @@ public class BusApiClient
 
     public async Task<BusReservationDto> CreateReservationAsync(CreateBusReservationRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/bus-reservations", request, cancellationToken);
         ApiResponse<CreateBusReservationResponse>? response = await ReadResponseAsync<CreateBusReservationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -113,6 +147,8 @@ public class BusApiClient
 
     public async Task<IReadOnlyList<BusReservationDto>> CreateReservationsAsync(CreateBusReservationsRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/bus-reservations/batch", request, cancellationToken);
         ApiResponse<GetBusReservationsResponse>? response = await ReadResponseAsync<GetBusReservationsResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -121,6 +157,8 @@ public class BusApiClient
 
     public async Task<BusReservationDto> UpdateReservationAsync(Guid id, UpdateBusReservationRequest request, bool isAdmin, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/bus-reservations/{id}?isAdmin={isAdmin}", request, cancellationToken);
         ApiResponse<CreateBusReservationResponse>? response = await ReadResponseAsync<CreateBusReservationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -129,6 +167,8 @@ public class BusApiClient
 
     public async Task DeleteReservationAsync(Guid id, Guid requestingRegistrationId, bool isAdmin, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/bus-reservations/{id}?requestingRegistrationId={requestingRegistrationId}&isAdmin={isAdmin}", cancellationToken);
         ApiResponse<DeleteBusReservationResponse>? response = await ReadResponseAsync<DeleteBusReservationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);

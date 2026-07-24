@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/accommodation-reservations")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class AccommodationReservationsController : ControllerBase
 {
     private readonly IAccommodationReservationService _reservationService;

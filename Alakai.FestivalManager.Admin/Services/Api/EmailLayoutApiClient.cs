@@ -1,18 +1,34 @@
-﻿using System.Text.Json;
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
+using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class EmailLayoutApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public EmailLayoutApiClient(HttpClient httpClient)
+    public EmailLayoutApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<EmailLayoutDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetEmailLayoutsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEmailLayoutsResponse>>("api/email-layout", cancellationToken);
 
         if (response?.Success is not true)
@@ -25,6 +41,8 @@ public class EmailLayoutApiClient
 
     public async Task CreateAsync(CreateEmailLayoutRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/email-layout", request, cancellationToken);
         ApiResponse<CreateEmailLayoutResponse>? response = await ReadResponseAsync<CreateEmailLayoutResponse>(httpResponse, cancellationToken);
 
@@ -33,6 +51,8 @@ public class EmailLayoutApiClient
 
     public async Task UpdateAsync(Guid id, UpdateEmailLayoutRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/email-layout/{id}", request, cancellationToken);
         ApiResponse<UpdateEmailLayoutResponse>? response = await ReadResponseAsync<UpdateEmailLayoutResponse>(httpResponse, cancellationToken);
 
@@ -41,6 +61,8 @@ public class EmailLayoutApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/email-layout/{id}", cancellationToken);
         ApiResponse<DeleteEmailLayoutResponse>? response = await ReadResponseAsync<DeleteEmailLayoutResponse>(httpResponse, cancellationToken);
 

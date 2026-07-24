@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/email-logs")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class EmailLogsController : ControllerBase
 {
     private readonly IEmailLogService _emailLogService;

@@ -1,16 +1,32 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class AccommodationApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public AccommodationApiClient(HttpClient httpClient)
+    public AccommodationApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<AccommodationBuildingSummaryDto>> GetBuildingsAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetAccommodationBuildingsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingsResponse>>($"api/accommodation-buildings?editionId={editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -23,6 +39,8 @@ public class AccommodationApiClient
 
     public async Task<AccommodationBuildingDto> GetBuildingByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetAccommodationBuildingResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingResponse>>($"api/accommodation-buildings/{id}", cancellationToken);
 
         if (response?.Success is not true || response.Data is null)
@@ -35,6 +53,8 @@ public class AccommodationApiClient
 
     public async Task<IReadOnlyList<AccommodationBuildingSummaryDto>> GetAvailableForRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetAccommodationBuildingsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingsResponse>>($"api/accommodation-buildings/available-for-registration/{registrationId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -47,6 +67,8 @@ public class AccommodationApiClient
 
     public async Task<AccommodationBuildingDto> CreateBuildingAsync(CreateAccommodationBuildingRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/accommodation-buildings", request, cancellationToken);
         ApiResponse<CreateAccommodationBuildingResponse>? response = await ReadResponseAsync<CreateAccommodationBuildingResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -55,6 +77,8 @@ public class AccommodationApiClient
 
     public async Task UpdateBuildingAsync(Guid id, UpdateAccommodationBuildingRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/accommodation-buildings/{id}", request, cancellationToken);
         ApiResponse<UpdateAccommodationBuildingResponse>? response = await ReadResponseAsync<UpdateAccommodationBuildingResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -62,6 +86,8 @@ public class AccommodationApiClient
 
     public async Task DeleteBuildingAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/accommodation-buildings/{id}", cancellationToken);
         ApiResponse<DeleteAccommodationEntityResponse>? response = await ReadResponseAsync<DeleteAccommodationEntityResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -69,6 +95,8 @@ public class AccommodationApiClient
 
     public async Task CreateZoneAsync(CreateAccommodationZoneRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/accommodation-zones", request, cancellationToken);
         ApiResponse<CreateAccommodationZoneResponse>? response = await ReadResponseAsync<CreateAccommodationZoneResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -76,6 +104,8 @@ public class AccommodationApiClient
 
     public async Task UpdateZoneAsync(Guid id, UpdateAccommodationZoneRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/accommodation-zones/{id}", request, cancellationToken);
         ApiResponse<UpdateAccommodationZoneResponse>? response = await ReadResponseAsync<UpdateAccommodationZoneResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -83,6 +113,8 @@ public class AccommodationApiClient
 
     public async Task DeleteZoneAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/accommodation-zones/{id}", cancellationToken);
         ApiResponse<DeleteAccommodationEntityResponse>? response = await ReadResponseAsync<DeleteAccommodationEntityResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -90,6 +122,8 @@ public class AccommodationApiClient
 
     public async Task CreateAccommodationsAsync(CreateAccommodationRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/accommodations", request, cancellationToken);
         ApiResponse<CreateAccommodationResponse>? response = await ReadResponseAsync<CreateAccommodationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -97,6 +131,8 @@ public class AccommodationApiClient
 
     public async Task UpdateAccommodationAsync(Guid id, UpdateAccommodationRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/accommodations/{id}", request, cancellationToken);
         ApiResponse<UpdateAccommodationResponse>? response = await ReadResponseAsync<UpdateAccommodationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -104,6 +140,8 @@ public class AccommodationApiClient
 
     public async Task DeleteAccommodationAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/accommodations/{id}", cancellationToken);
         ApiResponse<DeleteAccommodationEntityResponse>? response = await ReadResponseAsync<DeleteAccommodationEntityResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -137,6 +175,8 @@ public class AccommodationApiClient
 
     public async Task<AccommodationReservationDto> CreateReservationAsync(CreateAccommodationReservationRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/accommodation-reservations", request, cancellationToken);
         ApiResponse<CreateAccommodationReservationResponse>? response = await ReadResponseAsync<CreateAccommodationReservationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -145,6 +185,8 @@ public class AccommodationApiClient
 
     public async Task<AccommodationReservationDto?> GetReservationByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetAccommodationReservationResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationReservationResponse>>($"api/accommodation-reservations/by-registration/{registrationId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -157,6 +199,8 @@ public class AccommodationApiClient
 
     public async Task<IReadOnlyList<AccommodationReservationDto>> GetReservationsByBuildingAsync(Guid buildingId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetAccommodationReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationReservationsResponse>>($"api/accommodation-reservations/by-building/{buildingId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -169,6 +213,8 @@ public class AccommodationApiClient
 
     public async Task DeleteReservationAsync(Guid id, Guid requestingRegistrationId, bool isAdmin, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/accommodation-reservations/{id}?requestingRegistrationId={requestingRegistrationId}&isAdmin={isAdmin}", cancellationToken);
         ApiResponse<DeleteAccommodationReservationResponse>? response = await ReadResponseAsync<DeleteAccommodationReservationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -176,6 +222,8 @@ public class AccommodationApiClient
 
     public async Task<AccommodationReservationDto> UpdateReservationAsync(Guid id, UpdateAccommodationReservationRequest request, bool isAdmin, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/accommodation-reservations/{id}?isAdmin={isAdmin}", request, cancellationToken);
         ApiResponse<CreateAccommodationReservationResponse>? response = await ReadResponseAsync<CreateAccommodationReservationResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);

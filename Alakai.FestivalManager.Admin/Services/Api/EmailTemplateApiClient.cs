@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
@@ -11,14 +13,28 @@ public class EmailTemplatePreviewResult
 public class EmailTemplateApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public EmailTemplateApiClient(HttpClient httpClient)
+    public EmailTemplateApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<EmailTemplateDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetEmailTemplatesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEmailTemplatesResponse>>("api/email-templates", cancellationToken);
 
         if (response?.Success is not true)
@@ -31,6 +47,8 @@ public class EmailTemplateApiClient
 
     public async Task<IReadOnlyList<EmailTemplateDto>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetEmailTemplatesByEditionIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetEmailTemplatesByEditionIdResponse>>($"api/email-templates/by-edition/{editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -43,11 +61,15 @@ public class EmailTemplateApiClient
 
     public async Task<EmailTemplatePreviewResult?> PreviewAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         return await _httpClient.GetFromJsonAsync<EmailTemplatePreviewResult>($"api/email-templates/{id}/preview", cancellationToken);
     }
 
     public async Task CreateAsync(CreateEmailTemplateRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/email-templates", request, cancellationToken);
         ApiResponse<CreateEmailTemplateResponse>? response = await ReadResponseAsync<CreateEmailTemplateResponse>(httpResponse, cancellationToken);
 
@@ -56,6 +78,8 @@ public class EmailTemplateApiClient
 
     public async Task UpdateAsync(Guid id, UpdateEmailTemplateRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/email-templates/{id}", request, cancellationToken);
         ApiResponse<UpdateEmailTemplateResponse>? response = await ReadResponseAsync<UpdateEmailTemplateResponse>(httpResponse, cancellationToken);
 
@@ -64,6 +88,8 @@ public class EmailTemplateApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/email-templates/{id}", cancellationToken);
         ApiResponse<DeleteEmailTemplateResponse>? response = await ReadResponseAsync<DeleteEmailTemplateResponse>(httpResponse, cancellationToken);
 

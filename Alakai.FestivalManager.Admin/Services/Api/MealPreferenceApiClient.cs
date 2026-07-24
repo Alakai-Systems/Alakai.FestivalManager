@@ -1,16 +1,32 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class MealPreferenceApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public MealPreferenceApiClient(HttpClient httpClient)
+    public MealPreferenceApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<MealPreferenceDto?> GetByRegistrationAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetMealPreferenceResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetMealPreferenceResponse>>($"api/meal-preferences/by-registration/{registrationId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -23,6 +39,8 @@ public class MealPreferenceApiClient
 
     public async Task<IReadOnlyList<MealPreferenceDto>> GetByEditionAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetMealPreferencesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetMealPreferencesResponse>>($"api/meal-preferences/by-edition/{editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -35,6 +53,8 @@ public class MealPreferenceApiClient
 
     public async Task<MealPreferenceDto> SaveAsync(SaveMealPreferenceRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/meal-preferences", request, cancellationToken);
         ApiResponse<SaveMealPreferenceResponse>? response = await ReadResponseAsync<SaveMealPreferenceResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);

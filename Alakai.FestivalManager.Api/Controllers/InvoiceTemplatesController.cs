@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/invoice-templates")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class InvoiceTemplatesController : ControllerBase
 {
     private readonly IInvoiceTemplateService _invoiceTemplateService;

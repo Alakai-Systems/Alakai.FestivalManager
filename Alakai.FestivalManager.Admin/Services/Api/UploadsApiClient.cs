@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class UploadImageResult
@@ -24,14 +26,28 @@ public class GalleryImageDto
 public class UploadsApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public UploadsApiClient(HttpClient httpClient)
+    public UploadsApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<UploadImageDetailResult> UploadImageWithDetailsAsync(Stream content, string fileName, string contentType, Guid? festivalId, int? width = null, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         using MultipartFormDataContent form = new();
         using StreamContent streamContent = new(content);
         streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
@@ -67,17 +83,23 @@ public class UploadsApiClient
 
     public async Task<List<GalleryImageDto>> GetGalleryAsync(Guid festivalId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         List<GalleryImageDto>? result = await _httpClient.GetFromJsonAsync<List<GalleryImageDto>>($"api/uploads/gallery?festivalId={festivalId}", cancellationToken);
         return result ?? [];
     }
 
     public async Task DeleteGalleryImageAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         await _httpClient.DeleteAsync($"api/uploads/gallery/{id}", cancellationToken);
     }
 
     public async Task<string> UploadImageAsync(Stream content, string fileName, string contentType, int? width = null, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         using MultipartFormDataContent form = new();
         using StreamContent streamContent = new(content);
         streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);

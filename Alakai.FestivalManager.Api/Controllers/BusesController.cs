@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/buses")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class BusesController : ControllerBase
 {
     private readonly IBusService _busService;

@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class PassTypesController : ControllerBase
 {
     private readonly IPassTypeService _passTypeService;

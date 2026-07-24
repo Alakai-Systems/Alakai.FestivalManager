@@ -1,16 +1,32 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 namespace Alakai.FestivalManager.Admin.Services.Api;
 
 public class DiscountCodeApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public DiscountCodeApiClient(HttpClient httpClient)
+    public DiscountCodeApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<DiscountCodeDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetDiscountCodesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetDiscountCodesResponse>>("api/discount-codes", cancellationToken);
 
         if (response?.Success is not true)
@@ -23,6 +39,8 @@ public class DiscountCodeApiClient
 
     public async Task<IReadOnlyList<DiscountCodeDto>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetDiscountCodesByEditionIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetDiscountCodesByEditionIdResponse>>($"api/discount-codes/by-edition/{editionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -35,6 +53,8 @@ public class DiscountCodeApiClient
 
     public async Task CreateAsync(CreateDiscountCodeRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/discount-codes", request, cancellationToken);
         ApiResponse<CreateDiscountCodeResponse>? response = await ReadResponseAsync<CreateDiscountCodeResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -42,6 +62,8 @@ public class DiscountCodeApiClient
 
     public async Task UpdateAsync(Guid id, UpdateDiscountCodeRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/discount-codes/{id}", request, cancellationToken);
         ApiResponse<UpdateDiscountCodeResponse>? response = await ReadResponseAsync<UpdateDiscountCodeResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);
@@ -49,6 +71,8 @@ public class DiscountCodeApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/discount-codes/{id}", cancellationToken);
         ApiResponse<DeleteDiscountCodeResponse>? response = await ReadResponseAsync<DeleteDiscountCodeResponse>(httpResponse, cancellationToken);
         EnsureSuccess(httpResponse, response);

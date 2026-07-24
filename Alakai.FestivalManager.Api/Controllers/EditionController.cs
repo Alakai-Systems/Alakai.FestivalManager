@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "SuperAdmin,Admin,Production")]
 public class EditionsController : ControllerBase
 {
     private readonly IEditionService _editionService;

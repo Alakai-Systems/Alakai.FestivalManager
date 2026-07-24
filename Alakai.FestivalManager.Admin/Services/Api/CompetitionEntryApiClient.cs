@@ -1,3 +1,5 @@
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 using System.Text.Json;
 
 namespace Alakai.FestivalManager.Admin.Services.Api;
@@ -5,14 +7,28 @@ namespace Alakai.FestivalManager.Admin.Services.Api;
 public class CompetitionEntryApiClient
 {
     private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
 
-    public CompetitionEntryApiClient(HttpClient httpClient)
+    public CompetitionEntryApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
         _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
+    }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
     }
 
     public async Task<IReadOnlyList<CompetitionEntryDto>> GetAllAsync(CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetCompetitionEntriesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetCompetitionEntriesResponse>>("api/competition-entries", cancellationToken);
 
         if (response?.Success is not true)
@@ -25,6 +41,8 @@ public class CompetitionEntryApiClient
 
     public async Task<IReadOnlyList<CompetitionEntryDto>> GetByCompetitionIdAsync(Guid competitionId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetCompetitionEntriesByCompetitionIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetCompetitionEntriesByCompetitionIdResponse>>($"api/competition-entries/by-competition/{competitionId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -37,6 +55,8 @@ public class CompetitionEntryApiClient
 
     public async Task<IReadOnlyList<CompetitionEntryDto>> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         ApiResponse<GetCompetitionEntriesByRegistrationIdResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetCompetitionEntriesByRegistrationIdResponse>>($"api/competition-entries/by-registration/{registrationId}", cancellationToken);
 
         if (response?.Success is not true)
@@ -49,6 +69,8 @@ public class CompetitionEntryApiClient
 
     public async Task CreateAsync(CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/competition-entries", request, cancellationToken);
         ApiResponse<CreateCompetitionEntryResponse>? response = await ReadResponseAsync<CreateCompetitionEntryResponse>(httpResponse, cancellationToken);
 
@@ -57,6 +79,8 @@ public class CompetitionEntryApiClient
 
     public async Task UpdateAsync(Guid id, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/competition-entries/{id}", request, cancellationToken);
         ApiResponse<UpdateCompetitionEntryResponse>? response = await ReadResponseAsync<UpdateCompetitionEntryResponse>(httpResponse, cancellationToken);
 
@@ -65,6 +89,8 @@ public class CompetitionEntryApiClient
 
     public async Task DeleteAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        await AttachAuthHeaderAsync();
+
         HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/competition-entries/{id}", cancellationToken);
         ApiResponse<DeleteCompetitionEntryResponse>? response = await ReadResponseAsync<DeleteCompetitionEntryResponse>(httpResponse, cancellationToken);
 

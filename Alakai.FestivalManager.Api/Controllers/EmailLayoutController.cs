@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/email-layout")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class EmailLayoutController : ControllerBase
 {
     private readonly IEmailLayoutService _emailLayoutService;
