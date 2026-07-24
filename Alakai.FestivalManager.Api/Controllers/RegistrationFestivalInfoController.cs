@@ -2,7 +2,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/registrations")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class RegistrationFestivalInfoController : ControllerBase
 {
     private readonly IRegistrationFestivalInfoService _service;

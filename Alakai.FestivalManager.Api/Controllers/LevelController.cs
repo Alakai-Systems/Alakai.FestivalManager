@@ -3,7 +3,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class LevelsController : ControllerBase
 {
     private readonly ILevelService _levelService;

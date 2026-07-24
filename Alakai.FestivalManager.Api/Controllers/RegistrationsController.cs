@@ -4,7 +4,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class RegistrationsController : ControllerBase
 {
     private readonly IRegistrationService _registrationService;
@@ -17,7 +16,6 @@ public class RegistrationsController : ControllerBase
     }
 
     [HttpPost]
-    [AllowAnonymous]
     public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)
     {
         Console.WriteLine($"[DEBUG] PaymentPlan received: {request.PaymentPlan} ({(int)request.PaymentPlan})");

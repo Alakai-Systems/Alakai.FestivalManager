@@ -2,7 +2,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/meal-preferences")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class MealPreferencesController : ControllerBase
 {
     private readonly IMealPreferenceService _mealPreferenceService;

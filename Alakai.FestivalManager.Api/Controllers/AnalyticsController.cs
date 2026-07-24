@@ -2,7 +2,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/dashboard/analytics")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class AnalyticsController : ControllerBase
 {
     private readonly IAnalyticsService _analyticsService;

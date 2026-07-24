@@ -1,81 +1,96 @@
-# Fix-AuthApiClientRecursion.ps1
+# Fix-RevertAuthorizeAudit-v2.ps1
 #
-# URGENTE: Fix-AdminBearerTokenHandler.ps1 engancho el handler a los 33
-# AddHttpClient<T>() SIN excluir a AuthApiClient (login/refresh de token).
-# Eso crea recursion infinita:
+# La v1 tenia un fallo: su comprobacion de "ya aplicado" hacia
+# content.Contains(NewString), y como NewString ("public class X :
+# ControllerBase") es literalmente parte de OldString
+# ("[Authorize(...)]\npublic class X : ControllerBase"), SIEMPRE decia
+# "ya aplicado" sin quitar el atributo de verdad. Por eso salio todo SKIP.
 #
-#   1. Cualquier llamada -> AdminBearerTokenHandler.SendAsync
-#   2. -> pide el token a AdminTokenProvider.GetValidAccessTokenAsync()
-#   3. si el token esta caducado -> llama a AuthApiClient.RefreshTokenAsync(...)
-#   4. esa llamada TAMBIEN pasa por AdminBearerTokenHandler.SendAsync (paso 1)
-#   5. -> vuelve a pedir el token -> vuelve a refrescar -> bucle infinito -> 500
-#
-# Fix: quitar el handler especificamente de la llamada AddHttpClient de
-# AuthApiClient (el login y el refresh de token nunca deben depender de si
-# mismos para autenticarse - es logica, no un descuido). El resto de los 32
-# AddHttpClient siguen con el handler, que es donde hace falta.
+# Esta version comprueba directamente si el atributo [Authorize(Roles=...)]
+# esta presente justo antes de la clase, y si lo esta, lo quita - sin el
+# atajo defectuoso de antes.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
 
-function Patch-File {
-    param([string]$Path, [string]$OldString, [string]$NewString, [string]$Description)
-    if (-not (Test-Path $Path)) { Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow; return $false }
+function Remove-Attribute {
+    param([string]$Path, [string]$AttributeLine, [string]$ClassLine, [string]$Description)
+
+    if (-not (Test-Path $Path)) { Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow; return }
+
     $rawContent = Get-Content -Path $Path -Raw
     $usesCrlf = $rawContent.Contains("`r`n")
     $normalizedContent = $rawContent -replace "`r`n", "`n"
-    $normalizedOld = $OldString -replace "`r`n", "`n"
-    $normalizedNew = $NewString -replace "`r`n", "`n"
-    if ($normalizedContent.Contains($normalizedNew)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
-    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow; return $false }
-    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
+
+    $combined = "$AttributeLine`n$ClassLine"
+    $count = ([regex]::Matches($normalizedContent, [regex]::Escape($combined))).Count
+
+    if ($count -eq 0) {
+        # Puede que ya se haya quitado de verdad, o que nunca se aplicara.
+        if ($normalizedContent.Contains($ClassLine)) {
+            Write-Host "SKIP (el atributo ya no esta - correcto): $Description" -ForegroundColor Cyan
+        }
+        else {
+            Write-Host "SKIP (ni el atributo ni la clase encontrados - revisa a mano): $Description" -ForegroundColor Yellow
+        }
+        return
+    }
+
+    if ($count -gt 1) {
+        Write-Host "SKIP (aparece $count veces, no es unico - revisa a mano): $Description" -ForegroundColor Yellow
+        return
+    }
+
+    $updatedNormalized = $normalizedContent.Replace($combined, $ClassLine)
     $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
     Set-Content -Path $Path -Value $updatedFinal -NoNewline
     Write-Host "OK: $Description" -ForegroundColor Green
-    return $true
 }
 
-$results = @()
-$extPath = "Alakai.FestivalManager.Admin/Extensions/ApplicationDependencyInjectionExtension.cs"
+$controllersDir = "Alakai.FestivalManager.Api/Controllers"
 
-$results += Patch-File -Path $extPath -Description "AuthApiClient: quitar el handler (rompe el bucle de refresh)" -OldString @'
-        services.AddHttpClient<IAuthApiClient, AuthApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        }).AddHttpMessageHandler<AdminBearerTokenHandler>();
-'@ -NewString @'
-        services.AddHttpClient<IAuthApiClient, AuthApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        });
-'@
-if ($results -contains $false) { Write-Host "`nFallo. Si el anchor no se encuentra, puede que el handler ya no este enganchado ahi - revisa a mano si AuthApiClient tiene '.AddHttpMessageHandler<AdminBearerTokenHandler>()' y quitalo." -ForegroundColor Red; exit 1 }
+$adminOnly = @(
+    @{ File = "RegistrationsController.cs"; Class = "RegistrationsController" },
+    @{ File = "RegistrationFestivalInfoController.cs"; Class = "RegistrationFestivalInfoController" },
+    @{ File = "CompetitionEntriesController.cs"; Class = "CompetitionEntriesController" },
+    @{ File = "CompetitionsController.cs"; Class = "CompetitionsController" },
+    @{ File = "BusesController.cs"; Class = "BusesController" },
+    @{ File = "BusReservationsController.cs"; Class = "BusReservationsController" },
+    @{ File = "AccommodationsController.cs"; Class = "AccommodationsController" },
+    @{ File = "AccommodationZonesController.cs"; Class = "AccommodationZonesController" },
+    @{ File = "AccommodationBuildingsController.cs"; Class = "AccommodationBuildingsController" },
+    @{ File = "AccommodationReservationsController.cs"; Class = "AccommodationReservationsController" },
+    @{ File = "MealPreferencesController.cs"; Class = "MealPreferencesController" },
+    @{ File = "DiscountCodesController.cs"; Class = "DiscountCodesController" },
+    @{ File = "PassTypeController.cs"; Class = "PassTypesController" },
+    @{ File = "LevelController.cs"; Class = "LevelsController" },
+    @{ File = "InvoicesController.cs"; Class = "InvoicesController" },
+    @{ File = "InvoiceSettingsController.cs"; Class = "InvoiceSettingsController" },
+    @{ File = "InvoiceTemplatesController.cs"; Class = "InvoiceTemplatesController" },
+    @{ File = "EmailsController.cs"; Class = "EmailsController" },
+    @{ File = "EmailTemplatesController.cs"; Class = "EmailTemplatesController" },
+    @{ File = "EmailLayoutController.cs"; Class = "EmailLayoutController" },
+    @{ File = "EmailLogsController.cs"; Class = "EmailLogsController" },
+    @{ File = "AnalyticsController.cs"; Class = "AnalyticsController" },
+    @{ File = "DashboardController.cs"; Class = "DashboardController" },
+    @{ File = "UploadsController.cs"; Class = "UploadsController" },
+    @{ File = "UsersController.cs"; Class = "UsersController" }
+)
 
-# ---------------------------------------------------------------------------
-# Tambien quitamos PublicRegistrationApiClient del handler - no es la causa
-# del 500 (un usuario anonimo no tiene token, GetValidAccessTokenAsync
-# devuelve null sin recursion), pero es correcto no molestarse en pedir un
-# token de admin en llamadas del formulario publico.
-# ---------------------------------------------------------------------------
-$results += Patch-File -Path $extPath -Description "PublicRegistrationApiClient: quitar el handler (no necesita token de admin)" -OldString @'
-        services.AddHttpClient<PublicRegistrationApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        }).AddHttpMessageHandler<AdminBearerTokenHandler>();
-'@ -NewString @'
-        services.AddHttpClient<PublicRegistrationApiClient>(client =>
-        {
-            string baseUrl = configuration["ApiSettings:BaseUrl"]
-                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
-            client.BaseAddress = new Uri(baseUrl);
-        });
-'@
-if ($results -contains $false) { Write-Host "`nAviso: no se pudo quitar el handler de PublicRegistrationApiClient (no es critico, no causa el 500)." -ForegroundColor Yellow }
+foreach ($entry in $adminOnly) {
+    $path = Join-Path $controllersDir $entry.File
+    Remove-Attribute -Path $path -AttributeLine '[Authorize(Roles = "SuperAdmin,Admin")]' -ClassLine "public class $($entry.Class) : ControllerBase" -Description "$($entry.Class): quitar [Authorize(SuperAdmin,Admin)]"
+}
 
-Write-Host "`nBucle de recursion roto. AuthApiClient y PublicRegistrationApiClient ya no dependen del handler; el resto de los 31 ApiClient lo mantienen." -ForegroundColor Green
+$sharedWithProduction = @(
+    @{ File = "EditionController.cs"; Class = "EditionsController" },
+    @{ File = "FestivalsController.cs"; Class = "FestivalsController" },
+    @{ File = "ReportsController.cs"; Class = "ReportsController" }
+)
+
+foreach ($entry in $sharedWithProduction) {
+    $path = Join-Path $controllersDir $entry.File
+    Remove-Attribute -Path $path -AttributeLine '[Authorize(Roles = "SuperAdmin,Admin,Production")]' -ClassLine "public class $($entry.Class) : ControllerBase" -Description "$($entry.Class): quitar [Authorize(SuperAdmin,Admin,Production)]"
+}
+
+Write-Host "`nRevisa arriba: cada linea debe decir OK o 'el atributo ya no esta - correcto'. Si alguna dice 'revisa a mano', pegame el contenido de ese archivo concreto (con ese si necesito verlo, es el unico caso donde no puedo hacerlo a ciegas)." -ForegroundColor Green

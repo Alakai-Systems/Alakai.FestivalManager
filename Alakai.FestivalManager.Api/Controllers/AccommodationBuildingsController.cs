@@ -2,7 +2,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/accommodation-buildings")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class AccommodationBuildingsController : ControllerBase
 {
     private readonly IAccommodationBuildingService _buildingService;

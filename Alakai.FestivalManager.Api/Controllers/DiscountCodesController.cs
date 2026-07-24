@@ -2,7 +2,6 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/discount-codes")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class DiscountCodesController : ControllerBase
 {
     private readonly IDiscountCodeService _discountCodeService;
