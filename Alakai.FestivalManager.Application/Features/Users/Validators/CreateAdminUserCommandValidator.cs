@@ -13,7 +13,7 @@ public class CreateAdminUserCommandValidator : AbstractValidator<CreateAdminUser
         RuleFor(command => command.Email).NotEmpty().EmailAddress().MaximumLength(200);
         RuleFor(command => command.Password).NotEmpty().MinimumLength(8).MaximumLength(100);
         RuleFor(command => command.Role)
-            .Must(role => role == UserRole.Admin || role == UserRole.SuperAdmin)
-            .WithMessage("Role must be Admin or SuperAdmin.");
+            .Must(role => role == UserRole.Admin || role == UserRole.SuperAdmin || role == UserRole.Production)
+            .WithMessage("Role must be Admin, SuperAdmin or Production.");
     }
 }

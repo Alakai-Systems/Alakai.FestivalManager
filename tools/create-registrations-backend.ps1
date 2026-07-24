@@ -1,10 +1,23 @@
-# Fix-ProductionReportsPersonalDataAndItinerarySections.ps1
+# Fix-DomainUserRoleProduction.ps1
 #
-# 1. Accommodation report: anade Email, Phone, Document Type, Document
-#    Number y Nationality de cada ocupante.
-# 2. Runner Itineraries report: deja de ser una tabla plana - ahora sale
-#    seccionado por "Itinerary N" (mismo numero que la pantalla, por orden
-#    cronologico), con un titulo por itinerario y sus viajes debajo.
+# CAUSA REAL del "Validation failed" al crear un admin de Production:
+#
+# El enum que de verdad usa el backend para validar y generar el token es
+# Alakai.FestivalManager.Domain.Enums.UserRole (SuperAdmin=1, Admin=2,
+# User=3) - nunca tuvo un valor Production. Solo se anadio "Production=4"
+# al enum AdminUserRole del proyecto Admin (usado unicamente para el menu
+# y las paginas del Admin), que es un enum DISTINTO y separado.
+#
+# Por eso:
+#   1. El validador CreateAdminUserCommandValidator solo permite
+#      Admin/SuperAdmin -> "Validation failed" al mandar Production.
+#   2. Aunque se saltara esa validacion, UserRole no tiene un miembro
+#      llamado Production - "user.Role.ToString()" en el JWT devolveria
+#      literalmente "4" en vez de "Production", y
+#      [Authorize(Roles = "...,Production")] nunca reconoceria a ese
+#      usuario.
+#
+# Este script arregla las dos cosas.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -27,142 +40,35 @@ function Patch-File {
 }
 
 $results = @()
-$path = "Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs"
 
-# ---------------------------------------------------------------------------
-# 1) Accommodation: datos personales del ocupante
-# ---------------------------------------------------------------------------
-$results += Patch-File -Path $path -Description "Accommodation report: datos personales del ocupante" -OldString @'
-        List<string[]> rows = reservations.SelectMany(r => r.Occupants.Select(o => new[]
-        {
-            r.ProductionAccommodationBuilding?.Name ?? "",
-            r.ResponsibleProductionPerson is not null ? $"{r.ResponsibleProductionPerson.FirstName} {r.ResponsibleProductionPerson.LastName}" : "",
-            o.ProductionPerson is not null ? $"{o.ProductionPerson.FirstName} {o.ProductionPerson.LastName}" : "",
-            o.ProductionAccommodation?.ProductionAccommodationZone?.Name ?? "",
-            o.ProductionAccommodation?.Name ?? ""
-        })).ToList();
-
-        return BuildXlsx("Production Accommodation", ["Building", "Responsible", "Occupant", "Zone", "Room"], rows);
+$results += Patch-File -Path "Alakai.FestivalManager.Domain/Enums/UserRole.cs" -Description "Domain UserRole: anadir Production = 4" -OldString @'
+public enum UserRole
+{
+    SuperAdmin = 1,
+    Admin = 2,
+    User = 3
+}
 '@ -NewString @'
-        List<string[]> rows = reservations.SelectMany(r => r.Occupants.Select(o => new[]
-        {
-            r.ProductionAccommodationBuilding?.Name ?? "",
-            r.ResponsibleProductionPerson is not null ? $"{r.ResponsibleProductionPerson.FirstName} {r.ResponsibleProductionPerson.LastName}" : "",
-            o.ProductionPerson is not null ? $"{o.ProductionPerson.FirstName} {o.ProductionPerson.LastName}" : "",
-            o.ProductionPerson?.Email ?? "",
-            o.ProductionPerson?.Phone ?? "",
-            o.ProductionPerson?.DocumentType.ToString() ?? "",
-            o.ProductionPerson?.DocumentNumber ?? "",
-            o.ProductionPerson?.Nationality ?? "",
-            o.ProductionAccommodation?.ProductionAccommodationZone?.Name ?? "",
-            o.ProductionAccommodation?.Name ?? ""
-        })).ToList();
-
-        return BuildXlsx("Production Accommodation", ["Building", "Responsible", "Occupant", "Email", "Phone", "Document Type", "Document Number", "Nationality", "Zone", "Room"], rows);
+public enum UserRole
+{
+    SuperAdmin = 1,
+    Admin = 2,
+    User = 3,
+    Production = 4
+}
 '@
-if ($results -contains $false) { Write-Host "`nFallo (Accommodation report)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo (enum)." -ForegroundColor Red; exit 1 }
 
-# ---------------------------------------------------------------------------
-# 2) Itineraries: informe seccionado por numero de itinerario
-# ---------------------------------------------------------------------------
-$results += Patch-File -Path $path -Description "Itineraries report: seccionado por Itinerary N" -OldString @'
-    public async Task<byte[]> GenerateProductionItinerariesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<RunnerItinerary> itineraries = await _runnerItineraryRepository.GetByEditionIdAsync(editionId, cancellationToken);
-
-        List<string[]> rows = itineraries.SelectMany(i => i.Trips.Select(t => new[]
-        {
-            i.DateTime.ToString("dd/MM/yyyy HH:mm"), i.Location, i.Direction.ToString(), i.RunnerName ?? "",
-            t.ProductionPerson is not null ? $"{t.ProductionPerson.FirstName} {t.ProductionPerson.LastName}" : "",
-            t.TripNumber, t.DateTime.ToString("dd/MM/yyyy HH:mm"), t.TerminalOrStation
-        })).ToList();
-
-        return BuildXlsx("Itineraries", ["Itinerary Date/Time", "Location", "Direction", "Runner", "Person", "Trip Number", "Trip Time", "Terminal / Station"], rows);
-    }
+$results += Patch-File -Path "Alakai.FestivalManager.Application/Features/Users/Validators/CreateAdminUserCommandValidator.cs" -Description "CreateAdminUserCommandValidator: permitir Production" -OldString @'
+        RuleFor(command => command.Role)
+            .Must(role => role == UserRole.Admin || role == UserRole.SuperAdmin)
+            .WithMessage("Role must be Admin or SuperAdmin.");
 '@ -NewString @'
-    public async Task<byte[]> GenerateProductionItinerariesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
-    {
-        IReadOnlyList<RunnerItinerary> itineraries = await _runnerItineraryRepository.GetByEditionIdAsync(editionId, cancellationToken);
-        List<RunnerItinerary> ordered = itineraries.OrderBy(i => i.DateTime).ToList();
-
-        const int TotalColumns = 4;
-        string[] tripHeaders = ["Person", "Trip Number", "Time", "Terminal / Station"];
-
-        XLColor titleFill = XLColor.FromArgb(55, 65, 81);
-        XLColor headerFill = XLColor.FromArgb(156, 163, 175);
-
-        using XLWorkbook workbook = new();
-        IXLWorksheet ws = workbook.Worksheets.Add("Itineraries");
-        ws.ShowGridLines = false;
-
-        int row = 1;
-
-        for (int index = 0; index < ordered.Count; index++)
-        {
-            RunnerItinerary itinerary = ordered[index];
-            int number = index + 1;
-
-            string runnerSuffix = string.IsNullOrWhiteSpace(itinerary.RunnerName) ? "" : $"  ·  Runner: {itinerary.RunnerName}";
-
-            IXLRange titleRange = ws.Range(row, 1, row, TotalColumns).Merge();
-            titleRange.Value = $"Itinerary {number}  ·  {itinerary.Direction}  ·  {itinerary.Location}  ·  {itinerary.DateTime:dd/MM/yyyy HH:mm}{runnerSuffix}";
-            titleRange.Style.Font.Bold = true;
-            titleRange.Style.Font.FontSize = 13;
-            titleRange.Style.Font.FontColor = XLColor.White;
-            titleRange.Style.Fill.BackgroundColor = titleFill;
-            titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
-            ws.Row(row).Height = 22;
-            row++;
-
-            for (int c = 0; c < tripHeaders.Length; c++)
-            {
-                IXLCell headerCell = ws.Cell(row, c + 1);
-                headerCell.Value = tripHeaders[c];
-                headerCell.Style.Font.Bold = true;
-                headerCell.Style.Fill.BackgroundColor = headerFill;
-                headerCell.Style.Font.FontColor = XLColor.White;
-            }
-            row++;
-
-            List<ProductionTrip> tripsOrdered = itinerary.Trips.OrderBy(t => t.DateTime).ToList();
-
-            if (tripsOrdered.Count == 0)
-            {
-                IXLCell emptyCell = ws.Cell(row, 1);
-                emptyCell.Value = "No trips in this itinerary.";
-                emptyCell.Style.Font.Italic = true;
-                row++;
-            }
-            else
-            {
-                foreach (ProductionTrip trip in tripsOrdered)
-                {
-                    ws.Cell(row, 1).Value = trip.ProductionPerson is not null ? $"{trip.ProductionPerson.FirstName} {trip.ProductionPerson.LastName}" : "";
-                    ws.Cell(row, 2).Value = trip.TripNumber;
-                    ws.Cell(row, 3).Value = trip.DateTime.ToString("dd/MM/yyyy HH:mm");
-                    ws.Cell(row, 4).Value = trip.TerminalOrStation;
-                    row++;
-                }
-            }
-
-            row++;
-        }
-
-        if (ordered.Count == 0)
-        {
-            ws.Cell(1, 1).Value = "No itineraries for this edition.";
-        }
-
-        for (int c = 1; c <= TotalColumns; c++)
-        {
-            ws.Column(c).Width = 26;
-        }
-
-        using MemoryStream stream = new();
-        workbook.SaveAs(stream);
-        return stream.ToArray();
-    }
+        RuleFor(command => command.Role)
+            .Must(role => role == UserRole.Admin || role == UserRole.SuperAdmin || role == UserRole.Production)
+            .WithMessage("Role must be Admin, SuperAdmin or Production.");
 '@
-if ($results -contains $false) { Write-Host "`nFallo (Itineraries report)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo (validador)." -ForegroundColor Red; exit 1 }
 
-Write-Host "`nReports actualizados: Accommodation con datos personales, Itineraries seccionado por numero." -ForegroundColor Green
+Write-Host "`nAhora si se puede crear un admin de rol Production de verdad, y su token llevara el rol 'Production' correctamente." -ForegroundColor Green
+Write-Host "No hace falta migracion - UserRole es un enum en memoria (se guarda como numero), no una tabla nueva." -ForegroundColor Yellow
