@@ -8,6 +8,7 @@ public class UpdateProductionPersonRequest
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
+    public string? ManagerEmail { get; set; }
     public string? Phone { get; set; }
     public DocumentType DocumentType { get; set; }
     public string DocumentNumber { get; set; } = string.Empty;

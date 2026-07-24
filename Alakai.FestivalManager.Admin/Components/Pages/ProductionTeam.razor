@@ -100,7 +100,13 @@
                                     <td class="px-4 py-3 font-medium">@person.FirstName @person.LastName</td>
                                     <td class="px-4 py-3">@person.Category</td>
                                     <td class="px-4 py-3">@person.RoleTitle</td>
-                                    <td class="px-4 py-3">@person.Email</td>
+                                    <td class="px-4 py-3">
+                                        <div>@person.Email</div>
+                                        @if (!string.IsNullOrWhiteSpace(person.ManagerEmail))
+                                        {
+                                            <div class="text-xs text-black/50 dark:text-white/60">Manager: @person.ManagerEmail</div>
+                                        }
+                                    </td>
                                     <td class="px-4 py-3">@person.DocumentType: @person.DocumentNumber</td>
                                     <td class="px-4 py-3"><span class="@GetStatusClass(person.IsActive)">@(person.IsActive ? "Active" : "Inactive")</span></td>
                                     <td class="px-4 py-3">
@@ -188,6 +194,10 @@
                         <div>
                             <label class="form-label">Email</label>
                             <InputText class="form-input" @bind-Value="formModel.Email" />
+                        </div>
+                        <div>
+                            <label class="form-label">Manager Email</label>
+                            <InputText class="form-input" @bind-Value="formModel.ManagerEmail" />
                         </div>
 
                         <div>
@@ -462,6 +472,7 @@
             FirstName = person.FirstName,
             LastName = person.LastName,
             Email = person.Email,
+            ManagerEmail = person.ManagerEmail,
             Phone = person.Phone,
             DocumentType = person.DocumentType,
             DocumentNumber = person.DocumentNumber,
@@ -496,6 +507,7 @@
                     FirstName = formModel.FirstName,
                     LastName = formModel.LastName,
                     Email = formModel.Email,
+                    ManagerEmail = formModel.ManagerEmail,
                     Phone = formModel.Phone,
                     DocumentType = formModel.DocumentType,
                     DocumentNumber = formModel.DocumentNumber,
@@ -515,6 +527,7 @@
                     FirstName = formModel.FirstName,
                     LastName = formModel.LastName,
                     Email = formModel.Email,
+                    ManagerEmail = formModel.ManagerEmail,
                     Phone = formModel.Phone,
                     DocumentType = formModel.DocumentType,
                     DocumentNumber = formModel.DocumentNumber,
@@ -643,6 +656,7 @@
         public string FirstName { get; set; } = string.Empty;
         public string LastName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
+        public string? ManagerEmail { get; set; }
         public string? Phone { get; set; }
         public DocumentType DocumentType { get; set; }
         public string DocumentNumber { get; set; } = string.Empty;

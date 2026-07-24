@@ -75,6 +75,9 @@
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
                             <th class="px-4 py-3 font-semibold">Type</th>
                             <th class="px-4 py-3 font-semibold">Locked</th>
+                            <th class="px-4 py-3 font-semibold">Zones</th>
+                            <th class="px-4 py-3 font-semibold">Units</th>
+                            <th class="px-4 py-3 font-semibold">Capacity</th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
@@ -83,7 +86,7 @@
                         @if (!PagedBuildings.Any())
                         {
                             <tr>
-                                <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No buildings found.</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No buildings found.</td>
                             </tr>
                         }
                         else
@@ -92,13 +95,19 @@
                             {
                                 <tr class="border-b border-black/10 dark:border-darkborder">
                                     <td class="px-4 py-3 font-medium">
-                                        <NavLink href="@($"/production-zones?buildingId={building.Id}")" class="text-purple hover:underline">@building.Name</NavLink>
+                                        <a href="@($"/production-buildings/{building.Id}")" class="text-purple hover:underline">@building.Name</a>
                                     </td>
                                     <td class="px-4 py-3">@GetTypeLabel(building.Type)</td>
                                     <td class="px-4 py-3">@(building.IsLocked ? "Locked" : "Open")</td>
+                                    <td class="px-4 py-3">@GetZoneCount(building.Id)</td>
+                                    <td class="px-4 py-3">@GetUnitCount(building.Id)</td>
+                                    <td class="px-4 py-3">@GetCapacity(building.Id)</td>
                                     <td class="px-4 py-3"><span class="@GetStatusClass(building.IsActive)">@(building.IsActive ? "Active" : "Inactive")</span></td>
                                     <td class="px-4 py-3">
                                         <div class="flex items-center justify-end gap-3">
+                                            <a href="@($"/production-buildings/{building.Id}")" class="text-black dark:text-white/80" title="Manage">
+                                                <i class="ri-settings-4-line text-lg"></i>
+                                            </a>
                                             <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(building)">
                                                 <i class="ri-pencil-line text-lg"></i>
                                             </button>
@@ -219,6 +228,8 @@
 
 @code {
     private List<ProductionAccommodationBuildingDto> buildings = [];
+    private List<ProductionAccommodationZoneDto> allZones = [];
+    private List<ProductionAccommodationDto> allRooms = [];
     private List<EditionDto> editions = [];
     private List<FestivalDto> festivals = [];
     private ProductionBuildingFormModel formModel = new();
@@ -277,6 +288,8 @@
             }
 
             buildings = (await ProductionBuildingApiClient.GetAllAsync()).ToList();
+            allZones = (await ProductionZoneApiClient.GetAllAsync()).ToList();
+            allRooms = (await ProductionAccommodationApiClient.GetAllAsync()).ToList();
         }
         catch (Exception ex)
         {
@@ -508,6 +521,20 @@
         {
             isSaving = false;
         }
+    }
+
+    private int GetZoneCount(Guid buildingId) => allZones.Count(z => z.ProductionAccommodationBuildingId == buildingId);
+
+    private int GetUnitCount(Guid buildingId)
+    {
+        HashSet<Guid> zoneIds = allZones.Where(z => z.ProductionAccommodationBuildingId == buildingId).Select(z => z.Id).ToHashSet();
+        return allRooms.Count(r => zoneIds.Contains(r.ProductionAccommodationZoneId));
+    }
+
+    private int GetCapacity(Guid buildingId)
+    {
+        HashSet<Guid> zoneIds = allZones.Where(z => z.ProductionAccommodationBuildingId == buildingId).Select(z => z.Id).ToHashSet();
+        return allRooms.Where(r => zoneIds.Contains(r.ProductionAccommodationZoneId)).Sum(r => r.Capacity);
     }
 
     private static string GetTypeLabel(int type) => type switch
