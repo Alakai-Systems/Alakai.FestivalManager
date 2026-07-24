@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/reports")]
+[Authorize(Roles = "SuperAdmin,Admin,Production")]
 public class ReportsController : ControllerBase
 {
     private readonly IReportService _reportService;

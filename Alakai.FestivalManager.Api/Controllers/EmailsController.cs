@@ -1,7 +1,8 @@
-﻿namespace Alakai.FestivalManager.Api.Controllers;
+namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/emails")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class EmailsController : ControllerBase
 {
     private readonly IEmailNotificationService _emailNotificationService;

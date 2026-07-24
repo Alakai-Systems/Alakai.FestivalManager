@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/email-templates")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class EmailTemplatesController : ControllerBase
 {
     private readonly IEmailTemplateService _emailTemplateService;

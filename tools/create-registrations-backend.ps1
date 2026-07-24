@@ -1,24 +1,37 @@
-# Fix-ProductionBuildingsConsolidation-v2.ps1
+# Fix-AuthorizeAudit.ps1
 #
-# Repite Fix-ProductionAccommodationConsolidation.ps1 completo, pero con un
-# ancla de una sola linea para insertar las cabeceras Zones/Units/Capacity
-# (la version anterior usaba un bloque de varias lineas que no coincidio en
-# tu archivo real, y como el script corta en el primer fallo, nada de lo que
-# venia despues llego a aplicarse). Es idempotente - los pasos que ya se
-# aplicaron (borrado de paginas, inyeccion de ApiClients) se saltan solos.
+# Auditoria completa de [Authorize] en la Api. Antes de este script, solo
+# 10 de 38 controllers tenian algo de autenticacion - el resto estaban
+# totalmente abiertos.
+#
+# Esquema aplicado:
+#
+#   SIN TOCAR (publico, sin login - lo llama la web de inscripcion o el
+#   propio banco, nunca un admin logueado):
+#     - PublicFestivalsController, PublicRegistrationsController
+#     - PaymentsController (tiene el webhook de Redsys y los retornos del
+#       navegador del participante, no pueden llevar un JWT de admin)
+#
+#   YA ESTABAN BIEN, NO TOCAR:
+#     - AdminImpersonationController (SuperAdmin)
+#     - AuthController, UserPanelController ([Authorize] generico)
+#     - Los 8 controllers de Produccion (SuperAdmin,Admin,Production)
+#
+#   NUEVO: [Authorize(Roles = "SuperAdmin,Admin")] - gestion de
+#   participantes/festival que Produccion no toca:
+#     Registrations, RegistrationFestivalInfo, CompetitionEntries,
+#     Competitions, Buses, BusReservations, Accommodations,
+#     AccommodationZones, AccommodationBuildings, AccommodationReservations,
+#     MealPreferences, DiscountCodes, PassType, Level, Invoices,
+#     InvoiceSettings, InvoiceTemplates, Emails, EmailTemplates,
+#     EmailLayout, EmailLogs, Analytics, Dashboard, Uploads, Users
+#
+#   NUEVO: [Authorize(Roles = "SuperAdmin,Admin,Production")] - Produccion
+#   los necesita de forma indirecta para sus propios filtros/reports:
+#     Editions, Festivals, Reports
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
-
-function New-CodeFile {
-    param([string]$Path, [string]$Content, [string]$Description)
-    if (Test-Path $Path) { Write-Host "SKIP (ya existe): $Path" -ForegroundColor Cyan; return $true }
-    $directory = Split-Path -Path $Path -Parent
-    if (-not (Test-Path $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-    Set-Content -Path $Path -Value $Content -NoNewline
-    Write-Host "OK: $Description -> $Path" -ForegroundColor Green
-    return $true
-}
 
 function Patch-File {
     param([string]$Path, [string]$OldString, [string]$NewString, [string]$Description)
@@ -37,908 +50,74 @@ function Patch-File {
     return $true
 }
 
-$results = @()
+$anyFailed = $false
+$controllersDir = "Alakai.FestivalManager.Api/Controllers"
 
 # ---------------------------------------------------------------------------
-# 1) Borrar las 2 pantallas sueltas (por si aun existen)
+# Grupo: SuperAdmin,Admin
 # ---------------------------------------------------------------------------
-$zonesPagePath = "Alakai.FestivalManager.Admin/Components/Pages/ProductionZones.razor"
-$roomsPagePath = "Alakai.FestivalManager.Admin/Components/Pages/ProductionAccommodations.razor"
+$adminOnly = @(
+    @{ File = "RegistrationsController.cs"; Class = "RegistrationsController" },
+    @{ File = "RegistrationFestivalInfoController.cs"; Class = "RegistrationFestivalInfoController" },
+    @{ File = "CompetitionEntriesController.cs"; Class = "CompetitionEntriesController" },
+    @{ File = "CompetitionsController.cs"; Class = "CompetitionsController" },
+    @{ File = "BusesController.cs"; Class = "BusesController" },
+    @{ File = "BusReservationsController.cs"; Class = "BusReservationsController" },
+    @{ File = "AccommodationsController.cs"; Class = "AccommodationsController" },
+    @{ File = "AccommodationZonesController.cs"; Class = "AccommodationZonesController" },
+    @{ File = "AccommodationBuildingsController.cs"; Class = "AccommodationBuildingsController" },
+    @{ File = "AccommodationReservationsController.cs"; Class = "AccommodationReservationsController" },
+    @{ File = "MealPreferencesController.cs"; Class = "MealPreferencesController" },
+    @{ File = "DiscountCodesController.cs"; Class = "DiscountCodesController" },
+    @{ File = "PassTypeController.cs"; Class = "PassTypesController" },
+    @{ File = "LevelController.cs"; Class = "LevelsController" },
+    @{ File = "InvoicesController.cs"; Class = "InvoicesController" },
+    @{ File = "InvoiceSettingsController.cs"; Class = "InvoiceSettingsController" },
+    @{ File = "InvoiceTemplatesController.cs"; Class = "InvoiceTemplatesController" },
+    @{ File = "EmailsController.cs"; Class = "EmailsController" },
+    @{ File = "EmailTemplatesController.cs"; Class = "EmailTemplatesController" },
+    @{ File = "EmailLayoutController.cs"; Class = "EmailLayoutController" },
+    @{ File = "EmailLogsController.cs"; Class = "EmailLogsController" },
+    @{ File = "AnalyticsController.cs"; Class = "AnalyticsController" },
+    @{ File = "DashboardController.cs"; Class = "DashboardController" },
+    @{ File = "UploadsController.cs"; Class = "UploadsController" },
+    @{ File = "UsersController.cs"; Class = "UsersController" }
+)
 
-foreach ($path in @($zonesPagePath, $roomsPagePath)) {
-    if (Test-Path $path) {
-        Remove-Item -Path $path -Force
-        Write-Host "OK: borrada $path" -ForegroundColor Green
-    }
-    else {
-        Write-Host "SKIP (ya no existia): $path" -ForegroundColor Cyan
-    }
+foreach ($entry in $adminOnly) {
+    $path = Join-Path $controllersDir $entry.File
+    $ok = Patch-File -Path $path -Description "$($entry.Class): [Authorize(SuperAdmin,Admin)]" -OldString @"
+public class $($entry.Class) : ControllerBase
+"@ -NewString @"
+[Authorize(Roles = "SuperAdmin,Admin")]
+public class $($entry.Class) : ControllerBase
+"@
+    if (-not $ok) { $anyFailed = $true }
 }
-
-# ---------------------------------------------------------------------------
-# 2) ProductionBuildings.razor - todos los pasos, con ancla de 1 linea
-# ---------------------------------------------------------------------------
-$buildingsPath = "Alakai.FestivalManager.Admin/Components/Pages/ProductionBuildings.razor"
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: inyectar ApiClients de Zone/Room" -OldString @'
-@inject ProductionBuildingApiClient ProductionBuildingApiClient
-@inject EditionApiClient EditionApiClient
-'@ -NewString @'
-@inject ProductionBuildingApiClient ProductionBuildingApiClient
-@inject ProductionZoneApiClient ProductionZoneApiClient
-@inject ProductionAccommodationApiClient ProductionAccommodationApiClient
-@inject EditionApiClient EditionApiClient
-'@
-if ($results -contains $false) { Write-Host "`nFallo (inject)." -ForegroundColor Red; exit 1 }
-
-# Ancla de 1 sola linea, mucho mas robusta
-$results += Patch-File -Path $buildingsPath -Description "Buildings: cabeceras Zones/Units/Capacity (ancla corta)" -OldString @'
-                            <th class="px-4 py-3 font-semibold">Locked</th>
-'@ -NewString @'
-                            <th class="px-4 py-3 font-semibold">Locked</th>
-                            <th class="px-4 py-3 font-semibold">Zones</th>
-                            <th class="px-4 py-3 font-semibold">Units</th>
-                            <th class="px-4 py-3 font-semibold">Capacity</th>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (cabeceras). Pega aqui el contenido real de tu ProductionBuildings.razor alrededor de la cabecera 'Locked' para que ajuste el ancla." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: colspan de la fila vacia" -OldString @'
-                                <td colspan="5" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No buildings found.</td>
-'@ -NewString @'
-                                <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No buildings found.</td>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (colspan)." -ForegroundColor Red; exit 1 }
-
-# Fila: ancla mas corta tambien - solo el bloque Name->Actions sin depender del texto exacto del resto
-$results += Patch-File -Path $buildingsPath -Description "Buildings: Name enlaza a /production-buildings/id" -OldString @'
-                                        <NavLink href="@($"/production-zones?buildingId={building.Id}")" class="text-purple hover:underline">@building.Name</NavLink>
-'@ -NewString @'
-                                        <a href="@($"/production-buildings/{building.Id}")" class="text-purple hover:underline">@building.Name</a>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (Name link)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: anadir columnas Zones/Units/Capacity en la fila" -OldString @'
-                                    <td class="px-4 py-3">@(building.IsLocked ? "Locked" : "Open")</td>
-                                    <td class="px-4 py-3"><span class="@GetStatusClass(building.IsActive)">@(building.IsActive ? "Active" : "Inactive")</span></td>
-'@ -NewString @'
-                                    <td class="px-4 py-3">@(building.IsLocked ? "Locked" : "Open")</td>
-                                    <td class="px-4 py-3">@GetZoneCount(building.Id)</td>
-                                    <td class="px-4 py-3">@GetUnitCount(building.Id)</td>
-                                    <td class="px-4 py-3">@GetCapacity(building.Id)</td>
-                                    <td class="px-4 py-3"><span class="@GetStatusClass(building.IsActive)">@(building.IsActive ? "Active" : "Inactive")</span></td>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (fila Zones/Units/Capacity)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: icono Manage(gear) en Actions" -OldString @'
-                                        <div class="flex items-center justify-end gap-3">
-                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(building)">
-'@ -NewString @'
-                                        <div class="flex items-center justify-end gap-3">
-                                            <a href="@($"/production-buildings/{building.Id}")" class="text-black dark:text-white/80" title="Manage">
-                                                <i class="ri-settings-4-line text-lg"></i>
-                                            </a>
-                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(building)">
-'@
-if ($results -contains $false) { Write-Host "`nFallo (icono Manage)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: cargar zonas/rooms de todos los edificios" -OldString @'
-            buildings = (await ProductionBuildingApiClient.GetAllAsync()).ToList();
-'@ -NewString @'
-            buildings = (await ProductionBuildingApiClient.GetAllAsync()).ToList();
-            allZones = (await ProductionZoneApiClient.GetAllAsync()).ToList();
-            allRooms = (await ProductionAccommodationApiClient.GetAllAsync()).ToList();
-'@
-if ($results -contains $false) { Write-Host "`nFallo (carga)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: listas de Zones/Rooms" -OldString @'
-    private List<ProductionAccommodationBuildingDto> buildings = [];
-'@ -NewString @'
-    private List<ProductionAccommodationBuildingDto> buildings = [];
-    private List<ProductionAccommodationZoneDto> allZones = [];
-    private List<ProductionAccommodationDto> allRooms = [];
-'@
-if ($results -contains $false) { Write-Host "`nFallo (campos)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $buildingsPath -Description "Buildings: metodos GetZoneCount/GetUnitCount/GetCapacity" -OldString @'
-    private static string GetTypeLabel(int type) => type switch
-'@ -NewString @'
-    private int GetZoneCount(Guid buildingId) => allZones.Count(z => z.ProductionAccommodationBuildingId == buildingId);
-
-    private int GetUnitCount(Guid buildingId)
-    {
-        HashSet<Guid> zoneIds = allZones.Where(z => z.ProductionAccommodationBuildingId == buildingId).Select(z => z.Id).ToHashSet();
-        return allRooms.Count(r => zoneIds.Contains(r.ProductionAccommodationZoneId));
-    }
-
-    private int GetCapacity(Guid buildingId)
-    {
-        HashSet<Guid> zoneIds = allZones.Where(z => z.ProductionAccommodationBuildingId == buildingId).Select(z => z.Id).ToHashSet();
-        return allRooms.Where(r => zoneIds.Contains(r.ProductionAccommodationZoneId)).Sum(r => r.Capacity);
-    }
-
-    private static string GetTypeLabel(int type) => type switch
-'@
-if ($results -contains $false) { Write-Host "`nFallo (metodos)." -ForegroundColor Red; exit 1 }
 
 # ---------------------------------------------------------------------------
-# 3) Nueva pantalla ProductionBuildingManage.razor
+# Grupo: SuperAdmin,Admin,Production
 # ---------------------------------------------------------------------------
-$results += New-CodeFile -Path "Alakai.FestivalManager.Admin/Components/Pages/ProductionBuildingManage.razor" -Description "ProductionBuildingManage.razor" -Content @'
-@page "/production-buildings/{Id:guid}"
+$sharedWithProduction = @(
+    @{ File = "EditionController.cs"; Class = "EditionsController" },
+    @{ File = "FestivalsController.cs"; Class = "FestivalsController" },
+    @{ File = "ReportsController.cs"; Class = "ReportsController" }
+)
 
-@inject ProductionBuildingApiClient ProductionBuildingApiClient
-@inject ProductionZoneApiClient ProductionZoneApiClient
-@inject ProductionAccommodationApiClient ProductionAccommodationApiClient
-@inject NavigationManager NavigationManager
-
-<div class="flex items-center justify-between">
-    <PageHeader Title="Production" pTitle="@(building?.Name ?? "Building")"></PageHeader>
-    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick='() => NavigationManager.NavigateTo("/production-buildings")'>
-        <i class="ri-arrow-left-line"></i> Back to Buildings
-    </button>
-</div>
-
-@if (!string.IsNullOrWhiteSpace(successMessage))
-{
-    <div class="p-3 mt-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
-}
-@if (!string.IsNullOrWhiteSpace(errorMessage))
-{
-    <div class="p-3 mt-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+foreach ($entry in $sharedWithProduction) {
+    $path = Join-Path $controllersDir $entry.File
+    $ok = Patch-File -Path $path -Description "$($entry.Class): [Authorize(SuperAdmin,Admin,Production)]" -OldString @"
+public class $($entry.Class) : ControllerBase
+"@ -NewString @"
+[Authorize(Roles = "SuperAdmin,Admin,Production")]
+public class $($entry.Class) : ControllerBase
+"@
+    if (-not $ok) { $anyFailed = $true }
 }
 
-@if (isLoading)
-{
-    <p class="mt-4 text-sm text-black/50 dark:text-white/60">Loading...</p>
+if ($anyFailed) {
+    Write-Host "`nAlguno de los controllers no encontro su ancla - revisa los SKIP de arriba." -ForegroundColor Red
 }
-else if (building is null)
-{
-    <p class="mt-4 text-sm text-black/50 dark:text-white/60">Building not found.</p>
+else {
+    Write-Host "`nAuditoria de [Authorize] completa: 25 controllers a SuperAdmin+Admin, 3 compartidos con Produccion (Editions/Festivals/Reports). PublicFestivals, PublicRegistrations y Payments se quedan tal cual (acceso publico necesario)." -ForegroundColor Green
 }
-else
-{
-    <div class="flex items-center justify-between mt-4 card">
-        <span class="inline-block rounded text-xs px-2 py-1 bg-purple/10 text-purple">@GetTypeLabel(building.Type)</span>
-        <button type="button" class="transition-all duration-300 border rounded-md btn whitespace-nowrap @(building.IsLocked ? "text-danger border-danger hover:bg-danger hover:text-white" : "text-success border-success hover:bg-success hover:text-white")" @onclick="ToggleLockAsync">
-            <i class="@(building.IsLocked ? "ri-lock-fill" : "ri-lock-unlock-line") ltr:mr-1 rtl:ml-1"></i>
-            @(building.IsLocked ? "Locked" : "Open")
-        </button>
-    </div>
-
-    <div class="mt-4 card">
-        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
-            <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input md:w-56" placeholder="Search zones..." @bind="zoneSearchText" @bind:event="oninput" @bind:after="ResetZonePage" />
-                <select class="form-select md:w-32" @bind="zonePageSize" @bind:after="ResetZonePage">
-                    <option value="10">10 rows</option>
-                    <option value="25">25 rows</option>
-                    <option value="50">50 rows</option>
-                </select>
-                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenAddZoneModal">
-                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                    Add Zone
-                </button>
-            </div>
-        </div>
-
-        @if (PagedZones.Count == 0)
-        {
-            <p class="text-sm text-black/50 dark:text-white/60">No zones yet.</p>
-        }
-        else
-        {
-            <div class="overflow-x-auto">
-                <table class="w-full table-hover">
-                    <thead class="bg-gray-50 dark:bg-dark">
-                        <tr class="text-left">
-                            <th class="px-3 py-3 font-semibold">Order</th>
-                            <th class="px-3 py-3 font-semibold">Zone</th>
-                            <th class="px-3 py-3 font-semibold">Units</th>
-                            <th class="px-3 py-3 font-semibold">Total Capacity</th>
-                            <th class="px-3 py-3 font-semibold text-right">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="text-black dark:text-white/80">
-                        @foreach (ProductionAccommodationZoneDto zone in PagedZones)
-                        {
-                            List<ProductionAccommodationDto> zoneRooms = RoomsFor(zone.Id);
-
-                            <tr class="border-b border-black/10 dark:border-darkborder">
-                                <td class="px-3 py-3 text-black/50 dark:text-white/60">@zone.SortOrder</td>
-                                <td class="px-4 py-3 font-medium">@zone.Name</td>
-                                <td class="px-3 py-3">@zoneRooms.Count</td>
-                                <td class="px-3 py-3">@zoneRooms.Sum(r => r.Capacity)</td>
-                                <td class="px-3 py-3">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <button type="button" class="text-black dark:text-white/80" title="@(expandedZoneId == zone.Id ? "Collapse" : "Manage units")" @onclick="() => ToggleZoneExpanded(zone.Id)">
-                                            <i class="@(expandedZoneId == zone.Id ? "ri-arrow-up-s-line" : "ri-arrow-down-s-line") text-lg"></i>
-                                        </button>
-                                        <button type="button" class="text-black dark:text-white/80" title="Rename zone" @onclick="() => OpenEditZoneModal(zone)"><i class="ri-pencil-line text-lg"></i></button>
-                                        <button type="button" class="text-danger" title="Delete zone" @onclick="() => OpenDeleteZoneModal(zone)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                    </div>
-                                </td>
-                            </tr>
-                            @if (expandedZoneId == zone.Id)
-                            {
-                                <tr>
-                                    <td colspan="5" class="px-4 py-4 bg-gray-50 dark:bg-dark">
-                                        @if (zoneRooms.Count == 0)
-                                        {
-                                            <p class="mb-3 text-sm text-black/50 dark:text-white/60">No units in this zone yet.</p>
-                                        }
-                                        else
-                                        {
-                                            <table class="w-full mb-4 table-hover">
-                                                <thead>
-                                                    <tr class="text-left">
-                                                        <th class="px-3 py-2 text-xs font-semibold">Name</th>
-                                                        <th class="px-3 py-2 text-xs font-semibold">Capacity</th>
-                                                        <th class="px-3 py-2 text-xs font-semibold">Active</th>
-                                                        <th class="px-3 py-2 text-xs font-semibold text-right">Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody class="text-black dark:text-white/80">
-                                                    @foreach (ProductionAccommodationDto unit in NaturalSort(zoneRooms))
-                                                    {
-                                                        <tr class="border-b border-black/10 dark:border-darkborder">
-                                                            <td class="px-3 py-2">@unit.Name</td>
-                                                            <td class="px-3 py-2">@unit.Capacity</td>
-                                                            <td class="px-3 py-2"><span class="@GetStatusClass(unit.IsActive)">@(unit.IsActive ? "Active" : "Inactive")</span></td>
-                                                            <td class="px-3 py-2 text-right">
-                                                                <div class="flex items-center justify-end gap-2">
-                                                                    <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditUnitModal(unit)"><i class="ri-pencil-line text-lg"></i></button>
-                                                                    <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteUnitModal(unit)"><i class="ri-delete-bin-line text-lg"></i></button>
-                                                                </div>
-                                                            </td>
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        }
-
-                                        <div class="flex flex-col gap-3 pt-4 border-t border-black/10 dark:border-darkborder md:flex-row md:items-end md:justify-end">
-                                            <div class="md:w-56">
-                                                <label class="block text-xs text-black/60 dark:text-white/60">Names (comma separated)</label>
-                                                <input class="form-input" placeholder="101,102,103" @bind="zoneInputs[zone.Id].Names" />
-                                            </div>
-                                            <div class="md:w-24">
-                                                <label class="block text-xs text-black/60 dark:text-white/60">Capacity (each)</label>
-                                                <input type="number" min="1" class="form-input" @bind="zoneInputs[zone.Id].Capacity" />
-                                            </div>
-                                            <div>
-                                                <label class="block text-xs invisible">Add</label>
-                                                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap disabled:opacity-50" disabled="@string.IsNullOrWhiteSpace(zoneInputs[zone.Id].Names)" @onclick="() => AddUnitsAsync(zone)">
-                                                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
-                                                    Add Units
-                                                </button>
-                                            </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            }
-                        }
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="flex items-center justify-between mt-4">
-                <p class="text-sm text-black/50 dark:text-white/60">Showing @ZoneStartRow to @ZoneEndRow of @OrderedZones.Count zones</p>
-                <div class="flex items-center gap-2">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(zonePage == 1)" @onclick="PreviousZonePage">Previous</button>
-                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@zonePage</span>
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(zonePage >= ZoneTotalPages)" @onclick="NextZonePage">Next</button>
-                </div>
-            </div>
-        }
-    </div>
-}
-
-@if (showAddZoneModal)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Add Zone</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseAddZoneModal"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-                <div class="p-5 space-y-4">
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
-                        <input class="form-input" @bind="newZoneName" />
-                    </div>
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Sort order</label>
-                        <input type="number" class="form-input" @bind="newZoneSortOrder" />
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseAddZoneModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple disabled:opacity-50" disabled="@string.IsNullOrWhiteSpace(newZoneName)" @onclick="AddZoneAsync">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (editingZone is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Rename Zone</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditZoneModal"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-                <div class="p-5 space-y-4">
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
-                        <input class="form-input" @bind="editZoneName" />
-                    </div>
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Sort order</label>
-                        <input type="number" class="form-input" @bind="editZoneSortOrder" />
-                    </div>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditZoneModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveZoneAsync">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (deletingZone is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Zone</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingZone.Name? This also deletes its @RoomsFor(deletingZone.Id).Count unit(s).</p>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteZoneModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isDeleting" @onclick="ConfirmDeleteZoneAsync">@(isDeleting ? "Deleting..." : "Delete")</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (editingUnit is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Unit</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseEditUnitModal"><i class="ri-close-line text-2xl"></i></button>
-                </div>
-                <div class="p-5 space-y-4">
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
-                        <input class="form-input" @bind="editUnitName" />
-                    </div>
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Capacity</label>
-                        <input type="number" min="1" class="form-input" @bind="editUnitCapacity" />
-                    </div>
-                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                        <input type="checkbox" @bind="editUnitIsActive" />
-                        Active
-                    </label>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseEditUnitModal">Cancel</button>
-                    <button type="button" class="px-4 py-2 text-sm text-white rounded-md bg-purple" @onclick="SaveUnitAsync">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@if (deletingUnit is not null)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Unit</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Delete @deletingUnit.Name?</p>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10" @onclick="CloseDeleteUnitModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isDeleting" @onclick="ConfirmDeleteUnitAsync">@(isDeleting ? "Deleting..." : "Delete")</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-
-@code {
-    [Parameter]
-    public Guid Id { get; set; }
-
-    private ProductionAccommodationBuildingDto? building;
-    private List<ProductionAccommodationZoneDto> zones = [];
-    private List<ProductionAccommodationDto> rooms = [];
-    private bool isLoading = true;
-    private bool isDeleting;
-    private string? successMessage;
-    private string? errorMessage;
-
-    private string newZoneName = string.Empty;
-    private int newZoneSortOrder;
-    private bool showAddZoneModal;
-    private Dictionary<Guid, ZoneInput> zoneInputs = [];
-    private Guid? expandedZoneId;
-    private int zonePageSize = 10;
-    private int zonePage = 1;
-    private string zoneSearchText = string.Empty;
-
-    private ProductionAccommodationZoneDto? editingZone;
-    private string editZoneName = string.Empty;
-    private int editZoneSortOrder;
-    private ProductionAccommodationZoneDto? deletingZone;
-
-    private ProductionAccommodationDto? editingUnit;
-    private string editUnitName = string.Empty;
-    private int editUnitCapacity = 1;
-    private bool editUnitIsActive = true;
-    private ProductionAccommodationDto? deletingUnit;
-
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadAsync();
-    }
-
-    private async Task LoadAsync()
-    {
-        isLoading = true;
-        errorMessage = null;
-
-        try
-        {
-            List<ProductionAccommodationBuildingDto> allBuildings = (await ProductionBuildingApiClient.GetAllAsync()).ToList();
-            building = allBuildings.FirstOrDefault(b => b.Id == Id);
-
-            if (building is null)
-            {
-                isLoading = false;
-                return;
-            }
-
-            zones = (await ProductionZoneApiClient.GetByBuildingIdAsync(Id)).ToList();
-            rooms = (await ProductionAccommodationApiClient.GetAllAsync()).ToList();
-
-            foreach (ProductionAccommodationZoneDto zone in zones)
-            {
-                if (!zoneInputs.ContainsKey(zone.Id))
-                {
-                    zoneInputs[zone.Id] = new ZoneInput();
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            errorMessage = ex.Message;
-        }
-        finally
-        {
-            isLoading = false;
-        }
-    }
-
-    private List<ProductionAccommodationDto> RoomsFor(Guid zoneId) => rooms.Where(r => r.ProductionAccommodationZoneId == zoneId).ToList();
-
-    private List<ProductionAccommodationZoneDto> OrderedZones
-    {
-        get
-        {
-            IEnumerable<ProductionAccommodationZoneDto> query = zones;
-
-            if (!string.IsNullOrWhiteSpace(zoneSearchText))
-            {
-                query = query.Where(z => z.Name.Contains(zoneSearchText, StringComparison.OrdinalIgnoreCase));
-            }
-
-            return query.OrderBy(z => z.SortOrder).ToList();
-        }
-    }
-
-    private List<ProductionAccommodationZoneDto> PagedZones => OrderedZones.Skip((zonePage - 1) * zonePageSize).Take(zonePageSize).ToList();
-    private int ZoneTotalPages => Math.Max(1, (int)Math.Ceiling(OrderedZones.Count / (double)zonePageSize));
-    private int ZoneStartRow => OrderedZones.Count == 0 ? 0 : ((zonePage - 1) * zonePageSize) + 1;
-    private int ZoneEndRow => Math.Min(zonePage * zonePageSize, OrderedZones.Count);
-
-    private void ResetZonePage()
-    {
-        zonePage = 1;
-    }
-
-    private void PreviousZonePage()
-    {
-        if (zonePage > 1)
-        {
-            zonePage--;
-        }
-    }
-
-    private void NextZonePage()
-    {
-        if (zonePage < ZoneTotalPages)
-        {
-            zonePage++;
-        }
-    }
-
-    private void ToggleZoneExpanded(Guid zoneId)
-    {
-        expandedZoneId = expandedZoneId == zoneId ? null : zoneId;
-    }
-
-    private void OpenAddZoneModal()
-    {
-        newZoneName = string.Empty;
-        newZoneSortOrder = zones.Count;
-        showAddZoneModal = true;
-    }
-
-    private void CloseAddZoneModal()
-    {
-        showAddZoneModal = false;
-    }
-
-    private async Task AddZoneAsync()
-    {
-        if (string.IsNullOrWhiteSpace(newZoneName) || building is null)
-        {
-            return;
-        }
-
-        try
-        {
-            CreateProductionAccommodationZoneRequest request = new()
-            {
-                ProductionAccommodationBuildingId = building.Id,
-                Name = newZoneName,
-                SortOrder = newZoneSortOrder
-            };
-
-            await ProductionZoneApiClient.CreateAsync(request);
-            newZoneName = string.Empty;
-            newZoneSortOrder = 0;
-            showAddZoneModal = false;
-            ShowSuccess("Zone added successfully.");
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
-
-    private void OpenEditZoneModal(ProductionAccommodationZoneDto zone)
-    {
-        editingZone = zone;
-        editZoneName = zone.Name;
-        editZoneSortOrder = zone.SortOrder;
-    }
-
-    private void CloseEditZoneModal()
-    {
-        editingZone = null;
-    }
-
-    private async Task SaveZoneAsync()
-    {
-        if (editingZone is null || building is null)
-        {
-            return;
-        }
-
-        try
-        {
-            UpdateProductionAccommodationZoneRequest request = new()
-            {
-                ProductionAccommodationBuildingId = building.Id,
-                Name = editZoneName,
-                SortOrder = editZoneSortOrder
-            };
-
-            await ProductionZoneApiClient.UpdateAsync(editingZone.Id, request);
-            editingZone = null;
-            ShowSuccess("Zone renamed successfully.");
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
-
-    private void OpenDeleteZoneModal(ProductionAccommodationZoneDto zone)
-    {
-        deletingZone = zone;
-    }
-
-    private void CloseDeleteZoneModal()
-    {
-        deletingZone = null;
-    }
-
-    private async Task ConfirmDeleteZoneAsync()
-    {
-        if (deletingZone is null)
-        {
-            return;
-        }
-
-        isDeleting = true;
-
-        try
-        {
-            await ProductionZoneApiClient.DeleteAsync(deletingZone.Id);
-            ShowSuccess("Zone deleted successfully.");
-            deletingZone = null;
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            isDeleting = false;
-        }
-    }
-
-    private async Task AddUnitsAsync(ProductionAccommodationZoneDto zone)
-    {
-        if (!zoneInputs.TryGetValue(zone.Id, out ZoneInput? input) || string.IsNullOrWhiteSpace(input.Names))
-        {
-            return;
-        }
-
-        string[] names = input.Names.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-
-        if (names.Length == 0)
-        {
-            return;
-        }
-
-        try
-        {
-            int nextSortOrder = RoomsFor(zone.Id).Count;
-
-            foreach (string name in names)
-            {
-                CreateProductionAccommodationRequest request = new()
-                {
-                    ProductionAccommodationZoneId = zone.Id,
-                    Name = name,
-                    Capacity = input.Capacity,
-                    SortOrder = nextSortOrder
-                };
-
-                await ProductionAccommodationApiClient.CreateAsync(request);
-                nextSortOrder++;
-            }
-
-            ShowSuccess("Units added successfully.");
-            expandedZoneId = zone.Id;
-            await LoadAsync();
-            zoneInputs[zone.Id].Names = string.Empty;
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
-
-    private void OpenEditUnitModal(ProductionAccommodationDto unit)
-    {
-        editingUnit = unit;
-        editUnitName = unit.Name;
-        editUnitCapacity = unit.Capacity;
-        editUnitIsActive = unit.IsActive;
-    }
-
-    private void CloseEditUnitModal()
-    {
-        editingUnit = null;
-    }
-
-    private async Task SaveUnitAsync()
-    {
-        if (editingUnit is null)
-        {
-            return;
-        }
-
-        try
-        {
-            UpdateProductionAccommodationRequest request = new()
-            {
-                ProductionAccommodationZoneId = editingUnit.ProductionAccommodationZoneId,
-                Name = editUnitName,
-                Capacity = editUnitCapacity,
-                SortOrder = editingUnit.SortOrder,
-                IsActive = editUnitIsActive
-            };
-
-            await ProductionAccommodationApiClient.UpdateAsync(editingUnit.Id, request);
-            editingUnit = null;
-            ShowSuccess("Unit updated successfully.");
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
-
-    private void OpenDeleteUnitModal(ProductionAccommodationDto unit)
-    {
-        deletingUnit = unit;
-    }
-
-    private void CloseDeleteUnitModal()
-    {
-        deletingUnit = null;
-    }
-
-    private async Task ConfirmDeleteUnitAsync()
-    {
-        if (deletingUnit is null)
-        {
-            return;
-        }
-
-        isDeleting = true;
-
-        try
-        {
-            await ProductionAccommodationApiClient.DeleteAsync(deletingUnit.Id);
-            ShowSuccess("Unit deleted successfully.");
-            deletingUnit = null;
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-        finally
-        {
-            isDeleting = false;
-        }
-    }
-
-    private async Task ToggleLockAsync()
-    {
-        if (building is null)
-        {
-            return;
-        }
-
-        try
-        {
-            UpdateProductionAccommodationBuildingRequest request = new()
-            {
-                EditionId = building.EditionId,
-                Name = building.Name,
-                Type = building.Type,
-                IsLocked = !building.IsLocked,
-                SortOrder = building.SortOrder,
-                IsActive = building.IsActive
-            };
-
-            await ProductionBuildingApiClient.UpdateAsync(building.Id, request);
-            await LoadAsync();
-        }
-        catch (Exception ex)
-        {
-            ShowError(ex.Message);
-        }
-    }
-
-    private static IEnumerable<ProductionAccommodationDto> NaturalSort(IEnumerable<ProductionAccommodationDto> units)
-    {
-        return units
-            .OrderBy(u => int.TryParse(u.Name, out int n) ? n : int.MaxValue)
-            .ThenBy(u => u.Name, StringComparer.OrdinalIgnoreCase);
-    }
-
-    private static string GetTypeLabel(int type) => type switch
-    {
-        1 => "Room",
-        2 => "Bungalow",
-        3 => "Camping",
-        _ => "-"
-    };
-
-    private static string GetStatusClass(bool isActive)
-    {
-        return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
-    }
-
-    private void ShowSuccess(string message)
-    {
-        successMessage = message;
-        errorMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            successMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private void ShowError(string message)
-    {
-        errorMessage = message;
-        successMessage = null;
-        InvokeAsync(async () =>
-        {
-            await Task.Delay(3500);
-            errorMessage = null;
-            StateHasChanged();
-        });
-    }
-
-    private class ZoneInput
-    {
-        public string Names { get; set; } = string.Empty;
-        public int Capacity { get; set; } = 4;
-    }
-}
-'@
-
-if ($results -contains $false) { Write-Host "`nFallo (pagina manage)." -ForegroundColor Red; exit 1 }
-
-# ---------------------------------------------------------------------------
-# 4) Sidebar: quitar Zones/Rooms sueltos (anclas cortas)
-# ---------------------------------------------------------------------------
-$sidebarPath = "Alakai.FestivalManager.Admin/Components/Layout/Sidebar.razor"
-
-$results += Patch-File -Path $sidebarPath -Description "Sidebar (menu completo): quitar linea corta de Accommodation Zones" -OldString @'
-                        <li><NavLink href="/production-zones">Accommodation Zones</NavLink></li>
-'@ -NewString @'
-'@
-if ($results -contains $false) { Write-Host "`nSKIP (puede que ya no exista esa linea)." -ForegroundColor Yellow }
-
-$results += Patch-File -Path $sidebarPath -Description "Sidebar (menu completo): quitar linea corta de Accommodation Rooms" -OldString @'
-                        <li><NavLink href="/production-accommodations">Accommodation Rooms</NavLink></li>
-'@ -NewString @'
-'@
-if ($results -contains $false) { Write-Host "`nSKIP (puede que ya no exista esa linea)." -ForegroundColor Yellow }
-
-$results += Patch-File -Path $sidebarPath -Description "Sidebar (menu exclusivo Production): quitar bloque Accommodation Zones" -OldString @'
-                    <li class="menu nav-item">
-                        <NavLink href="/production-zones" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Zones</span>
-                            </div>
-                        </NavLink>
-                    </li>
-'@ -NewString @'
-'@
-if ($results -contains $false) { Write-Host "`nSKIP (puede que ya no exista ese bloque)." -ForegroundColor Yellow }
-
-$results += Patch-File -Path $sidebarPath -Description "Sidebar (menu exclusivo Production): quitar bloque Accommodation Rooms" -OldString @'
-                    <li class="menu nav-item">
-                        <NavLink href="/production-accommodations" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Rooms</span>
-                            </div>
-                        </NavLink>
-                    </li>
-'@ -NewString @'
-'@
-if ($results -contains $false) { Write-Host "`nSKIP (puede que ya no exista ese bloque)." -ForegroundColor Yellow }
-
-Write-Host "`nAccommodation consolidado. Si viste 'Fallo (cabeceras)' con ESTE script tambien, pegame el contenido real de tu ProductionBuildings.razor (busca la linea con 'Locked' en la tabla) para ajustar el ancla exacta." -ForegroundColor Green

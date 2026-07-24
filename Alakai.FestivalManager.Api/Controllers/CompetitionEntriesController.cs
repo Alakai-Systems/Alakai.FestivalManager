@@ -5,6 +5,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/competition-entries")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class CompetitionEntriesController : ControllerBase
 {
     private readonly ICompetitionEntryService _competitionEntryService;

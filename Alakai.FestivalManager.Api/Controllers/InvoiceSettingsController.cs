@@ -2,6 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/invoice-settings")]
+[Authorize(Roles = "SuperAdmin,Admin")]
 public class InvoiceSettingsController : ControllerBase
 {
     private readonly IInvoiceSettingsService _invoiceSettingsService;
