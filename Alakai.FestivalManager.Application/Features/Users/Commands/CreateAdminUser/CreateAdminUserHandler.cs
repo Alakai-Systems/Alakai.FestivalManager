@@ -23,9 +23,9 @@ public class CreateAdminUserHandler
 
     public async Task<UserDto> HandleAsync(CreateAdminUserCommand command, CancellationToken cancellationToken = default)
     {
-        if (command.Role != UserRole.Admin && command.Role != UserRole.SuperAdmin)
+        if (command.Role != UserRole.Admin && command.Role != UserRole.SuperAdmin && command.Role != UserRole.Production)
         {
-            throw new BusinessRuleException("Role must be Admin or SuperAdmin.");
+            throw new BusinessRuleException("Role must be Admin, SuperAdmin or Production.");
         }
 
         string normalizedEmail = command.Email.Trim().ToLowerInvariant();
