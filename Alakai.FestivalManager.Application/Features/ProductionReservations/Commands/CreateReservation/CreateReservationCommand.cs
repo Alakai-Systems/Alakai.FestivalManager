@@ -4,6 +4,7 @@ public class CreateReservationCommand
 {
     public Guid EditionId { get; set; }
     public Guid ProductionAccommodationBuildingId { get; set; }
+    public int? RoomType { get; set; }
     public Guid? ResponsibleProductionPersonId { get; set; }
     public List<ReservationOccupantInput> Occupants { get; set; } = [];
 }

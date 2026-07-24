@@ -11,5 +11,7 @@ public class ProductionAccommodationReservation : BaseEntity
     public Guid? ResponsibleProductionPersonId { get; set; }
     public ProductionPerson? ResponsibleProductionPerson { get; set; }
 
+    public int? RoomType { get; set; }
+
     public ICollection<ProductionAccommodationReservationOccupant> Occupants { get; set; } = new List<ProductionAccommodationReservationOccupant>();
 }

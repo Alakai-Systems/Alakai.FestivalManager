@@ -81,6 +81,7 @@
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">#</th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Location")'>Location @SortIcon("Location")</button></th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Direction")'>Direction @SortIcon("Direction")</button></th>
@@ -93,7 +94,7 @@
                         @if (!PagedItineraries.Any())
                         {
                             <tr>
-                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
+                                <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
                             </tr>
                         }
                         else
@@ -101,7 +102,8 @@
                             @foreach (RunnerItineraryDto itinerary in PagedItineraries)
                             {
                                 <tr class="border-b border-black/10 dark:border-darkborder">
-                                    <td class="px-4 py-3 font-medium">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
+                                    <td class="px-4 py-3 font-medium">@ItinerarySequenceNumbers.GetValueOrDefault(itinerary.Id)</td>
+                                    <td class="px-4 py-3">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
                                     <td class="px-4 py-3">@itinerary.Location</td>
                                     <td class="px-4 py-3">@GetDirectionLabel(itinerary.Direction)</td>
                                     <td class="px-4 py-3">@(itinerary.RunnerName ?? "-")</td>
@@ -273,6 +275,12 @@
         string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
             ? editions
             : editions.Where(e => e.FestivalId == fid).ToList();
+
+    private Dictionary<Guid, int> ItinerarySequenceNumbers =>
+        itineraries
+            .OrderBy(i => i.DateTime)
+            .Select((i, index) => (i.Id, Number: index + 1))
+            .ToDictionary(x => x.Id, x => x.Number);
 
     private List<string> DistinctRunners =>
         itineraries.Where(i => !string.IsNullOrWhiteSpace(i.RunnerName)).Select(i => i.RunnerName!).Distinct().OrderBy(r => r).ToList();

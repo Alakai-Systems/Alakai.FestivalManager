@@ -2,6 +2,8 @@
 
 @inject ProductionReservationApiClient ProductionReservationApiClient
 @inject ProductionBuildingApiClient ProductionBuildingApiClient
+@inject ProductionZoneApiClient ProductionZoneApiClient
+@inject ProductionAccommodationApiClient ProductionAccommodationApiClient
 @inject ProductionPersonApiClient ProductionPersonApiClient
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
@@ -15,7 +17,7 @@
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
 
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input w-full md:w-72" placeholder="Search reservations..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+                <input class="form-input w-full md:w-72" placeholder="Search person, building, zone, room..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
 
                 <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
                     <option value="">All festivals</option>
@@ -74,33 +76,41 @@
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Person")'>Person @SortIcon("Person")</button></th>
+                            <th class="px-4 py-3 font-semibold">Category</th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Building")'>Building @SortIcon("Building")</button></th>
-                            <th class="px-4 py-3 font-semibold">Responsible</th>
-                            <th class="px-4 py-3 font-semibold">Occupants</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Zone")'>Zone @SortIcon("Zone")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Room")'>Room @SortIcon("Room")</button></th>
+                            <th class="px-4 py-3 font-semibold">Room Type</th>
+                            <th class="px-4 py-3 font-semibold">Shares with</th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="text-black dark:text-white/80">
-                        @if (!PagedReservations.Any())
+                        @if (!PagedOccupantRows.Any())
                         {
                             <tr>
-                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No reservations found.</td>
+                                <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No reservations found.</td>
                             </tr>
                         }
                         else
                         {
-                            @foreach (ReservationDto reservation in PagedReservations)
+                            @foreach (OccupantRow occ in PagedOccupantRows)
                             {
                                 <tr class="border-b border-black/10 dark:border-darkborder">
-                                    <td class="px-4 py-3 font-medium">@reservation.BuildingName</td>
-                                    <td class="px-4 py-3">@(reservation.ResponsibleName ?? "-")</td>
-                                    <td class="px-4 py-3">@string.Join(", ", reservation.Occupants.Select(o => o.ProductionPersonName))</td>
+                                    <td class="px-4 py-3 font-medium">@occ.PersonName</td>
+                                    <td class="px-4 py-3">@occ.Category</td>
+                                    <td class="px-4 py-3">@occ.BuildingName</td>
+                                    <td class="px-4 py-3">@(occ.ZoneName ?? "-")</td>
+                                    <td class="px-4 py-3">@(occ.RoomName ?? "-")</td>
+                                    <td class="px-4 py-3">@GetRoomTypeLabel(occ.RoomType)</td>
+                                    <td class="px-4 py-3">@(occ.Roommates.Count == 0 ? "-" : string.Join(", ", occ.Roommates))</td>
                                     <td class="px-4 py-3">
                                         <div class="flex items-center justify-end gap-3">
-                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(reservation)">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(occ.SourceReservation)">
                                                 <i class="ri-pencil-line text-lg"></i>
                                             </button>
-                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(reservation)">
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(occ.SourceReservation)">
                                                 <i class="ri-delete-bin-line text-lg"></i>
                                             </button>
                                         </div>
@@ -114,7 +124,7 @@
 
             <div class="flex items-center justify-between mt-4">
                 <p class="text-sm text-black/50 dark:text-white/60">
-                    Showing @StartRow to @EndRow of @FilteredReservations.Count reservations
+                    Showing @StartRow to @EndRow of @FilteredOccupantRows.Count occupants
                 </p>
 
                 <div class="flex items-center gap-2">
@@ -164,6 +174,29 @@
                             </div>
                         }
 
+                        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                            <div>
+                                <label class="form-label">Zone (optional)</label>
+                                <select class="form-select" @bind="formModel.ProductionAccommodationZoneId" @bind:after="OnFormZoneChanged">
+                                    <option value="@Guid.Empty">Select zone</option>
+                                    @foreach (ProductionAccommodationZoneDto z in ZonesForSelectedBuilding)
+                                    {
+                                        <option value="@z.Id">@z.Name</option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="form-label">Room / Unit (optional)</label>
+                                <select class="form-select" @bind="formModel.ProductionAccommodationId">
+                                    <option value="@Guid.Empty">Select room</option>
+                                    @foreach (ProductionAccommodationDto u in UnitsForSelectedZone)
+                                    {
+                                        <option value="@u.Id">@u.Name (@u.Capacity)</option>
+                                    }
+                                </select>
+                            </div>
+                        </div>
+
                         <div>
                             <label class="form-label">Occupants</label>
                             <div class="flex flex-col gap-2 p-3 overflow-y-auto border rounded-md max-h-52 border-black/10 dark:border-darkborder">
@@ -177,17 +210,18 @@
                             </div>
                         </div>
 
-                        <div>
-                            <label class="form-label">Responsible (optional)</label>
-                            <select class="form-select" @bind="formModel.ResponsibleProductionPersonIdText">
-                                <option value="">None</option>
-                                @foreach (Guid personId in formModel.SelectedPersonIds)
-                                {
-                                    ProductionPersonDto? person = people.FirstOrDefault(p => p.Id == personId);
-                                    <option value="@personId">@(person is null ? personId.ToString() : $"{person.FirstName} {person.LastName}")</option>
-                                }
-                            </select>
-                        </div>
+                        @if (formModel.SelectedPersonIds.Count == 2)
+                        {
+                            <div>
+                                <label class="form-label">Room Type</label>
+                                <select class="form-select" @bind="formModel.RoomTypeText">
+                                    <option value="">Not specified</option>
+                                    <option value="1">DUI (Doble uso individual)</option>
+                                    <option value="2">Double Twin</option>
+                                    <option value="3">Double Matrimonio</option>
+                                </select>
+                            </div>
+                        }
                     </div>
                 </div>
 
@@ -207,7 +241,7 @@
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Delete Reservation</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete the reservation for <strong>@deleteReservation.BuildingName</strong>?</p>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete the reservation for <strong>@deleteReservation.BuildingName</strong>? This removes all @deleteReservation.Occupants.Count occupant(s) from it.</p>
                 </div>
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                     <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
@@ -221,6 +255,8 @@
 @code {
     private List<ReservationDto> reservations = [];
     private List<ProductionAccommodationBuildingDto> buildings = [];
+    private List<ProductionAccommodationZoneDto> zones = [];
+    private List<ProductionAccommodationDto> rooms = [];
     private List<ProductionPersonDto> people = [];
     private List<EditionDto> editions = [];
     private List<FestivalDto> festivals = [];
@@ -231,7 +267,7 @@
     private string festivalFilter = string.Empty;
     private string editionFilter = string.Empty;
     private string buildingFilter = string.Empty;
-    private string sortColumn = "Building";
+    private string sortColumn = "Person";
     private bool sortAscending = true;
     private bool isLoading = true;
     private bool isModalOpen;
@@ -261,6 +297,12 @@
         }
     }
 
+    private List<ProductionAccommodationZoneDto> ZonesForSelectedBuilding =>
+        zones.Where(z => z.ProductionAccommodationBuildingId == formModel.ProductionAccommodationBuildingId).OrderBy(z => z.SortOrder).ToList();
+
+    private List<ProductionAccommodationDto> UnitsForSelectedZone =>
+        rooms.Where(r => r.ProductionAccommodationZoneId == formModel.ProductionAccommodationZoneId).OrderBy(r => r.SortOrder).ToList();
+
     protected override async Task OnInitializedAsync()
     {
         ActiveFestivalState.OnChange += HandleFestivalStateChanged;
@@ -277,6 +319,8 @@
             editions = (await EditionApiClient.GetAllAsync()).ToList();
             festivals = (await FestivalApiClient.GetAllAsync()).ToList();
             buildings = (await ProductionBuildingApiClient.GetAllAsync()).ToList();
+            zones = (await ProductionZoneApiClient.GetAllAsync()).ToList();
+            rooms = (await ProductionAccommodationApiClient.GetAllAsync()).ToList();
             people = (await ProductionPersonApiClient.GetAllAsync()).ToList();
 
             if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
@@ -320,47 +364,82 @@
         ResetPage();
     }
 
-    private List<ReservationDto> FilteredReservations
+    private class OccupantRow
+    {
+        public ReservationDto SourceReservation { get; set; } = default!;
+        public Guid OccupantId { get; set; }
+        public Guid ProductionPersonId { get; set; }
+        public string PersonName { get; set; } = "-";
+        public string Category { get; set; } = "-";
+        public string BuildingName { get; set; } = "-";
+        public string? ZoneName { get; set; }
+        public string? RoomName { get; set; }
+        public int? RoomType { get; set; }
+        public List<string> Roommates { get; set; } = [];
+    }
+
+    private List<OccupantRow> AllOccupantRows =>
+        reservations.SelectMany(r => r.Occupants.Select(o => new OccupantRow
+        {
+            SourceReservation = r,
+            OccupantId = o.Id,
+            ProductionPersonId = o.ProductionPersonId,
+            PersonName = o.ProductionPersonName ?? "-",
+            Category = people.FirstOrDefault(p => p.Id == o.ProductionPersonId)?.Category.ToString() ?? "-",
+            BuildingName = r.BuildingName ?? "-",
+            ZoneName = o.ZoneName,
+            RoomName = o.AccommodationName,
+            RoomType = r.RoomType,
+            Roommates = r.Occupants.Where(x => x.Id != o.Id).Select(x => x.ProductionPersonName ?? "-").ToList()
+        })).ToList();
+
+    private List<OccupantRow> FilteredOccupantRows
     {
         get
         {
-            IEnumerable<ReservationDto> query = reservations;
+            IEnumerable<OccupantRow> query = AllOccupantRows;
 
             if (!string.IsNullOrWhiteSpace(searchText))
             {
-                query = query.Where(r =>
-                    (r.BuildingName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
-                    r.Occupants.Any(o => (o.ProductionPersonName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+                query = query.Where(o =>
+                    o.PersonName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    o.BuildingName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (o.ZoneName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    (o.RoomName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase));
             }
 
             if (Guid.TryParse(buildingFilter, out Guid buildingId))
             {
-                query = query.Where(r => r.ProductionAccommodationBuildingId == buildingId);
+                query = query.Where(o => o.SourceReservation.ProductionAccommodationBuildingId == buildingId);
             }
             else if (Guid.TryParse(editionFilter, out Guid editionId))
             {
                 HashSet<Guid> buildingIds = buildings.Where(b => b.EditionId == editionId).Select(b => b.Id).ToHashSet();
-                query = query.Where(r => buildingIds.Contains(r.ProductionAccommodationBuildingId));
+                query = query.Where(o => buildingIds.Contains(o.SourceReservation.ProductionAccommodationBuildingId));
             }
             else if (Guid.TryParse(festivalFilter, out Guid fid))
             {
                 HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == fid).Select(e => e.Id).ToHashSet();
                 HashSet<Guid> buildingIds = buildings.Where(b => editionIds.Contains(b.EditionId)).Select(b => b.Id).ToHashSet();
-                query = query.Where(r => buildingIds.Contains(r.ProductionAccommodationBuildingId));
+                query = query.Where(o => buildingIds.Contains(o.SourceReservation.ProductionAccommodationBuildingId));
             }
 
-            query = sortAscending
-                ? query.OrderBy(r => r.BuildingName)
-                : query.OrderByDescending(r => r.BuildingName);
+            query = sortColumn switch
+            {
+                "Building" => sortAscending ? query.OrderBy(o => o.BuildingName) : query.OrderByDescending(o => o.BuildingName),
+                "Zone" => sortAscending ? query.OrderBy(o => o.ZoneName) : query.OrderByDescending(o => o.ZoneName),
+                "Room" => sortAscending ? query.OrderBy(o => o.RoomName) : query.OrderByDescending(o => o.RoomName),
+                _ => sortAscending ? query.OrderBy(o => o.PersonName) : query.OrderByDescending(o => o.PersonName)
+            };
 
             return query.ToList();
         }
     }
 
-    private IEnumerable<ReservationDto> PagedReservations => FilteredReservations.Skip((currentPage - 1) * pageSize).Take(pageSize);
-    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredReservations.Count / (double)pageSize));
-    private int StartRow => FilteredReservations.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
-    private int EndRow => Math.Min(currentPage * pageSize, FilteredReservations.Count);
+    private IEnumerable<OccupantRow> PagedOccupantRows => FilteredOccupantRows.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredOccupantRows.Count / (double)pageSize));
+    private int StartRow => FilteredOccupantRows.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredOccupantRows.Count);
 
     private void ResetPage()
     {
@@ -415,18 +494,19 @@
         else
         {
             formModel.SelectedPersonIds.Remove(personId);
-
-            if (formModel.ResponsibleProductionPersonIdText == personId.ToString())
-            {
-                formModel.ResponsibleProductionPersonIdText = string.Empty;
-            }
         }
     }
 
     private void OnFormBuildingChanged()
     {
         formModel.SelectedPersonIds.Clear();
-        formModel.ResponsibleProductionPersonIdText = string.Empty;
+        formModel.ProductionAccommodationZoneId = Guid.Empty;
+        formModel.ProductionAccommodationId = Guid.Empty;
+    }
+
+    private void OnFormZoneChanged()
+    {
+        formModel.ProductionAccommodationId = Guid.Empty;
     }
 
     private void OpenCreateModal()
@@ -445,11 +525,29 @@
     {
         editingReservation = reservation;
         modalErrorMessage = null;
+
+        ReservationOccupantDto? withUnit = reservation.Occupants.FirstOrDefault(o => o.ProductionAccommodationId.HasValue);
+        Guid zoneId = Guid.Empty;
+        Guid unitId = Guid.Empty;
+
+        if (withUnit?.ProductionAccommodationId is Guid existingUnitId)
+        {
+            ProductionAccommodationDto? unit = rooms.FirstOrDefault(r => r.Id == existingUnitId);
+
+            if (unit is not null)
+            {
+                unitId = unit.Id;
+                zoneId = unit.ProductionAccommodationZoneId;
+            }
+        }
+
         formModel = new ReservationFormModel
         {
             ProductionAccommodationBuildingId = reservation.ProductionAccommodationBuildingId,
+            ProductionAccommodationZoneId = zoneId,
+            ProductionAccommodationId = unitId,
             SelectedPersonIds = reservation.Occupants.Select(o => o.ProductionPersonId).ToHashSet(),
-            ResponsibleProductionPersonIdText = reservation.ResponsibleProductionPersonId?.ToString() ?? string.Empty
+            RoomTypeText = reservation.RoomType?.ToString() ?? string.Empty
         };
         isModalOpen = true;
     }
@@ -469,8 +567,13 @@
             isSaving = true;
             modalErrorMessage = null;
 
-            Guid? responsibleId = Guid.TryParse(formModel.ResponsibleProductionPersonIdText, out Guid rid) ? rid : null;
-            List<ReservationOccupantInput> occupants = formModel.SelectedPersonIds.Select(id => new ReservationOccupantInput { ProductionPersonId = id }).ToList();
+            Guid? unitId = formModel.ProductionAccommodationId == Guid.Empty ? null : formModel.ProductionAccommodationId;
+            int? roomType = int.TryParse(formModel.RoomTypeText, out int rt) ? rt : null;
+            List<ReservationOccupantInput> occupants = formModel.SelectedPersonIds.Select(id => new ReservationOccupantInput
+            {
+                ProductionPersonId = id,
+                ProductionAccommodationId = unitId
+            }).ToList();
 
             if (editingReservation is null)
             {
@@ -486,7 +589,7 @@
                 {
                     EditionId = building.EditionId,
                     ProductionAccommodationBuildingId = formModel.ProductionAccommodationBuildingId,
-                    ResponsibleProductionPersonId = responsibleId,
+                    RoomType = roomType,
                     Occupants = occupants
                 };
 
@@ -497,7 +600,7 @@
             {
                 UpdateReservationRequest request = new()
                 {
-                    ResponsibleProductionPersonId = responsibleId,
+                    RoomType = roomType,
                     Occupants = occupants
                 };
 
@@ -568,6 +671,14 @@
         return $"{exception.Message} {string.Join(" ", exception.Errors)}";
     }
 
+    private static string GetRoomTypeLabel(int? roomType) => roomType switch
+    {
+        1 => "DUI",
+        2 => "Double Twin",
+        3 => "Double Matrimonio",
+        _ => "-"
+    };
+
     private void ShowSuccess(string message)
     {
         successMessage = message;
@@ -595,8 +706,10 @@
     private class ReservationFormModel
     {
         public Guid ProductionAccommodationBuildingId { get; set; }
+        public Guid ProductionAccommodationZoneId { get; set; }
+        public Guid ProductionAccommodationId { get; set; }
         public HashSet<Guid> SelectedPersonIds { get; set; } = [];
-        public string ResponsibleProductionPersonIdText { get; set; } = string.Empty;
+        public string RoomTypeText { get; set; } = string.Empty;
     }
 
     private void HandleFestivalStateChanged()

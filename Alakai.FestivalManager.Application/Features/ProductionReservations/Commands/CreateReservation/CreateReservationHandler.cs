@@ -43,7 +43,8 @@ public class CreateReservationHandler
         {
             EditionId = command.EditionId,
             ProductionAccommodationBuildingId = command.ProductionAccommodationBuildingId,
-            ResponsibleProductionPersonId = command.ResponsibleProductionPersonId
+            ResponsibleProductionPersonId = command.ResponsibleProductionPersonId,
+            RoomType = command.RoomType
         };
 
         foreach (ReservationOccupantInput occupantInput in command.Occupants)
@@ -58,6 +59,7 @@ public class CreateReservationHandler
             reservation.Occupants.Add(new ProductionAccommodationReservationOccupant
             {
                 ProductionPersonId = occupantInput.ProductionPersonId,
+                ProductionAccommodationId = occupantInput.ProductionAccommodationId,
                 IsResponsible = command.ResponsibleProductionPersonId.HasValue && occupantInput.ProductionPersonId == command.ResponsibleProductionPersonId.Value
             });
         }

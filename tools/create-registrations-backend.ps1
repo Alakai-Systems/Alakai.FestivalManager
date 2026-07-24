@@ -1,135 +1,136 @@
-# Fix-ApplyAuthorizeAudit-v2.ps1
+# Fix-ItinerarySequenceNumbers.ps1
 #
-# Vuelve a poner [Authorize(Roles = "...")] en los 28 controllers, ahora que
-# el motivo real de los 401 esta arreglado (Fix-AttachAuthToApiClients.ps1
-# ya deberia estar aplicado - si no lo esta, aplica ese PRIMERO o esto te
-# vuelve a dejar en 401).
+# 1. Runner Itineraries: primera columna nueva "#" con el numero de orden
+#    cronologico (1 = el mas cercano en fecha/hora, calculado sobre TODOS
+#    los itinerarios de la edicion, no solo la pagina visible).
+# 2. Trips: en la columna Itinerary, en vez de "Assigned"/"-" ahora sale
+#    "Itinerary X" con ese mismo numero, o "-" si no esta asignado a
+#    ninguno.
 #
-# Incluye tambien el [AllowAnonymous] en RegistrationsController.Create
-# (el formulario publico de inscripcion), en el mismo script para no
-# repetir el fallo de aplicarlos por separado y dejar una ventana rota.
-#
-# Esquema (igual que la primera vez, verificado ahora contra tu codigo real):
-#
-#   [Authorize(Roles = "SuperAdmin,Admin")]:
-#     Registrations (salvo Create, que es publico), RegistrationFestivalInfo,
-#     CompetitionEntries, Competitions, Buses, BusReservations,
-#     Accommodations, AccommodationZones, AccommodationBuildings,
-#     AccommodationReservations, MealPreferences, DiscountCodes, PassType,
-#     Level, Invoices, InvoiceSettings, InvoiceTemplates, Emails,
-#     EmailTemplates, EmailLayout, EmailLogs, Analytics, Dashboard,
-#     Uploads, Users
-#
-#   [Authorize(Roles = "SuperAdmin,Admin,Production")]:
-#     Editions, Festivals, Reports
-#
-#   Sin tocar (publico / pagos, y lo que ya estaba bien):
-#     PublicFestivalsController, PublicRegistrationsController,
-#     PaymentsController, AdminImpersonationController, AuthController,
-#     UserPanelController, los 8 controllers de Produccion
+# No hace falta migracion - el numero se calcula al vuelo ordenando por
+# fecha, no se guarda en ningun sitio.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
 
-function Add-Attribute {
-    param([string]$Path, [string]$ClassLine, [string]$AttributeLine, [string]$Description)
-
-    if (-not (Test-Path $Path)) { Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow; return }
-
+function Patch-File {
+    param([string]$Path, [string]$OldString, [string]$NewString, [string]$Description)
+    if (-not (Test-Path $Path)) { Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow; return $false }
     $rawContent = Get-Content -Path $Path -Raw
     $usesCrlf = $rawContent.Contains("`r`n")
     $normalizedContent = $rawContent -replace "`r`n", "`n"
-
-    $combined = "$AttributeLine`n$ClassLine"
-
-    if ($normalizedContent.Contains($combined)) {
-        Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan
-        return
-    }
-
-    $count = ([regex]::Matches($normalizedContent, [regex]::Escape($ClassLine))).Count
-    if ($count -ne 1) {
-        Write-Host "SKIP (la clase aparece $count veces, no es unico - revisa a mano): $Description" -ForegroundColor Yellow
-        return
-    }
-
-    $updatedNormalized = $normalizedContent.Replace($ClassLine, $combined)
+    $normalizedOld = $OldString -replace "`r`n", "`n"
+    $normalizedNew = $NewString -replace "`r`n", "`n"
+    if ($normalizedContent.Contains($normalizedNew)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
+    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow; return $false }
+    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
     $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
     Set-Content -Path $Path -Value $updatedFinal -NoNewline
     Write-Host "OK: $Description" -ForegroundColor Green
+    return $true
 }
 
-$controllersDir = "Alakai.FestivalManager.Api/Controllers"
+$results = @()
 
-$adminOnly = @(
-    @{ File = "RegistrationsController.cs"; Class = "RegistrationsController" },
-    @{ File = "RegistrationFestivalInfoController.cs"; Class = "RegistrationFestivalInfoController" },
-    @{ File = "CompetitionEntriesController.cs"; Class = "CompetitionEntriesController" },
-    @{ File = "CompetitionsController.cs"; Class = "CompetitionsController" },
-    @{ File = "BusesController.cs"; Class = "BusesController" },
-    @{ File = "BusReservationsController.cs"; Class = "BusReservationsController" },
-    @{ File = "AccommodationsController.cs"; Class = "AccommodationsController" },
-    @{ File = "AccommodationZonesController.cs"; Class = "AccommodationZonesController" },
-    @{ File = "AccommodationBuildingsController.cs"; Class = "AccommodationBuildingsController" },
-    @{ File = "AccommodationReservationsController.cs"; Class = "AccommodationReservationsController" },
-    @{ File = "MealPreferencesController.cs"; Class = "MealPreferencesController" },
-    @{ File = "DiscountCodesController.cs"; Class = "DiscountCodesController" },
-    @{ File = "PassTypeController.cs"; Class = "PassTypesController" },
-    @{ File = "LevelController.cs"; Class = "LevelsController" },
-    @{ File = "InvoicesController.cs"; Class = "InvoicesController" },
-    @{ File = "InvoiceSettingsController.cs"; Class = "InvoiceSettingsController" },
-    @{ File = "InvoiceTemplatesController.cs"; Class = "InvoiceTemplatesController" },
-    @{ File = "EmailsController.cs"; Class = "EmailsController" },
-    @{ File = "EmailTemplatesController.cs"; Class = "EmailTemplatesController" },
-    @{ File = "EmailLayoutController.cs"; Class = "EmailLayoutController" },
-    @{ File = "EmailLogsController.cs"; Class = "EmailLogsController" },
-    @{ File = "AnalyticsController.cs"; Class = "AnalyticsController" },
-    @{ File = "DashboardController.cs"; Class = "DashboardController" },
-    @{ File = "UploadsController.cs"; Class = "UploadsController" },
-    @{ File = "UsersController.cs"; Class = "UsersController" }
-)
+# ===========================================================================
+# PARTE 1: Runner Itineraries - columna "#" de orden cronologico
+# ===========================================================================
+$itinPath = "Alakai.FestivalManager.Admin/Components/Pages/RunnerItineraries.razor"
 
-foreach ($entry in $adminOnly) {
-    $path = Join-Path $controllersDir $entry.File
-    Add-Attribute -Path $path -ClassLine "public class $($entry.Class) : ControllerBase" -AttributeLine '[Authorize(Roles = "SuperAdmin,Admin")]' -Description "$($entry.Class): [Authorize(SuperAdmin,Admin)]"
-}
+$results += Patch-File -Path $itinPath -Description "Itineraries: cabecera # (primera columna)" -OldString @'
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
+'@ -NewString @'
+                            <th class="px-4 py-3 font-semibold">#</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
+'@
+if ($results -contains $false) { Write-Host "`nFallo (cabecera)." -ForegroundColor Red; exit 1 }
 
-$sharedWithProduction = @(
-    @{ File = "EditionController.cs"; Class = "EditionsController" },
-    @{ File = "FestivalsController.cs"; Class = "FestivalsController" },
-    @{ File = "ReportsController.cs"; Class = "ReportsController" }
-)
+$results += Patch-File -Path $itinPath -Description "Itineraries: colspan 6 -> 7" -OldString @'
+                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
+'@ -NewString @'
+                                <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
+'@
+if ($results -contains $false) { Write-Host "`nFallo (colspan)." -ForegroundColor Red; exit 1 }
 
-foreach ($entry in $sharedWithProduction) {
-    $path = Join-Path $controllersDir $entry.File
-    Add-Attribute -Path $path -ClassLine "public class $($entry.Class) : ControllerBase" -AttributeLine '[Authorize(Roles = "SuperAdmin,Admin,Production")]' -Description "$($entry.Class): [Authorize(SuperAdmin,Admin,Production)]"
-}
+$results += Patch-File -Path $itinPath -Description "Itineraries: celda # en la fila" -OldString @'
+                                    <td class="px-4 py-3 font-medium">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
+'@ -NewString @'
+                                    <td class="px-4 py-3 font-medium">@ItinerarySequenceNumbers.GetValueOrDefault(itinerary.Id)</td>
+                                    <td class="px-4 py-3">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
+'@
+if ($results -contains $false) { Write-Host "`nFallo (celda)." -ForegroundColor Red; exit 1 }
 
-# ---------------------------------------------------------------------------
-# AllowAnonymous en el registro publico (en el mismo script, no aparte)
-# ---------------------------------------------------------------------------
-$regPath = Join-Path $controllersDir "RegistrationsController.cs"
+$results += Patch-File -Path $itinPath -Description "Itineraries: metodo ItinerarySequenceNumbers" -OldString @'
+    private List<string> DistinctRunners =>
+'@ -NewString @'
+    private Dictionary<Guid, int> ItinerarySequenceNumbers =>
+        itineraries
+            .OrderBy(i => i.DateTime)
+            .Select((i, index) => (i.Id, Number: index + 1))
+            .ToDictionary(x => x.Id, x => x.Number);
 
-if (Test-Path $regPath) {
-    $rawContent = Get-Content -Path $regPath -Raw
-    $usesCrlf = $rawContent.Contains("`r`n")
-    $normalizedContent = $rawContent -replace "`r`n", "`n"
+    private List<string> DistinctRunners =>
+'@
+if ($results -contains $false) { Write-Host "`nFallo (metodo numeracion)." -ForegroundColor Red; exit 1 }
 
-    $old = "    [HttpPost]`n    public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)"
-    $new = "    [HttpPost]`n    [AllowAnonymous]`n    public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)"
+Write-Host "`nRunner Itineraries: columna # anadida, ordenada por fecha/hora." -ForegroundColor Green
 
-    if ($normalizedContent.Contains($new)) {
-        Write-Host "SKIP (ya aplicado): RegistrationsController.Create: [AllowAnonymous]" -ForegroundColor Cyan
-    }
-    elseif ($normalizedContent.Contains($old)) {
-        $updatedNormalized = $normalizedContent.Replace($old, $new)
-        $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
-        Set-Content -Path $regPath -Value $updatedFinal -NoNewline
-        Write-Host "OK: RegistrationsController.Create: [AllowAnonymous]" -ForegroundColor Green
-    }
-    else {
-        Write-Host "SKIP (anchor no encontrado - revisa a mano): RegistrationsController.Create: [AllowAnonymous]" -ForegroundColor Yellow
-    }
-}
+# ===========================================================================
+# PARTE 2: Trips - "Itinerary X" en vez de "Assigned"
+# ===========================================================================
+$tripsPath = "Alakai.FestivalManager.Admin/Components/Pages/ProductionTrips.razor"
 
-Write-Host "`nAuthorize reaplicado en los 28 controllers. Recuerda: esto SOLO funciona bien si Fix-AttachAuthToApiClients.ps1 ya esta aplicado - si no lo esta, aplicalo antes de probar." -ForegroundColor Green
+$results += Patch-File -Path $tripsPath -Description "Trips: inyectar RunnerItineraryApiClient" -OldString @'
+@inject ProductionTripApiClient ProductionTripApiClient
+@inject ProductionPersonApiClient ProductionPersonApiClient
+'@ -NewString @'
+@inject ProductionTripApiClient ProductionTripApiClient
+@inject RunnerItineraryApiClient RunnerItineraryApiClient
+@inject ProductionPersonApiClient ProductionPersonApiClient
+'@
+if ($results -contains $false) { Write-Host "`nFallo (inject)." -ForegroundColor Red; exit 1 }
+
+$results += Patch-File -Path $tripsPath -Description "Trips: cargar itinerarios de la edicion" -OldString @'
+            trips = targetEditionId != Guid.Empty
+                ? (await ProductionTripApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
+                : [];
+'@ -NewString @'
+            trips = targetEditionId != Guid.Empty
+                ? (await ProductionTripApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
+                : [];
+
+            itineraries = targetEditionId != Guid.Empty
+                ? (await RunnerItineraryApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
+                : [];
+'@
+if ($results -contains $false) { Write-Host "`nFallo (carga)." -ForegroundColor Red; exit 1 }
+
+$results += Patch-File -Path $tripsPath -Description "Trips: campo itineraries" -OldString @'
+    private List<ProductionTripDto> trips = [];
+'@ -NewString @'
+    private List<ProductionTripDto> trips = [];
+    private List<RunnerItineraryDto> itineraries = [];
+'@
+if ($results -contains $false) { Write-Host "`nFallo (campo)." -ForegroundColor Red; exit 1 }
+
+$results += Patch-File -Path $tripsPath -Description "Trips: metodo ItinerarySequenceNumbers" -OldString @'
+    private async Task LoadDataAsync()
+'@ -NewString @'
+    private Dictionary<Guid, int> ItinerarySequenceNumbers =>
+        itineraries
+            .OrderBy(i => i.DateTime)
+            .Select((i, index) => (i.Id, Number: index + 1))
+            .ToDictionary(x => x.Id, x => x.Number);
+
+    private async Task LoadDataAsync()
+'@
+if ($results -contains $false) { Write-Host "`nFallo (metodo numeracion)." -ForegroundColor Red; exit 1 }
+
+$results += Patch-File -Path $tripsPath -Description "Trips: mostrar 'Itinerary X' en vez de Assigned" -OldString @'
+                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? "Assigned" : "-")</td>
+'@ -NewString @'
+                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? $"Itinerary {ItinerarySequenceNumbers.GetValueOrDefault(trip.RunnerItineraryId.Value)}" : "-")</td>
+'@
+if ($results -contains $false) { Write-Host "`nFallo (celda Itinerary)." -ForegroundColor Red; exit 1 }
+
+Write-Host "`nTrips: columna Itinerary ahora muestra 'Itinerary X' con el mismo numero que la pantalla de Runner Itineraries." -ForegroundColor Green

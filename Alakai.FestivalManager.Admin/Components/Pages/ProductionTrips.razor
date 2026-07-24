@@ -1,6 +1,7 @@
 @page "/production-trips"
 
 @inject ProductionTripApiClient ProductionTripApiClient
+@inject RunnerItineraryApiClient RunnerItineraryApiClient
 @inject ProductionPersonApiClient ProductionPersonApiClient
 @inject EditionApiClient EditionApiClient
 @inject FestivalApiClient FestivalApiClient
@@ -112,7 +113,7 @@
                                     <td class="px-4 py-3">@trip.DateTime.ToString("dd MMM yyyy HH:mm")</td>
                                     <td class="px-4 py-3">@trip.TerminalOrStation</td>
                                     <td class="px-4 py-3">@GetDirectionLabel(trip.Direction)</td>
-                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? "Assigned" : "-")</td>
+                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? $"Itinerary {ItinerarySequenceNumbers.GetValueOrDefault(trip.RunnerItineraryId.Value)}" : "-")</td>
                                     <td class="px-4 py-3">
                                         <div class="flex items-center justify-end gap-3">
                                             <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(trip)">
@@ -245,6 +246,7 @@
 
 @code {
     private List<ProductionTripDto> trips = [];
+    private List<RunnerItineraryDto> itineraries = [];
     private List<ProductionPersonDto> people = [];
     private List<EditionDto> editions = [];
     private List<FestivalDto> festivals = [];
@@ -282,6 +284,12 @@
         await LoadDataAsync();
     }
 
+    private Dictionary<Guid, int> ItinerarySequenceNumbers =>
+        itineraries
+            .OrderBy(i => i.DateTime)
+            .Select((i, index) => (i.Id, Number: index + 1))
+            .ToDictionary(x => x.Id, x => x.Number);
+
     private async Task LoadDataAsync()
     {
         isLoading = true;
@@ -318,6 +326,10 @@
 
             trips = targetEditionId != Guid.Empty
                 ? (await ProductionTripApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
+                : [];
+
+            itineraries = targetEditionId != Guid.Empty
+                ? (await RunnerItineraryApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
                 : [];
         }
         catch (Exception ex)

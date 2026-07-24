@@ -3,4 +3,5 @@ namespace Alakai.FestivalManager.Application.Features.ProductionReservations.Com
 public class ReservationOccupantInput
 {
     public Guid ProductionPersonId { get; set; }
+    public Guid? ProductionAccommodationId { get; set; }
 }

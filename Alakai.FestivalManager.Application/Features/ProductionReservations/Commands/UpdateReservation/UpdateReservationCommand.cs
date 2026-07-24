@@ -4,5 +4,6 @@ public class UpdateReservationCommand
 {
     public Guid ReservationId { get; set; }
     public Guid? ResponsibleProductionPersonId { get; set; }
+    public int? RoomType { get; set; }
     public List<ReservationOccupantInput> Occupants { get; set; } = [];
 }

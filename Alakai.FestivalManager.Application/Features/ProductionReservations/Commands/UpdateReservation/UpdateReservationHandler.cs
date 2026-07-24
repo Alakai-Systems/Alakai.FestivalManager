@@ -33,6 +33,7 @@ public class UpdateReservationHandler
         }
 
         reservation.ResponsibleProductionPersonId = command.ResponsibleProductionPersonId;
+        reservation.RoomType = command.RoomType;
         reservation.Occupants.Clear();
 
         foreach (ReservationOccupantInput occupantInput in command.Occupants)
@@ -47,6 +48,7 @@ public class UpdateReservationHandler
             reservation.Occupants.Add(new ProductionAccommodationReservationOccupant
             {
                 ProductionPersonId = occupantInput.ProductionPersonId,
+                ProductionAccommodationId = occupantInput.ProductionAccommodationId,
                 IsResponsible = command.ResponsibleProductionPersonId.HasValue && occupantInput.ProductionPersonId == command.ResponsibleProductionPersonId.Value
             });
         }
