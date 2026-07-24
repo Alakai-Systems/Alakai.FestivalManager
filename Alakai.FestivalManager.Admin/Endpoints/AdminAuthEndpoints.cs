@@ -23,7 +23,7 @@ public static class AdminAuthEndpoints
                 AuthUserDto user = response.Auth.User;
                 AdminUserRole role = (AdminUserRole)user.Role;
 
-                if (role != AdminUserRole.SuperAdmin && role != AdminUserRole.Admin)
+                if (role != AdminUserRole.SuperAdmin && role != AdminUserRole.Admin && role != AdminUserRole.Production)
                 {
                     return Results.Redirect("/login?error=forbidden");
                 }

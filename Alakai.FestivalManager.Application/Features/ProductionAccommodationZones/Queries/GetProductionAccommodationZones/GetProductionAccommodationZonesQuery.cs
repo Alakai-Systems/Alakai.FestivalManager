@@ -1,0 +1,5 @@
+namespace Alakai.FestivalManager.Application.Features.ProductionAccommodationZones.Queries.GetProductionAccommodationZones;
+
+public class GetProductionAccommodationZonesQuery
+{
+}

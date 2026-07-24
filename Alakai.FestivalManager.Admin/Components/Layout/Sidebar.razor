@@ -1,3 +1,4 @@
+@using Microsoft.AspNetCore.Components.Authorization
 @implements IDisposable
 @inject ActiveFestivalState ActiveFestivalState
 
@@ -18,6 +19,8 @@
         </div>
 
         <div class="h-[calc(100vh-60px)] overflow-y-auto overflow-x-hidden px-5 pb-4 space-y-6 detached-menu">
+            @if (!isProductionOnly)
+            {
             <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'eventSetup' }">
                 <li class="menu-title">
                     <span class="text-xs text-black/40 dark:text-white/30">Menu</span>
@@ -119,6 +122,28 @@
                     </ul>
                 </li>
                 <li class="menu nav-item">
+                    <a href="javascript:;" class="items-center justify-between text-black nav-link group" x-bind:class="{ 'active': activeMenu === 'production' }" x-on:click="activeMenu === 'production' ? activeMenu = null : activeMenu = 'production'">
+                        <div class="flex items-center">
+                            <i class="ri-team-fill"></i>
+                            <span class="ltr:pl-1.5 rtl:pr-1.5">Production</span>
+                        </div>
+                        <i class="ri-arrow-down-s-line text-lg dropdown-icon" x-bind:class="{ '!rotate-180': activeMenu === 'production' }"></i>
+                    </a>
+
+                    <ul x-show="activeMenu === 'production'" x-collapse class="flex flex-col gap-1 text-black sub-menu dark:text-white/60 group-data-[sidebar=dark]/item:text-white/60 group-data-[sidebar=brand]/item:text-sky-200/50">
+                        <li><NavLink href="/production-team">Artists &amp; Team</NavLink></li>
+                        <li><NavLink href="/production-suppliers">Suppliers</NavLink></li>
+                        <li><NavLink href="/production-buildings">Accommodation</NavLink></li>
+                        <li><NavLink href="/production-zones">Accommodation Zones</NavLink></li>
+                        <li><NavLink href="/production-accommodations">Accommodation Rooms</NavLink></li>
+                        <li><NavLink href="/production-reservations">Accommodation Reservations</NavLink></li>
+                        <li><NavLink href="/production-trips">Trips</NavLink></li>
+                        <li><NavLink href="/production-itineraries">Runner Itineraries</NavLink></li>
+                        <li><NavLink href="/production-reports">Reports</NavLink></li>
+                    </ul>
+                </li>
+
+                <li class="menu nav-item">
                     <NavLink href="/reports" class="text-black nav-link group">
                         <div class="flex items-center">
                             <i class="ri-file-download-fill"></i>
@@ -127,15 +152,102 @@
                     </NavLink>
                 </li>
             </ul>
+            }
+            else
+            {
+                <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'production' }">
+                    <li class="menu nav-item">
+                        <NavLink href="/production-team" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Artists &amp; Team</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-suppliers" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Suppliers</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-buildings" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Buildings</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-zones" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Zones</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-accommodations" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Rooms</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-reservations" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Reservations</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-trips" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Trips</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-itineraries" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-team-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Runner Itineraries</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-reports" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-file-download-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Reports</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                </ul>
+            }
         </div>
     </div>
 </nav>
 <!-- End Sidebar -->
 
 @code {
-    protected override void OnInitialized()
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+    private bool isProductionOnly;
+
+    protected override async Task OnInitializedAsync()
     {
         ActiveFestivalState.OnChange += HandleFestivalChanged;
+
+        if (AuthenticationStateTask is not null)
+        {
+            AuthenticationState authState = await AuthenticationStateTask;
+            isProductionOnly = authState.User.IsInRole("Production");
+        }
     }
 
     private void HandleFestivalChanged()

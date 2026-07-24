@@ -1,0 +1,6 @@
+namespace Alakai.FestivalManager.Application.Features.ProductionPeople.Contracts.Responses;
+
+public class CreateProductionPersonResponse
+{
+    public ProductionPersonDto ProductionPerson { get; set; } = default!;
+}

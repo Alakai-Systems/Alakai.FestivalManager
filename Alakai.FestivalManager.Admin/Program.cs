@@ -50,7 +50,7 @@ builder.Services.AddOptions<CookieAuthenticationOptions>(CookieAuthenticationDef
 
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("AdminAccess", policy => policy.RequireRole("SuperAdmin", "Admin"));
+    options.AddPolicy("AdminAccess", policy => policy.RequireRole("SuperAdmin", "Admin", "Production"));
     options.AddPolicy("SuperAdminOnly", policy => policy.RequireRole("SuperAdmin"));
 
 });

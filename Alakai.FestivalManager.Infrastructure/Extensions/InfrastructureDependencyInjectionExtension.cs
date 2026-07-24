@@ -25,6 +25,14 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IFestivalCredentialsRepository, FestivalCredentialsRepository>();
         services.AddScoped<IEditionRepository, EditionRepository>();
         services.AddScoped<IPassTypeRepository, PassTypeRepository>();
+        services.AddScoped<IProductionPersonRepository, ProductionPersonRepository>();
+        services.AddScoped<IProductionSupplierRepository, ProductionSupplierRepository>();
+        services.AddScoped<IProductionAccommodationBuildingRepository, ProductionAccommodationBuildingRepository>();
+        services.AddScoped<IProductionAccommodationZoneRepository, ProductionAccommodationZoneRepository>();
+        services.AddScoped<IProductionAccommodationRepository, ProductionAccommodationRepository>();
+        services.AddScoped<IProductionReservationRepository, ProductionReservationRepository>();
+        services.AddScoped<IProductionTripRepository, ProductionTripRepository>();
+        services.AddScoped<IRunnerItineraryRepository, RunnerItineraryRepository>();
         services.AddScoped<ILevelRepository, LevelRepository>();
         services.AddScoped<IRegistrationRepository, RegistrationRepository>();
         services.AddScoped<IUserRepository, UserRepository>();

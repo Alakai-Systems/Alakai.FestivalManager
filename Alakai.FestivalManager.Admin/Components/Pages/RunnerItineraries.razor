@@ -1,0 +1,631 @@
+@page "/production-itineraries"
+
+@inject RunnerItineraryApiClient RunnerItineraryApiClient
+@inject ProductionTripApiClient ProductionTripApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@implements IDisposable
+
+<PageHeader Title="Production" pTitle="Runner Itineraries"></PageHeader>
+
+<div class="grid grid-cols-1 gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="OnEditionFilterChangedAsync">
+                    <option value="">Select an edition</option>
+                    @foreach (EditionDto edition in EditionsForSelectedFestival)
+                    {
+                        <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="directionFilter" @bind:after="ResetPage">
+                    <option value="">All directions</option>
+                    <option value="1">Arrival</option>
+                    <option value="2">Departure</option>
+                </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal" disabled="@(!Guid.TryParse(editionFilter, out _))">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Itinerary
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (!Guid.TryParse(editionFilter, out _))
+        {
+            <p class="text-sm text-black/50 dark:text-white/60">Select an edition to see and build runner itineraries.</p>
+        }
+        else if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/60">Loading itineraries...</p>
+        }
+        else
+        {
+            <div class="w-full max-w-full overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Date/Time</th>
+                            <th class="px-4 py-3 font-semibold">Location</th>
+                            <th class="px-4 py-3 font-semibold">Direction</th>
+                            <th class="px-4 py-3 font-semibold">Runner</th>
+                            <th class="px-4 py-3 font-semibold">Trips</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-black dark:text-white/80">
+                        @if (!PagedItineraries.Any())
+                        {
+                            <tr>
+                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (RunnerItineraryDto itinerary in PagedItineraries)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3 font-medium">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
+                                    <td class="px-4 py-3">@itinerary.Location</td>
+                                    <td class="px-4 py-3">@GetDirectionLabel(itinerary.Direction)</td>
+                                    <td class="px-4 py-3">@(itinerary.RunnerName ?? "-")</td>
+                                    <td class="px-4 py-3">@string.Join(", ", itinerary.Trips.Select(t => t.ProductionPersonName))</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(itinerary)">
+                                                <i class="ri-pencil-line text-lg"></i>
+                                            </button>
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(itinerary)">
+                                                <i class="ri-delete-bin-line text-lg"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/60">
+                    Showing @StartRow to @EndRow of @FilteredItineraries.Count itineraries
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold">@(editingItinerary is null ? "New Itinerary" : "Edit Itinerary")</h3>
+                    <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="max-h-[70vh] overflow-y-auto">
+                    <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                        @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                        {
+                            <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
+                        }
+
+                        <div>
+                            <label class="form-label">Direction</label>
+                            <select class="form-select" @bind="formModel.Direction" @bind:after="OnFormDirectionChanged">
+                                <option value="1">Arrival</option>
+                                <option value="2">Departure</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Location</label>
+                            <InputText class="form-input" @bind-Value="formModel.Location" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Date and time</label>
+                            <InputDate class="form-input" Type="InputDateType.DateTimeLocal" @bind-Value="formModel.DateTime" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Runner name</label>
+                            <InputText class="form-input" @bind-Value="formModel.RunnerName" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="form-label">Notes</label>
+                            <textarea class="form-textarea" rows="2" @bind="formModel.Notes"></textarea>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="form-label">Trips (@GetDirectionLabel(formModel.Direction) only)</label>
+                            <div class="flex flex-col gap-2 p-3 overflow-y-auto border rounded-md max-h-52 border-black/10 dark:border-darkborder">
+                                @if (!CandidateTrips.Any())
+                                {
+                                    <p class="text-sm text-black/50 dark:text-white/60">No loose trips for this direction.</p>
+                                }
+                                @foreach (ProductionTripDto trip in CandidateTrips)
+                                {
+                                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                        <input type="checkbox" checked="@formModel.SelectedTripIds.Contains(trip.Id)" @onchange="e => ToggleTrip(trip.Id, (bool)e.Value!)" />
+                                        @trip.ProductionPersonName - @GetTypeLabel(trip.Type) @trip.TripNumber (@trip.DateTime.ToString("dd MMM HH:mm"), @trip.TerminalOrStation)
+                                    </label>
+                                }
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="SaveAsync">@(isSaving ? "Saving..." : "Save")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deleteItinerary is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Itinerary</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete this itinerary? Its trips will be ungrouped, not deleted.</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<RunnerItineraryDto> itineraries = [];
+    private List<ProductionTripDto> trips = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private ItineraryFormModel formModel = new();
+    private RunnerItineraryDto? editingItinerary;
+    private RunnerItineraryDto? deleteItinerary;
+    private string festivalFilter = string.Empty;
+    private string editionFilter = string.Empty;
+    private string directionFilter = string.Empty;
+    private bool isLoading = true;
+    private bool isModalOpen;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+            ? editions
+            : editions.Where(e => e.FestivalId == fid).ToList();
+
+    private List<ProductionTripDto> CandidateTrips =>
+        trips.Where(t => t.Direction == formModel.Direction && (!t.RunnerItineraryId.HasValue || (editingItinerary is not null && t.RunnerItineraryId == editingItinerary.Id)))
+            .OrderBy(t => t.DateTime)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+
+        editions = (await EditionApiClient.GetAllAsync()).ToList();
+        festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+        if (ActiveFestivalState.Active is not null)
+        {
+            festivalFilter = ActiveFestivalState.Active.Id.ToString();
+
+            EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+            if (preferred is not null)
+            {
+                editionFilter = preferred.Id.ToString();
+            }
+        }
+
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        if (!Guid.TryParse(editionFilter, out Guid editionId))
+        {
+            itineraries = [];
+            trips = [];
+            isLoading = false;
+            return;
+        }
+
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            itineraries = (await RunnerItineraryApiClient.GetByEditionIdAsync(editionId)).ToList();
+            trips = (await ProductionTripApiClient.GetByEditionIdAsync(editionId)).ToList();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        await LoadDataAsync();
+        ResetPage();
+    }
+
+    private async Task OnEditionFilterChangedAsync()
+    {
+        await LoadDataAsync();
+        ResetPage();
+    }
+
+    private List<RunnerItineraryDto> FilteredItineraries
+    {
+        get
+        {
+            IEnumerable<RunnerItineraryDto> query = itineraries;
+
+            if (int.TryParse(directionFilter, out int direction))
+            {
+                query = query.Where(i => i.Direction == direction);
+            }
+
+            return query.OrderBy(i => i.DateTime).ToList();
+        }
+    }
+
+    private IEnumerable<RunnerItineraryDto> PagedItineraries => FilteredItineraries.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredItineraries.Count / (double)pageSize));
+    private int StartRow => FilteredItineraries.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredItineraries.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void ToggleTrip(Guid tripId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            formModel.SelectedTripIds.Add(tripId);
+        }
+        else
+        {
+            formModel.SelectedTripIds.Remove(tripId);
+        }
+    }
+
+    private void OnFormDirectionChanged()
+    {
+        formModel.SelectedTripIds.Clear();
+    }
+
+    private void OpenCreateModal()
+    {
+        if (!Guid.TryParse(editionFilter, out Guid editionId))
+        {
+            return;
+        }
+
+        editingItinerary = null;
+        modalErrorMessage = null;
+        formModel = new ItineraryFormModel
+        {
+            EditionId = editionId,
+            Direction = 1,
+            DateTime = DateTime.Now
+        };
+        isModalOpen = true;
+    }
+
+    private void OpenEditModal(RunnerItineraryDto itinerary)
+    {
+        editingItinerary = itinerary;
+        modalErrorMessage = null;
+        formModel = new ItineraryFormModel
+        {
+            EditionId = itinerary.EditionId,
+            DateTime = itinerary.DateTime,
+            Location = itinerary.Location,
+            Direction = itinerary.Direction,
+            RunnerName = itinerary.RunnerName,
+            Notes = itinerary.Notes,
+            SelectedTripIds = itinerary.Trips.Select(t => t.Id).ToHashSet()
+        };
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        isSaving = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            Guid itineraryId;
+
+            if (editingItinerary is null)
+            {
+                CreateItineraryRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    DateTime = formModel.DateTime,
+                    Location = formModel.Location,
+                    Direction = formModel.Direction,
+                    RunnerName = formModel.RunnerName,
+                    Notes = formModel.Notes
+                };
+
+                RunnerItineraryDto created = await RunnerItineraryApiClient.CreateAsync(request);
+                itineraryId = created.Id;
+                ShowSuccess("Itinerary created successfully.");
+            }
+            else
+            {
+                UpdateItineraryRequest request = new()
+                {
+                    DateTime = formModel.DateTime,
+                    Location = formModel.Location,
+                    Direction = formModel.Direction,
+                    RunnerName = formModel.RunnerName,
+                    Notes = formModel.Notes
+                };
+
+                await RunnerItineraryApiClient.UpdateAsync(editingItinerary.Id, request);
+                itineraryId = editingItinerary.Id;
+                ShowSuccess("Itinerary updated successfully.");
+            }
+
+            await ReconcileTripAssignmentsAsync(itineraryId);
+
+            CloseModal();
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ReconcileTripAssignmentsAsync(Guid itineraryId)
+    {
+        HashSet<Guid> previouslyAssigned = editingItinerary?.Trips.Select(t => t.Id).ToHashSet() ?? [];
+        HashSet<Guid> nowSelected = formModel.SelectedTripIds;
+
+        IEnumerable<Guid> toAssign = nowSelected.Except(previouslyAssigned);
+        IEnumerable<Guid> toUnassign = previouslyAssigned.Except(nowSelected);
+
+        foreach (Guid tripId in toAssign)
+        {
+            ProductionTripDto? trip = trips.FirstOrDefault(t => t.Id == tripId);
+
+            if (trip is null) continue;
+
+            await ProductionTripApiClient.UpdateAsync(trip.Id, BuildUpdateRequest(trip, itineraryId));
+        }
+
+        foreach (Guid tripId in toUnassign)
+        {
+            ProductionTripDto? trip = trips.FirstOrDefault(t => t.Id == tripId);
+
+            if (trip is null) continue;
+
+            await ProductionTripApiClient.UpdateAsync(trip.Id, BuildUpdateRequest(trip, null));
+        }
+    }
+
+    private static UpdateTripRequest BuildUpdateRequest(ProductionTripDto trip, Guid? runnerItineraryId)
+    {
+        return new UpdateTripRequest
+        {
+            ProductionPersonId = trip.ProductionPersonId,
+            Type = trip.Type,
+            TripNumber = trip.TripNumber,
+            DateTime = trip.DateTime,
+            TerminalOrStation = trip.TerminalOrStation,
+            Direction = trip.Direction,
+            RunnerItineraryId = runnerItineraryId
+        };
+    }
+
+    private void OpenDeleteModal(RunnerItineraryDto itinerary)
+    {
+        deleteItinerary = itinerary;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteItinerary = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deleteItinerary is null || isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            await RunnerItineraryApiClient.DeleteAsync(deleteItinerary.Id);
+            deleteItinerary = null;
+            ShowSuccess("Itinerary deleted successfully.");
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetDirectionLabel(int direction) => direction switch
+    {
+        1 => "Arrival",
+        2 => "Departure",
+        _ => "-"
+    };
+
+    private static string GetTypeLabel(int type) => type switch
+    {
+        1 => "Flight",
+        2 => "Train",
+        3 => "Car",
+        _ => "-"
+    };
+
+    private static string BuildErrorMessage(ApiClientException exception)
+    {
+        if (exception.Errors.Count == 0)
+        {
+            return exception.Message;
+        }
+
+        return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private class ItineraryFormModel
+    {
+        public Guid EditionId { get; set; }
+        public DateTime DateTime { get; set; } = DateTime.Now;
+        public string Location { get; set; } = string.Empty;
+        public int Direction { get; set; } = 1;
+        public string? RunnerName { get; set; }
+        public string? Notes { get; set; }
+        public HashSet<Guid> SelectedTripIds { get; set; } = [];
+    }
+
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            editionFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
+    }
+}

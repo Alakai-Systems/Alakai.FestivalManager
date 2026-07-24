@@ -32,6 +32,62 @@ public static class ApiCLientsDependencyInjectionExtension
             client.BaseAddress = new Uri(baseUrl);
         });
 
+        services.AddHttpClient<ProductionAccommodationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<RunnerItineraryApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ProductionTripApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ProductionBuildingApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ProductionZoneApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ProductionReservationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ProductionPersonApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<ProductionSupplierApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
         services.AddHttpClient<LevelApiClient>(client =>
         {
             string baseUrl = configuration["ApiSettings:BaseUrl"]

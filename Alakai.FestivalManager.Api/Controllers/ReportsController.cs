@@ -28,10 +28,15 @@ public class ReportsController : ControllerBase
             "accommodation-grid" => await _reportService.GenerateAccommodationGridReportAsync(editionId, cancellationToken),
             "buses" => await _reportService.GenerateBusesReportAsync(editionId, cancellationToken),
             "meals" => await _reportService.GenerateMealsReportAsync(editionId, cancellationToken),
+            "production-team" => await _reportService.GenerateProductionTeamReportAsync(editionId, cancellationToken),
+            "production-suppliers" => await _reportService.GenerateProductionSuppliersReportAsync(editionId, cancellationToken),
+            "production-trips" => await _reportService.GenerateProductionTripsReportAsync(editionId, cancellationToken),
+            "production-itineraries" => await _reportService.GenerateProductionItinerariesReportAsync(editionId, cancellationToken),
+            "production-accommodation" => await _reportService.GenerateProductionAccommodationReportAsync(editionId, cancellationToken),
             _ => []
         };
 
-        if (bytes.Length == 0 && reportType.ToLowerInvariant() is not ("users" or "registrations" or "competitions" or "accommodation" or "accommodation-grid" or "buses" or "meals"))
+        if (bytes.Length == 0 && reportType.ToLowerInvariant() is not ("users" or "registrations" or "competitions" or "accommodation" or "accommodation-grid" or "buses" or "meals" or "production-team" or "production-suppliers" or "production-trips" or "production-itineraries" or "production-accommodation"))
         {
             return NotFound($"Unknown report type '{reportType}'.");
         }

@@ -40,6 +40,76 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<DeletePassTypeHandler>();
         services.AddScoped<IPassTypeService, PassTypeService>();
 
+        //ProductionBuildings
+        services.AddScoped<CreateBuildingHandler>();
+        services.AddScoped<GetBuildingByIdHandler>();
+        services.AddScoped<GetBuildingsHandler>();
+        services.AddScoped<GetBuildingsByEditionIdHandler>();
+        services.AddScoped<UpdateBuildingHandler>();
+        services.AddScoped<DeleteBuildingHandler>();
+        services.AddScoped<IProductionAccommodationBuildingService, ProductionAccommodationBuildingService>();
+
+        //ProductionAccommodationZones
+        services.AddScoped<GetProductionAccommodationZonesHandler>();
+        services.AddScoped<CreateProductionAccommodationZoneHandler>();
+        services.AddScoped<GetProductionAccommodationZoneByIdHandler>();
+        services.AddScoped<GetProductionAccommodationZonesByBuildingIdHandler>();
+        services.AddScoped<UpdateProductionAccommodationZoneHandler>();
+        services.AddScoped<DeleteProductionAccommodationZoneHandler>();
+        services.AddScoped<IProductionAccommodationZoneService, ProductionAccommodationZoneService>();
+
+        //ProductionAccommodations (la unidad/habitacion)
+        services.AddScoped<GetProductionAccommodationsHandler>();
+        services.AddScoped<CreateProductionAccommodationHandler>();
+        services.AddScoped<GetProductionAccommodationByIdHandler>();
+        services.AddScoped<GetProductionAccommodationsByZoneIdHandler>();
+        services.AddScoped<UpdateProductionAccommodationHandler>();
+        services.AddScoped<DeleteProductionAccommodationHandler>();
+        services.AddScoped<IProductionAccommodationService, ProductionAccommodationService>();
+
+        //ProductionTrips
+        services.AddScoped<CreateTripHandler>();
+        services.AddScoped<GetTripByIdHandler>();
+        services.AddScoped<GetTripsByEditionIdHandler>();
+        services.AddScoped<UpdateTripHandler>();
+        services.AddScoped<DeleteTripHandler>();
+        services.AddScoped<IProductionTripService, ProductionTripService>();
+
+        //RunnerItineraries
+        services.AddScoped<CreateItineraryHandler>();
+        services.AddScoped<GetItineraryByIdHandler>();
+        services.AddScoped<GetItinerariesByEditionIdHandler>();
+        services.AddScoped<UpdateItineraryHandler>();
+        services.AddScoped<DeleteItineraryHandler>();
+        services.AddScoped<IRunnerItineraryService, RunnerItineraryService>();
+
+        //ProductionReservations
+        services.AddScoped<GetReservationsHandler>();
+        services.AddScoped<CreateReservationHandler>();
+        services.AddScoped<GetReservationByIdHandler>();
+        services.AddScoped<GetReservationsByBuildingIdHandler>();
+        services.AddScoped<UpdateReservationHandler>();
+        services.AddScoped<DeleteReservationHandler>();
+        services.AddScoped<IProductionReservationService, ProductionReservationService>();
+
+        //ProductionPeople (Artistas + Equipo)
+        services.AddScoped<CreateProductionPersonHandler>();
+        services.AddScoped<GetProductionPersonByIdHandler>();
+        services.AddScoped<GetProductionPeopleHandler>();
+        services.AddScoped<GetProductionPeopleByEditionIdHandler>();
+        services.AddScoped<UpdateProductionPersonHandler>();
+        services.AddScoped<DeleteProductionPersonHandler>();
+        services.AddScoped<IProductionPersonService, ProductionPersonService>();
+
+        //ProductionSuppliers (Proveedores/Servicios)
+        services.AddScoped<CreateProductionSupplierHandler>();
+        services.AddScoped<GetProductionSupplierByIdHandler>();
+        services.AddScoped<GetProductionSuppliersHandler>();
+        services.AddScoped<GetProductionSuppliersByEditionIdHandler>();
+        services.AddScoped<UpdateProductionSupplierHandler>();
+        services.AddScoped<DeleteProductionSupplierHandler>();
+        services.AddScoped<IProductionSupplierService, ProductionSupplierService>();
+
         //Levels 
         services.AddScoped<CreateLevelHandler>();
         services.AddScoped<GetLevelByIdHandler>();

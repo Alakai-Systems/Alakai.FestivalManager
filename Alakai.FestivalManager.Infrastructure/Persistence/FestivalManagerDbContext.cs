@@ -37,6 +37,15 @@ public class FestivalManagerDbContext : DbContext
     public DbSet<BusPassType> BusPassTypes => Set<BusPassType>();
     public DbSet<BusReservation> BusReservations => Set<BusReservation>();
     public DbSet<MealPreference> MealPreferences => Set<MealPreference>();
+    public DbSet<ProductionPerson> ProductionPeople => Set<ProductionPerson>();
+    public DbSet<ProductionSupplier> ProductionSuppliers => Set<ProductionSupplier>();
+    public DbSet<ProductionAccommodationBuilding> ProductionAccommodationBuildings => Set<ProductionAccommodationBuilding>();
+    public DbSet<ProductionAccommodationZone> ProductionAccommodationZones => Set<ProductionAccommodationZone>();
+    public DbSet<ProductionAccommodation> ProductionAccommodations => Set<ProductionAccommodation>();
+    public DbSet<ProductionAccommodationReservation> ProductionAccommodationReservations => Set<ProductionAccommodationReservation>();
+    public DbSet<ProductionAccommodationReservationOccupant> ProductionAccommodationReservationOccupants => Set<ProductionAccommodationReservationOccupant>();
+    public DbSet<ProductionTrip> ProductionTrips => Set<ProductionTrip>();
+    public DbSet<RunnerItinerary> RunnerItineraries => Set<RunnerItinerary>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

@@ -1397,6 +1397,345 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.ToTable("PasswordResetTokens", (string)null);
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Capacity")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<Guid>("ProductionAccommodationZoneId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionAccommodationZoneId");
+
+                    b.ToTable("ProductionAccommodations", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationBuilding", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("IsLocked")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.ToTable("ProductionAccommodationBuildings", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationReservation", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductionAccommodationBuildingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("ResponsibleProductionPersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.HasIndex("ProductionAccommodationBuildingId");
+
+                    b.HasIndex("ResponsibleProductionPersonId");
+
+                    b.ToTable("ProductionAccommodationReservations", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationReservationOccupant", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsResponsible")
+                        .HasColumnType("bit");
+
+                    b.Property<Guid?>("ProductionAccommodationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductionAccommodationReservationId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductionPersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionAccommodationId");
+
+                    b.HasIndex("ProductionAccommodationReservationId");
+
+                    b.HasIndex("ProductionPersonId");
+
+                    b.ToTable("ProductionAccommodationReservationOccupants", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationZone", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<Guid>("ProductionAccommodationBuildingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ProductionAccommodationBuildingId");
+
+                    b.ToTable("ProductionAccommodationZones", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionPerson", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Category")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("DocumentNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("DocumentType")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("FirstName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("LastName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Nationality")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("RoleTitle")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId", "DocumentNumber")
+                        .IsUnique();
+
+                    b.ToTable("ProductionPeople", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionSupplier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ContactName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Email")
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Phone")
+                        .HasMaxLength(30)
+                        .HasColumnType("nvarchar(30)");
+
+                    b.Property<string>("ServiceType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.ToTable("ProductionSuppliers", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionTrip", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid>("ProductionPersonId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<Guid?>("RunnerItineraryId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("TerminalOrStation")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("TripNumber")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("nvarchar(50)");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.HasIndex("ProductionPersonId");
+
+                    b.HasIndex("RunnerItineraryId");
+
+                    b.ToTable("ProductionTrips", (string)null);
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1629,6 +1968,47 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsUnique();
 
                     b.ToTable("RegistrationLevelSelections", (string)null);
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RunnerItinerary", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Direction")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("EditionId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Location")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("RunnerName")
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("EditionId");
+
+                    b.ToTable("RunnerItineraries", (string)null);
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.User", b =>
@@ -2104,6 +2484,139 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodation", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationZone", "ProductionAccommodationZone")
+                        .WithMany("Accommodations")
+                        .HasForeignKey("ProductionAccommodationZoneId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductionAccommodationZone");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationBuilding", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Edition");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationReservation", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationBuilding", "ProductionAccommodationBuilding")
+                        .WithMany()
+                        .HasForeignKey("ProductionAccommodationBuildingId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionPerson", "ResponsibleProductionPerson")
+                        .WithMany()
+                        .HasForeignKey("ResponsibleProductionPersonId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Edition");
+
+                    b.Navigation("ProductionAccommodationBuilding");
+
+                    b.Navigation("ResponsibleProductionPerson");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationReservationOccupant", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionAccommodation", "ProductionAccommodation")
+                        .WithMany()
+                        .HasForeignKey("ProductionAccommodationId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationReservation", "ProductionAccommodationReservation")
+                        .WithMany("Occupants")
+                        .HasForeignKey("ProductionAccommodationReservationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionPerson", "ProductionPerson")
+                        .WithMany("AccommodationOccupancies")
+                        .HasForeignKey("ProductionPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("ProductionAccommodation");
+
+                    b.Navigation("ProductionAccommodationReservation");
+
+                    b.Navigation("ProductionPerson");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationZone", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationBuilding", "ProductionAccommodationBuilding")
+                        .WithMany("Zones")
+                        .HasForeignKey("ProductionAccommodationBuildingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ProductionAccommodationBuilding");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionPerson", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Edition");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionSupplier", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Edition");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionTrip", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.ProductionPerson", "ProductionPerson")
+                        .WithMany("Trips")
+                        .HasForeignKey("ProductionPersonId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.RunnerItinerary", "RunnerItinerary")
+                        .WithMany("Trips")
+                        .HasForeignKey("RunnerItineraryId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Edition");
+
+                    b.Navigation("ProductionPerson");
+
+                    b.Navigation("RunnerItinerary");
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("Alakai.FestivalManager.Domain.Entities.User", "User")
@@ -2186,6 +2699,17 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("Registration");
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RunnerItinerary", b =>
+                {
+                    b.HasOne("Alakai.FestivalManager.Domain.Entities.Edition", "Edition")
+                        .WithMany()
+                        .HasForeignKey("EditionId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Edition");
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.AccommodationBuilding", b =>
                 {
                     b.Navigation("AllowedPassTypes");
@@ -2241,9 +2765,36 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                     b.Navigation("Levels");
                 });
 
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationBuilding", b =>
+                {
+                    b.Navigation("Zones");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationReservation", b =>
+                {
+                    b.Navigation("Occupants");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionAccommodationZone", b =>
+                {
+                    b.Navigation("Accommodations");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.ProductionPerson", b =>
+                {
+                    b.Navigation("AccommodationOccupancies");
+
+                    b.Navigation("Trips");
+                });
+
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.Registration", b =>
                 {
                     b.Navigation("LevelSelections");
+                });
+
+            modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.RunnerItinerary", b =>
+                {
+                    b.Navigation("Trips");
                 });
 
             modelBuilder.Entity("Alakai.FestivalManager.Domain.Entities.User", b =>

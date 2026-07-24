@@ -1,0 +1,644 @@
+@page "/production-team"
+
+@inject ProductionPersonApiClient ProductionPersonApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@implements IDisposable
+
+<PageHeader Title="Production" pTitle="Artists &amp; Team"></PageHeader>
+
+<div class="grid grid-cols-1 gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input w-full md:w-72" placeholder="Search people..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="">All editions</option>
+                    @foreach (EditionDto edition in EditionsForSelectedFestival)
+                    {
+                        <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="categoryFilter" @bind:after="ResetPage">
+                    <option value="">All categories</option>
+                    <option value="Artist">Artists</option>
+                    <option value="Team">Team</option>
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="statusFilter" @bind:after="ResetPage">
+                    <option value="">All statuses</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Person
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/60">Loading production team...</p>
+        }
+        else
+        {
+            <div class="w-full max-w-full overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Category")'>Category @SortIcon("Category")</button></th>
+                            <th class="px-4 py-3 font-semibold">Role</th>
+                            <th class="px-4 py-3 font-semibold">Email</th>
+                            <th class="px-4 py-3 font-semibold">Document</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-black dark:text-white/80">
+                        @if (!PagedPeople.Any())
+                        {
+                            <tr>
+                                <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No production people found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (ProductionPersonDto person in PagedPeople)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3 font-medium">@person.FirstName @person.LastName</td>
+                                    <td class="px-4 py-3">@person.Category</td>
+                                    <td class="px-4 py-3">@person.RoleTitle</td>
+                                    <td class="px-4 py-3">@person.Email</td>
+                                    <td class="px-4 py-3">@person.DocumentType: @person.DocumentNumber</td>
+                                    <td class="px-4 py-3"><span class="@GetStatusClass(person.IsActive)">@(person.IsActive ? "Active" : "Inactive")</span></td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(person)">
+                                                <i class="ri-pencil-line text-lg"></i>
+                                            </button>
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(person)">
+                                                <i class="ri-delete-bin-line text-lg"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/60">
+                    Showing @StartRow to @EndRow of @FilteredPeople.Count people
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold">@(editingPerson is null ? "New Person" : "Edit Person")</h3>
+                    <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <EditForm Model="formModel" OnValidSubmit="SaveAsync">
+                    <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                        @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                        {
+                            <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
+                        }
+
+                        <div>
+                            <label class="form-label">Edition</label>
+                            <select class="form-select" @bind="formModel.EditionId">
+                                @foreach (EditionDto edition in editions)
+                                {
+                                    <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Category</label>
+                            <select class="form-select" @bind="formModel.Category">
+                                <option value="@ProductionPersonCategory.Artist">Artist</option>
+                                <option value="@ProductionPersonCategory.Team">Team</option>
+                            </select>
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="form-label">Role</label>
+                            <InputText class="form-input" placeholder="e.g. DJ, Teacher, Audiovisual..." @bind-Value="formModel.RoleTitle" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">First name</label>
+                            <InputText class="form-input" @bind-Value="formModel.FirstName" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Last name</label>
+                            <InputText class="form-input" @bind-Value="formModel.LastName" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Email</label>
+                            <InputText class="form-input" @bind-Value="formModel.Email" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Phone</label>
+                            <InputText class="form-input" @bind-Value="formModel.Phone" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Document type</label>
+                            <select class="form-select" @bind="formModel.DocumentType">
+                                <option value="@DocumentType.Dni">DNI</option>
+                                <option value="@DocumentType.Passport">Passport</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Document number</label>
+                            <InputText class="form-input" @bind-Value="formModel.DocumentNumber" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Nationality</label>
+                            <InputText class="form-input" @bind-Value="formModel.Nationality" />
+                        </div>
+
+                        @if (editingPerson is not null)
+                        {
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="formModel.IsActive" />
+                                Active
+                            </label>
+                        }
+                    </div>
+
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModal">Cancel</button>
+                        <button type="submit" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving">@(isSaving ? "Saving..." : "Save")</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deletePerson is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Person</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@deletePerson.FirstName @deletePerson.LastName</strong>?</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ProductionPersonDto> people = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private ProductionPersonFormModel formModel = new();
+    private ProductionPersonDto? editingPerson;
+    private ProductionPersonDto? deletePerson;
+    private string searchText = string.Empty;
+    private string festivalFilter = string.Empty;
+    private string editionFilter = string.Empty;
+    private string? categoryFilter;
+    private string? statusFilter;
+    private string sortColumn = "Name";
+    private bool sortAscending = true;
+    private bool isLoading = true;
+    private bool isModalOpen;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+            ? editions
+            : editions.Where(e => e.FestivalId == fid).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
+            {
+                festivalFilter = ActiveFestivalState.Active.Id.ToString();
+            }
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(editionFilter))
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                if (preferred is not null)
+                {
+                    editionFilter = preferred.Id.ToString();
+                }
+            }
+
+            people = (await ProductionPersonApiClient.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        ResetPage();
+    }
+
+    private List<ProductionPersonDto> FilteredPeople
+    {
+        get
+        {
+            IEnumerable<ProductionPersonDto> query = people;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(p =>
+                    p.FirstName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.LastName.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.Email.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    p.RoleTitle.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (Guid.TryParse(editionFilter, out Guid editionId))
+            {
+                query = query.Where(p => p.EditionId == editionId);
+            }
+            else if (Guid.TryParse(festivalFilter, out Guid fid))
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == fid).Select(e => e.Id).ToHashSet();
+                query = query.Where(p => editionIds.Contains(p.EditionId));
+            }
+
+            if (!string.IsNullOrWhiteSpace(categoryFilter))
+            {
+                query = query.Where(p => p.Category.ToString() == categoryFilter);
+            }
+
+            if (!string.IsNullOrWhiteSpace(statusFilter))
+            {
+                query = query.Where(p =>
+                    (statusFilter == "Active" && p.IsActive) ||
+                    (statusFilter == "Inactive" && !p.IsActive)
+                );
+            }
+
+            query = sortColumn switch
+            {
+                "Category" => sortAscending ? query.OrderBy(p => p.Category) : query.OrderByDescending(p => p.Category),
+                "Status" => sortAscending
+                    ? query.OrderBy(p => p.IsActive ? 0 : 1)
+                    : query.OrderByDescending(p => p.IsActive ? 0 : 1),
+                _ => sortAscending
+                    ? query.OrderBy(p => p.LastName).ThenBy(p => p.FirstName)
+                    : query.OrderByDescending(p => p.LastName).ThenByDescending(p => p.FirstName)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private IEnumerable<ProductionPersonDto> PagedPeople => FilteredPeople.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredPeople.Count / (double)pageSize));
+    private int StartRow => FilteredPeople.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredPeople.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingPerson = null;
+        modalErrorMessage = null;
+        formModel = new ProductionPersonFormModel
+        {
+            EditionId = Guid.TryParse(editionFilter, out Guid eid) ? eid : (editions.FirstOrDefault()?.Id ?? Guid.Empty),
+            Category = ProductionPersonCategory.Artist,
+            IsActive = true
+        };
+        isModalOpen = true;
+    }
+
+    private void OpenEditModal(ProductionPersonDto person)
+    {
+        editingPerson = person;
+        modalErrorMessage = null;
+        formModel = new ProductionPersonFormModel
+        {
+            EditionId = person.EditionId,
+            Category = person.Category,
+            RoleTitle = person.RoleTitle,
+            FirstName = person.FirstName,
+            LastName = person.LastName,
+            Email = person.Email,
+            Phone = person.Phone,
+            DocumentType = person.DocumentType,
+            DocumentNumber = person.DocumentNumber,
+            Nationality = person.Nationality,
+            IsActive = person.IsActive
+        };
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        isSaving = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            if (editingPerson is null)
+            {
+                CreateProductionPersonRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Category = formModel.Category,
+                    RoleTitle = formModel.RoleTitle,
+                    FirstName = formModel.FirstName,
+                    LastName = formModel.LastName,
+                    Email = formModel.Email,
+                    Phone = formModel.Phone,
+                    DocumentType = formModel.DocumentType,
+                    DocumentNumber = formModel.DocumentNumber,
+                    Nationality = formModel.Nationality
+                };
+
+                await ProductionPersonApiClient.CreateAsync(request);
+                ShowSuccess("Person created successfully.");
+            }
+            else
+            {
+                UpdateProductionPersonRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    Category = formModel.Category,
+                    RoleTitle = formModel.RoleTitle,
+                    FirstName = formModel.FirstName,
+                    LastName = formModel.LastName,
+                    Email = formModel.Email,
+                    Phone = formModel.Phone,
+                    DocumentType = formModel.DocumentType,
+                    DocumentNumber = formModel.DocumentNumber,
+                    Nationality = formModel.Nationality,
+                    IsActive = formModel.IsActive
+                };
+
+                await ProductionPersonApiClient.UpdateAsync(editingPerson.Id, request);
+                ShowSuccess("Person updated successfully.");
+            }
+
+            CloseModal();
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenDeleteModal(ProductionPersonDto person)
+    {
+        deletePerson = person;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deletePerson = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deletePerson is null || isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            await ProductionPersonApiClient.DeleteAsync(deletePerson.Id);
+            deletePerson = null;
+            ShowSuccess("Person deleted successfully.");
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetStatusClass(bool isActive)
+    {
+        return isActive ? "px-2 py-1 text-xs rounded bg-success/10 text-success" : "px-2 py-1 text-xs rounded bg-danger/10 text-danger";
+    }
+
+    private static string BuildErrorMessage(ApiClientException exception)
+    {
+        if (exception.Errors.Count == 0)
+        {
+            return exception.Message;
+        }
+
+        return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private class ProductionPersonFormModel
+    {
+        public Guid EditionId { get; set; }
+        public ProductionPersonCategory Category { get; set; }
+        public string RoleTitle { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string? Phone { get; set; }
+        public DocumentType DocumentType { get; set; }
+        public string DocumentNumber { get; set; } = string.Empty;
+        public string? Nationality { get; set; }
+        public bool IsActive { get; set; }
+    }
+
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            editionFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
+    }
+}

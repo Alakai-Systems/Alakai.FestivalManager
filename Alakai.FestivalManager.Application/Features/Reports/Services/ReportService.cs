@@ -12,6 +12,11 @@ public class ReportService : IReportService
     private readonly IAccommodationBuildingRepository _accommodationBuildingRepository;
     private readonly IBusReservationRepository _busReservationRepository;
     private readonly IMealPreferenceRepository _mealPreferenceRepository;
+    private readonly IProductionPersonRepository _productionPersonRepository;
+    private readonly IProductionSupplierRepository _productionSupplierRepository;
+    private readonly IProductionTripRepository _productionTripRepository;
+    private readonly IRunnerItineraryRepository _runnerItineraryRepository;
+    private readonly IProductionReservationRepository _productionReservationRepository;
 
     public ReportService(
         IRegistrationRepository registrationRepository,
@@ -19,7 +24,12 @@ public class ReportService : IReportService
         IAccommodationReservationRepository accommodationReservationRepository,
         IAccommodationBuildingRepository accommodationBuildingRepository,
         IBusReservationRepository busReservationRepository,
-        IMealPreferenceRepository mealPreferenceRepository)
+        IMealPreferenceRepository mealPreferenceRepository,
+        IProductionPersonRepository productionPersonRepository,
+        IProductionSupplierRepository productionSupplierRepository,
+        IProductionTripRepository productionTripRepository,
+        IRunnerItineraryRepository runnerItineraryRepository,
+        IProductionReservationRepository productionReservationRepository)
     {
         _registrationRepository = registrationRepository;
         _competitionEntryRepository = competitionEntryRepository;
@@ -27,6 +37,11 @@ public class ReportService : IReportService
         _accommodationBuildingRepository = accommodationBuildingRepository;
         _busReservationRepository = busReservationRepository;
         _mealPreferenceRepository = mealPreferenceRepository;
+        _productionPersonRepository = productionPersonRepository;
+        _productionSupplierRepository = productionSupplierRepository;
+        _productionTripRepository = productionTripRepository;
+        _runnerItineraryRepository = runnerItineraryRepository;
+        _productionReservationRepository = productionReservationRepository;
     }
 
     public async Task<byte[]> GenerateUsersReportAsync(Guid editionId, CancellationToken cancellationToken = default)
@@ -344,6 +359,76 @@ public class ReportService : IReportService
         }
 
         return candidate;
+    }
+
+    public async Task<byte[]> GenerateProductionTeamReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ProductionPerson> people = await _productionPersonRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = people.Select(p => new[]
+        {
+            p.FirstName, p.LastName, p.Category.ToString(), p.RoleTitle, p.Email, p.Phone ?? "",
+            p.DocumentType.ToString(), p.DocumentNumber, p.Nationality ?? ""
+        }).ToList();
+
+        return BuildXlsx("Production Team", ["First Name", "Last Name", "Category", "Role", "Email", "Phone", "Document Type", "Document Number", "Nationality"], rows);
+    }
+
+    public async Task<byte[]> GenerateProductionSuppliersReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ProductionSupplier> suppliers = await _productionSupplierRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = suppliers.Select(s => new[]
+        {
+            s.Name, s.ServiceType, s.ContactName ?? "", s.Email ?? "", s.Phone ?? "", s.Notes ?? ""
+        }).ToList();
+
+        return BuildXlsx("Suppliers", ["Name", "Service Type", "Contact Name", "Email", "Phone", "Notes"], rows);
+    }
+
+    public async Task<byte[]> GenerateProductionTripsReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ProductionTrip> trips = await _productionTripRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = trips.Select(t => new[]
+        {
+            t.ProductionPerson is not null ? $"{t.ProductionPerson.FirstName} {t.ProductionPerson.LastName}" : "",
+            t.Type.ToString(), t.TripNumber, t.DateTime.ToString("dd/MM/yyyy HH:mm"), t.TerminalOrStation, t.Direction.ToString()
+        }).ToList();
+
+        return BuildXlsx("Trips", ["Person", "Type", "Trip Number", "Date/Time", "Terminal / Station", "Direction"], rows);
+    }
+
+    public async Task<byte[]> GenerateProductionItinerariesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<RunnerItinerary> itineraries = await _runnerItineraryRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = itineraries.SelectMany(i => i.Trips.Select(t => new[]
+        {
+            i.DateTime.ToString("dd/MM/yyyy HH:mm"), i.Location, i.Direction.ToString(), i.RunnerName ?? "",
+            t.ProductionPerson is not null ? $"{t.ProductionPerson.FirstName} {t.ProductionPerson.LastName}" : "",
+            t.TripNumber, t.DateTime.ToString("dd/MM/yyyy HH:mm"), t.TerminalOrStation
+        })).ToList();
+
+        return BuildXlsx("Itineraries", ["Itinerary Date/Time", "Location", "Direction", "Runner", "Person", "Trip Number", "Trip Time", "Terminal / Station"], rows);
+    }
+
+    public async Task<byte[]> GenerateProductionAccommodationReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ProductionAccommodationReservation> reservations = (await _productionReservationRepository.GetAllAsync(cancellationToken))
+            .Where(r => r.EditionId == editionId)
+            .ToList();
+
+        List<string[]> rows = reservations.SelectMany(r => r.Occupants.Select(o => new[]
+        {
+            r.ProductionAccommodationBuilding?.Name ?? "",
+            r.ResponsibleProductionPerson is not null ? $"{r.ResponsibleProductionPerson.FirstName} {r.ResponsibleProductionPerson.LastName}" : "",
+            o.ProductionPerson is not null ? $"{o.ProductionPerson.FirstName} {o.ProductionPerson.LastName}" : "",
+            o.ProductionAccommodation?.ProductionAccommodationZone?.Name ?? "",
+            o.ProductionAccommodation?.Name ?? ""
+        })).ToList();
+
+        return BuildXlsx("Production Accommodation", ["Building", "Responsible", "Occupant", "Zone", "Room"], rows);
     }
 
     private static byte[] BuildXlsx(string sheetName, string[] headers, List<string[]> rows)

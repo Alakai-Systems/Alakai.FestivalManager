@@ -1,5 +1,8 @@
 @using Radzen.Blazor
+@using Microsoft.AspNetCore.Components.Authorization
 @inherits LayoutComponentBase
+@inject NavigationManager Navigation
+@implements IDisposable
 
 <AuthorizeView Policy="AdminAccess">
     <Authorized>
@@ -28,3 +31,52 @@
         <RedirectToLogin />
     </NotAuthorized>
 </AuthorizeView>
+
+@code {
+    [CascadingParameter] private Task<AuthenticationState>? AuthenticationStateTask { get; set; }
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            await EnforceProductionRoleRestrictionAsync();
+        }
+    }
+
+    private async void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        await EnforceProductionRoleRestrictionAsync();
+    }
+
+    private async Task EnforceProductionRoleRestrictionAsync()
+    {
+        if (AuthenticationStateTask is null)
+        {
+            return;
+        }
+
+        AuthenticationState authState = await AuthenticationStateTask;
+
+        if (!authState.User.IsInRole("Production"))
+        {
+            return;
+        }
+
+        string relativePath = Navigation.ToBaseRelativePath(Navigation.Uri).ToLowerInvariant();
+
+        if (!relativePath.StartsWith("production"))
+        {
+            Navigation.NavigateTo("/production-team");
+        }
+    }
+
+    public void Dispose()
+    {
+        Navigation.LocationChanged -= OnLocationChanged;
+    }
+}

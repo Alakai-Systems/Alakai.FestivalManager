@@ -1,0 +1,618 @@
+@page "/production-reservations"
+
+@inject ProductionReservationApiClient ProductionReservationApiClient
+@inject ProductionBuildingApiClient ProductionBuildingApiClient
+@inject ProductionPersonApiClient ProductionPersonApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@implements IDisposable
+
+<PageHeader Title="Production" pTitle="Accommodation Reservations"></PageHeader>
+
+<div class="grid grid-cols-1 gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input w-full md:w-72" placeholder="Search reservations..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="OnEditionFilterChanged">
+                    <option value="">All editions</option>
+                    @foreach (EditionDto edition in EditionsForSelectedFestival)
+                    {
+                        <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="buildingFilter" @bind:after="ResetPage">
+                    <option value="">All buildings</option>
+                    @foreach (ProductionAccommodationBuildingDto b in BuildingsForSelectedEdition)
+                    {
+                        <option value="@b.Id">@b.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Reservation
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/60">Loading reservations...</p>
+        }
+        else
+        {
+            <div class="w-full max-w-full overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Building")'>Building @SortIcon("Building")</button></th>
+                            <th class="px-4 py-3 font-semibold">Responsible</th>
+                            <th class="px-4 py-3 font-semibold">Occupants</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-black dark:text-white/80">
+                        @if (!PagedReservations.Any())
+                        {
+                            <tr>
+                                <td colspan="4" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No reservations found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (ReservationDto reservation in PagedReservations)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3 font-medium">@reservation.BuildingName</td>
+                                    <td class="px-4 py-3">@(reservation.ResponsibleName ?? "-")</td>
+                                    <td class="px-4 py-3">@string.Join(", ", reservation.Occupants.Select(o => o.ProductionPersonName))</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(reservation)">
+                                                <i class="ri-pencil-line text-lg"></i>
+                                            </button>
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(reservation)">
+                                                <i class="ri-delete-bin-line text-lg"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/60">
+                    Showing @StartRow to @EndRow of @FilteredReservations.Count reservations
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold">@(editingReservation is null ? "New Reservation" : "Edit Reservation")</h3>
+                    <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="max-h-[70vh] overflow-y-auto">
+                    <div class="grid grid-cols-1 gap-4 p-5">
+                        @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                        {
+                            <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                        }
+
+                        @if (editingReservation is null)
+                        {
+                            <div>
+                                <label class="form-label">Building</label>
+                                <select class="form-select" @bind="formModel.ProductionAccommodationBuildingId" @bind:after="OnFormBuildingChanged">
+                                    @foreach (ProductionAccommodationBuildingDto b in buildings)
+                                    {
+                                        <option value="@b.Id">@b.Name</option>
+                                    }
+                                </select>
+                            </div>
+                        }
+                        else
+                        {
+                            <div>
+                                <label class="form-label">Building</label>
+                                <p class="text-sm text-black dark:text-white">@editingReservation.BuildingName</p>
+                            </div>
+                        }
+
+                        <div>
+                            <label class="form-label">Occupants</label>
+                            <div class="flex flex-col gap-2 p-3 overflow-y-auto border rounded-md max-h-52 border-black/10 dark:border-darkborder">
+                                @foreach (ProductionPersonDto person in PeopleForSelectedBuilding)
+                                {
+                                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                        <input type="checkbox" checked="@formModel.SelectedPersonIds.Contains(person.Id)" @onchange="e => TogglePerson(person.Id, (bool)e.Value!)" />
+                                        @person.FirstName @person.LastName (@person.Category)
+                                    </label>
+                                }
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Responsible (optional)</label>
+                            <select class="form-select" @bind="formModel.ResponsibleProductionPersonIdText">
+                                <option value="">None</option>
+                                @foreach (Guid personId in formModel.SelectedPersonIds)
+                                {
+                                    ProductionPersonDto? person = people.FirstOrDefault(p => p.Id == personId);
+                                    <option value="@personId">@(person is null ? personId.ToString() : $"{person.FirstName} {person.LastName}")</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModal">Cancel</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="SaveAsync">@(isSaving ? "Saving..." : "Save")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deleteReservation is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Reservation</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete the reservation for <strong>@deleteReservation.BuildingName</strong>?</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ReservationDto> reservations = [];
+    private List<ProductionAccommodationBuildingDto> buildings = [];
+    private List<ProductionPersonDto> people = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private ReservationFormModel formModel = new();
+    private ReservationDto? editingReservation;
+    private ReservationDto? deleteReservation;
+    private string searchText = string.Empty;
+    private string festivalFilter = string.Empty;
+    private string editionFilter = string.Empty;
+    private string buildingFilter = string.Empty;
+    private string sortColumn = "Building";
+    private bool sortAscending = true;
+    private bool isLoading = true;
+    private bool isModalOpen;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+    private int pageSize = 10;
+    private int currentPage = 1;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+            ? editions
+            : editions.Where(e => e.FestivalId == fid).ToList();
+
+    private List<ProductionAccommodationBuildingDto> BuildingsForSelectedEdition =>
+        string.IsNullOrWhiteSpace(editionFilter) || !Guid.TryParse(editionFilter, out Guid eid)
+            ? buildings
+            : buildings.Where(b => b.EditionId == eid).ToList();
+
+    private List<ProductionPersonDto> PeopleForSelectedBuilding
+    {
+        get
+        {
+            ProductionAccommodationBuildingDto? building = buildings.FirstOrDefault(b => b.Id == formModel.ProductionAccommodationBuildingId);
+            return building is null ? [] : people.Where(p => p.EditionId == building.EditionId).OrderBy(p => p.LastName).ToList();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+            buildings = (await ProductionBuildingApiClient.GetAllAsync()).ToList();
+            people = (await ProductionPersonApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
+            {
+                festivalFilter = ActiveFestivalState.Active.Id.ToString();
+            }
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(editionFilter))
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                if (preferred is not null)
+                {
+                    editionFilter = preferred.Id.ToString();
+                }
+            }
+
+            reservations = (await ProductionReservationApiClient.GetAllAsync()).ToList();
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        buildingFilter = string.Empty;
+        ResetPage();
+    }
+
+    private void OnEditionFilterChanged()
+    {
+        buildingFilter = string.Empty;
+        ResetPage();
+    }
+
+    private List<ReservationDto> FilteredReservations
+    {
+        get
+        {
+            IEnumerable<ReservationDto> query = reservations;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(r =>
+                    (r.BuildingName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    r.Occupants.Any(o => (o.ProductionPersonName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            if (Guid.TryParse(buildingFilter, out Guid buildingId))
+            {
+                query = query.Where(r => r.ProductionAccommodationBuildingId == buildingId);
+            }
+            else if (Guid.TryParse(editionFilter, out Guid editionId))
+            {
+                HashSet<Guid> buildingIds = buildings.Where(b => b.EditionId == editionId).Select(b => b.Id).ToHashSet();
+                query = query.Where(r => buildingIds.Contains(r.ProductionAccommodationBuildingId));
+            }
+            else if (Guid.TryParse(festivalFilter, out Guid fid))
+            {
+                HashSet<Guid> editionIds = editions.Where(e => e.FestivalId == fid).Select(e => e.Id).ToHashSet();
+                HashSet<Guid> buildingIds = buildings.Where(b => editionIds.Contains(b.EditionId)).Select(b => b.Id).ToHashSet();
+                query = query.Where(r => buildingIds.Contains(r.ProductionAccommodationBuildingId));
+            }
+
+            query = sortAscending
+                ? query.OrderBy(r => r.BuildingName)
+                : query.OrderByDescending(r => r.BuildingName);
+
+            return query.ToList();
+        }
+    }
+
+    private IEnumerable<ReservationDto> PagedReservations => FilteredReservations.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredReservations.Count / (double)pageSize));
+    private int StartRow => FilteredReservations.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredReservations.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void TogglePerson(Guid personId, bool isChecked)
+    {
+        if (isChecked)
+        {
+            formModel.SelectedPersonIds.Add(personId);
+        }
+        else
+        {
+            formModel.SelectedPersonIds.Remove(personId);
+
+            if (formModel.ResponsibleProductionPersonIdText == personId.ToString())
+            {
+                formModel.ResponsibleProductionPersonIdText = string.Empty;
+            }
+        }
+    }
+
+    private void OnFormBuildingChanged()
+    {
+        formModel.SelectedPersonIds.Clear();
+        formModel.ResponsibleProductionPersonIdText = string.Empty;
+    }
+
+    private void OpenCreateModal()
+    {
+        editingReservation = null;
+        modalErrorMessage = null;
+        ProductionAccommodationBuildingDto? defaultBuilding = buildings.FirstOrDefault(b => b.Id.ToString() == buildingFilter) ?? buildings.FirstOrDefault();
+        formModel = new ReservationFormModel
+        {
+            ProductionAccommodationBuildingId = defaultBuilding?.Id ?? Guid.Empty
+        };
+        isModalOpen = true;
+    }
+
+    private void OpenEditModal(ReservationDto reservation)
+    {
+        editingReservation = reservation;
+        modalErrorMessage = null;
+        formModel = new ReservationFormModel
+        {
+            ProductionAccommodationBuildingId = reservation.ProductionAccommodationBuildingId,
+            SelectedPersonIds = reservation.Occupants.Select(o => o.ProductionPersonId).ToHashSet(),
+            ResponsibleProductionPersonIdText = reservation.ResponsibleProductionPersonId?.ToString() ?? string.Empty
+        };
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        isSaving = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            Guid? responsibleId = Guid.TryParse(formModel.ResponsibleProductionPersonIdText, out Guid rid) ? rid : null;
+            List<ReservationOccupantInput> occupants = formModel.SelectedPersonIds.Select(id => new ReservationOccupantInput { ProductionPersonId = id }).ToList();
+
+            if (editingReservation is null)
+            {
+                ProductionAccommodationBuildingDto? building = buildings.FirstOrDefault(b => b.Id == formModel.ProductionAccommodationBuildingId);
+
+                if (building is null)
+                {
+                    modalErrorMessage = "Please select a building.";
+                    return;
+                }
+
+                CreateReservationRequest request = new()
+                {
+                    EditionId = building.EditionId,
+                    ProductionAccommodationBuildingId = formModel.ProductionAccommodationBuildingId,
+                    ResponsibleProductionPersonId = responsibleId,
+                    Occupants = occupants
+                };
+
+                await ProductionReservationApiClient.CreateAsync(request);
+                ShowSuccess("Reservation created successfully.");
+            }
+            else
+            {
+                UpdateReservationRequest request = new()
+                {
+                    ResponsibleProductionPersonId = responsibleId,
+                    Occupants = occupants
+                };
+
+                await ProductionReservationApiClient.UpdateAsync(editingReservation.Id, request);
+                ShowSuccess("Reservation updated successfully.");
+            }
+
+            CloseModal();
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenDeleteModal(ReservationDto reservation)
+    {
+        deleteReservation = reservation;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteReservation = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deleteReservation is null || isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            await ProductionReservationApiClient.DeleteAsync(deleteReservation.Id);
+            deleteReservation = null;
+            ShowSuccess("Reservation deleted successfully.");
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string BuildErrorMessage(ApiClientException exception)
+    {
+        if (exception.Errors.Count == 0)
+        {
+            return exception.Message;
+        }
+
+        return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private class ReservationFormModel
+    {
+        public Guid ProductionAccommodationBuildingId { get; set; }
+        public HashSet<Guid> SelectedPersonIds { get; set; } = [];
+        public string ResponsibleProductionPersonIdText { get; set; } = string.Empty;
+    }
+
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            editionFilter = string.Empty;
+            buildingFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
+    }
+}

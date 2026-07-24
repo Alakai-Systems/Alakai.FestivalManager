@@ -95,7 +95,8 @@ public enum AdminUserRole
 {
     SuperAdmin = 1,
     Admin = 2,
-    User = 3
+    User = 3,
+    Production = 4
 }
 
 
@@ -114,4 +115,16 @@ public enum PaymentPlan
     FullOnline = 1,
     SplitFiftyFifty = 2,
     DeferredTenDays = 3
+}
+
+public enum ProductionPersonCategory
+{
+    Artist = 1,
+    Team = 2
+}
+
+public enum DocumentType
+{
+    Dni = 1,
+    Passport = 2
 }

@@ -42,6 +42,7 @@
                         <select class="form-select" @bind="CreateModel.Role">
                             <option value="2">Admin</option>
                             <option value="1">SuperAdmin</option>
+                            <option value="4">Production</option>
                         </select>
                     </div>
                 </div>
@@ -110,6 +111,7 @@
                                     <select class="form-select" @bind="row.SelectedRole" disabled="@isSelf">
                                         <option value="2">Admin</option>
                                         <option value="1">SuperAdmin</option>
+                                        <option value="4">Production</option>
                                     </select>
                                 </td>
                                 <td class="px-3 py-3">
@@ -235,7 +237,7 @@ else
             IReadOnlyList<UserDto> allUsers = await UserApiClient.GetAllAsync();
 
             AdminUsers = allUsers
-                .Where(u => u.Role == 1 || u.Role == 2)
+                .Where(u => u.Role == 1 || u.Role == 2 || u.Role == 4)
                 .Select(u => new AdminUserRow
                 {
                     User = u,

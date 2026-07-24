@@ -1,0 +1,646 @@
+@page "/production-trips"
+
+@inject ProductionTripApiClient ProductionTripApiClient
+@inject ProductionPersonApiClient ProductionPersonApiClient
+@inject EditionApiClient EditionApiClient
+@inject FestivalApiClient FestivalApiClient
+@inject ActiveFestivalState ActiveFestivalState
+@implements IDisposable
+
+<PageHeader Title="Production" pTitle="Trips"></PageHeader>
+
+<div class="grid grid-cols-1 gap-4 min-h-[calc(100vh-212px)]">
+    <div class="card">
+        <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
+
+            <div class="flex flex-col gap-3 md:flex-row md:items-center">
+                <input class="form-input w-full md:w-72" placeholder="Search trips..." @bind="searchText" @bind:event="oninput" @bind:after="ResetPage" />
+
+                <select class="form-select w-full md:w-44" @bind="festivalFilter" @bind:after="OnFestivalFilterChanged">
+                    <option value="">All festivals</option>
+                    @foreach (FestivalDto f in festivals)
+                    {
+                        <option value="@f.Id">@f.Name</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-44" @bind="editionFilter" @bind:after="ResetPage">
+                    <option value="">All editions</option>
+                    @foreach (EditionDto edition in EditionsForSelectedFestival)
+                    {
+                        <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
+                    }
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="directionFilter" @bind:after="ResetPage">
+                    <option value="">All directions</option>
+                    <option value="1">Arrival</option>
+                    <option value="2">Departure</option>
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="typeFilter" @bind:after="ResetPage">
+                    <option value="">All types</option>
+                    <option value="1">Flight</option>
+                    <option value="2">Train</option>
+                    <option value="3">Car</option>
+                </select>
+
+                <select class="form-select w-full md:w-40" @bind="itineraryFilter" @bind:after="ResetPage">
+                    <option value="">All trips</option>
+                    <option value="Unassigned">Not in an itinerary</option>
+                    <option value="Assigned">In an itinerary</option>
+                </select>
+
+                <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
+                    <option value="10">10 rows</option>
+                    <option value="25">25 rows</option>
+                    <option value="50">50 rows</option>
+                </select>
+
+                <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
+                    <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
+                    New Trip
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrWhiteSpace(successMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-success/10 text-success">@successMessage</div>
+        }
+
+        @if (!string.IsNullOrWhiteSpace(errorMessage))
+        {
+            <div class="p-3 mb-4 text-sm rounded bg-danger/10 text-danger">@errorMessage</div>
+        }
+
+        @if (isLoading)
+        {
+            <p class="text-sm text-black/50 dark:text-white/60">Loading trips...</p>
+        }
+        else
+        {
+            <div class="w-full max-w-full overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Person</th>
+                            <th class="px-4 py-3 font-semibold">Type</th>
+                            <th class="px-4 py-3 font-semibold">Number</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Terminal")'>Terminal/Station @SortIcon("Terminal")</button></th>
+                            <th class="px-4 py-3 font-semibold">Direction</th>
+                            <th class="px-4 py-3 font-semibold">Itinerary</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-black dark:text-white/80">
+                        @if (!PagedTrips.Any())
+                        {
+                            <tr>
+                                <td colspan="8" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No trips found.</td>
+                            </tr>
+                        }
+                        else
+                        {
+                            @foreach (ProductionTripDto trip in PagedTrips)
+                            {
+                                <tr class="border-b border-black/10 dark:border-darkborder">
+                                    <td class="px-4 py-3 font-medium">@trip.ProductionPersonName</td>
+                                    <td class="px-4 py-3">@GetTypeLabel(trip.Type)</td>
+                                    <td class="px-4 py-3">@trip.TripNumber</td>
+                                    <td class="px-4 py-3">@trip.DateTime.ToString("dd MMM yyyy HH:mm")</td>
+                                    <td class="px-4 py-3">@trip.TerminalOrStation</td>
+                                    <td class="px-4 py-3">@GetDirectionLabel(trip.Direction)</td>
+                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? "Assigned" : "-")</td>
+                                    <td class="px-4 py-3">
+                                        <div class="flex items-center justify-end gap-3">
+                                            <button type="button" class="text-black dark:text-white/80" title="Edit" @onclick="() => OpenEditModal(trip)">
+                                                <i class="ri-pencil-line text-lg"></i>
+                                            </button>
+                                            <button type="button" class="text-danger" title="Delete" @onclick="() => OpenDeleteModal(trip)">
+                                                <i class="ri-delete-bin-line text-lg"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="flex items-center justify-between mt-4">
+                <p class="text-sm text-black/50 dark:text-white/60">
+                    Showing @StartRow to @EndRow of @FilteredTrips.Count trips
+                </p>
+
+                <div class="flex items-center gap-2">
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage == 1)" @onclick="PreviousPage">Previous</button>
+                    <span class="flex items-center justify-center w-10 h-10 text-sm rounded-md bg-purple/10 text-purple">@currentPage</span>
+                    <button type="button" class="px-4 py-2 text-sm border rounded-md border-black/10 disabled:opacity-50" disabled="@(currentPage >= TotalPages)" @onclick="NextPage">Next</button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@if (isModalOpen)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold">@(editingTrip is null ? "New Trip" : "Edit Trip")</h3>
+                    <button type="button" @onclick="CloseModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <EditForm Model="formModel" OnValidSubmit="SaveAsync">
+                    <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                        @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
+                        {
+                            <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
+                        }
+
+                        <div>
+                            <label class="form-label">Edition</label>
+                            <select class="form-select" @bind="formModel.EditionId" @bind:after="OnFormEditionChanged">
+                                @foreach (EditionDto edition in editions)
+                                {
+                                    <option value="@edition.Id">@($"{edition.Year} - {edition.Name}")</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Person</label>
+                            <select class="form-select" @bind="formModel.ProductionPersonId">
+                                @foreach (ProductionPersonDto person in PeopleForSelectedEdition)
+                                {
+                                    <option value="@person.Id">@person.FirstName @person.LastName</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Type</label>
+                            <select class="form-select" @bind="formModel.Type">
+                                <option value="1">Flight</option>
+                                <option value="2">Train</option>
+                                <option value="3">Car</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Direction</label>
+                            <select class="form-select" @bind="formModel.Direction">
+                                <option value="1">Arrival</option>
+                                <option value="2">Departure</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="form-label">Trip number</label>
+                            <InputText class="form-input" @bind-Value="formModel.TripNumber" />
+                        </div>
+
+                        <div>
+                            <label class="form-label">Terminal / Station</label>
+                            <InputText class="form-input" @bind-Value="formModel.TerminalOrStation" />
+                        </div>
+
+                        <div class="md:col-span-2">
+                            <label class="form-label">Date and time</label>
+                            <InputDate class="form-input" Type="InputDateType.DateTimeLocal" @bind-Value="formModel.DateTime" />
+                        </div>
+                    </div>
+
+                    <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                        <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModal">Cancel</button>
+                        <button type="submit" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving">@(isSaving ? "Saving..." : "Save")</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+}
+
+@if (deleteTrip is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Trip</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete this trip for <strong>@deleteTrip.ProductionPersonName</strong>?</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="DeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<ProductionTripDto> trips = [];
+    private List<ProductionPersonDto> people = [];
+    private List<EditionDto> editions = [];
+    private List<FestivalDto> festivals = [];
+    private ProductionTripFormModel formModel = new();
+    private ProductionTripDto? editingTrip;
+    private ProductionTripDto? deleteTrip;
+    private string searchText = string.Empty;
+    private string festivalFilter = string.Empty;
+    private string editionFilter = string.Empty;
+    private string directionFilter = string.Empty;
+    private string typeFilter = string.Empty;
+    private string itineraryFilter = string.Empty;
+    private string sortColumn = "DateTime";
+    private bool sortAscending = true;
+    private bool isLoading = true;
+    private bool isModalOpen;
+    private bool isSaving;
+    private string? successMessage;
+    private string? errorMessage;
+    private string? modalErrorMessage;
+    private int pageSize = 25;
+    private int currentPage = 1;
+
+    private List<EditionDto> EditionsForSelectedFestival =>
+        string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
+            ? editions
+            : editions.Where(e => e.FestivalId == fid).ToList();
+
+    private List<ProductionPersonDto> PeopleForSelectedEdition =>
+        people.Where(p => p.EditionId == formModel.EditionId).OrderBy(p => p.LastName).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        ActiveFestivalState.OnChange += HandleFestivalStateChanged;
+        await LoadDataAsync();
+    }
+
+    private async Task LoadDataAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+
+        try
+        {
+            editions = (await EditionApiClient.GetAllAsync()).ToList();
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+            people = (await ProductionPersonApiClient.GetAllAsync()).ToList();
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(festivalFilter))
+            {
+                festivalFilter = ActiveFestivalState.Active.Id.ToString();
+            }
+
+            Guid targetEditionId = Guid.Empty;
+
+            if (ActiveFestivalState.Active is not null && string.IsNullOrWhiteSpace(editionFilter))
+            {
+                EditionDto? preferred = editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id && e.IsActive)
+                    ?? editions.FirstOrDefault(e => e.FestivalId == ActiveFestivalState.Active.Id);
+
+                if (preferred is not null)
+                {
+                    editionFilter = preferred.Id.ToString();
+                    targetEditionId = preferred.Id;
+                }
+            }
+            else if (Guid.TryParse(editionFilter, out Guid parsedEditionId))
+            {
+                targetEditionId = parsedEditionId;
+            }
+
+            trips = targetEditionId != Guid.Empty
+                ? (await ProductionTripApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
+                : [];
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task OnFestivalFilterChanged()
+    {
+        editionFilter = string.Empty;
+        await LoadDataAsync();
+        ResetPage();
+    }
+
+    private void OnFormEditionChanged()
+    {
+        formModel.ProductionPersonId = PeopleForSelectedEdition.FirstOrDefault()?.Id ?? Guid.Empty;
+    }
+
+    private List<ProductionTripDto> FilteredTrips
+    {
+        get
+        {
+            IEnumerable<ProductionTripDto> query = trips;
+
+            if (!string.IsNullOrWhiteSpace(searchText))
+            {
+                query = query.Where(t =>
+                    (t.ProductionPersonName ?? string.Empty).Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    t.TripNumber.Contains(searchText, StringComparison.OrdinalIgnoreCase) ||
+                    t.TerminalOrStation.Contains(searchText, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (int.TryParse(directionFilter, out int direction))
+            {
+                query = query.Where(t => t.Direction == direction);
+            }
+
+            if (int.TryParse(typeFilter, out int type))
+            {
+                query = query.Where(t => t.Type == type);
+            }
+
+            if (itineraryFilter == "Unassigned")
+            {
+                query = query.Where(t => !t.RunnerItineraryId.HasValue);
+            }
+            else if (itineraryFilter == "Assigned")
+            {
+                query = query.Where(t => t.RunnerItineraryId.HasValue);
+            }
+
+            query = sortColumn switch
+            {
+                "Terminal" => sortAscending ? query.OrderBy(t => t.TerminalOrStation) : query.OrderByDescending(t => t.TerminalOrStation),
+                _ => sortAscending ? query.OrderBy(t => t.DateTime) : query.OrderByDescending(t => t.DateTime)
+            };
+
+            return query.ToList();
+        }
+    }
+
+    private IEnumerable<ProductionTripDto> PagedTrips => FilteredTrips.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    private int TotalPages => Math.Max(1, (int)Math.Ceiling(FilteredTrips.Count / (double)pageSize));
+    private int StartRow => FilteredTrips.Count == 0 ? 0 : ((currentPage - 1) * pageSize) + 1;
+    private int EndRow => Math.Min(currentPage * pageSize, FilteredTrips.Count);
+
+    private void ResetPage()
+    {
+        currentPage = 1;
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage < TotalPages)
+        {
+            currentPage++;
+        }
+    }
+
+    private void OpenCreateModal()
+    {
+        editingTrip = null;
+        modalErrorMessage = null;
+        Guid defaultEditionId = Guid.TryParse(editionFilter, out Guid eid) ? eid : (editions.FirstOrDefault()?.Id ?? Guid.Empty);
+        formModel = new ProductionTripFormModel
+        {
+            EditionId = defaultEditionId,
+            ProductionPersonId = people.FirstOrDefault(p => p.EditionId == defaultEditionId)?.Id ?? Guid.Empty,
+            Type = 1,
+            Direction = 1,
+            DateTime = DateTime.Now
+        };
+        isModalOpen = true;
+    }
+
+    private void OpenEditModal(ProductionTripDto trip)
+    {
+        editingTrip = trip;
+        modalErrorMessage = null;
+        formModel = new ProductionTripFormModel
+        {
+            EditionId = trip.EditionId,
+            ProductionPersonId = trip.ProductionPersonId,
+            Type = trip.Type,
+            Direction = trip.Direction,
+            TripNumber = trip.TripNumber,
+            TerminalOrStation = trip.TerminalOrStation,
+            DateTime = trip.DateTime
+        };
+        isModalOpen = true;
+    }
+
+    private void CloseModal()
+    {
+        isModalOpen = false;
+        isSaving = false;
+    }
+
+    private async Task SaveAsync()
+    {
+        if (isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            if (editingTrip is null)
+            {
+                CreateTripRequest request = new()
+                {
+                    EditionId = formModel.EditionId,
+                    ProductionPersonId = formModel.ProductionPersonId,
+                    Type = formModel.Type,
+                    TripNumber = formModel.TripNumber,
+                    DateTime = formModel.DateTime,
+                    TerminalOrStation = formModel.TerminalOrStation,
+                    Direction = formModel.Direction
+                };
+
+                await ProductionTripApiClient.CreateAsync(request);
+                ShowSuccess("Trip created successfully.");
+            }
+            else
+            {
+                UpdateTripRequest request = new()
+                {
+                    ProductionPersonId = formModel.ProductionPersonId,
+                    Type = formModel.Type,
+                    TripNumber = formModel.TripNumber,
+                    DateTime = formModel.DateTime,
+                    TerminalOrStation = formModel.TerminalOrStation,
+                    Direction = formModel.Direction,
+                    RunnerItineraryId = editingTrip.RunnerItineraryId
+                };
+
+                await ProductionTripApiClient.UpdateAsync(editingTrip.Id, request);
+                ShowSuccess("Trip updated successfully.");
+            }
+
+            CloseModal();
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private void OpenDeleteModal(ProductionTripDto trip)
+    {
+        deleteTrip = trip;
+    }
+
+    private void CloseDeleteModal()
+    {
+        deleteTrip = null;
+    }
+
+    private async Task DeleteAsync()
+    {
+        if (deleteTrip is null || isSaving) return;
+
+        try
+        {
+            isSaving = true;
+            await ProductionTripApiClient.DeleteAsync(deleteTrip.Id);
+            deleteTrip = null;
+            ShowSuccess("Trip deleted successfully.");
+            await LoadDataAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            errorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private static string GetTypeLabel(int type) => type switch
+    {
+        1 => "Flight",
+        2 => "Train",
+        3 => "Car",
+        _ => "-"
+    };
+
+    private static string GetDirectionLabel(int direction) => direction switch
+    {
+        1 => "Arrival",
+        2 => "Departure",
+        _ => "-"
+    };
+
+    private static string BuildErrorMessage(ApiClientException exception)
+    {
+        if (exception.Errors.Count == 0)
+        {
+            return exception.Message;
+        }
+
+        return $"{exception.Message} {string.Join(" ", exception.Errors)}";
+    }
+
+    private void ShowSuccess(string message)
+    {
+        successMessage = message;
+        errorMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            successMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private void ShowError(string message)
+    {
+        errorMessage = message;
+        successMessage = null;
+        InvokeAsync(async () =>
+        {
+            await Task.Delay(3500);
+            errorMessage = null;
+            StateHasChanged();
+        });
+    }
+
+    private class ProductionTripFormModel
+    {
+        public Guid EditionId { get; set; }
+        public Guid ProductionPersonId { get; set; }
+        public int Type { get; set; } = 1;
+        public string TripNumber { get; set; } = string.Empty;
+        public DateTime DateTime { get; set; } = DateTime.Now;
+        public string TerminalOrStation { get; set; } = string.Empty;
+        public int Direction { get; set; } = 1;
+    }
+
+    private void HandleFestivalStateChanged()
+    {
+        InvokeAsync(async () =>
+        {
+            festivalFilter = string.Empty;
+            editionFilter = string.Empty;
+            await LoadDataAsync();
+            StateHasChanged();
+        });
+    }
+
+    public void Dispose()
+    {
+        ActiveFestivalState.OnChange -= HandleFestivalStateChanged;
+    }
+}
