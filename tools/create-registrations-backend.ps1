@@ -1,38 +1,22 @@
-# Fix-AdminBearerTokenHandler.ps1
+# Fix-AuthApiClientRecursion.ps1
 #
-# CAUSA RAIZ del "todas las paginas dan 401" tras aplicar Fix-AuthorizeAudit.ps1:
+# URGENTE: Fix-AdminBearerTokenHandler.ps1 engancho el handler a los 33
+# AddHttpClient<T>() SIN excluir a AuthApiClient (login/refresh de token).
+# Eso crea recursion infinita:
 #
-# La mayoria de los ApiClient del Admin (DashboardApiClient, RegistrationApiClient,
-# InvoiceApiClient, etc.) NUNCA adjuntaban el token Bearer en sus llamadas HTTP,
-# porque sus controllers de la Api estaban abiertos (sin [Authorize]) y nunca hizo
-# falta. Los ApiClient de Produccion (ProductionZoneApiClient y hermanos) SI lo
-# hacen, a mano, en cada metodo, con:
+#   1. Cualquier llamada -> AdminBearerTokenHandler.SendAsync
+#   2. -> pide el token a AdminTokenProvider.GetValidAccessTokenAsync()
+#   3. si el token esta caducado -> llama a AuthApiClient.RefreshTokenAsync(...)
+#   4. esa llamada TAMBIEN pasa por AdminBearerTokenHandler.SendAsync (paso 1)
+#   5. -> vuelve a pedir el token -> vuelve a refrescar -> bucle infinito -> 500
 #
-#   string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
-#   _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
-#
-# porque Produccion siempre exigio autenticacion. Al poner [Authorize(Roles=...)]
-# en los otros 25 controllers, sus ApiClient correspondientes empezaron a fallar
-# con 401 para CUALQUIER usuario, con CUALQUIER rol - no es un problema de roles,
-# es que el token nunca se mandaba.
-#
-# Fix correcto (no tocar 25 archivos de ApiClient a mano, con el riesgo de
-# dejarse un metodo): un DelegatingHandler centralizado que adjunta el token a
-# TODAS las llamadas HTTP salientes automaticamente, enganchado una sola vez a
-# los 33 AddHttpClient<T>() ya existentes.
+# Fix: quitar el handler especificamente de la llamada AddHttpClient de
+# AuthApiClient (el login y el refresh de token nunca deben depender de si
+# mismos para autenticarse - es logica, no un descuido). El resto de los 32
+# AddHttpClient siguen con el handler, que es donde hace falta.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
-
-function New-CodeFile {
-    param([string]$Path, [string]$Content, [string]$Description)
-    if (Test-Path $Path) { Write-Host "SKIP (ya existe): $Path" -ForegroundColor Cyan; return $true }
-    $directory = Split-Path -Path $Path -Parent
-    if (-not (Test-Path $directory)) { New-Item -ItemType Directory -Path $directory -Force | Out-Null }
-    Set-Content -Path $Path -Value $Content -NoNewline
-    Write-Host "OK: $Description -> $Path" -ForegroundColor Green
-    return $true
-}
 
 function Patch-File {
     param([string]$Path, [string]$OldString, [string]$NewString, [string]$Description)
@@ -51,91 +35,47 @@ function Patch-File {
     return $true
 }
 
-# ---------------------------------------------------------------------------
-# 1) El DelegatingHandler nuevo
-# ---------------------------------------------------------------------------
 $results = @()
-
-$results += New-CodeFile -Path "Alakai.FestivalManager.Admin/Services/Auth/AdminBearerTokenHandler.cs" -Description "AdminBearerTokenHandler.cs" -Content @'
-using System.Net.Http.Headers;
-
-namespace Alakai.FestivalManager.Admin.Services.Auth;
-
-/// <summary>
-/// Adjunta automaticamente el token Bearer del admin logueado a toda llamada
-/// HTTP saliente hacia la Api, para cualquier HttpClient que lo tenga
-/// enganchado via .AddHttpMessageHandler&lt;AdminBearerTokenHandler&gt;().
-/// Sin esto, cualquier ApiClient que no adjunte el token a mano (la mayoria,
-/// ya que solo Produccion lo hacia manualmente) recibe 401 en cuanto su
-/// controller exige autenticacion.
-/// </summary>
-public class AdminBearerTokenHandler : DelegatingHandler
-{
-    private readonly IAdminTokenProvider _adminTokenProvider;
-
-    public AdminBearerTokenHandler(IAdminTokenProvider adminTokenProvider)
-    {
-        _adminTokenProvider = adminTokenProvider;
-    }
-
-    protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
-    {
-        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
-
-        if (!string.IsNullOrWhiteSpace(adminToken))
-        {
-            request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
-        }
-
-        return await base.SendAsync(request, cancellationToken);
-    }
-}
-'@
-
-if ($results -contains $false) { Write-Host "`nFallo (handler)." -ForegroundColor Red; exit 1 }
-
-# ---------------------------------------------------------------------------
-# 2) Registrar el handler en DI (Transient, como es estandar para handlers)
-# ---------------------------------------------------------------------------
 $extPath = "Alakai.FestivalManager.Admin/Extensions/ApplicationDependencyInjectionExtension.cs"
 
-$results += Patch-File -Path $extPath -Description "Registrar AdminBearerTokenHandler en DI" -OldString @'
-        services.AddScoped<IAdminTokenProvider, AdminTokenProvider>();
+$results += Patch-File -Path $extPath -Description "AuthApiClient: quitar el handler (rompe el bucle de refresh)" -OldString @'
+        services.AddHttpClient<IAuthApiClient, AuthApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        }).AddHttpMessageHandler<AdminBearerTokenHandler>();
 '@ -NewString @'
-        services.AddScoped<IAdminTokenProvider, AdminTokenProvider>();
-        services.AddTransient<AdminBearerTokenHandler>();
+        services.AddHttpClient<IAuthApiClient, AuthApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
 '@
-if ($results -contains $false) { Write-Host "`nFallo (registro DI)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo. Si el anchor no se encuentra, puede que el handler ya no este enganchado ahi - revisa a mano si AuthApiClient tiene '.AddHttpMessageHandler<AdminBearerTokenHandler>()' y quitalo." -ForegroundColor Red; exit 1 }
 
 # ---------------------------------------------------------------------------
-# 3) Enganchar el handler a los 33 AddHttpClient<T>() existentes (reemplazo
-#    global - el mismo bloque de cierre se repite identico 33 veces, asi que
-#    aqui NO usamos Patch-File (exige coincidencia unica) sino un reemplazo
-#    de TODAS las apariciones a la vez).
+# Tambien quitamos PublicRegistrationApiClient del handler - no es la causa
+# del 500 (un usuario anonimo no tiene token, GetValidAccessTokenAsync
+# devuelve null sin recursion), pero es correcto no molestarse en pedir un
+# token de admin en llamadas del formulario publico.
 # ---------------------------------------------------------------------------
-$rawContent = Get-Content -Path $extPath -Raw
-$usesCrlf = $rawContent.Contains("`r`n")
-$normalizedContent = $rawContent -replace "`r`n", "`n"
+$results += Patch-File -Path $extPath -Description "PublicRegistrationApiClient: quitar el handler (no necesita token de admin)" -OldString @'
+        services.AddHttpClient<PublicRegistrationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        }).AddHttpMessageHandler<AdminBearerTokenHandler>();
+'@ -NewString @'
+        services.AddHttpClient<PublicRegistrationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+'@
+if ($results -contains $false) { Write-Host "`nAviso: no se pudo quitar el handler de PublicRegistrationApiClient (no es critico, no causa el 500)." -ForegroundColor Yellow }
 
-$oldBlock = "            client.BaseAddress = new Uri(baseUrl);`n        });"
-$newBlock = "            client.BaseAddress = new Uri(baseUrl);`n        }).AddHttpMessageHandler<AdminBearerTokenHandler>();"
-
-$occurrences = ([regex]::Matches($normalizedContent, [regex]::Escape($oldBlock))).Count
-$alreadyDone = ([regex]::Matches($normalizedContent, [regex]::Escape($newBlock))).Count
-
-if ($alreadyDone -gt 0 -and $occurrences -eq 0) {
-    Write-Host "SKIP (ya aplicado): enganchar handler a los AddHttpClient" -ForegroundColor Cyan
-}
-elseif ($occurrences -eq 0) {
-    Write-Host "FALLO (anchor no encontrado): enganchar handler a los AddHttpClient - revisa indentacion/line endings del archivo." -ForegroundColor Red
-    exit 1
-}
-else {
-    $updatedNormalized = $normalizedContent.Replace($oldBlock, $newBlock)
-    $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
-    Set-Content -Path $extPath -Value $updatedFinal -NoNewline
-    Write-Host "OK: enganchado AdminBearerTokenHandler a los $occurrences AddHttpClient<T>() existentes" -ForegroundColor Green
-}
-
-Write-Host "`nA partir de ahora TODAS las llamadas del Admin a la Api llevan el token Bearer automaticamente, sin depender de que cada ApiClient lo haga a mano. Esto arregla los 401 en Dashboard y en cualquier otro controller que hayas restringido con [Authorize]." -ForegroundColor Green
-Write-Host "Nota: los ApiClient de Produccion (que ya lo hacian a mano con AttachAuthHeaderAsync) siguen funcionando igual - ahora simplemente ponen el mismo header dos veces, sin conflicto." -ForegroundColor Yellow
+Write-Host "`nBucle de recursion roto. AuthApiClient y PublicRegistrationApiClient ya no dependen del handler; el resto de los 31 ApiClient lo mantienen." -ForegroundColor Green

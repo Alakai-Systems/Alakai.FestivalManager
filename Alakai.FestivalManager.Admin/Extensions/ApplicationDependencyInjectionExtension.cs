@@ -9,7 +9,7 @@ public static class ApiCLientsDependencyInjectionExtension
             string baseUrl = configuration["ApiSettings:BaseUrl"]
                 ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
             client.BaseAddress = new Uri(baseUrl);
-        }).AddHttpMessageHandler<AdminBearerTokenHandler>();
+        });
 
         services.AddHttpClient<FestivalApiClient>(client =>
         {
@@ -199,7 +199,7 @@ public static class ApiCLientsDependencyInjectionExtension
             string baseUrl = configuration["ApiSettings:BaseUrl"]
                 ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
             client.BaseAddress = new Uri(baseUrl);
-        }).AddHttpMessageHandler<AdminBearerTokenHandler>();
+        });
 
         services.AddHttpClient<UserPanelApiClient>(client =>
         {
