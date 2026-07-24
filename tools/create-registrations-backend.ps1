@@ -1,34 +1,17 @@
-# Fix-AuthorizeAudit.ps1
+# Fix-RegistrationCreateAllowAnonymous.ps1
 #
-# Auditoria completa de [Authorize] en la Api. Antes de este script, solo
-# 10 de 38 controllers tenian algo de autenticacion - el resto estaban
-# totalmente abiertos.
+# URGENTE: la auditoria de [Authorize] puso "SuperAdmin,Admin" a nivel de
+# clase en RegistrationsController - pero la acción Create() de ese mismo
+# controller es la que usa el FORMULARIO PUBLICO de inscripcion
+# (PublicRegistrationApiClient.SubmitAsync -> POST api/registrations), sin
+# usuario logueado. Al restringir la clase entera, se rompio el registro
+# publico. Esto SI es un fallo mio.
 #
-# Esquema aplicado:
-#
-#   SIN TOCAR (publico, sin login - lo llama la web de inscripcion o el
-#   propio banco, nunca un admin logueado):
-#     - PublicFestivalsController, PublicRegistrationsController
-#     - PaymentsController (tiene el webhook de Redsys y los retornos del
-#       navegador del participante, no pueden llevar un JWT de admin)
-#
-#   YA ESTABAN BIEN, NO TOCAR:
-#     - AdminImpersonationController (SuperAdmin)
-#     - AuthController, UserPanelController ([Authorize] generico)
-#     - Los 8 controllers de Produccion (SuperAdmin,Admin,Production)
-#
-#   NUEVO: [Authorize(Roles = "SuperAdmin,Admin")] - gestion de
-#   participantes/festival que Produccion no toca:
-#     Registrations, RegistrationFestivalInfo, CompetitionEntries,
-#     Competitions, Buses, BusReservations, Accommodations,
-#     AccommodationZones, AccommodationBuildings, AccommodationReservations,
-#     MealPreferences, DiscountCodes, PassType, Level, Invoices,
-#     InvoiceSettings, InvoiceTemplates, Emails, EmailTemplates,
-#     EmailLayout, EmailLogs, Analytics, Dashboard, Uploads, Users
-#
-#   NUEVO: [Authorize(Roles = "SuperAdmin,Admin,Production")] - Produccion
-#   los necesita de forma indirecta para sus propios filtros/reports:
-#     Editions, Festivals, Reports
+# Fix: [AllowAnonymous] en la accion Create especificamente, que en ASP.NET
+# Core anula el [Authorize] de la clase SOLO para esa accion. El resto de
+# acciones (GetById, GetAll, GetByUserId, GetByEditionId, Update, Delete)
+# siguen exigiendo SuperAdmin/Admin, que es correcto - esas si son de
+# gestion interna del Admin.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -50,74 +33,27 @@ function Patch-File {
     return $true
 }
 
-$anyFailed = $false
-$controllersDir = "Alakai.FestivalManager.Api/Controllers"
+$results = @()
+$path = "Alakai.FestivalManager.Api/Controllers/RegistrationsController.cs"
 
-# ---------------------------------------------------------------------------
-# Grupo: SuperAdmin,Admin
-# ---------------------------------------------------------------------------
-$adminOnly = @(
-    @{ File = "RegistrationsController.cs"; Class = "RegistrationsController" },
-    @{ File = "RegistrationFestivalInfoController.cs"; Class = "RegistrationFestivalInfoController" },
-    @{ File = "CompetitionEntriesController.cs"; Class = "CompetitionEntriesController" },
-    @{ File = "CompetitionsController.cs"; Class = "CompetitionsController" },
-    @{ File = "BusesController.cs"; Class = "BusesController" },
-    @{ File = "BusReservationsController.cs"; Class = "BusReservationsController" },
-    @{ File = "AccommodationsController.cs"; Class = "AccommodationsController" },
-    @{ File = "AccommodationZonesController.cs"; Class = "AccommodationZonesController" },
-    @{ File = "AccommodationBuildingsController.cs"; Class = "AccommodationBuildingsController" },
-    @{ File = "AccommodationReservationsController.cs"; Class = "AccommodationReservationsController" },
-    @{ File = "MealPreferencesController.cs"; Class = "MealPreferencesController" },
-    @{ File = "DiscountCodesController.cs"; Class = "DiscountCodesController" },
-    @{ File = "PassTypeController.cs"; Class = "PassTypesController" },
-    @{ File = "LevelController.cs"; Class = "LevelsController" },
-    @{ File = "InvoicesController.cs"; Class = "InvoicesController" },
-    @{ File = "InvoiceSettingsController.cs"; Class = "InvoiceSettingsController" },
-    @{ File = "InvoiceTemplatesController.cs"; Class = "InvoiceTemplatesController" },
-    @{ File = "EmailsController.cs"; Class = "EmailsController" },
-    @{ File = "EmailTemplatesController.cs"; Class = "EmailTemplatesController" },
-    @{ File = "EmailLayoutController.cs"; Class = "EmailLayoutController" },
-    @{ File = "EmailLogsController.cs"; Class = "EmailLogsController" },
-    @{ File = "AnalyticsController.cs"; Class = "AnalyticsController" },
-    @{ File = "DashboardController.cs"; Class = "DashboardController" },
-    @{ File = "UploadsController.cs"; Class = "UploadsController" },
-    @{ File = "UsersController.cs"; Class = "UsersController" }
-)
-
-foreach ($entry in $adminOnly) {
-    $path = Join-Path $controllersDir $entry.File
-    $ok = Patch-File -Path $path -Description "$($entry.Class): [Authorize(SuperAdmin,Admin)]" -OldString @"
-public class $($entry.Class) : ControllerBase
-"@ -NewString @"
+# Por si acaso el [Authorize] de clase aun no se aplico en tu copia, lo
+# aseguramos aqui tambien (idempotente, no hace nada si ya esta).
+$results += Patch-File -Path $path -Description "RegistrationsController: [Authorize] de clase (por si faltaba)" -OldString @'
+public class RegistrationsController : ControllerBase
+'@ -NewString @'
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class $($entry.Class) : ControllerBase
-"@
-    if (-not $ok) { $anyFailed = $true }
-}
+public class RegistrationsController : ControllerBase
+'@
+if ($results -contains $false) { Write-Host "`nFallo (clase)." -ForegroundColor Red; exit 1 }
 
-# ---------------------------------------------------------------------------
-# Grupo: SuperAdmin,Admin,Production
-# ---------------------------------------------------------------------------
-$sharedWithProduction = @(
-    @{ File = "EditionController.cs"; Class = "EditionsController" },
-    @{ File = "FestivalsController.cs"; Class = "FestivalsController" },
-    @{ File = "ReportsController.cs"; Class = "ReportsController" }
-)
+$results += Patch-File -Path $path -Description "RegistrationsController.Create: [AllowAnonymous] (usado por el registro publico)" -OldString @'
+    [HttpPost]
+    public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)
+'@ -NewString @'
+    [HttpPost]
+    [AllowAnonymous]
+    public async Task<IActionResult> Create([FromBody] CreateRegistrationRequest request, CancellationToken cancellationToken)
+'@
+if ($results -contains $false) { Write-Host "`nFallo (Create)." -ForegroundColor Red; exit 1 }
 
-foreach ($entry in $sharedWithProduction) {
-    $path = Join-Path $controllersDir $entry.File
-    $ok = Patch-File -Path $path -Description "$($entry.Class): [Authorize(SuperAdmin,Admin,Production)]" -OldString @"
-public class $($entry.Class) : ControllerBase
-"@ -NewString @"
-[Authorize(Roles = "SuperAdmin,Admin,Production")]
-public class $($entry.Class) : ControllerBase
-"@
-    if (-not $ok) { $anyFailed = $true }
-}
-
-if ($anyFailed) {
-    Write-Host "`nAlguno de los controllers no encontro su ancla - revisa los SKIP de arriba." -ForegroundColor Red
-}
-else {
-    Write-Host "`nAuditoria de [Authorize] completa: 25 controllers a SuperAdmin+Admin, 3 compartidos con Produccion (Editions/Festivals/Reports). PublicFestivals, PublicRegistrations y Payments se quedan tal cual (acceso publico necesario)." -ForegroundColor Green
-}
+Write-Host "`nRegistro publico arreglado: Create() vuelve a ser accesible sin login, el resto de RegistrationsController sigue protegido." -ForegroundColor Green
