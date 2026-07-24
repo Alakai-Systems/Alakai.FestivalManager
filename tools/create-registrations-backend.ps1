@@ -1,14 +1,10 @@
-# Fix-ItinerarySequenceNumbers.ps1
+# Fix-ProductionReportsPersonalDataAndItinerarySections.ps1
 #
-# 1. Runner Itineraries: primera columna nueva "#" con el numero de orden
-#    cronologico (1 = el mas cercano en fecha/hora, calculado sobre TODOS
-#    los itinerarios de la edicion, no solo la pagina visible).
-# 2. Trips: en la columna Itinerary, en vez de "Assigned"/"-" ahora sale
-#    "Itinerary X" con ese mismo numero, o "-" si no esta asignado a
-#    ninguno.
-#
-# No hace falta migracion - el numero se calcula al vuelo ordenando por
-# fecha, no se guarda en ningun sitio.
+# 1. Accommodation report: anade Email, Phone, Document Type, Document
+#    Number y Nationality de cada ocupante.
+# 2. Runner Itineraries report: deja de ser una tabla plana - ahora sale
+#    seccionado por "Itinerary N" (mismo numero que la pantalla, por orden
+#    cronologico), con un titulo por itinerario y sus viajes debajo.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -31,106 +27,142 @@ function Patch-File {
 }
 
 $results = @()
+$path = "Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs"
 
-# ===========================================================================
-# PARTE 1: Runner Itineraries - columna "#" de orden cronologico
-# ===========================================================================
-$itinPath = "Alakai.FestivalManager.Admin/Components/Pages/RunnerItineraries.razor"
+# ---------------------------------------------------------------------------
+# 1) Accommodation: datos personales del ocupante
+# ---------------------------------------------------------------------------
+$results += Patch-File -Path $path -Description "Accommodation report: datos personales del ocupante" -OldString @'
+        List<string[]> rows = reservations.SelectMany(r => r.Occupants.Select(o => new[]
+        {
+            r.ProductionAccommodationBuilding?.Name ?? "",
+            r.ResponsibleProductionPerson is not null ? $"{r.ResponsibleProductionPerson.FirstName} {r.ResponsibleProductionPerson.LastName}" : "",
+            o.ProductionPerson is not null ? $"{o.ProductionPerson.FirstName} {o.ProductionPerson.LastName}" : "",
+            o.ProductionAccommodation?.ProductionAccommodationZone?.Name ?? "",
+            o.ProductionAccommodation?.Name ?? ""
+        })).ToList();
 
-$results += Patch-File -Path $itinPath -Description "Itineraries: cabecera # (primera columna)" -OldString @'
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
+        return BuildXlsx("Production Accommodation", ["Building", "Responsible", "Occupant", "Zone", "Room"], rows);
 '@ -NewString @'
-                            <th class="px-4 py-3 font-semibold">#</th>
-                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (cabecera)." -ForegroundColor Red; exit 1 }
+        List<string[]> rows = reservations.SelectMany(r => r.Occupants.Select(o => new[]
+        {
+            r.ProductionAccommodationBuilding?.Name ?? "",
+            r.ResponsibleProductionPerson is not null ? $"{r.ResponsibleProductionPerson.FirstName} {r.ResponsibleProductionPerson.LastName}" : "",
+            o.ProductionPerson is not null ? $"{o.ProductionPerson.FirstName} {o.ProductionPerson.LastName}" : "",
+            o.ProductionPerson?.Email ?? "",
+            o.ProductionPerson?.Phone ?? "",
+            o.ProductionPerson?.DocumentType.ToString() ?? "",
+            o.ProductionPerson?.DocumentNumber ?? "",
+            o.ProductionPerson?.Nationality ?? "",
+            o.ProductionAccommodation?.ProductionAccommodationZone?.Name ?? "",
+            o.ProductionAccommodation?.Name ?? ""
+        })).ToList();
 
-$results += Patch-File -Path $itinPath -Description "Itineraries: colspan 6 -> 7" -OldString @'
-                                <td colspan="6" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
+        return BuildXlsx("Production Accommodation", ["Building", "Responsible", "Occupant", "Email", "Phone", "Document Type", "Document Number", "Nationality", "Zone", "Room"], rows);
+'@
+if ($results -contains $false) { Write-Host "`nFallo (Accommodation report)." -ForegroundColor Red; exit 1 }
+
+# ---------------------------------------------------------------------------
+# 2) Itineraries: informe seccionado por numero de itinerario
+# ---------------------------------------------------------------------------
+$results += Patch-File -Path $path -Description "Itineraries report: seccionado por Itinerary N" -OldString @'
+    public async Task<byte[]> GenerateProductionItinerariesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<RunnerItinerary> itineraries = await _runnerItineraryRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = itineraries.SelectMany(i => i.Trips.Select(t => new[]
+        {
+            i.DateTime.ToString("dd/MM/yyyy HH:mm"), i.Location, i.Direction.ToString(), i.RunnerName ?? "",
+            t.ProductionPerson is not null ? $"{t.ProductionPerson.FirstName} {t.ProductionPerson.LastName}" : "",
+            t.TripNumber, t.DateTime.ToString("dd/MM/yyyy HH:mm"), t.TerminalOrStation
+        })).ToList();
+
+        return BuildXlsx("Itineraries", ["Itinerary Date/Time", "Location", "Direction", "Runner", "Person", "Trip Number", "Trip Time", "Terminal / Station"], rows);
+    }
 '@ -NewString @'
-                                <td colspan="7" class="px-4 py-6 text-center text-black/50 dark:text-white/60">No itineraries found.</td>
+    public async Task<byte[]> GenerateProductionItinerariesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<RunnerItinerary> itineraries = await _runnerItineraryRepository.GetByEditionIdAsync(editionId, cancellationToken);
+        List<RunnerItinerary> ordered = itineraries.OrderBy(i => i.DateTime).ToList();
+
+        const int TotalColumns = 4;
+        string[] tripHeaders = ["Person", "Trip Number", "Time", "Terminal / Station"];
+
+        XLColor titleFill = XLColor.FromArgb(55, 65, 81);
+        XLColor headerFill = XLColor.FromArgb(156, 163, 175);
+
+        using XLWorkbook workbook = new();
+        IXLWorksheet ws = workbook.Worksheets.Add("Itineraries");
+        ws.ShowGridLines = false;
+
+        int row = 1;
+
+        for (int index = 0; index < ordered.Count; index++)
+        {
+            RunnerItinerary itinerary = ordered[index];
+            int number = index + 1;
+
+            string runnerSuffix = string.IsNullOrWhiteSpace(itinerary.RunnerName) ? "" : $"  ·  Runner: {itinerary.RunnerName}";
+
+            IXLRange titleRange = ws.Range(row, 1, row, TotalColumns).Merge();
+            titleRange.Value = $"Itinerary {number}  ·  {itinerary.Direction}  ·  {itinerary.Location}  ·  {itinerary.DateTime:dd/MM/yyyy HH:mm}{runnerSuffix}";
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Font.FontSize = 13;
+            titleRange.Style.Font.FontColor = XLColor.White;
+            titleRange.Style.Fill.BackgroundColor = titleFill;
+            titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            ws.Row(row).Height = 22;
+            row++;
+
+            for (int c = 0; c < tripHeaders.Length; c++)
+            {
+                IXLCell headerCell = ws.Cell(row, c + 1);
+                headerCell.Value = tripHeaders[c];
+                headerCell.Style.Font.Bold = true;
+                headerCell.Style.Fill.BackgroundColor = headerFill;
+                headerCell.Style.Font.FontColor = XLColor.White;
+            }
+            row++;
+
+            List<ProductionTrip> tripsOrdered = itinerary.Trips.OrderBy(t => t.DateTime).ToList();
+
+            if (tripsOrdered.Count == 0)
+            {
+                IXLCell emptyCell = ws.Cell(row, 1);
+                emptyCell.Value = "No trips in this itinerary.";
+                emptyCell.Style.Font.Italic = true;
+                row++;
+            }
+            else
+            {
+                foreach (ProductionTrip trip in tripsOrdered)
+                {
+                    ws.Cell(row, 1).Value = trip.ProductionPerson is not null ? $"{trip.ProductionPerson.FirstName} {trip.ProductionPerson.LastName}" : "";
+                    ws.Cell(row, 2).Value = trip.TripNumber;
+                    ws.Cell(row, 3).Value = trip.DateTime.ToString("dd/MM/yyyy HH:mm");
+                    ws.Cell(row, 4).Value = trip.TerminalOrStation;
+                    row++;
+                }
+            }
+
+            row++;
+        }
+
+        if (ordered.Count == 0)
+        {
+            ws.Cell(1, 1).Value = "No itineraries for this edition.";
+        }
+
+        for (int c = 1; c <= TotalColumns; c++)
+        {
+            ws.Column(c).Width = 26;
+        }
+
+        using MemoryStream stream = new();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
 '@
-if ($results -contains $false) { Write-Host "`nFallo (colspan)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo (Itineraries report)." -ForegroundColor Red; exit 1 }
 
-$results += Patch-File -Path $itinPath -Description "Itineraries: celda # en la fila" -OldString @'
-                                    <td class="px-4 py-3 font-medium">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
-'@ -NewString @'
-                                    <td class="px-4 py-3 font-medium">@ItinerarySequenceNumbers.GetValueOrDefault(itinerary.Id)</td>
-                                    <td class="px-4 py-3">@itinerary.DateTime.ToString("dd MMM yyyy HH:mm")</td>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (celda)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $itinPath -Description "Itineraries: metodo ItinerarySequenceNumbers" -OldString @'
-    private List<string> DistinctRunners =>
-'@ -NewString @'
-    private Dictionary<Guid, int> ItinerarySequenceNumbers =>
-        itineraries
-            .OrderBy(i => i.DateTime)
-            .Select((i, index) => (i.Id, Number: index + 1))
-            .ToDictionary(x => x.Id, x => x.Number);
-
-    private List<string> DistinctRunners =>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (metodo numeracion)." -ForegroundColor Red; exit 1 }
-
-Write-Host "`nRunner Itineraries: columna # anadida, ordenada por fecha/hora." -ForegroundColor Green
-
-# ===========================================================================
-# PARTE 2: Trips - "Itinerary X" en vez de "Assigned"
-# ===========================================================================
-$tripsPath = "Alakai.FestivalManager.Admin/Components/Pages/ProductionTrips.razor"
-
-$results += Patch-File -Path $tripsPath -Description "Trips: inyectar RunnerItineraryApiClient" -OldString @'
-@inject ProductionTripApiClient ProductionTripApiClient
-@inject ProductionPersonApiClient ProductionPersonApiClient
-'@ -NewString @'
-@inject ProductionTripApiClient ProductionTripApiClient
-@inject RunnerItineraryApiClient RunnerItineraryApiClient
-@inject ProductionPersonApiClient ProductionPersonApiClient
-'@
-if ($results -contains $false) { Write-Host "`nFallo (inject)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $tripsPath -Description "Trips: cargar itinerarios de la edicion" -OldString @'
-            trips = targetEditionId != Guid.Empty
-                ? (await ProductionTripApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
-                : [];
-'@ -NewString @'
-            trips = targetEditionId != Guid.Empty
-                ? (await ProductionTripApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
-                : [];
-
-            itineraries = targetEditionId != Guid.Empty
-                ? (await RunnerItineraryApiClient.GetByEditionIdAsync(targetEditionId)).ToList()
-                : [];
-'@
-if ($results -contains $false) { Write-Host "`nFallo (carga)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $tripsPath -Description "Trips: campo itineraries" -OldString @'
-    private List<ProductionTripDto> trips = [];
-'@ -NewString @'
-    private List<ProductionTripDto> trips = [];
-    private List<RunnerItineraryDto> itineraries = [];
-'@
-if ($results -contains $false) { Write-Host "`nFallo (campo)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $tripsPath -Description "Trips: metodo ItinerarySequenceNumbers" -OldString @'
-    private async Task LoadDataAsync()
-'@ -NewString @'
-    private Dictionary<Guid, int> ItinerarySequenceNumbers =>
-        itineraries
-            .OrderBy(i => i.DateTime)
-            .Select((i, index) => (i.Id, Number: index + 1))
-            .ToDictionary(x => x.Id, x => x.Number);
-
-    private async Task LoadDataAsync()
-'@
-if ($results -contains $false) { Write-Host "`nFallo (metodo numeracion)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $tripsPath -Description "Trips: mostrar 'Itinerary X' en vez de Assigned" -OldString @'
-                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? "Assigned" : "-")</td>
-'@ -NewString @'
-                                    <td class="px-4 py-3">@(trip.RunnerItineraryId.HasValue ? $"Itinerary {ItinerarySequenceNumbers.GetValueOrDefault(trip.RunnerItineraryId.Value)}" : "-")</td>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (celda Itinerary)." -ForegroundColor Red; exit 1 }
-
-Write-Host "`nTrips: columna Itinerary ahora muestra 'Itinerary X' con el mismo numero que la pantalla de Runner Itineraries." -ForegroundColor Green
+Write-Host "`nReports actualizados: Accommodation con datos personales, Itineraries seccionado por numero." -ForegroundColor Green
