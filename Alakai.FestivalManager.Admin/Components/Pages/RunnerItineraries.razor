@@ -36,6 +36,14 @@
                     <option value="2">Departure</option>
                 </select>
 
+                <select class="form-select w-full md:w-44" @bind="runnerFilter" @bind:after="ResetPage">
+                    <option value="">All runners</option>
+                    @foreach (string runner in DistinctRunners)
+                    {
+                        <option value="@runner">@runner</option>
+                    }
+                </select>
+
                 <select class="form-select w-full md:w-32" @bind="pageSize" @bind:after="ResetPage">
                     <option value="10">10 rows</option>
                     <option value="25">25 rows</option>
@@ -73,11 +81,11 @@
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
-                            <th class="px-4 py-3 font-semibold">Date/Time</th>
-                            <th class="px-4 py-3 font-semibold">Location</th>
-                            <th class="px-4 py-3 font-semibold">Direction</th>
-                            <th class="px-4 py-3 font-semibold">Runner</th>
-                            <th class="px-4 py-3 font-semibold">Trips</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Location")'>Location @SortIcon("Location")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Direction")'>Direction @SortIcon("Direction")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Runner")'>Runner @SortIcon("Runner")</button></th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Trips")'>Trips @SortIcon("Trips")</button></th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
@@ -177,6 +185,20 @@
 
                         <div class="md:col-span-2">
                             <label class="form-label">Trips (@GetDirectionLabel(formModel.Direction) only)</label>
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <div>
+                                    <label class="block text-xs text-black/60 dark:text-white/60">Date</label>
+                                    <input type="date" class="form-input" @bind="tripFilterDate" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-black/60 dark:text-white/60">From</label>
+                                    <input type="time" class="form-input" @bind="tripFilterTimeFrom" />
+                                </div>
+                                <div>
+                                    <label class="block text-xs text-black/60 dark:text-white/60">To</label>
+                                    <input type="time" class="form-input" @bind="tripFilterTimeTo" />
+                                </div>
+                            </div>
                             <div class="flex flex-col gap-2 p-3 overflow-y-auto border rounded-md max-h-52 border-black/10 dark:border-darkborder">
                                 @if (!CandidateTrips.Any())
                                 {
@@ -232,6 +254,12 @@
     private string festivalFilter = string.Empty;
     private string editionFilter = string.Empty;
     private string directionFilter = string.Empty;
+    private string runnerFilter = string.Empty;
+    private string sortColumn = "DateTime";
+    private bool sortAscending = true;
+    private DateOnly? tripFilterDate;
+    private TimeOnly? tripFilterTimeFrom;
+    private TimeOnly? tripFilterTimeTo;
     private bool isLoading = true;
     private bool isModalOpen;
     private bool isSaving;
@@ -246,10 +274,33 @@
             ? editions
             : editions.Where(e => e.FestivalId == fid).ToList();
 
-    private List<ProductionTripDto> CandidateTrips =>
-        trips.Where(t => t.Direction == formModel.Direction && (!t.RunnerItineraryId.HasValue || (editingItinerary is not null && t.RunnerItineraryId == editingItinerary.Id)))
-            .OrderBy(t => t.DateTime)
-            .ToList();
+    private List<string> DistinctRunners =>
+        itineraries.Where(i => !string.IsNullOrWhiteSpace(i.RunnerName)).Select(i => i.RunnerName!).Distinct().OrderBy(r => r).ToList();
+
+    private List<ProductionTripDto> CandidateTrips
+    {
+        get
+        {
+            IEnumerable<ProductionTripDto> query = trips.Where(t => t.Direction == formModel.Direction && (!t.RunnerItineraryId.HasValue || (editingItinerary is not null && t.RunnerItineraryId == editingItinerary.Id)));
+
+            if (tripFilterDate.HasValue)
+            {
+                query = query.Where(t => DateOnly.FromDateTime(t.DateTime) == tripFilterDate.Value);
+            }
+
+            if (tripFilterTimeFrom.HasValue)
+            {
+                query = query.Where(t => TimeOnly.FromDateTime(t.DateTime) >= tripFilterTimeFrom.Value);
+            }
+
+            if (tripFilterTimeTo.HasValue)
+            {
+                query = query.Where(t => TimeOnly.FromDateTime(t.DateTime) <= tripFilterTimeTo.Value);
+            }
+
+            return query.OrderBy(t => t.DateTime).ToList();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
@@ -326,8 +377,45 @@
                 query = query.Where(i => i.Direction == direction);
             }
 
-            return query.OrderBy(i => i.DateTime).ToList();
+            if (!string.IsNullOrWhiteSpace(runnerFilter))
+            {
+                query = query.Where(i => i.RunnerName == runnerFilter);
+            }
+
+            query = sortColumn switch
+            {
+                "Location" => sortAscending ? query.OrderBy(i => i.Location) : query.OrderByDescending(i => i.Location),
+                "Direction" => sortAscending ? query.OrderBy(i => i.Direction) : query.OrderByDescending(i => i.Direction),
+                "Runner" => sortAscending ? query.OrderBy(i => i.RunnerName) : query.OrderByDescending(i => i.RunnerName),
+                "Trips" => sortAscending ? query.OrderBy(i => i.Trips.Count) : query.OrderByDescending(i => i.Trips.Count),
+                _ => sortAscending ? query.OrderBy(i => i.DateTime) : query.OrderByDescending(i => i.DateTime)
+            };
+
+            return query.ToList();
         }
+    }
+
+    private void SortBy(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+    }
+
+    private MarkupString SortIcon(string column)
+    {
+        if (sortColumn != column)
+        {
+            return new MarkupString("<i class=\"ri-arrow-up-down-line text-xs opacity-40\"></i>");
+        }
+
+        return new MarkupString(sortAscending ? "<i class=\"ri-arrow-up-s-fill text-xs text-purple\"></i>" : "<i class=\"ri-arrow-down-s-fill text-xs text-purple\"></i>");
     }
 
     private IEnumerable<RunnerItineraryDto> PagedItineraries => FilteredItineraries.Skip((currentPage - 1) * pageSize).Take(pageSize);

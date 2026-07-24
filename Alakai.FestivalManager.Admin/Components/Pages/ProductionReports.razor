@@ -8,7 +8,7 @@
 
 <PageHeader Title="Production" pTitle="Reports"></PageHeader>
 
-<div class="grid grid-cols-1 gap-4 min-h-[calc(100vh-212px)]">
+<div class="grid grid-cols-1 gap-4">
     <div class="card">
         <div class="flex flex-col gap-3 md:flex-row md:items-center">
             <select class="form-select w-full md:w-56" @bind="selectedFestivalId" @bind:after="OnFestivalChangedAsync">
@@ -72,6 +72,14 @@
                             <td class="px-4 py-3 text-right">
                                 <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "production-accommodation")" @onclick='() => DownloadAsync("production-accommodation")'>
                                     <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "production-accommodation" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Accommodation (Floor Plan)</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "production-accommodation-grid")" @onclick='() => DownloadAsync("production-accommodation-grid")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "production-accommodation-grid" ? "Downloading..." : "Download")
                                 </button>
                             </td>
                         </tr>

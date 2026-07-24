@@ -85,12 +85,12 @@
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
                             <th class="px-4 py-3 font-semibold">Person</th>
-                            <th class="px-4 py-3 font-semibold">Type</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Type")'>Type @SortIcon("Type")</button></th>
                             <th class="px-4 py-3 font-semibold">Number</th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("DateTime")'>Date/Time @SortIcon("DateTime")</button></th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Terminal")'>Terminal/Station @SortIcon("Terminal")</button></th>
                             <th class="px-4 py-3 font-semibold">Direction</th>
-                            <th class="px-4 py-3 font-semibold">Itinerary</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Itinerary")'>Itinerary @SortIcon("Itinerary")</button></th>
                             <th class="px-4 py-3 font-semibold text-right">Actions</th>
                         </tr>
                     </thead>
@@ -378,6 +378,8 @@
             query = sortColumn switch
             {
                 "Terminal" => sortAscending ? query.OrderBy(t => t.TerminalOrStation) : query.OrderByDescending(t => t.TerminalOrStation),
+                "Type" => sortAscending ? query.OrderBy(t => t.Type) : query.OrderByDescending(t => t.Type),
+                "Itinerary" => sortAscending ? query.OrderBy(t => t.RunnerItineraryId.HasValue) : query.OrderByDescending(t => t.RunnerItineraryId.HasValue),
                 _ => sortAscending ? query.OrderBy(t => t.DateTime) : query.OrderByDescending(t => t.DateTime)
             };
 

@@ -17,6 +17,9 @@ public class ReportService : IReportService
     private readonly IProductionTripRepository _productionTripRepository;
     private readonly IRunnerItineraryRepository _runnerItineraryRepository;
     private readonly IProductionReservationRepository _productionReservationRepository;
+    private readonly IProductionAccommodationBuildingRepository _productionAccommodationBuildingRepository;
+    private readonly IProductionAccommodationZoneRepository _productionAccommodationZoneRepository;
+    private readonly IProductionAccommodationRepository _productionAccommodationRepository;
 
     public ReportService(
         IRegistrationRepository registrationRepository,
@@ -29,7 +32,10 @@ public class ReportService : IReportService
         IProductionSupplierRepository productionSupplierRepository,
         IProductionTripRepository productionTripRepository,
         IRunnerItineraryRepository runnerItineraryRepository,
-        IProductionReservationRepository productionReservationRepository)
+        IProductionReservationRepository productionReservationRepository,
+        IProductionAccommodationBuildingRepository productionAccommodationBuildingRepository,
+        IProductionAccommodationZoneRepository productionAccommodationZoneRepository,
+        IProductionAccommodationRepository productionAccommodationRepository)
     {
         _registrationRepository = registrationRepository;
         _competitionEntryRepository = competitionEntryRepository;
@@ -42,6 +48,9 @@ public class ReportService : IReportService
         _productionTripRepository = productionTripRepository;
         _runnerItineraryRepository = runnerItineraryRepository;
         _productionReservationRepository = productionReservationRepository;
+        _productionAccommodationBuildingRepository = productionAccommodationBuildingRepository;
+        _productionAccommodationZoneRepository = productionAccommodationZoneRepository;
+        _productionAccommodationRepository = productionAccommodationRepository;
     }
 
     public async Task<byte[]> GenerateUsersReportAsync(Guid editionId, CancellationToken cancellationToken = default)
@@ -429,6 +438,184 @@ public class ReportService : IReportService
         })).ToList();
 
         return BuildXlsx("Production Accommodation", ["Building", "Responsible", "Occupant", "Zone", "Room"], rows);
+    }
+
+    public async Task<byte[]> GenerateProductionAccommodationGridReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<ProductionAccommodationBuilding> buildingsList = await _productionAccommodationBuildingRepository.GetByEditionIdAsync(editionId, cancellationToken);
+        IReadOnlyList<ProductionAccommodationZone> allZones = await _productionAccommodationZoneRepository.GetAllAsync(cancellationToken);
+        IReadOnlyList<ProductionAccommodation> allRooms = await _productionAccommodationRepository.GetAllAsync(cancellationToken);
+        IReadOnlyList<ProductionAccommodationReservation> reservations = (await _productionReservationRepository.GetAllAsync(cancellationToken))
+            .Where(r => r.EditionId == editionId)
+            .ToList();
+
+        Dictionary<Guid, int> bookingNumbers = reservations
+            .OrderBy(r => r.CreatedAt)
+            .Select((r, index) => (r.Id, Number: index + 1))
+            .ToDictionary(t => t.Id, t => t.Number);
+
+        Dictionary<Guid, List<(ProductionAccommodationReservationOccupant Occupant, int BookingNumber)>> occupantsByUnit = reservations
+            .SelectMany(r => r.Occupants.Select(o => (Occupant: o, BookingNumber: bookingNumbers[r.Id])))
+            .Where(t => t.Occupant.ProductionAccommodationId.HasValue)
+            .GroupBy(t => t.Occupant.ProductionAccommodationId!.Value)
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(t => t.BookingNumber)
+                      .ThenByDescending(t => t.Occupant.IsResponsible)
+                      .ThenBy(t => t.Occupant.ProductionPerson is not null ? $"{t.Occupant.ProductionPerson.FirstName} {t.Occupant.ProductionPerson.LastName}" : "", StringComparer.OrdinalIgnoreCase)
+                      .ToList());
+
+        const int BlocksPerBand = 4;
+        const int ColumnsPerBlock = 2;
+        const int SpacerColumns = 1;
+        const int TotalColumns = BlocksPerBand * ColumnsPerBlock + (BlocksPerBand - 1) * SpacerColumns;
+
+        XLColor buildingFill = XLColor.FromArgb(55, 65, 81);
+        XLColor zoneFill = XLColor.FromArgb(156, 163, 175);
+        XLColor unitHeaderFill = XLColor.FromArgb(107, 114, 128);
+        XLColor responsibleFill = XLColor.FromArgb(209, 213, 219);
+        XLColor borderColor = XLColor.FromArgb(107, 114, 128);
+
+        using XLWorkbook workbook = new();
+        HashSet<string> usedSheetNames = [];
+
+        foreach (ProductionAccommodationBuilding building in buildingsList.OrderBy(b => b.SortOrder))
+        {
+            List<ProductionAccommodationZone> zonesForBuilding = allZones
+                .Where(z => z.ProductionAccommodationBuildingId == building.Id)
+                .OrderBy(z => z.SortOrder)
+                .ToList();
+
+            List<(ProductionAccommodationZone Zone, List<ProductionAccommodation> Units)> zonesWithUnits = zonesForBuilding
+                .Select(z => (Zone: z, Units: allRooms.Where(r => r.ProductionAccommodationZoneId == z.Id && r.Capacity > 0).ToList()))
+                .Where(t => t.Units.Count > 0)
+                .ToList();
+
+            if (zonesWithUnits.Count == 0)
+            {
+                continue;
+            }
+
+            string sheetName = MakeUniqueSheetName(building.Name, usedSheetNames);
+            IXLWorksheet ws = workbook.Worksheets.Add(sheetName);
+            ws.ShowGridLines = false;
+
+            IXLRange titleRange = ws.Range(1, 1, 1, TotalColumns).Merge();
+            titleRange.Value = building.IsLocked ? $"{building.Name}  (Locked)" : building.Name;
+            titleRange.Style.Font.Bold = true;
+            titleRange.Style.Font.FontSize = 14;
+            titleRange.Style.Font.FontColor = XLColor.White;
+            titleRange.Style.Fill.BackgroundColor = buildingFill;
+            titleRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Left;
+            ws.Row(1).Height = 24;
+
+            IXLRange legendRange = ws.Range(2, 1, 2, TotalColumns).Merge();
+            legendRange.Value = "Gray row = booking responsible   ·   # = booking group";
+            legendRange.Style.Font.Italic = true;
+            legendRange.Style.Font.FontSize = 9;
+            legendRange.Style.Font.FontColor = XLColor.FromArgb(107, 114, 128);
+
+            int row = 4;
+
+            foreach ((ProductionAccommodationZone zone, List<ProductionAccommodation> unitsInZone) in zonesWithUnits)
+            {
+                IXLRange zoneRange = ws.Range(row, 1, row, TotalColumns).Merge();
+                zoneRange.Value = zone.Name;
+                zoneRange.Style.Font.Bold = true;
+                zoneRange.Style.Fill.BackgroundColor = zoneFill;
+                zoneRange.Style.Font.FontColor = XLColor.White;
+                ws.Row(row).Height = 20;
+                row += 2;
+
+                List<ProductionAccommodation> zoneUnits = unitsInZone
+                    .OrderBy(a => NaturalSortKey(a.Name)).ThenBy(a => a.Name, StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+
+                for (int chunkStart = 0; chunkStart < zoneUnits.Count; chunkStart += BlocksPerBand)
+                {
+                    List<ProductionAccommodation> band = zoneUnits.Skip(chunkStart).Take(BlocksPerBand).ToList();
+                    int bandHeight = 0;
+
+                    for (int blockIndex = 0; blockIndex < band.Count; blockIndex++)
+                    {
+                        ProductionAccommodation unit = band[blockIndex];
+                        int startCol = 1 + blockIndex * (ColumnsPerBlock + SpacerColumns);
+
+                        List<(ProductionAccommodationReservationOccupant Occupant, int BookingNumber)> occupants =
+                            occupantsByUnit.TryGetValue(unit.Id, out List<(ProductionAccommodationReservationOccupant, int)>? list) ? list : [];
+
+                        int slotCount = Math.Max(unit.Capacity, occupants.Count);
+                        bandHeight = Math.Max(bandHeight, slotCount);
+
+                        IXLRange unitHeader = ws.Range(row, startCol, row, startCol + ColumnsPerBlock - 1).Merge();
+                        unitHeader.Value = $"{unit.Name}  ({unit.Capacity})";
+                        unitHeader.Style.Font.Bold = true;
+                        unitHeader.Style.Font.FontColor = XLColor.White;
+                        unitHeader.Style.Fill.BackgroundColor = unitHeaderFill;
+                        unitHeader.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                        unitHeader.Style.Border.OutsideBorderColor = borderColor;
+
+                        for (int slot = 0; slot < slotCount; slot++)
+                        {
+                            IXLCell nameCell = ws.Cell(row + 1 + slot, startCol);
+                            IXLCell bookingCell = ws.Cell(row + 1 + slot, startCol + 1);
+
+                            if (slot < occupants.Count)
+                            {
+                                (ProductionAccommodationReservationOccupant occupant, int bookingNumber) = occupants[slot];
+                                nameCell.Value = occupant.ProductionPerson is not null
+                                    ? $"{occupant.ProductionPerson.FirstName} {occupant.ProductionPerson.LastName}"
+                                    : "";
+                                bookingCell.Value = $"#{bookingNumber}";
+                                bookingCell.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+                                bookingCell.Style.Font.FontSize = 9;
+                                bookingCell.Style.Font.FontColor = XLColor.FromArgb(107, 114, 128);
+
+                                if (occupant.IsResponsible)
+                                {
+                                    nameCell.Style.Font.Bold = true;
+                                    nameCell.Style.Fill.BackgroundColor = responsibleFill;
+                                    bookingCell.Style.Fill.BackgroundColor = responsibleFill;
+                                }
+                            }
+
+                            IXLRange slotRange = ws.Range(row + 1 + slot, startCol, row + 1 + slot, startCol + 1);
+                            slotRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+                            slotRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+                            slotRange.Style.Border.OutsideBorderColor = borderColor;
+                            slotRange.Style.Border.InsideBorderColor = borderColor;
+                        }
+                    }
+
+                    row += 1 + bandHeight + 1;
+                }
+
+                row += 1;
+            }
+
+            for (int blockIndex = 0; blockIndex < BlocksPerBand; blockIndex++)
+            {
+                int startCol = 1 + blockIndex * (ColumnsPerBlock + SpacerColumns);
+                ws.Column(startCol).Width = 28;
+                ws.Column(startCol + 1).Width = 7;
+
+                if (blockIndex < BlocksPerBand - 1)
+                {
+                    ws.Column(startCol + 2).Width = 2;
+                }
+            }
+
+            ws.SheetView.FreezeRows(2);
+        }
+
+        if (workbook.Worksheets.Count == 0)
+        {
+            workbook.Worksheets.Add("No data");
+        }
+
+        using MemoryStream stream = new();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
     }
 
     private static byte[] BuildXlsx(string sheetName, string[] headers, List<string[]> rows)

@@ -78,7 +78,7 @@
                         <tr class="text-left">
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Name")'>Name @SortIcon("Name")</button></th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Category")'>Category @SortIcon("Category")</button></th>
-                            <th class="px-4 py-3 font-semibold">Role</th>
+                            <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Role")'>Role @SortIcon("Role")</button></th>
                             <th class="px-4 py-3 font-semibold">Email</th>
                             <th class="px-4 py-3 font-semibold">Document</th>
                             <th class="px-4 py-3 font-semibold"><button type="button" class="flex items-center gap-1 w-full font-semibold" @onclick='() => SortBy("Status")'>Status @SortIcon("Status")</button></th>
@@ -210,7 +210,13 @@
 
                         <div>
                             <label class="form-label">Nationality</label>
-                            <InputText class="form-input" @bind-Value="formModel.Nationality" />
+                            <select class="form-select" @bind="formModel.Nationality">
+                                <option value="">Select nationality</option>
+                                @foreach (string country in Countries)
+                                {
+                                    <option value="@country">@country</option>
+                                }
+                            </select>
                         </div>
 
                         @if (editingPerson is not null)
@@ -369,6 +375,7 @@
             query = sortColumn switch
             {
                 "Category" => sortAscending ? query.OrderBy(p => p.Category) : query.OrderByDescending(p => p.Category),
+                "Role" => sortAscending ? query.OrderBy(p => p.RoleTitle) : query.OrderByDescending(p => p.RoleTitle),
                 "Status" => sortAscending
                     ? query.OrderBy(p => p.IsActive ? 0 : 1)
                     : query.OrderByDescending(p => p.IsActive ? 0 : 1),
@@ -610,6 +617,23 @@
             StateHasChanged();
         });
     }
+
+    private static readonly List<string> Countries =
+    [
+        "Afghanistan","Albania","Algeria","Andorra","Angola","Argentina","Armenia","Australia","Austria","Azerbaijan",
+        "Bahamas","Bahrain","Bangladesh","Belarus","Belgium","Bolivia","Bosnia and Herzegovina","Brazil","Bulgaria",
+        "Cambodia","Canada","Chile","China","Colombia","Costa Rica","Croatia","Cuba","Cyprus","Czech Republic",
+        "Denmark","Dominican Republic","Ecuador","Egypt","El Salvador","Estonia","Ethiopia","Finland","France",
+        "Georgia","Germany","Ghana","Greece","Guatemala","Honduras","Hungary","Iceland","India","Indonesia","Iran",
+        "Iraq","Ireland","Israel","Italy","Jamaica","Japan","Jordan","Kazakhstan","Kenya","Kosovo","Kuwait",
+        "Latvia","Lebanon","Libya","Lithuania","Luxembourg","Malaysia","Malta","Mexico","Moldova","Monaco",
+        "Montenegro","Morocco","Netherlands","New Zealand","Nicaragua","Nigeria","North Macedonia","Norway",
+        "Pakistan","Palestine","Panama","Paraguay","Peru","Philippines","Poland","Portugal","Puerto Rico",
+        "Qatar","Romania","Russia","Saudi Arabia","Senegal","Serbia","Singapore","Slovakia","Slovenia",
+        "South Africa","South Korea","Spain","Sri Lanka","Sweden","Switzerland","Syria","Taiwan","Thailand",
+        "Tunisia","Turkey","Ukraine","United Arab Emirates","United Kingdom","United States","Uruguay",
+        "Uzbekistan","Venezuela","Vietnam","Yemen"
+    ];
 
     private class ProductionPersonFormModel
     {
