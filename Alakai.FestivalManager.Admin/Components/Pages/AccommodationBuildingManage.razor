@@ -1,4 +1,4 @@
-﻿@page "/accommodation-buildings/{Id:guid}"
+@page "/accommodation-buildings/{Id:guid}"
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.Requests
 
@@ -48,7 +48,7 @@ else
     <div class="mt-4 card">
         <div class="flex flex-col gap-4 mb-5 xl:flex-row xl:items-center xl:justify-between">
             <div class="flex flex-col gap-3 md:flex-row md:items-center">
-                <input class="form-input md:w-56" placeholder="Search zones..." @bind="zoneSearchText" @bind:event="oninput" @bind:after="ResetZonePage" />
+                <input class="form-input w-full md:w-56" placeholder="Search zones..." @bind="zoneSearchText" @bind:event="oninput" @bind:after="ResetZonePage" />
                 <select class="form-select md:w-32" @bind="zonePageSize" @bind:after="ResetZonePage">
                     <option value="10">10 rows</option>
                     <option value="25">25 rows</option>
@@ -67,7 +67,7 @@ else
         }
         else
         {
-            <div class="overflow-x-auto">
+            <div class="w-full max-w-full overflow-x-auto">
                 <table class="w-full table-hover">
                     <thead class="bg-gray-50 dark:bg-dark">
                         <tr class="text-left">
@@ -106,7 +106,8 @@ else
                                         }
                                         else
                                         {
-                                            <table class="w-full mb-4 table-hover">
+                                            <div class="w-full max-w-full overflow-x-auto mb-4">
+                                            <table class="w-full table-hover">
                                                 <thead>
                                                     <tr class="text-left">
                                                         <th class="px-3 py-2 text-xs font-semibold">Name</th>
@@ -132,6 +133,7 @@ else
                                                     }
                                                 </tbody>
                                             </table>
+                                            </div>
                                         }
 
                                         <div class="flex flex-col gap-3 pt-4 border-t border-black/10 dark:border-darkborder md:flex-row md:items-end md:justify-end">

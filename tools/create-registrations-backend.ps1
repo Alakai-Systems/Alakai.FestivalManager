@@ -1,16 +1,16 @@
-# Fix-ProductionDashboardVisibility.ps1
+# Fix-EmailImagesForceResponsive-v2.ps1
 #
-# Dos causas reales, no una:
+# La v1 tenia un fallo de sintaxis PowerShell: usaba comillas simples con
+# `n para los saltos de linea, pero los backticks solo se interpretan
+# dentro de comillas dobles - en comillas simples se quedan como texto
+# literal "`n" en vez de convertirse en salto de linea real, por eso el
+# ancla nunca coincidia con el archivo (que si tiene saltos de linea
+# reales). Corregido usando bloques @'...'@ como el resto de scripts.
 #
-# 1. La ruta real de Dashboard.razor es "/" (raiz), no "/dashboard". Mi
-#    guardia en MainLayout comprobaba relativePath.StartsWith("dashboard"),
-#    pero Navigation.ToBaseRelativePath("/") devuelve una cadena VACIA, que
-#    nunca empieza por "dashboard" - asi que aunque Production llegara a
-#    esa pagina, el guardia lo seguia rebotando a Artists & Team.
-#
-# 2. El menu exclusivo de Production nunca tuvo un enlace a Dashboard -
-#    aunque el guardia se arregle, no hay forma de navegar hasta ahi sin
-#    escribir la URL a mano.
+# Mismo fix que la v1: anade una regla CSS global (fuera del media query)
+# que fuerza cualquier imagen dentro del email a max-width:100%, sin
+# importar que atributos width/height traiga el <img> - arregla tanto el
+# HTML ya guardado en EmailLayout como cualquier imagen futura.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -32,39 +32,19 @@ function Patch-File {
     return $true
 }
 
-$results = @()
+$path = "Alakai.FestivalManager.Application/Features/Emails/Services/EmailNotificationService.cs"
 
-# ---------------------------------------------------------------------------
-# 1) MainLayout: permitir la ruta raiz "" (Dashboard es "/")
-# ---------------------------------------------------------------------------
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" -Description "MainLayout: permitir la raiz (Dashboard = '/')" -OldString @'
-        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !relativePath.StartsWith("dashboard"))
+$result = Patch-File -Path $path -Description "Regla global: forzar imagenes responsive en el email" -OldString @'
+          <style>
+            body {{ margin:0; padding:0; }}
+            @media only screen and (max-width: 600px) {{
 '@ -NewString @'
-        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !string.IsNullOrEmpty(relativePath))
+          <style>
+            body {{ margin:0; padding:0; }}
+            .email-shell img {{ max-width:100% !important; height:auto !important; }}
+            @media only screen and (max-width: 600px) {{
 '@
-if ($results -contains $false) { Write-Host "`nFallo (MainLayout)." -ForegroundColor Red; exit 1 }
 
-# ---------------------------------------------------------------------------
-# 2) Sidebar: anadir Dashboard como primer item del menu exclusivo
-# ---------------------------------------------------------------------------
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/Sidebar.razor" -Description "Sidebar: enlace a Dashboard en el menu de Production" -OldString @'
-                <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'production' }">
-                    <li class="menu nav-item">
-                        <NavLink href="/production-team" class="text-black nav-link group">
-'@ -NewString @'
-                <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'production' }">
-                    <li class="menu nav-item">
-                        <NavLink href="/" Match="NavLinkMatch.All" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-dashboard-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Dashboard</span>
-                            </div>
-                        </NavLink>
-                    </li>
-                    <li class="menu nav-item">
-                        <NavLink href="/production-team" class="text-black nav-link group">
-'@
-if ($results -contains $false) { Write-Host "`nFallo (Sidebar)." -ForegroundColor Red; exit 1 }
+if (-not $result) { Write-Host "`nFallo." -ForegroundColor Red; exit 1 }
 
-Write-Host "`nDashboard visible y accesible desde el menu de Production." -ForegroundColor Green
-Write-Host "Nota: con esto CUALQUIER ruta que no empiece por production/profile queda bloqueada salvo la raiz exacta - si en el futuro anades otra pagina 'compartida' fuera de production-*, hay que anadirla explicitamente aqui tambien." -ForegroundColor Yellow
+Write-Host "`nNo hace falta recrear ninguna plantilla ni volver a subir las imagenes del header/footer - este cambio arregla el HTML que YA esta guardado en cada EmailLayout, ademas de cualquier imagen que se inserte de ahora en adelante." -ForegroundColor Green

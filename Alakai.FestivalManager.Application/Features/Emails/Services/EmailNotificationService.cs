@@ -96,6 +96,7 @@ public class EmailNotificationService : IEmailNotificationService
           <title></title>
           <style>
             body {{ margin:0; padding:0; }}
+            .email-shell img {{ max-width:100% !important; height:auto !important; }}
             @media only screen and (max-width: 600px) {{
               .email-shell {{ width:100% !important; }}
               .email-body-cell {{ padding:18px !important; font-size:16px !important; line-height:1.5 !important; }}
