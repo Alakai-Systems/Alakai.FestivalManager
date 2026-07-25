@@ -108,36 +108,54 @@ public class EmailNotificationService : IEmailNotificationService
           <meta charset=""UTF-8"" />
           <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
           <meta http-equiv=""X-UA-Compatible"" content=""IE=edge"" />
+          <meta name=""x-apple-disable-message-reformatting"" />
+          <meta name=""format-detection"" content=""telephone=no, date=no, address=no, email=no"" />
           <title></title>
+          <!--[if mso]>
+          <noscript>
+          <xml>
+            <o:OfficeDocumentSettings>
+              <o:PixelsPerInch>96</o:PixelsPerInch>
+            </o:OfficeDocumentSettings>
+          </xml>
+          </noscript>
+          <![endif]-->
           <style>
-            body {{ margin:0; padding:0; }}
+            body {{ margin:0; padding:0; width:100% !important; }}
             .email-shell img {{ max-width:100% !important; height:auto !important; }}
             @media only screen and (max-width: 600px) {{
               .email-shell {{ width:100% !important; }}
-              .email-body-cell {{ padding:18px !important; font-size:16px !important; line-height:1.5 !important; }}
-              .email-footer-cell {{ padding:16px 18px !important; font-size:13px !important; }}
-              .email-body-cell img, .email-header-cell img, .email-footer-cell img {{ height:auto !important; }}
             }}
           </style>
         </head>
-        <body style=""margin:0; padding:0;"">
+        <body style=""margin:0; padding:0; width:100% !important;"">
         <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" style=""background:#f3f4f6; margin:0; padding:24px 0;"">
           <tr>
             <td align=""center"">
-              <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" class=""email-shell"" style=""width:100%; max-width:{EmailShellWidth}px; background:#ffffff;"">
+              <!--[if mso]>
+              <table role=""presentation"" align=""center"" width=""{EmailShellWidth}"" cellpadding=""0"" cellspacing=""0"" style=""width:{EmailShellWidth}px;"">
+              <tr>
+              <td>
+              <![endif]-->
+              <table role=""presentation"" width=""100%"" cellpadding=""0"" cellspacing=""0"" class=""email-shell"" style=""width:100%; max-width:{EmailShellWidth}px; background:#ffffff; margin:0 auto;"">
                 <tr>
                   <td class=""email-header-cell"" style=""overflow:auto;"">{headerHtml}</td>
                 </tr>
                 <tr>
-                  <td class=""email-body-cell"" style=""padding:24px; font-family:Arial,Helvetica,sans-serif; font-size:14px; color:#111827;"">{bodyHtml}</td>
+                  <td class=""email-body-cell"" style=""padding:20px; font-family:Arial,Helvetica,sans-serif; font-size:16px; line-height:1.5; color:#111827;"">{bodyHtml}</td>
                 </tr>
                 <tr>
                   <td style=""padding:0 24px;""><hr style=""border:none; border-top:1px solid #e5e7eb; margin:0;"" /></td>
                 </tr>
                 <tr>
-                  <td class=""email-footer-cell"" style=""overflow:auto; padding:20px 24px; font-family:Arial,Helvetica,sans-serif; font-size:12px; color:#6b7280;"">{footerHtml}</td>
+                  <td class=""email-footer-cell"" style=""overflow:auto; padding:16px 20px; font-family:Arial,Helvetica,sans-serif; font-size:13px; color:#6b7280;"">{footerHtml}</td>
                 </tr>
               </table>
+              <!--[if mso]>
+              </td>
+              </tr>
+              </table>
+              <![endif]-->
             </td>
           </tr>
         </table>
