@@ -1,50 +1,46 @@
-# Fix-EmailImagesForceResponsive-v2.ps1
+# Fix-AccommodationBuildingManageHeaderOverflow.ps1
 #
-# La v1 tenia un fallo de sintaxis PowerShell: usaba comillas simples con
-# `n para los saltos de linea, pero los backticks solo se interpretan
-# dentro de comillas dobles - en comillas simples se quedan como texto
-# literal "`n" en vez de convertirse en salto de linea real, por eso el
-# ancla nunca coincidia con el archivo (que si tiene saltos de linea
-# reales). Corregido usando bloques @'...'@ como el resto de scripts.
+# La fila de tipo/bloqueo en el lado de participantes tiene una
+# estructura distinta a la de Produccion (un div interno extra con
+# gap-3, y un badge condicional de "Allowed: ..."), asi que el ancla
+# generica no encajaba. Ancla exacta para esta version.
 #
-# Mismo fix que la v1: anade una regla CSS global (fuera del media query)
-# que fuerza cualquier imagen dentro del email a max-width:100%, sin
-# importar que atributos width/height traiga el <img> - arregla tanto el
-# HTML ya guardado en EmailLayout como cualquier imagen futura.
-#
-# Ejecutar desde la raiz del repo.
+# Ejecutar desde la raiz del repo, DESPUES de
+# Fix-ProductionBuildingManagePageOverflow-v2.ps1 (ese ya arreglo bien
+# los otros 3 puntos, este es solo el que fallo).
 $ErrorActionPreference = "Stop"
 
-function Patch-File {
-    param([string]$Path, [string]$OldString, [string]$NewString, [string]$Description)
-    if (-not (Test-Path $Path)) { Write-Host "SKIP (archivo no encontrado): $Path" -ForegroundColor Yellow; return $false }
-    $rawContent = Get-Content -Path $Path -Raw
-    $usesCrlf = $rawContent.Contains("`r`n")
-    $normalizedContent = $rawContent -replace "`r`n", "`n"
-    $normalizedOld = $OldString -replace "`r`n", "`n"
-    $normalizedNew = $NewString -replace "`r`n", "`n"
-    if ($normalizedContent.Contains($normalizedNew)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
-    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow; return $false }
-    $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
-    $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
-    Set-Content -Path $Path -Value $updatedFinal -NoNewline
-    Write-Host "OK: $Description" -ForegroundColor Green
-    return $true
+$path = "Alakai.FestivalManager.Admin/Components/Pages/AccommodationBuildingManage.razor"
+
+if (-not (Test-Path $path)) {
+    Write-Host "SKIP (archivo no encontrado): $path" -ForegroundColor Yellow
+    exit 1
 }
 
-$path = "Alakai.FestivalManager.Application/Features/Emails/Services/EmailNotificationService.cs"
+$rawContent = Get-Content -Path $path -Raw
+$usesCrlf = $rawContent.Contains("`r`n")
+$normalizedContent = $rawContent -replace "`r`n", "`n"
 
-$result = Patch-File -Path $path -Description "Regla global: forzar imagenes responsive en el email" -OldString @'
-          <style>
-            body {{ margin:0; padding:0; }}
-            @media only screen and (max-width: 600px) {{
-'@ -NewString @'
-          <style>
-            body {{ margin:0; padding:0; }}
-            .email-shell img {{ max-width:100% !important; height:auto !important; }}
-            @media only screen and (max-width: 600px) {{
-'@
+$old = @'
+    <div class="flex items-center justify-between mt-4 card">
+        <div class="flex items-center gap-3">
+'@ -replace "`r`n", "`n"
 
-if (-not $result) { Write-Host "`nFallo." -ForegroundColor Red; exit 1 }
+$new = @'
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 card">
+        <div class="flex flex-wrap items-center gap-3">
+'@ -replace "`r`n", "`n"
 
-Write-Host "`nNo hace falta recrear ninguna plantilla ni volver a subir las imagenes del header/footer - este cambio arregla el HTML que YA esta guardado en cada EmailLayout, ademas de cualquier imagen que se inserte de ahora en adelante." -ForegroundColor Green
+if ($normalizedContent.Contains($new) -and -not $normalizedContent.Contains($old)) {
+    Write-Host "SKIP (ya aplicado)" -ForegroundColor Cyan
+}
+elseif ($normalizedContent.Contains($old)) {
+    $updatedNormalized = $normalizedContent.Replace($old, $new)
+    $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
+    Set-Content -Path $path -Value $updatedFinal -NoNewline
+    Write-Host "OK: fila de tipo/bloqueo (participantes) con wrap responsive" -ForegroundColor Green
+}
+else {
+    Write-Host "SKIP (anchor no encontrado)" -ForegroundColor Yellow
+    exit 1
+}

@@ -80,12 +80,27 @@ public class EmailNotificationService : IEmailNotificationService
         return (renderedSubject, html);
     }
 
+    private static string MakeImagesResponsive(string html)
+    {
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return html;
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"<img\b(?![^>]*\bstyle\s*=)([^>]*)>",
+            m => $"<img{m.Groups[1].Value} style=\"max-width:100%; height:auto;\">",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+    }
+
     private async Task<(string Html, string? Text)> ApplyLayoutAsync(string bodyHtml, string? bodyText, Guid? editionId, CancellationToken cancellationToken)
     {
         EmailLayout? layout = await _emailLayoutRepository.GetForEditionAsync(editionId, cancellationToken);
 
-        string headerHtml = layout?.HeaderHtml ?? string.Empty;
-        string footerHtml = layout?.FooterHtml ?? string.Empty;
+        string headerHtml = MakeImagesResponsive(layout?.HeaderHtml ?? string.Empty);
+        string footerHtml = MakeImagesResponsive(layout?.FooterHtml ?? string.Empty);
+        bodyHtml = MakeImagesResponsive(bodyHtml);
 
         string wrappedHtml = $@"<!DOCTYPE html>
         <html lang=""es"">

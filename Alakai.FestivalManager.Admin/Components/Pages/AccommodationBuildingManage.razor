@@ -31,8 +31,8 @@ else if (building is null)
 }
 else
 {
-    <div class="flex items-center justify-between mt-4 card">
-        <div class="flex items-center gap-3">
+    <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mt-4 card">
+        <div class="flex flex-wrap items-center gap-3">
             <span class="inline-block rounded text-xs px-2 py-1 bg-purple/10 text-purple">@GetTypeLabel(building.Type)</span>
             @if (building.AllowedPassTypeNames.Count > 0)
             {
