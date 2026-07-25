@@ -87,8 +87,18 @@ public class EmailNotificationService : IEmailNotificationService
             return html;
         }
 
-        return System.Text.RegularExpressions.Regex.Replace(
+        string withoutFixedSize = System.Text.RegularExpressions.Regex.Replace(
             html,
+            @"<img\b([^>]*)>",
+            m =>
+            {
+                string attributes = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value, @"\s(width|height)\s*=\s*""[^""]*""", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return $"<img{attributes}>";
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            withoutFixedSize,
             @"<img\b(?![^>]*\bstyle\s*=)([^>]*)>",
             m => $"<img{m.Groups[1].Value} style=\"max-width:100%; height:auto;\">",
             System.Text.RegularExpressions.RegexOptions.IgnoreCase);

@@ -1,16 +1,18 @@
-# Fix-PortalUrlToLogin.ps1
+# Fix-EmailImagesStripWidthHeightAttributes.ps1
 #
-# La variable {{PortalUrl}} de los emails apuntaba a /user-panel/dashboard
-# cuando el festival tiene dominio propio - debe apuntar al login
-# (/user-panel/login), no al dashboard directamente.
+# El metodo MakeImagesResponsive ya anadia style="max-width:100%;
+# height:auto;" a las imagenes que no tenian estilo propio - pero dejaba
+# los atributos HTML width/height tal cual (por ejemplo width="750"
+# height="143"). Con las dos cosas a la vez, algunos motores de
+# renderizado movil pueden hacer una primera pasada con el atributo HTML
+# antes de que el CSS termine de aplicarse, dando un resultado
+# inconsistente segun la velocidad de carga.
 #
-# OJO: esto solo arregla la mitad del camino (festivales CON dominio
-# propio, donde la URL se construye aqui mismo en el codigo). Cuando el
-# festival NO tiene dominio propio, la URL sale de
-# _applicationUrlsOptions.PortalUrl, que es un valor de configuracion
-# (appsettings.json / variable de entorno), no algo que este en este
-# archivo - revisalo aparte y cambialo ahi si tambien apunta a
-# /user-panel/dashboard.
+# Este cambio quita los atributos width/height de CUALQUIER <img> (tengan
+# o no estilo ya puesto), dejando solo el control por CSS. Si en Outlook
+# de escritorio alguna imagen se viera con un tamano raro por esto,
+# revertir es tan sencillo como deshacer este mismo cambio - no toca
+# nada mas del shell.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -27,20 +29,44 @@ $usesCrlf = $rawContent.Contains("`r`n")
 $normalizedContent = $rawContent -replace "`r`n", "`n"
 
 $old = @'
-    private string BuildPortalUrl(string? customDomain)
+    private static string MakeImagesResponsive(string html)
     {
-        return string.IsNullOrWhiteSpace(customDomain)
-            ? _applicationUrlsOptions.PortalUrl
-            : $"https://{customDomain}/user-panel/dashboard";
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return html;
+        }
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"<img\b(?![^>]*\bstyle\s*=)([^>]*)>",
+            m => $"<img{m.Groups[1].Value} style=\"max-width:100%; height:auto;\">",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 '@ -replace "`r`n", "`n"
 
 $new = @'
-    private string BuildPortalUrl(string? customDomain)
+    private static string MakeImagesResponsive(string html)
     {
-        return string.IsNullOrWhiteSpace(customDomain)
-            ? _applicationUrlsOptions.PortalUrl
-            : $"https://{customDomain}/user-panel/login";
+        if (string.IsNullOrWhiteSpace(html))
+        {
+            return html;
+        }
+
+        string withoutFixedSize = System.Text.RegularExpressions.Regex.Replace(
+            html,
+            @"<img\b([^>]*)>",
+            m =>
+            {
+                string attributes = System.Text.RegularExpressions.Regex.Replace(m.Groups[1].Value, @"\s(width|height)\s*=\s*""[^""]*""", string.Empty, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                return $"<img{attributes}>";
+            },
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+        return System.Text.RegularExpressions.Regex.Replace(
+            withoutFixedSize,
+            @"<img\b(?![^>]*\bstyle\s*=)([^>]*)>",
+            m => $"<img{m.Groups[1].Value} style=\"max-width:100%; height:auto;\">",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
     }
 '@ -replace "`r`n", "`n"
 
@@ -51,11 +77,11 @@ elseif ($normalizedContent.Contains($old)) {
     $updatedNormalized = $normalizedContent.Replace($old, $new)
     $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
     Set-Content -Path $path -Value $updatedFinal -NoNewline
-    Write-Host "OK: PortalUrl (dominio propio) ahora apunta a /user-panel/login" -ForegroundColor Green
+    Write-Host "OK: width/height quitados de todas las imagenes, solo queda el control por CSS" -ForegroundColor Green
 }
 else {
-    Write-Host "SKIP (anchor no encontrado)" -ForegroundColor Yellow
+    Write-Host "SKIP (anchor no encontrado - pegame el metodo MakeImagesResponsive actual completo)" -ForegroundColor Yellow
     exit 1
 }
 
-Write-Host "`nIMPORTANTE: esto solo cubre festivales con dominio propio. Para los que NO tienen dominio propio, la URL sale de la configuracion (ApplicationUrls:PortalUrl en appsettings/variables de entorno) - revisa ese valor aparte, no esta en este archivo." -ForegroundColor Yellow
+Write-Host "`nSi esto causara algun problema en Outlook de escritorio, revertir es deshacer solo este cambio - no afecta a nada mas del shell." -ForegroundColor Yellow
