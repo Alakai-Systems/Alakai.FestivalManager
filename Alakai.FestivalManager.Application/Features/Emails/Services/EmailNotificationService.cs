@@ -246,7 +246,7 @@ public class EmailNotificationService : IEmailNotificationService
     {
         return string.IsNullOrWhiteSpace(customDomain)
             ? _applicationUrlsOptions.PortalUrl
-            : $"https://{customDomain}/user-panel/dashboard";
+            : $"https://{customDomain}/user-panel/login";
     }
     private async Task AddCompetitionVariablesAsync(Dictionary<string, string> variables, Guid registrationId, CancellationToken cancellationToken)
     {
