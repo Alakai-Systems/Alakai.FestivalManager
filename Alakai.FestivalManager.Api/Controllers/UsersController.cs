@@ -24,6 +24,7 @@ public class UsersController : ControllerBase
     {
         if (!IsSelfOrAdmin(id))
         {
+
             return Forbid();
         }
 
