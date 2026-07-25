@@ -13,6 +13,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ApiResponse<GetUsersResponse>>> GetAll(CancellationToken cancellationToken)
     {
         return Ok(await _userService.GetAllAsync(cancellationToken));
@@ -31,18 +32,21 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("by-email/{email}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ApiResponse<GetUserByIdResponse>>> GetByEmail(string email, CancellationToken cancellationToken)
     {
         return Ok(await _userService.GetByEmailAsync(email, cancellationToken));
     }
 
     [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ApiResponse<CreateUserResponse>>> Create([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
     {
         return Ok(await _userService.CreateAsync(command, cancellationToken));
     }
 
     [HttpPost("admins")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)
     {
         return Ok(await _userService.CreateAdminAsync(command, cancellationToken));
@@ -61,6 +65,7 @@ public class UsersController : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ApiResponse<DeleteUserResponse>>> Delete(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await _userService.DeleteAsync(id, cancellationToken));

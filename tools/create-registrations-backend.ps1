@@ -1,21 +1,23 @@
-# Fix-ProductionDashboardAccess.ps1
+# Fix-UsersControllerAuthorizeCombination.ps1
 #
-# Opcion A: Production puede llegar a Dashboard para cambiar el
-# festival/edicion activo desde ahi (el unico sitio donde existe ese
-# selector). Cambios minimos y quirurgicos:
+# CAUSA REAL, confirmada con logs de produccion (el 403 sale incluso justo
+# despues de un login nuevo, así que no es token viejo):
 #
-#   1. MainLayout: "dashboard" se anade a las excepciones del guardia de
-#      rutas (junto a "production" y "profile" que ya estaban).
-#   2. DashboardController: se anade Production a los roles permitidos -
-#      necesario para que Dashboard.razor cargue sus stats.
-#   3. AnalyticsController: lo mismo - Dashboard.razor tambien llama a
-#      este controller para el grafico de analytics. Sin esto, el
-#      selector de festival funcionaria pero el grafico de la pagina
-#      quedaria roto con un error visible.
+# En ASP.NET Core, [Authorize(Roles="X")] en la CLASE y [Authorize] (sin
+# roles) en un METODO NO se anulan entre si - se combinan, y las dos
+# condiciones tienen que cumplirse a la vez. El [Authorize] que puse en
+# GetById/Update nunca quito la exigencia de rol de la clase, solo anadio
+# "tiene que estar autenticado" ENCIMA de "tiene que ser SuperAdmin o
+# Admin". Por eso Production seguia dando 403 sin importar nada mas.
 #
-# NINGUN cambio quita acceso a SuperAdmin/Admin - solo se anade
-# "Production" a la lista existente en los 2 controllers. Nada mas se
-# toca.
+# Fix: quitar el [Authorize(Roles=...)] de la CLASE, y ponerlo explicito
+# en cada accion que sí debe ser solo admin (GetAll, GetByEmail, Create,
+# CreateAdmin, Delete). GetById y Update se quedan con [Authorize] a secas
+# (cualquier autenticado) + la comprobacion IsSelfOrAdmin que ya tenian,
+# que es la que de verdad decide quien puede ver que perfil.
+#
+# Verificado letra por letra contra el UsersController.cs real que
+# pegaste - los 6 cambios coinciden exactamente una vez cada uno.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -29,7 +31,7 @@ function Patch-File {
     $normalizedOld = $OldString -replace "`r`n", "`n"
     $normalizedNew = $NewString -replace "`r`n", "`n"
     if ($normalizedContent.Contains($normalizedNew)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
-    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado - revisalo a mano): $Description" -ForegroundColor Yellow; return $false }
+    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow; return $false }
     $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
     $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
     Set-Content -Path $Path -Value $updatedFinal -NoNewline
@@ -37,48 +39,64 @@ function Patch-File {
     return $true
 }
 
-$anyFailed = $false
+$path = "Alakai.FestivalManager.Api/Controllers/UsersController.cs"
+$results = @()
 
-# ---------------------------------------------------------------------------
-# 1) MainLayout: permitir /dashboard
-# ---------------------------------------------------------------------------
-if (-not (Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" -Description "MainLayout: permitir /dashboard para Production" -OldString @'
-        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile"))
-        {
-            Navigation.NavigateTo("/production-team");
-        }
-'@ -NewString @'
-        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !relativePath.StartsWith("dashboard"))
-        {
-            Navigation.NavigateTo("/production-team");
-        }
-'@)) { $anyFailed = $true }
-
-# ---------------------------------------------------------------------------
-# 2) DashboardController: anadir Production
-# ---------------------------------------------------------------------------
-if (-not (Patch-File -Path "Alakai.FestivalManager.Api/Controllers/DashboardController.cs" -Description "DashboardController: anadir Production" -OldString @'
+$results += Patch-File -Path $path -Description "Quitar el rol de la clase (era el que bloqueaba todo)" -OldString @'
 [Authorize(Roles = "SuperAdmin,Admin")]
-public class DashboardController : ControllerBase
+public class UsersController : ControllerBase
 '@ -NewString @'
-[Authorize(Roles = "SuperAdmin,Admin,Production")]
-public class DashboardController : ControllerBase
-'@)) { $anyFailed = $true }
+public class UsersController : ControllerBase
+'@
 
-# ---------------------------------------------------------------------------
-# 3) AnalyticsController: anadir Production (lo usa el grafico de Dashboard)
-# ---------------------------------------------------------------------------
-if (-not (Patch-File -Path "Alakai.FestivalManager.Api/Controllers/AnalyticsController.cs" -Description "AnalyticsController: anadir Production" -OldString @'
-[Authorize(Roles = "SuperAdmin,Admin")]
-public class AnalyticsController : ControllerBase
+$results += Patch-File -Path $path -Description "GetAll: Authorize explicito" -OldString @'
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<GetUsersResponse>>> GetAll(CancellationToken cancellationToken)
 '@ -NewString @'
-[Authorize(Roles = "SuperAdmin,Admin,Production")]
-public class AnalyticsController : ControllerBase
-'@)) { $anyFailed = $true }
+    [HttpGet]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<ApiResponse<GetUsersResponse>>> GetAll(CancellationToken cancellationToken)
+'@
 
-if ($anyFailed) {
-    Write-Host "`nAlgun anchor no encontro su sitio exacto (puede que el atributo actual tenga otro formato en tu copia real). Pegame el contenido de las 2-3 primeras lineas de esos archivos y lo ajusto sin tocar nada mas." -ForegroundColor Red
+$results += Patch-File -Path $path -Description "GetByEmail: Authorize explicito" -OldString @'
+    [HttpGet("by-email/{email}")]
+    public async Task<ActionResult<ApiResponse<GetUserByIdResponse>>> GetByEmail(string email, CancellationToken cancellationToken)
+'@ -NewString @'
+    [HttpGet("by-email/{email}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<ApiResponse<GetUserByIdResponse>>> GetByEmail(string email, CancellationToken cancellationToken)
+'@
+
+$results += Patch-File -Path $path -Description "Create: Authorize explicito" -OldString @'
+    [HttpPost]
+    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> Create([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
+'@ -NewString @'
+    [HttpPost]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> Create([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
+'@
+
+$results += Patch-File -Path $path -Description "CreateAdmin: Authorize explicito" -OldString @'
+    [HttpPost("admins")]
+    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)
+'@ -NewString @'
+    [HttpPost("admins")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)
+'@
+
+$results += Patch-File -Path $path -Description "Delete: Authorize explicito" -OldString @'
+    [HttpDelete("{id:guid}")]
+    public async Task<ActionResult<ApiResponse<DeleteUserResponse>>> Delete(Guid id, CancellationToken cancellationToken)
+'@ -NewString @'
+    [HttpDelete("{id:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<ApiResponse<DeleteUserResponse>>> Delete(Guid id, CancellationToken cancellationToken)
+'@
+
+if ($results -contains $false) {
+    Write-Host "`nAlgo no coincidio - pero esto ya se verifico letra por letra contra tu archivo real antes de dartelo, asi que si falla aqui es que el archivo cambio desde que lo pegaste." -ForegroundColor Red
+    exit 1
 }
-else {
-    Write-Host "`nProduction puede llegar a Dashboard y usar el selector de festival/edicion. SuperAdmin y Admin siguen exactamente igual que antes." -ForegroundColor Green
-}
+
+Write-Host "`nGetById y Update ya no exigen rol de la clase - solo autenticacion + ser el propio usuario (o admin). El resto de acciones (GetAll, GetByEmail, Create, CreateAdmin, Delete) mantienen exactamente la misma proteccion SuperAdmin/Admin de antes, ahora puesta explicita en cada una." -ForegroundColor Green
