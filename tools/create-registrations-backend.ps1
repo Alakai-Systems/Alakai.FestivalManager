@@ -1,12 +1,11 @@
-# Fix-ProductionSidebarIconsAndCleanup.ps1
+# Fix-ProductionProfileAccessAndSettingsIcon.ps1
 #
-# 1. Icono distinto por cada item del menu exclusivo de Production (ahora
-#    todos usan ri-team-fill).
-# 2. "Accommodation" / "Accommodation Buildings" -> "Accommodation Setup"
-#    en las dos versiones del menu (el completo y el exclusivo).
-# 3. De paso: seguian ahi "Accommodation Zones" y "Accommodation Rooms" en
-#    el menu exclusivo - el fix que te di antes para quitarlos no se llego
-#    a aplicar. Los quito ahora mismo.
+# 1. MainLayout: el guardia de rutas para Production redirigia CUALQUIER
+#    ruta que no empezara por "production" a /production-team - incluido
+#    /profile, que si deben poder usar. Se anade como excepcion.
+# 2. Topbar: el icono de engranaje (Settings) se oculta para el rol
+#    Production - de todas formas el guardia les rebotaria si lo pulsaran,
+#    asi que no tiene sentido mostrarlo.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -19,7 +18,7 @@ function Patch-File {
     $normalizedContent = $rawContent -replace "`r`n", "`n"
     $normalizedOld = $OldString -replace "`r`n", "`n"
     $normalizedNew = $NewString -replace "`r`n", "`n"
-    if ($normalizedContent.Contains($normalizedNew) -and -not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
+    if ($normalizedContent.Contains($normalizedNew)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
     if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow; return $false }
     $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
     $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
@@ -28,124 +27,63 @@ function Patch-File {
     return $true
 }
 
-$path = "Alakai.FestivalManager.Admin/Components/Layout/Sidebar.razor"
 $results = @()
 
 # ---------------------------------------------------------------------------
-# Menu completo: renombrar "Accommodation" -> "Accommodation Setup"
+# 1) MainLayout: permitir /profile
 # ---------------------------------------------------------------------------
-$results += Patch-File -Path $path -Description "Menu completo: Accommodation -> Accommodation Setup" -OldString @'
-                        <li><NavLink href="/production-buildings">Accommodation</NavLink></li>
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" -Description "MainLayout: permitir /profile para Production" -OldString @'
+        if (!relativePath.StartsWith("production"))
+        {
+            Navigation.NavigateTo("/production-team");
+        }
 '@ -NewString @'
-                        <li><NavLink href="/production-buildings">Accommodation Setup</NavLink></li>
+        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile"))
+        {
+            Navigation.NavigateTo("/production-team");
+        }
 '@
-if ($results -contains $false) { Write-Host "`nFallo (menu completo)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo (MainLayout)." -ForegroundColor Red; exit 1 }
 
 # ---------------------------------------------------------------------------
-# Menu exclusivo: iconos distintos + rename + quitar Zones/Rooms sueltos
+# 2) Topbar: ocultar el icono de Settings para Production
 # ---------------------------------------------------------------------------
-$results += Patch-File -Path $path -Description "Menu exclusivo: icono Artists & Team" -OldString @'
-                        <NavLink href="/production-team" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Artists &amp; Team</span>
-'@ -NewString @'
-                        <NavLink href="/production-team" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-user-star-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Artists &amp; Team</span>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (icono Artists & Team)." -ForegroundColor Red; exit 1 }
+$topbarPath = "Alakai.FestivalManager.Admin/Components/Layout/Topbar.razor"
 
-$results += Patch-File -Path $path -Description "Menu exclusivo: icono Suppliers" -OldString @'
-                        <NavLink href="/production-suppliers" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Suppliers</span>
+$results += Patch-File -Path $topbarPath -Description "Topbar: ocultar icono de Settings con @if" -OldString @'
+        <a href="/settings" class="text-black dark:text-white/80">
+            <i class="ri-settings-3-line text-xl leading-none"></i>
+        </a>
 '@ -NewString @'
-                        <NavLink href="/production-suppliers" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-truck-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Suppliers</span>
+        @if (!isProductionUser)
+        {
+            <a href="/settings" class="text-black dark:text-white/80">
+                <i class="ri-settings-3-line text-xl leading-none"></i>
+            </a>
+        }
 '@
-if ($results -contains $false) { Write-Host "`nFallo (icono Suppliers)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo (Topbar icono)." -ForegroundColor Red; exit 1 }
 
-$results += Patch-File -Path $path -Description "Menu exclusivo: icono + rename Accommodation Setup" -OldString @'
-                        <NavLink href="/production-buildings" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Buildings</span>
+$results += Patch-File -Path $topbarPath -Description "Topbar: campo isProductionUser" -OldString @'
+    private string DisplayName { get; set; } = "Admin";
+    private Guid _currentUserId;
 '@ -NewString @'
-                        <NavLink href="/production-buildings" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-hotel-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Setup</span>
+    private string DisplayName { get; set; } = "Admin";
+    private Guid _currentUserId;
+    private bool isProductionUser;
 '@
-if ($results -contains $false) { Write-Host "`nFallo (icono Accommodation Setup)." -ForegroundColor Red; exit 1 }
+if ($results -contains $false) { Write-Host "`nFallo (Topbar campo)." -ForegroundColor Red; exit 1 }
 
-$results += Patch-File -Path $path -Description "Menu exclusivo: quitar bloque Accommodation Zones (residuo)" -OldString @'
-                    <li class="menu nav-item">
-                        <NavLink href="/production-zones" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Zones</span>
-                            </div>
-                        </NavLink>
-                    </li>
+$results += Patch-File -Path $topbarPath -Description "Topbar: calcular isProductionUser" -OldString @'
+            AuthenticationState authState = await AuthenticationStateTask;
+            string? email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
 '@ -NewString @'
+            AuthenticationState authState = await AuthenticationStateTask;
+            string? email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
+            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+            isProductionUser = authState.User.IsInRole("Production");
 '@
-if ($results -contains $false) { Write-Host "`nSKIP: bloque Accommodation Zones no encontrado (puede que ya no exista)." -ForegroundColor Yellow }
+if ($results -contains $false) { Write-Host "`nFallo (Topbar calculo)." -ForegroundColor Red; exit 1 }
 
-$results += Patch-File -Path $path -Description "Menu exclusivo: quitar bloque Accommodation Rooms (residuo)" -OldString @'
-                    <li class="menu nav-item">
-                        <NavLink href="/production-accommodations" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Rooms</span>
-                            </div>
-                        </NavLink>
-                    </li>
-'@ -NewString @'
-'@
-if ($results -contains $false) { Write-Host "`nSKIP: bloque Accommodation Rooms no encontrado (puede que ya no exista)." -ForegroundColor Yellow }
-
-$results += Patch-File -Path $path -Description "Menu exclusivo: icono Accommodation Reservations" -OldString @'
-                        <NavLink href="/production-reservations" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Reservations</span>
-'@ -NewString @'
-                        <NavLink href="/production-reservations" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-calendar-check-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Accommodation Reservations</span>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (icono Reservations)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $path -Description "Menu exclusivo: icono Trips" -OldString @'
-                        <NavLink href="/production-trips" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Trips</span>
-'@ -NewString @'
-                        <NavLink href="/production-trips" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-flight-takeoff-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Trips</span>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (icono Trips)." -ForegroundColor Red; exit 1 }
-
-$results += Patch-File -Path $path -Description "Menu exclusivo: icono Runner Itineraries" -OldString @'
-                        <NavLink href="/production-itineraries" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-team-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Runner Itineraries</span>
-'@ -NewString @'
-                        <NavLink href="/production-itineraries" class="text-black nav-link group">
-                            <div class="flex items-center">
-                                <i class="ri-route-fill"></i>
-                                <span class="ltr:pl-1.5 rtl:pr-1.5">Runner Itineraries</span>
-'@
-if ($results -contains $false) { Write-Host "`nFallo (icono Runner Itineraries)." -ForegroundColor Red; exit 1 }
-
-Write-Host "`nMenu de Production: iconos distintos por item, 'Accommodation Setup' en ambas versiones del menu, y los residuos de Zones/Rooms fuera de una vez." -ForegroundColor Green
+Write-Host "`nProfile accesible para Production, e icono de Settings oculto para ese rol." -ForegroundColor Green
