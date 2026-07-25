@@ -69,7 +69,7 @@
 
         string relativePath = Navigation.ToBaseRelativePath(Navigation.Uri).ToLowerInvariant();
 
-        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile"))
+        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !relativePath.StartsWith("dashboard"))
         {
             Navigation.NavigateTo("/production-team");
         }

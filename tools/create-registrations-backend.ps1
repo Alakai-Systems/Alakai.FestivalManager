@@ -1,11 +1,21 @@
-# Fix-ProductionProfileAccessAndSettingsIcon.ps1
+# Fix-ProductionDashboardAccess.ps1
 #
-# 1. MainLayout: el guardia de rutas para Production redirigia CUALQUIER
-#    ruta que no empezara por "production" a /production-team - incluido
-#    /profile, que si deben poder usar. Se anade como excepcion.
-# 2. Topbar: el icono de engranaje (Settings) se oculta para el rol
-#    Production - de todas formas el guardia les rebotaria si lo pulsaran,
-#    asi que no tiene sentido mostrarlo.
+# Opcion A: Production puede llegar a Dashboard para cambiar el
+# festival/edicion activo desde ahi (el unico sitio donde existe ese
+# selector). Cambios minimos y quirurgicos:
+#
+#   1. MainLayout: "dashboard" se anade a las excepciones del guardia de
+#      rutas (junto a "production" y "profile" que ya estaban).
+#   2. DashboardController: se anade Production a los roles permitidos -
+#      necesario para que Dashboard.razor cargue sus stats.
+#   3. AnalyticsController: lo mismo - Dashboard.razor tambien llama a
+#      este controller para el grafico de analytics. Sin esto, el
+#      selector de festival funcionaria pero el grafico de la pagina
+#      quedaria roto con un error visible.
+#
+# NINGUN cambio quita acceso a SuperAdmin/Admin - solo se anade
+# "Production" a la lista existente en los 2 controllers. Nada mas se
+# toca.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -19,7 +29,7 @@ function Patch-File {
     $normalizedOld = $OldString -replace "`r`n", "`n"
     $normalizedNew = $NewString -replace "`r`n", "`n"
     if ($normalizedContent.Contains($normalizedNew)) { Write-Host "SKIP (ya aplicado): $Description" -ForegroundColor Cyan; return $true }
-    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado): $Description" -ForegroundColor Yellow; return $false }
+    if (-not $normalizedContent.Contains($normalizedOld)) { Write-Host "SKIP (anchor no encontrado - revisalo a mano): $Description" -ForegroundColor Yellow; return $false }
     $updatedNormalized = $normalizedContent.Replace($normalizedOld, $normalizedNew)
     $updatedFinal = if ($usesCrlf) { $updatedNormalized -replace "`n", "`r`n" } else { $updatedNormalized }
     Set-Content -Path $Path -Value $updatedFinal -NoNewline
@@ -27,63 +37,48 @@ function Patch-File {
     return $true
 }
 
-$results = @()
+$anyFailed = $false
 
 # ---------------------------------------------------------------------------
-# 1) MainLayout: permitir /profile
+# 1) MainLayout: permitir /dashboard
 # ---------------------------------------------------------------------------
-$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" -Description "MainLayout: permitir /profile para Production" -OldString @'
-        if (!relativePath.StartsWith("production"))
-        {
-            Navigation.NavigateTo("/production-team");
-        }
-'@ -NewString @'
+if (-not (Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" -Description "MainLayout: permitir /dashboard para Production" -OldString @'
         if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile"))
         {
             Navigation.NavigateTo("/production-team");
         }
-'@
-if ($results -contains $false) { Write-Host "`nFallo (MainLayout)." -ForegroundColor Red; exit 1 }
-
-# ---------------------------------------------------------------------------
-# 2) Topbar: ocultar el icono de Settings para Production
-# ---------------------------------------------------------------------------
-$topbarPath = "Alakai.FestivalManager.Admin/Components/Layout/Topbar.razor"
-
-$results += Patch-File -Path $topbarPath -Description "Topbar: ocultar icono de Settings con @if" -OldString @'
-        <a href="/settings" class="text-black dark:text-white/80">
-            <i class="ri-settings-3-line text-xl leading-none"></i>
-        </a>
 '@ -NewString @'
-        @if (!isProductionUser)
+        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !relativePath.StartsWith("dashboard"))
         {
-            <a href="/settings" class="text-black dark:text-white/80">
-                <i class="ri-settings-3-line text-xl leading-none"></i>
-            </a>
+            Navigation.NavigateTo("/production-team");
         }
-'@
-if ($results -contains $false) { Write-Host "`nFallo (Topbar icono)." -ForegroundColor Red; exit 1 }
+'@)) { $anyFailed = $true }
 
-$results += Patch-File -Path $topbarPath -Description "Topbar: campo isProductionUser" -OldString @'
-    private string DisplayName { get; set; } = "Admin";
-    private Guid _currentUserId;
+# ---------------------------------------------------------------------------
+# 2) DashboardController: anadir Production
+# ---------------------------------------------------------------------------
+if (-not (Patch-File -Path "Alakai.FestivalManager.Api/Controllers/DashboardController.cs" -Description "DashboardController: anadir Production" -OldString @'
+[Authorize(Roles = "SuperAdmin,Admin")]
+public class DashboardController : ControllerBase
 '@ -NewString @'
-    private string DisplayName { get; set; } = "Admin";
-    private Guid _currentUserId;
-    private bool isProductionUser;
-'@
-if ($results -contains $false) { Write-Host "`nFallo (Topbar campo)." -ForegroundColor Red; exit 1 }
+[Authorize(Roles = "SuperAdmin,Admin,Production")]
+public class DashboardController : ControllerBase
+'@)) { $anyFailed = $true }
 
-$results += Patch-File -Path $topbarPath -Description "Topbar: calcular isProductionUser" -OldString @'
-            AuthenticationState authState = await AuthenticationStateTask;
-            string? email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+# ---------------------------------------------------------------------------
+# 3) AnalyticsController: anadir Production (lo usa el grafico de Dashboard)
+# ---------------------------------------------------------------------------
+if (-not (Patch-File -Path "Alakai.FestivalManager.Api/Controllers/AnalyticsController.cs" -Description "AnalyticsController: anadir Production" -OldString @'
+[Authorize(Roles = "SuperAdmin,Admin")]
+public class AnalyticsController : ControllerBase
 '@ -NewString @'
-            AuthenticationState authState = await AuthenticationStateTask;
-            string? email = authState.User.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value;
-            string? idClaim = authState.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
-            isProductionUser = authState.User.IsInRole("Production");
-'@
-if ($results -contains $false) { Write-Host "`nFallo (Topbar calculo)." -ForegroundColor Red; exit 1 }
+[Authorize(Roles = "SuperAdmin,Admin,Production")]
+public class AnalyticsController : ControllerBase
+'@)) { $anyFailed = $true }
 
-Write-Host "`nProfile accesible para Production, e icono de Settings oculto para ese rol." -ForegroundColor Green
+if ($anyFailed) {
+    Write-Host "`nAlgun anchor no encontro su sitio exacto (puede que el atributo actual tenga otro formato en tu copia real). Pegame el contenido de las 2-3 primeras lineas de esos archivos y lo ajusto sin tocar nada mas." -ForegroundColor Red
+}
+else {
+    Write-Host "`nProduction puede llegar a Dashboard y usar el selector de festival/edicion. SuperAdmin y Admin siguen exactamente igual que antes." -ForegroundColor Green
+}

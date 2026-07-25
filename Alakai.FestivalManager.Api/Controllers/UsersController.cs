@@ -19,8 +19,14 @@ public class UsersController : ControllerBase
     }
 
     [HttpGet("{id:guid}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<GetUserByIdResponse>>> GetById(Guid id, CancellationToken cancellationToken)
     {
+        if (!IsSelfOrAdmin(id))
+        {
+            return Forbid();
+        }
+
         return Ok(await _userService.GetByIdAsync(id, cancellationToken));
     }
 
@@ -43,8 +49,14 @@ public class UsersController : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize]
     public async Task<ActionResult<ApiResponse<UpdateUserResponse>>> Update(Guid id, [FromBody] UpdateUserCommand command, CancellationToken cancellationToken)
     {
+        if (!IsSelfOrAdmin(id))
+        {
+            return Forbid();
+        }
+
         return Ok(await _userService.UpdateAsync(id, command, cancellationToken));
     }
 
@@ -52,5 +64,16 @@ public class UsersController : ControllerBase
     public async Task<ActionResult<ApiResponse<DeleteUserResponse>>> Delete(Guid id, CancellationToken cancellationToken)
     {
         return Ok(await _userService.DeleteAsync(id, cancellationToken));
+    }
+
+    private bool IsSelfOrAdmin(Guid id)
+    {
+        if (User.IsInRole("SuperAdmin") || User.IsInRole("Admin"))
+        {
+            return true;
+        }
+
+        string? currentUserId = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value;
+        return Guid.TryParse(currentUserId, out Guid parsedId) && parsedId == id;
     }
 }

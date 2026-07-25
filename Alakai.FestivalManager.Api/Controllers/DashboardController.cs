@@ -2,7 +2,7 @@ namespace Alakai.FestivalManager.Api.Controllers;
 
 [ApiController]
 [Route("api/dashboard")]
-[Authorize(Roles = "SuperAdmin,Admin")]
+[Authorize(Roles = "SuperAdmin,Admin,Production")]
 public class DashboardController : ControllerBase
 {
     private readonly IDashboardService _dashboardService;
