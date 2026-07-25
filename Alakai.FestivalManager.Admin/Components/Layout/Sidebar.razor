@@ -156,6 +156,14 @@
             {
                 <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'production' }">
                     <li class="menu nav-item">
+                        <NavLink href="/" Match="NavLinkMatch.All" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-dashboard-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Dashboard</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
                         <NavLink href="/production-team" class="text-black nav-link group">
                             <div class="flex items-center">
                                 <i class="ri-user-star-fill"></i>

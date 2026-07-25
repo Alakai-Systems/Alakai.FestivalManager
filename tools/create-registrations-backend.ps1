@@ -1,23 +1,16 @@
-# Fix-UsersControllerAuthorizeCombination.ps1
+# Fix-ProductionDashboardVisibility.ps1
 #
-# CAUSA REAL, confirmada con logs de produccion (el 403 sale incluso justo
-# despues de un login nuevo, así que no es token viejo):
+# Dos causas reales, no una:
 #
-# En ASP.NET Core, [Authorize(Roles="X")] en la CLASE y [Authorize] (sin
-# roles) en un METODO NO se anulan entre si - se combinan, y las dos
-# condiciones tienen que cumplirse a la vez. El [Authorize] que puse en
-# GetById/Update nunca quito la exigencia de rol de la clase, solo anadio
-# "tiene que estar autenticado" ENCIMA de "tiene que ser SuperAdmin o
-# Admin". Por eso Production seguia dando 403 sin importar nada mas.
+# 1. La ruta real de Dashboard.razor es "/" (raiz), no "/dashboard". Mi
+#    guardia en MainLayout comprobaba relativePath.StartsWith("dashboard"),
+#    pero Navigation.ToBaseRelativePath("/") devuelve una cadena VACIA, que
+#    nunca empieza por "dashboard" - asi que aunque Production llegara a
+#    esa pagina, el guardia lo seguia rebotando a Artists & Team.
 #
-# Fix: quitar el [Authorize(Roles=...)] de la CLASE, y ponerlo explicito
-# en cada accion que sí debe ser solo admin (GetAll, GetByEmail, Create,
-# CreateAdmin, Delete). GetById y Update se quedan con [Authorize] a secas
-# (cualquier autenticado) + la comprobacion IsSelfOrAdmin que ya tenian,
-# que es la que de verdad decide quien puede ver que perfil.
-#
-# Verificado letra por letra contra el UsersController.cs real que
-# pegaste - los 6 cambios coinciden exactamente una vez cada uno.
+# 2. El menu exclusivo de Production nunca tuvo un enlace a Dashboard -
+#    aunque el guardia se arregle, no hay forma de navegar hasta ahi sin
+#    escribir la URL a mano.
 #
 # Ejecutar desde la raiz del repo.
 $ErrorActionPreference = "Stop"
@@ -39,64 +32,39 @@ function Patch-File {
     return $true
 }
 
-$path = "Alakai.FestivalManager.Api/Controllers/UsersController.cs"
 $results = @()
 
-$results += Patch-File -Path $path -Description "Quitar el rol de la clase (era el que bloqueaba todo)" -OldString @'
-[Authorize(Roles = "SuperAdmin,Admin")]
-public class UsersController : ControllerBase
+# ---------------------------------------------------------------------------
+# 1) MainLayout: permitir la ruta raiz "" (Dashboard es "/")
+# ---------------------------------------------------------------------------
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/MainLayout.razor" -Description "MainLayout: permitir la raiz (Dashboard = '/')" -OldString @'
+        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !relativePath.StartsWith("dashboard"))
 '@ -NewString @'
-public class UsersController : ControllerBase
+        if (!relativePath.StartsWith("production") && !relativePath.StartsWith("profile") && !string.IsNullOrEmpty(relativePath))
 '@
+if ($results -contains $false) { Write-Host "`nFallo (MainLayout)." -ForegroundColor Red; exit 1 }
 
-$results += Patch-File -Path $path -Description "GetAll: Authorize explicito" -OldString @'
-    [HttpGet]
-    public async Task<ActionResult<ApiResponse<GetUsersResponse>>> GetAll(CancellationToken cancellationToken)
+# ---------------------------------------------------------------------------
+# 2) Sidebar: anadir Dashboard como primer item del menu exclusivo
+# ---------------------------------------------------------------------------
+$results += Patch-File -Path "Alakai.FestivalManager.Admin/Components/Layout/Sidebar.razor" -Description "Sidebar: enlace a Dashboard en el menu de Production" -OldString @'
+                <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'production' }">
+                    <li class="menu nav-item">
+                        <NavLink href="/production-team" class="text-black nav-link group">
 '@ -NewString @'
-    [HttpGet]
-    [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<ActionResult<ApiResponse<GetUsersResponse>>> GetAll(CancellationToken cancellationToken)
+                <ul class="relative flex flex-col gap-1" x-data="{ activeMenu: 'production' }">
+                    <li class="menu nav-item">
+                        <NavLink href="/" Match="NavLinkMatch.All" class="text-black nav-link group">
+                            <div class="flex items-center">
+                                <i class="ri-dashboard-fill"></i>
+                                <span class="ltr:pl-1.5 rtl:pr-1.5">Dashboard</span>
+                            </div>
+                        </NavLink>
+                    </li>
+                    <li class="menu nav-item">
+                        <NavLink href="/production-team" class="text-black nav-link group">
 '@
+if ($results -contains $false) { Write-Host "`nFallo (Sidebar)." -ForegroundColor Red; exit 1 }
 
-$results += Patch-File -Path $path -Description "GetByEmail: Authorize explicito" -OldString @'
-    [HttpGet("by-email/{email}")]
-    public async Task<ActionResult<ApiResponse<GetUserByIdResponse>>> GetByEmail(string email, CancellationToken cancellationToken)
-'@ -NewString @'
-    [HttpGet("by-email/{email}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<ActionResult<ApiResponse<GetUserByIdResponse>>> GetByEmail(string email, CancellationToken cancellationToken)
-'@
-
-$results += Patch-File -Path $path -Description "Create: Authorize explicito" -OldString @'
-    [HttpPost]
-    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> Create([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
-'@ -NewString @'
-    [HttpPost]
-    [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> Create([FromBody] CreateUserCommand command, CancellationToken cancellationToken)
-'@
-
-$results += Patch-File -Path $path -Description "CreateAdmin: Authorize explicito" -OldString @'
-    [HttpPost("admins")]
-    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)
-'@ -NewString @'
-    [HttpPost("admins")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)
-'@
-
-$results += Patch-File -Path $path -Description "Delete: Authorize explicito" -OldString @'
-    [HttpDelete("{id:guid}")]
-    public async Task<ActionResult<ApiResponse<DeleteUserResponse>>> Delete(Guid id, CancellationToken cancellationToken)
-'@ -NewString @'
-    [HttpDelete("{id:guid}")]
-    [Authorize(Roles = "SuperAdmin,Admin")]
-    public async Task<ActionResult<ApiResponse<DeleteUserResponse>>> Delete(Guid id, CancellationToken cancellationToken)
-'@
-
-if ($results -contains $false) {
-    Write-Host "`nAlgo no coincidio - pero esto ya se verifico letra por letra contra tu archivo real antes de dartelo, asi que si falla aqui es que el archivo cambio desde que lo pegaste." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "`nGetById y Update ya no exigen rol de la clase - solo autenticacion + ser el propio usuario (o admin). El resto de acciones (GetAll, GetByEmail, Create, CreateAdmin, Delete) mantienen exactamente la misma proteccion SuperAdmin/Admin de antes, ahora puesta explicita en cada una." -ForegroundColor Green
+Write-Host "`nDashboard visible y accesible desde el menu de Production." -ForegroundColor Green
+Write-Host "Nota: con esto CUALQUIER ruta que no empiece por production/profile queda bloqueada salvo la raiz exacta - si en el futuro anades otra pagina 'compartida' fuera de production-*, hay que anadirla explicitamente aqui tambien." -ForegroundColor Yellow

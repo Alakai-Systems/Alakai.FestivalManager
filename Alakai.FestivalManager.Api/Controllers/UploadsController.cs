@@ -13,7 +13,6 @@ public class UploadImageForm
 
 [ApiController]
 [Route("api/uploads")]
-[Authorize(Roles = "SuperAdmin,Admin")]
 public class UploadsController : ControllerBase
 {
     private readonly IFileStorageService _fileStorageService;
@@ -34,6 +33,7 @@ public class UploadsController : ControllerBase
 
     [HttpPost("images")]
     [RequestSizeLimit(MaxFileSizeBytes)]
+    [Authorize]
     public async Task<IActionResult> UploadImage([FromForm] UploadImageForm form, CancellationToken cancellationToken)
     {
         IFormFile file = form.File;
@@ -76,6 +76,7 @@ public class UploadsController : ControllerBase
     }
 
     [HttpGet("gallery")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> GetGallery([FromQuery] Guid festivalId, CancellationToken cancellationToken)
     {
         IReadOnlyList<MediaAsset> assets = await _mediaAssetRepository.GetByFestivalIdAsync(festivalId, cancellationToken);
@@ -91,6 +92,7 @@ public class UploadsController : ControllerBase
     }
 
     [HttpDelete("gallery/{id:guid}")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<IActionResult> DeleteGalleryImage(Guid id, CancellationToken cancellationToken)
     {
         MediaAsset? asset = await _mediaAssetRepository.GetByIdAsync(id, cancellationToken);
