@@ -1,47 +1,32 @@
 <#
 .SINOPSIS
-  Fix - Los emails de PaymentConfirmed dejaron de llegar tras los pasos 5 y 6.
+  Paso B del check-in: pantalla /checkin en la Admin. Lee la camara con
+  html5-qrcode (cargado bajo demanda desde CDN, no en cada pagina) y tiene
+  entrada manual como fallback si la camara falla o el token se lee con el
+  movil. Llama al endpoint del Paso A (POST api/tickets/checkin).
 
-  Diagnóstico (con el código real leído de tu disco):
+  Archivos nuevos:
+    - Admin\Contracts\Tickets\DTOs\TicketCheckInResultDto.cs
+    - Admin\Contracts\Tickets\Requests\CheckInTicketRequest.cs
+    - Admin\Services\Api\TicketsApiClient.cs
+    - Admin\wwwroot\js\checkin.js
+    - Admin\Components\Pages\CheckIn.razor
 
-  1. EmailNotificationService.cs NUNCA llegó a modificarse - el Script 6 no
-     se aplicó (probablemente el mismo problema de CRLF que vimos en
-     PaymentServiceTests.cs, pero el Script 6 se generó antes de blindar
-     Patch-File contra eso). Por eso el reenvío manual no adjunta PDF y no
-     da ningún error: ese código sencillamente no existe todavía en el archivo.
+  Archivos que modifica:
+    - Admin\Global.cs                                    (+ usings Tickets.DTOs/Requests)
+    - Admin\Extensions\ApplicationDependencyInjectionExtension.cs  (+ AddHttpClient<TicketsApiClient>)
+    - Admin\Components\App.razor                          (+ <script src="js/checkin.js">)
+    - Admin\Components\Layout\Sidebar.razor                (+ enlace "Check-in" bajo Registrations)
 
-  2. Fallo de diseño en PaymentService.cs: la llamada a
-     ITicketService.EnsureTicketGeneratedAsync va ANTES del envío del email,
-     dentro del mismo try/catch que envuelve todo el método. Si algo falla
-     generando el ticket (QuestPDF, QRCoder, guardado del archivo - no se
-     había probado nunca en real hasta ahora), la excepción aborta el método
-     entero y el email NUNCA llega a intentarse - sin crear EmailLog, así
-     que no hay ningún error visible en la tabla de emails, solo en el log
-     de la aplicación.
-
-  Este script arregla las dos cosas:
-    A. Aplica de verdad los 3 cambios del Script 6 en EmailNotificationService.cs
-       (con la función Patch-File ya blindada contra CRLF/LF), y esta vez el
-       bloque que adjunta el ticket también queda envuelto en su propio
-       try/catch - un fallo ahí ya no puede impedir que el email se envíe.
-    B. Envuelve las dos llamadas a EnsureTicketGeneratedAsync en PaymentService.cs
-       en un try/catch que solo registra un warning. Un fallo generando el
-       ticket YA NUNCA bloqueará el email de confirmación de pago.
-
-  Archivos que toca:
-    - Alakai.FestivalManager.Application\Features\Emails\Services\EmailNotificationService.cs
-    - Alakai.FestivalManager.Application\Features\Payments\Services\PaymentService.cs
-
-  Idempotente: cada cambio se detecta y se salta si ya está aplicado.
+  Idempotente: cada cambio se detecta y se salta si ya esta aplicado.
 
 .USO
-  Ejecutar desde la raíz del repo:
-    .\08-fix-blocked-emails.ps1
+  Ejecutar desde la raiz del repo:
+    .\11-checkin-screen.ps1
 #>
 
 # ============================================================================
-# Patch-File v2: normaliza CRLF/LF antes de comparar y de contar ocurrencias,
-# y respeta el final de línea original del archivo al escribir el resultado.
+# Patch-File v3 (misma version robusta de los scripts 9 y 10).
 # ============================================================================
 function Patch-File {
     param(
@@ -56,7 +41,8 @@ function Patch-File {
         return
     }
 
-    $rawContent = Get-Content -LiteralPath $Path -Raw
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $rawContent = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
     $usesCrlf = $rawContent.Contains("`r`n")
 
     $content = $rawContent -replace "`r`n", "`n"
@@ -86,248 +72,505 @@ function Patch-File {
         $newContent = $newContent -replace "`n", "`r`n"
     }
 
-    Set-Content -LiteralPath $Path -Value $newContent -NoNewline
+    [System.IO.File]::WriteAllText($Path, $newContent, $utf8NoBom)
     Write-Host "OK: aplicado -> $Path ($Description)" -ForegroundColor Green
+}
+
+# ============================================================================
+# New-FileIfMissing (misma version de Script 10).
+# ============================================================================
+function New-FileIfMissing {
+    param(
+        [Parameter(Mandatory = $true)] [string]$Path,
+        [Parameter(Mandatory = $true)] [string]$Content,
+        [string]$Description = ""
+    )
+
+    if (Test-Path -LiteralPath $Path) {
+        Write-Host "SKIP: ya existe -> $Path ($Description)" -ForegroundColor DarkGray
+        return
+    }
+
+    $directory = Split-Path -Path $Path -Parent
+    if (-not (Test-Path -LiteralPath $directory)) {
+        New-Item -ItemType Directory -Path $directory -Force | Out-Null
+    }
+
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    $normalizedContent = $Content -replace "`n", "`r`n"
+    [System.IO.File]::WriteAllText($Path, $normalizedContent, $utf8NoBom)
+    Write-Host "OK: creado -> $Path ($Description)" -ForegroundColor Green
 }
 
 $ErrorActionPreference = "Stop"
 
-$EmailServicePath   = ".\Alakai.FestivalManager.Application\Features\Emails\Services\EmailNotificationService.cs"
-$PaymentServicePath = ".\Alakai.FestivalManager.Application\Features\Payments\Services\PaymentService.cs"
-
-# ============================================================================
-# PARTE A - aplicar de verdad el Script 6 en EmailNotificationService.cs
-# ============================================================================
+$AdminGlobalPath   = ".\Alakai.FestivalManager.Admin\Global.cs"
+$AdminDiPath       = ".\Alakai.FestivalManager.Admin\Extensions\ApplicationDependencyInjectionExtension.cs"
+$AppRazorPath      = ".\Alakai.FestivalManager.Admin\Components\App.razor"
+$SidebarPath       = ".\Alakai.FestivalManager.Admin\Components\Layout\Sidebar.razor"
+$CheckInDtoPath    = ".\Alakai.FestivalManager.Admin\Contracts\Tickets\DTOs\TicketCheckInResultDto.cs"
+$CheckInReqPath    = ".\Alakai.FestivalManager.Admin\Contracts\Tickets\Requests\CheckInTicketRequest.cs"
+$TicketsClientPath = ".\Alakai.FestivalManager.Admin\Services\Api\TicketsApiClient.cs"
+$CheckInJsPath     = ".\Alakai.FestivalManager.Admin\wwwroot\js\checkin.js"
+$CheckInRazorPath  = ".\Alakai.FestivalManager.Admin\Components\Pages\CheckIn.razor"
 
 # ----------------------------------------------------------------------------
-# A1. using de IFileStorageService
+# 1. DTO y Request espejo (igual que el resto de Contracts de la Admin)
 # ----------------------------------------------------------------------------
-Patch-File `
-    -Path $EmailServicePath `
-    -Description "using de Features.Files.Services" `
-    -OldString @'
-using Alakai.FestivalManager.Infrastructure.Email;
+New-FileIfMissing `
+    -Path $CheckInDtoPath `
+    -Description "TicketCheckInResultDto" `
+    -Content @'
+namespace Alakai.FestivalManager.Admin.Contracts.Tickets.DTOs;
 
-namespace Alakai.FestivalManager.Application.Features.Emails.Services;
-'@ `
-    -NewString @'
-using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Infrastructure.Email;
+public class TicketCheckInResultDto
+{
+    public Guid RegistrationId { get; set; }
+    public string ParticipantName { get; set; } = string.Empty;
+    public string EventName { get; set; } = string.Empty;
+    public string PassTypeName { get; set; } = string.Empty;
+    public string? LevelName { get; set; }
+    public bool AlreadyCheckedIn { get; set; }
+    public DateTime CheckedInAt { get; set; }
+}
+'@
 
-namespace Alakai.FestivalManager.Application.Features.Emails.Services;
+New-FileIfMissing `
+    -Path $CheckInReqPath `
+    -Description "CheckInTicketRequest" `
+    -Content @'
+namespace Alakai.FestivalManager.Admin.Contracts.Tickets.Requests;
+
+public class CheckInTicketRequest
+{
+    public string Token { get; set; } = string.Empty;
+}
 '@
 
 # ----------------------------------------------------------------------------
-# A2. Constructor - inyectar ITicketService e IFileStorageService
+# 2. TicketsApiClient (mismo patron que EmailNotificationApiClient / DiscountCodeApiClient)
 # ----------------------------------------------------------------------------
-Patch-File `
-    -Path $EmailServicePath `
-    -Description "inyecta ITicketService e IFileStorageService en el constructor" `
-    -OldString @'
-    private readonly ApplicationUrlsOptions _applicationUrlsOptions;
-    private readonly IMapper _mapper;
-    private readonly SystemEmailOptions _systemEmailOptions;
+New-FileIfMissing `
+    -Path $TicketsClientPath `
+    -Description "TicketsApiClient" `
+    -Content @'
+using Alakai.FestivalManager.Admin.Services.Auth;
+using System.Net.Http.Headers;
 
-    public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
-        IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
-        IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
-        IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
-        IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository,
-        IOptions<SystemEmailOptions> systemEmailOptions, ICompetitionEntryRepository competitionEntryRepository,
-        IOptions<ApplicationUrlsOptions> applicationUrlsOptions)
-    {
-        _emailTemplateRepository = emailTemplateRepository;
-        _emailLogRepository = emailLogRepository;
-        _emailTemplateRendererService = emailTemplateRendererService;
-        _mapper = mapper;
-        _registrationRepository = registrationRepository;
-        _emailSender = emailSender;
-        _userRepository = userRepository;
-        _emailLayoutRepository = emailLayoutRepository;
-        _accommodationReservationRepository = accommodationReservationRepository;
-        _busReservationRepository = busReservationRepository;
-        _mealPreferenceRepository = mealPreferenceRepository;
-        _accommodationBuildingRepository = accommodationBuildingRepository;
-        _systemEmailOptions = systemEmailOptions.Value;
-        _competitionEntryRepository = competitionEntryRepository;
-        _applicationUrlsOptions = applicationUrlsOptions.Value;
-    }
-'@ `
-    -NewString @'
-    private readonly ApplicationUrlsOptions _applicationUrlsOptions;
-    private readonly IMapper _mapper;
-    private readonly SystemEmailOptions _systemEmailOptions;
-    private readonly ITicketService _ticketService;
-    private readonly IFileStorageService _fileStorageService;
+namespace Alakai.FestivalManager.Admin.Services.Api;
 
-    public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
-        IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
-        IEmailSender emailSender, IUserRepository userRepository, IEmailLayoutRepository emailLayoutRepository,
-        IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
-        IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository,
-        IOptions<SystemEmailOptions> systemEmailOptions, ICompetitionEntryRepository competitionEntryRepository,
-        IOptions<ApplicationUrlsOptions> applicationUrlsOptions, ITicketService ticketService, IFileStorageService fileStorageService)
+public class TicketsApiClient
+{
+    private readonly HttpClient _httpClient;
+    private readonly IAdminTokenProvider _adminTokenProvider;
+
+    public TicketsApiClient(HttpClient httpClient, IAdminTokenProvider adminTokenProvider)
     {
-        _emailTemplateRepository = emailTemplateRepository;
-        _emailLogRepository = emailLogRepository;
-        _emailTemplateRendererService = emailTemplateRendererService;
-        _mapper = mapper;
-        _registrationRepository = registrationRepository;
-        _emailSender = emailSender;
-        _userRepository = userRepository;
-        _emailLayoutRepository = emailLayoutRepository;
-        _accommodationReservationRepository = accommodationReservationRepository;
-        _busReservationRepository = busReservationRepository;
-        _mealPreferenceRepository = mealPreferenceRepository;
-        _accommodationBuildingRepository = accommodationBuildingRepository;
-        _systemEmailOptions = systemEmailOptions.Value;
-        _competitionEntryRepository = competitionEntryRepository;
-        _applicationUrlsOptions = applicationUrlsOptions.Value;
-        _ticketService = ticketService;
-        _fileStorageService = fileStorageService;
+        _httpClient = httpClient;
+        _adminTokenProvider = adminTokenProvider;
     }
+
+    private async Task AttachAuthHeaderAsync()
+    {
+        string? adminToken = await _adminTokenProvider.GetValidAccessTokenAsync();
+
+        if (!string.IsNullOrWhiteSpace(adminToken))
+        {
+            _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+        }
+    }
+
+    public async Task<ApiResponse<TicketCheckInResultDto>> CheckInAsync(string token, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/tickets/checkin", new CheckInTicketRequest { Token = token }, cancellationToken);
+
+        ApiResponse<TicketCheckInResultDto>? response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<TicketCheckInResultDto>>(cancellationToken: cancellationToken);
+
+        return response ?? new ApiResponse<TicketCheckInResultDto>
+        {
+            Success = false,
+            Message = "Unexpected error contacting the server.",
+            Data = null,
+            Errors = ["No response received."]
+        };
+    }
+}
 '@
 
 # ----------------------------------------------------------------------------
-# A3. CreateAndSendEmailAsync - asegurar y adjuntar el ticket cuando el
-#     templateKey es PaymentConfirmed, con SU PROPIO try/catch para que un
-#     fallo generando el ticket no impida enviar el email.
+# 3. JS interop para html5-qrcode (carga la libreria bajo demanda desde CDN,
+#    solo cuando alguien entra en /checkin - no en cada pagina de la Admin)
 # ----------------------------------------------------------------------------
-Patch-File `
-    -Path $EmailServicePath `
-    -Description "asegura y adjunta el ticket PDF cuando templateKey es PaymentConfirmed (no bloqueante)" `
-    -OldString @'
-        try
-        {
-            EmailMessage message = new()
-            {
-                To = new EmailAddress
-                {
-                    Name = emailLog.RecipientName ?? string.Empty,
-                    Address = emailLog.RecipientEmail
-                },
-                Subject = emailLog.Subject,
-                HtmlBody = emailLog.BodyHtml,
-                TextBody = emailLog.BodyText ?? string.Empty
-            };
+New-FileIfMissing `
+    -Path $CheckInJsPath `
+    -Description "checkin.js" `
+    -Content @'
+window.ticketCheckIn = (function () {
+    let html5QrCode = null;
+    let dotNetRef = null;
+    let libraryLoadingPromise = null;
 
-            await _emailSender.SendAsync(message, senderSettings, cancellationToken);
-'@ `
-    -NewString @'
-        try
-        {
-            EmailMessage message = new()
-            {
-                To = new EmailAddress
-                {
-                    Name = emailLog.RecipientName ?? string.Empty,
-                    Address = emailLog.RecipientEmail
-                },
-                Subject = emailLog.Subject,
-                HtmlBody = emailLog.BodyHtml,
-                TextBody = emailLog.BodyText ?? string.Empty
-            };
+    function ensureLibraryLoaded() {
+        if (window.Html5Qrcode) {
+            return Promise.resolve();
+        }
 
-            if (templateKey == EmailTemplateKey.PaymentConfirmed)
-            {
-                try
-                {
-                    string? ticketPdfUrl = await _ticketService.EnsureTicketGeneratedAsync(registrationId, cancellationToken);
-                    string? ticketLocalPath = ticketPdfUrl is null ? null : _fileStorageService.ResolveLocalPath(ticketPdfUrl);
+        if (!libraryLoadingPromise) {
+            libraryLoadingPromise = new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js';
+                script.onload = () => resolve();
+                script.onerror = () => reject(new Error('Could not load the QR scanning library.'));
+                document.head.appendChild(script);
+            });
+        }
 
-                    if (ticketLocalPath is not null && File.Exists(ticketLocalPath))
+        return libraryLoadingPromise;
+    }
+
+    async function start(elementId, dotNetObjectRef) {
+        await ensureLibraryLoaded();
+        dotNetRef = dotNetObjectRef;
+
+        if (html5QrCode) {
+            await stop();
+        }
+
+        html5QrCode = new Html5Qrcode(elementId);
+
+        const config = { fps: 10, qrbox: { width: 250, height: 250 } };
+
+        await html5QrCode.start(
+            { facingMode: "environment" },
+            config,
+            (decodedText) => {
+                if (dotNetRef) {
+                    dotNetRef.invokeMethodAsync('OnQrCodeScanned', decodedText);
+                }
+            },
+            () => {
+                // Errores de "no hay QR en el encuadre este frame" - esperado, se ignoran.
+            }
+        );
+    }
+
+    function pause() {
+        if (html5QrCode) {
+            try { html5QrCode.pause(true); } catch (e) { /* ignore */ }
+        }
+    }
+
+    function resume() {
+        if (html5QrCode) {
+            try { html5QrCode.resume(); } catch (e) { /* ignore */ }
+        }
+    }
+
+    async function stop() {
+        if (html5QrCode) {
+            try {
+                await html5QrCode.stop();
+                html5QrCode.clear();
+            } catch (e) {
+                // ignore
+            }
+            html5QrCode = null;
+        }
+        dotNetRef = null;
+    }
+
+    return { start, pause, resume, stop };
+})();
+'@
+
+# ----------------------------------------------------------------------------
+# 4. Pagina /checkin
+# ----------------------------------------------------------------------------
+New-FileIfMissing `
+    -Path $CheckInRazorPath `
+    -Description "CheckIn.razor" `
+    -Content @'
+@page "/checkin"
+
+@inject TicketsApiClient TicketsApiClient
+@inject IJSRuntime JsRuntime
+@implements IAsyncDisposable
+
+<PageHeader Title="Operations" pTitle="Check-in"></PageHeader>
+
+<div class="flex flex-col gap-4 min-h-[calc(100vh-212px)]">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+
+        <div class="card">
+            <div class="p-4">
+                <h6 class="mb-3 font-semibold">Escanea el QR de la entrada</h6>
+                <div id="qr-reader" class="w-full max-w-sm mx-auto"></div>
+
+                @if (isScannerPaused)
+                {
+                    <div class="mt-3 text-center">
+                        <button type="button" class="btn bg-purple text-white" @onclick="ResumeScannerAsync">
+                            Escanear siguiente
+                        </button>
+                    </div>
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="p-4 flex flex-col gap-4">
+                <div>
+                    <h6 class="mb-2 font-semibold">O introduce el codigo manualmente</h6>
+                    <p class="text-xs text-black/50 dark:text-white/50 mb-2">
+                        Si la camara no funciona, escanea el QR con la camara del movil o Google Lens y pega aqui el texto que decodifica.
+                    </p>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <input class="form-input flex-1" placeholder="Codigo del ticket..." @bind="manualToken" @bind:event="oninput" />
+                        <button type="button" class="btn bg-purple text-white" disabled="@isChecking" @onclick="() => ProcessTokenAsync(manualToken)">
+                            Comprobar
+                        </button>
+                    </div>
+                </div>
+
+                @if (isChecking)
+                {
+                    <div class="text-sm text-black/50 dark:text-white/50">Comprobando...</div>
+                }
+
+                @if (lastResult is not null)
+                {
+                    @if (lastResult.Success && lastResult.Data is not null && !lastResult.Data.AlreadyCheckedIn)
                     {
-                        byte[] ticketBytes = await File.ReadAllBytesAsync(ticketLocalPath, cancellationToken);
-
-                        message.Attachments.Add(new EmailAttachment
-                        {
-                            FileName = "ticket.pdf",
-                            Content = ticketBytes,
-                            ContentType = "application/pdf"
-                        });
+                        <div class="rounded-lg border border-green-200 bg-green-50 p-4 text-green-800">
+                            <div class="font-semibold">Check-in confirmado</div>
+                            <div class="mt-1 text-sm">@lastResult.Data.ParticipantName</div>
+                            <div class="text-sm">@lastResult.Data.EventName - @(string.IsNullOrWhiteSpace(lastResult.Data.LevelName) ? lastResult.Data.PassTypeName : $"{lastResult.Data.PassTypeName} - {lastResult.Data.LevelName}")</div>
+                            <div class="text-xs mt-1">@lastResult.Data.CheckedInAt.ToString("dd/MM/yyyy HH:mm")</div>
+                        </div>
+                    }
+                    else if (lastResult.Success && lastResult.Data is not null && lastResult.Data.AlreadyCheckedIn)
+                    {
+                        <div class="rounded-lg border border-amber-200 bg-amber-50 p-4 text-amber-800">
+                            <div class="font-semibold">Ya se habia hecho check-in</div>
+                            <div class="mt-1 text-sm">@lastResult.Data.ParticipantName</div>
+                            <div class="text-sm">@lastResult.Data.EventName - @(string.IsNullOrWhiteSpace(lastResult.Data.LevelName) ? lastResult.Data.PassTypeName : $"{lastResult.Data.PassTypeName} - {lastResult.Data.LevelName}")</div>
+                            <div class="text-xs mt-1">Check-in original: @lastResult.Data.CheckedInAt.ToString("dd/MM/yyyy HH:mm")</div>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">
+                            <div class="font-semibold">Codigo no valido</div>
+                            <div class="mt-1 text-sm">@(lastResult.Message ?? "El QR no corresponde a ninguna entrada valida.")</div>
+                        </div>
                     }
                 }
-                catch (Exception)
-                {
-                    // No dejamos que un fallo generando/adjuntando el ticket impida
-                    // enviar el email de confirmación de pago en sí.
-                }
-            }
+            </div>
+        </div>
 
-            await _emailSender.SendAsync(message, senderSettings, cancellationToken);
-'@
+    </div>
+</div>
 
-# ============================================================================
-# PARTE B - PaymentService.cs: que un fallo generando el ticket no bloquee
-# nunca el envío del email de confirmación de pago.
-# ============================================================================
+@code {
+    private string manualToken = string.Empty;
+    private bool isChecking;
+    private bool isScannerPaused;
+    private bool scannerStarted;
+    private ApiResponse<TicketCheckInResultDto>? lastResult;
+    private DotNetObjectReference<CheckIn>? dotNetRef;
 
-# ----------------------------------------------------------------------------
-# B1. ProcessRedsysReturnAsync
-# ----------------------------------------------------------------------------
-Patch-File `
-    -Path $PaymentServicePath `
-    -Description "hace no bloqueante EnsureTicketGeneratedAsync en ProcessRedsysReturnAsync" `
-    -OldString @'
-            if (becameFullyPaid)
-            {
-                await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
-            }
-'@ `
-    -NewString @'
-            if (becameFullyPaid)
-            {
-                try
-                {
-                    await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
-                }
-                catch (Exception ticketEx)
-                {
-                    _logger.LogWarning(ticketEx, "Could not generate the ticket for registration {RegistrationId}; the payment confirmation email will still be sent.", registration.Id);
-                }
-            }
-'@
-
-# ----------------------------------------------------------------------------
-# B2. ProcessRedsysNotificationAsync
-# ----------------------------------------------------------------------------
-Patch-File `
-    -Path $PaymentServicePath `
-    -Description "hace no bloqueante EnsureTicketGeneratedAsync en ProcessRedsysNotificationAsync" `
-    -OldString @'
-        if (becameFullyPaid)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
         {
-            await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+            dotNetRef = DotNetObjectReference.Create(this);
+
+            try
+            {
+                await JsRuntime.InvokeVoidAsync("ticketCheckIn.start", "qr-reader", dotNetRef);
+                scannerStarted = true;
+            }
+            catch
+            {
+                // La camara puede no estar disponible (sin permisos, sin HTTPS, sin camara) -
+                // el usuario siempre puede usar la entrada manual de mas abajo.
+            }
         }
-'@ `
-    -NewString @'
-        if (becameFullyPaid)
+    }
+
+    [JSInvokable]
+    public async Task OnQrCodeScanned(string decodedText)
+    {
+        isScannerPaused = true;
+        await JsRuntime.InvokeVoidAsync("ticketCheckIn.pause");
+        await ProcessTokenAsync(decodedText);
+    }
+
+    private async Task ProcessTokenAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token) || isChecking)
+        {
+            return;
+        }
+
+        isChecking = true;
+        lastResult = null;
+        StateHasChanged();
+
+        try
+        {
+            lastResult = await TicketsApiClient.CheckInAsync(token.Trim());
+        }
+        catch (Exception ex)
+        {
+            lastResult = new ApiResponse<TicketCheckInResultDto>
+            {
+                Success = false,
+                Message = ex.Message,
+                Data = null,
+                Errors = [ex.Message]
+            };
+        }
+        finally
+        {
+            isChecking = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task ResumeScannerAsync()
+    {
+        lastResult = null;
+        manualToken = string.Empty;
+        isScannerPaused = false;
+
+        if (scannerStarted)
+        {
+            await JsRuntime.InvokeVoidAsync("ticketCheckIn.resume");
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (scannerStarted)
         {
             try
             {
-                await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+                await JsRuntime.InvokeVoidAsync("ticketCheckIn.stop");
             }
-            catch (Exception ticketEx)
+            catch
             {
-                _logger.LogWarning(ticketEx, "Could not generate the ticket for registration {RegistrationId}; the payment confirmation email will still be sent.", registration.Id);
+                // El circuito puede haberse cerrado ya - no pasa nada.
             }
         }
+
+        dotNetRef?.Dispose();
+    }
+}
+'@
+
+# ----------------------------------------------------------------------------
+# 5. Global usings de la Admin
+# ----------------------------------------------------------------------------
+Patch-File `
+    -Path $AdminGlobalPath `
+    -Description "Admin Global.cs: Tickets.DTOs / Tickets.Requests" `
+    -OldString @'
+global using Alakai.FestivalManager.Admin.Contracts.Registrations.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Registrations.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.Registrations.Responses;
+global using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs;
+'@ `
+    -NewString @'
+global using Alakai.FestivalManager.Admin.Contracts.Registrations.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Registrations.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.Registrations.Responses;
+global using Alakai.FestivalManager.Admin.Contracts.Tickets.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Tickets.Requests;
+global using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs;
+'@
+
+# ----------------------------------------------------------------------------
+# 6. Registro del HttpClient para TicketsApiClient
+# ----------------------------------------------------------------------------
+Patch-File `
+    -Path $AdminDiPath `
+    -Description "AddHttpClient<TicketsApiClient>" `
+    -OldString @'
+        services.AddHttpClient<EmailNotificationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+'@ `
+    -NewString @'
+        services.AddHttpClient<EmailNotificationApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+
+        services.AddHttpClient<TicketsApiClient>(client =>
+        {
+            string baseUrl = configuration["ApiSettings:BaseUrl"]
+                ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
+            client.BaseAddress = new Uri(baseUrl);
+        });
+'@
+
+# ----------------------------------------------------------------------------
+# 7. Carga global de checkin.js (define window.ticketCheckIn - no carga
+#    html5-qrcode todavia, eso solo pasa cuando se visita /checkin)
+# ----------------------------------------------------------------------------
+Patch-File `
+    -Path $AppRazorPath `
+    -Description "App.razor: script checkin.js" `
+    -OldString @'
+    <script src="assets/js/pages/festivals-table.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+'@ `
+    -NewString @'
+    <script src="assets/js/pages/festivals-table.js"></script>
+    <script src="js/checkin.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+'@
+
+# ----------------------------------------------------------------------------
+# 8. Enlace en el menu (grupo Operations, debajo de Registrations)
+# ----------------------------------------------------------------------------
+Patch-File `
+    -Path $SidebarPath `
+    -Description "Sidebar.razor: enlace Check-in" `
+    -OldString @'
+                        <li><NavLink href="/registrations">Registrations</NavLink></li>
+'@ `
+    -NewString @'
+                        <li><NavLink href="/registrations">Registrations</NavLink></li>
+                        <li><NavLink href="/checkin">Check-in</NavLink></li>
 '@
 
 Write-Host ""
-Write-Host "Fix completado." -ForegroundColor Cyan
+Write-Host "Paso B completado." -ForegroundColor Cyan
 Write-Host ""
-Write-Host "IMPORTANTE - revisa la salida de arriba línea por línea:" -ForegroundColor Yellow
-Write-Host "  Debes ver 5 líneas 'OK: aplicado'. Si ves 'SKIP: anchor no encontrado'" -ForegroundColor Yellow
-Write-Host "  en alguna, pégamela literal - significa que ese archivo no coincide" -ForegroundColor Yellow
-Write-Host "  con lo que leí de tu repo y hay que mirarlo con más detalle." -ForegroundColor Yellow
+Write-Host "Deberias ver 9 lineas 'OK' en total (5 archivos nuevos: DTO, Request," -ForegroundColor Yellow
+Write-Host "TicketsApiClient, checkin.js, CheckIn.razor; 4 patches: Global.cs," -ForegroundColor Yellow
+Write-Host "DI extension, App.razor, Sidebar.razor). Si ves SKIP por anchor no" -ForegroundColor Yellow
+Write-Host "encontrado, peguemela literal." -ForegroundColor Yellow
 Write-Host ""
-Write-Host "VERIFICACIÓN:" -ForegroundColor Cyan
-Write-Host "  1. dotnet build debe compilar limpio." -ForegroundColor Cyan
-Write-Host "  2. Prueba un pago completo por Redsys: ahora el email debe llegar SIEMPRE," -ForegroundColor Cyan
-Write-Host "     con o sin PDF adjunto. Si llega SIN PDF, revisa los logs de la Api" -ForegroundColor Cyan
-Write-Host "     buscando 'Could not generate the ticket' - ese warning traerá el" -ForegroundColor Cyan
-Write-Host "     error real de QuestPDF/QRCoder/guardado de archivo, y con eso ya" -ForegroundColor Cyan
-Write-Host "     puedo arreglar la causa de fondo en un paso aparte." -ForegroundColor Cyan
-Write-Host "  3. Prueba el reenvío manual - ahora sí debería adjuntar el PDF si" -ForegroundColor Cyan
-Write-Host "     Registration.TicketPdfUrl ya está relleno en BD." -ForegroundColor Cyan
+Write-Host "VERIFICACION:" -ForegroundColor Cyan
+Write-Host "  1. dotnet build debe compilar limpio (Admin y Api)." -ForegroundColor Cyan
+Write-Host "  2. Entra en la Admin, menu Operations -> Check-in. El navegador debe" -ForegroundColor Cyan
+Write-Host "     pedir permiso de camara (necesita HTTPS o localhost para funcionar" -ForegroundColor Cyan
+Write-Host "     - si la app corre en HTTP puro en local puede que el navegador" -ForegroundColor Cyan
+Write-Host "     bloquee la camara; en produccion con HTTPS no deberia pasar)." -ForegroundColor Cyan
+Write-Host "  3. Escanea un ticket generado antes -> debe salir el aviso verde con" -ForegroundColor Cyan
+Write-Host "     el nombre, pase y hora. Escanealo otra vez -> aviso amarillo de" -ForegroundColor Cyan
+Write-Host "     'ya se habia hecho check-in'." -ForegroundColor Cyan
+Write-Host "  4. Prueba tambien la entrada manual pegando el texto del QR (leelo con" -ForegroundColor Cyan
+Write-Host "     la camara del movil o Google Lens) y pulsando Comprobar." -ForegroundColor Cyan
+Write-Host "  5. Prueba con un texto inventado en el campo manual -> debe salir el" -ForegroundColor Cyan
+Write-Host "     aviso rojo de codigo no valido." -ForegroundColor Cyan

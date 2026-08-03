@@ -6,6 +6,7 @@ public class TicketInfo
     public string EventName { get; set; } = string.Empty;
     public string PassTypeName { get; set; } = string.Empty;
     public string? LevelName { get; set; }
+    public string Language { get; set; } = "en";
 }
 
 public interface ITicketPdfService

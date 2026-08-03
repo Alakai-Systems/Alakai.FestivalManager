@@ -72,6 +72,8 @@ global using Alakai.FestivalManager.Admin.Contracts.ProductionZones.Responses;
 global using Alakai.FestivalManager.Admin.Contracts.Registrations.DTOs;
 global using Alakai.FestivalManager.Admin.Contracts.Registrations.Requests;
 global using Alakai.FestivalManager.Admin.Contracts.Registrations.Responses;
+global using Alakai.FestivalManager.Admin.Contracts.Tickets.DTOs;
+global using Alakai.FestivalManager.Admin.Contracts.Tickets.Requests;
 global using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs;
 global using Alakai.FestivalManager.Admin.Contracts.UserPanel.Requests;
 global using Alakai.FestivalManager.Admin.Contracts.UserPanel.Responses;

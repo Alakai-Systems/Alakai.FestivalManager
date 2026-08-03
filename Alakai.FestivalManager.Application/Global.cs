@@ -249,6 +249,7 @@ global using Alakai.FestivalManager.Application.Features.RunnerItineraries.Contr
 global using Alakai.FestivalManager.Application.Features.RunnerItineraries.Queries.GetItinerariesByEditionId;
 global using Alakai.FestivalManager.Application.Features.RunnerItineraries.Queries.GetItineraryById;
 global using Alakai.FestivalManager.Application.Features.RunnerItineraries.Services;
+global using Alakai.FestivalManager.Application.Features.Tickets.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Tickets.Contracts.Settings;
 global using Alakai.FestivalManager.Application.Features.Tickets.Services;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.DTOs;

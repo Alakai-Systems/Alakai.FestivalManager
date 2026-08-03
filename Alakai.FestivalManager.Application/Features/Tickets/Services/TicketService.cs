@@ -50,7 +50,8 @@ public class TicketService : ITicketService
             ParticipantName = $"{registration.FirstName} {registration.LastName}",
             EventName = registration.Edition.Name,
             PassTypeName = registration.PassType.Name,
-            LevelName = registration.Level?.Name
+            LevelName = registration.Level?.Name,
+            Language = registration.Language
         };
 
         byte[] pdfBytes = _ticketPdfService.GenerateTicketPdf(ticketInfo, qrBytes);
@@ -67,5 +68,47 @@ public class TicketService : ITicketService
         _logger.LogInformation("Ticket generated for registration {RegistrationId}.", registrationId);
 
         return registration.TicketPdfUrl;
+    }
+
+    public async Task<TicketCheckInResultDto?> CheckInAsync(string token, CancellationToken cancellationToken = default)
+    {
+        if (!_ticketTokenService.TryValidateToken(token, out Guid registrationId))
+        {
+            _logger.LogWarning("CheckInAsync: invalid or tampered token.");
+
+            return null;
+        }
+
+        Registration? registration = await _registrationRepository.GetByIdAsync(registrationId, cancellationToken);
+
+        if (registration is null)
+        {
+            _logger.LogWarning("CheckInAsync: registration {RegistrationId} not found.", registrationId);
+
+            return null;
+        }
+
+        bool alreadyCheckedIn = registration.CheckedInAt.HasValue;
+
+        if (!alreadyCheckedIn)
+        {
+            registration.CheckedInAt = DateTime.UtcNow;
+            registration.SetUpdated();
+            _registrationRepository.Update(registration);
+            await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation("Registration {RegistrationId} checked in.", registrationId);
+        }
+
+        return new TicketCheckInResultDto
+        {
+            RegistrationId = registration.Id,
+            ParticipantName = $"{registration.FirstName} {registration.LastName}",
+            EventName = registration.Edition.Name,
+            PassTypeName = registration.PassType.Name,
+            LevelName = registration.Level?.Name,
+            AlreadyCheckedIn = alreadyCheckedIn,
+            CheckedInAt = registration.CheckedInAt!.Value
+        };
     }
 }
