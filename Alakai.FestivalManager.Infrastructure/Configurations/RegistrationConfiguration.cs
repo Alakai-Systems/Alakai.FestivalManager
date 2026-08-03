@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Configurations;
 
 public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
 {
@@ -117,6 +117,11 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
         builder.Property(r => r.UpdatedAt);
 
         builder.Property(r => r.CancelledAt);
+
+        builder.Property(r => r.TicketPdfUrl)
+            .HasMaxLength(500);
+
+        builder.Property(r => r.CheckedInAt);
 
         builder.Property(r => r.IsActive)
             .IsRequired();

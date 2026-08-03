@@ -5,6 +5,7 @@ public class PaymentServiceTests
     private readonly Mock<IRegistrationRepository> _registrationRepo = new();
     private readonly Mock<IRedsysGateway> _redsysGateway = new();
     private readonly Mock<IEmailNotificationService> _emailService = new();
+    private readonly Mock<ITicketService> _ticketService = new();
     private readonly Mock<ILogger<PaymentService>> _logger = new();
     private readonly PaymentService _sut;
 
@@ -14,6 +15,7 @@ public class PaymentServiceTests
             _registrationRepo.Object,
             _redsysGateway.Object,
             _emailService.Object,
+            _ticketService.Object,
             _logger.Object);
     }
 

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Domain.Entities;
+namespace Alakai.FestivalManager.Domain.Entities;
 
 public class Registration : BaseEntity
 {
@@ -55,4 +55,8 @@ public class Registration : BaseEntity
     public string? InternalNotes { get; set; }
     public DateTime? CancelledAt { get; set; }
     public bool IsActive { get; set; } = true;
+
+    // Ticket PDF + QR para check-in (ver Features/Tickets)
+    public string? TicketPdfUrl { get; set; }
+    public DateTime? CheckedInAt { get; set; }
 }

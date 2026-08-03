@@ -49,6 +49,9 @@ builder.Services.AddSwaggerGen(options =>
 //Auth
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 
+//Ticket security (firma HMAC del QR del ticket de entrada)
+builder.Services.Configure<TicketSecurityOptions>(builder.Configuration.GetSection("TicketSecurity"));
+
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {

@@ -1,4 +1,4 @@
-﻿global using Alakai.FestivalManager.Application.Common.Exceptions;
+global using Alakai.FestivalManager.Application.Common.Exceptions;
 global using Alakai.FestivalManager.Application.Common.Responses;
 global using Alakai.FestivalManager.Application.Contracts.Repositories;
 global using Alakai.FestivalManager.Application.Features.Auth.Commands.ChangePassword;
@@ -15,6 +15,8 @@ global using Alakai.FestivalManager.Application.Features.Emails.Services;
 global using Alakai.FestivalManager.Application.Features.Payments.Commands.CreatePaymentSession;
 global using Alakai.FestivalManager.Application.Features.Payments.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Payments.Services;
+global using Alakai.FestivalManager.Application.Features.Tickets.Services;
+global using Alakai.FestivalManager.Application.Features.Tickets.Services;
 global using Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
 global using Alakai.FestivalManager.Application.Interfaces.Services;

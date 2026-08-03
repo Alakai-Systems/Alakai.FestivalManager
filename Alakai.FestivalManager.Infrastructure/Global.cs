@@ -1,8 +1,9 @@
-﻿global using Alakai.FestivalManager.Application.Contracts.Repositories;
+global using Alakai.FestivalManager.Application.Contracts.Repositories;
 global using Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Emails.Models;
 global using Alakai.FestivalManager.Application.Features.Files.Services;
 global using Alakai.FestivalManager.Application.Features.Invoices.Services;
+global using Alakai.FestivalManager.Application.Features.Tickets.Services;
 global using Alakai.FestivalManager.Application.Features.Payments.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
 global using Alakai.FestivalManager.Application.Interfaces.Services;

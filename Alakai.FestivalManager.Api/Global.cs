@@ -174,4 +174,5 @@ global using Alakai.FestivalManager.Application.Features.Payments.Contracts.DTOs
 global using Alakai.FestivalManager.Application.Features.Payments.Services;
 global using Alakai.FestivalManager.Application.Features.Reports.Services;
 global using Alakai.FestivalManager.Application.Interfaces.Repositories;
+global using Alakai.FestivalManager.Application.Features.Tickets.Contracts.Settings;
 

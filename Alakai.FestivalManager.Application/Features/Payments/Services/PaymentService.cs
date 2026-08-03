@@ -7,14 +7,16 @@ public class PaymentService : IPaymentService
     private readonly IRegistrationRepository _registrationRepository;
     private readonly IRedsysGateway _redsysGateway;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly ITicketService _ticketService;
     private readonly ILogger<PaymentService> _logger;
 
     public PaymentService(IRegistrationRepository registrationRepository, IRedsysGateway redsysGateway,
-        IEmailNotificationService emailNotificationService, ILogger<PaymentService> logger)
+        IEmailNotificationService emailNotificationService, ITicketService ticketService, ILogger<PaymentService> logger)
     {
         _registrationRepository = registrationRepository;
         _redsysGateway = redsysGateway;
         _emailNotificationService = emailNotificationService;
+        _ticketService = ticketService;
         _logger = logger;
     }
 
@@ -92,6 +94,8 @@ public class PaymentService : IPaymentService
             if (registration.PaymentStatus == PaymentStatus.Paid) return true;
             if (registration.PaymentStatus == PaymentStatus.PartiallyPaid) return true;
 
+            bool becameFullyPaid = false;
+
             if (isApproved)
             {
                 if (!string.IsNullOrEmpty(authCode))
@@ -113,6 +117,7 @@ public class PaymentService : IPaymentService
                     registration.PaidAt = DateTime.UtcNow;
                     registration.AmountPaid = registration.FinalPrice;
                     registration.Status = RegistrationStatus.Confirmed;
+                    becameFullyPaid = true;
                 }
                 _logger.LogInformation("Redsys return confirmed. Order {Order}.", order);
             }
@@ -124,6 +129,11 @@ public class PaymentService : IPaymentService
             registration.SetUpdated();
             _registrationRepository.Update(registration);
             await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+            if (becameFullyPaid)
+            {
+                await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+            }
 
             if (isApproved)
             {
@@ -191,6 +201,8 @@ public class PaymentService : IPaymentService
             return true;
         }
 
+        bool becameFullyPaid = false;
+
         if (notification.IsApproved)
         {
             if (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.AmountPaid == 0m)
@@ -205,6 +217,7 @@ public class PaymentService : IPaymentService
                 registration.PaidAt = DateTime.UtcNow;
                 registration.AmountPaid = registration.FinalPrice;
                 registration.Status = RegistrationStatus.Confirmed;
+                becameFullyPaid = true;
             }
 
             if (!string.IsNullOrEmpty(notification.AuthorisationCode))
@@ -226,6 +239,11 @@ public class PaymentService : IPaymentService
         registration.SetUpdated();
         _registrationRepository.Update(registration);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        if (becameFullyPaid)
+        {
+            await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+        }
 
         if (notification.IsApproved)
         {

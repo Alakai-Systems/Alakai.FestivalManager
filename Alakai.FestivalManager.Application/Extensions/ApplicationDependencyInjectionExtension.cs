@@ -150,6 +150,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<IBusService, BusService>();
         services.AddScoped<IMealPreferenceService, MealPreferenceService>();
         services.AddScoped<IPaymentService, PaymentService>();
+        services.AddScoped<ITicketService, TicketService>();
         services.AddScoped<IReportService, ReportService>();
         services.AddScoped<IBusReservationService, BusReservationService>();
 

@@ -62,6 +62,8 @@ public static class InfrastructureDependencyInjectionExtension
         services.AddScoped<IInvoiceSettingsRepository, InvoiceSettingsRepository>();
         services.AddScoped<IInvoiceTemplateRepository, InvoiceTemplateRepository>();
         services.AddScoped<IInvoicePdfService, QuestPdfInvoiceService>();
+        services.AddScoped<ITicketPdfService, QuestPdfTicketService>();
+        services.AddScoped<ITicketTokenService, HmacTicketTokenService>();
         services.Configure<ExternalAuthOptions>(configuration.GetSection("ExternalAuth"));
         services.AddSingleton<IExternalAuthService, ExternalAuthService>();
         services.Configure<RedsysOptions>(configuration.GetSection("Redsys"));
