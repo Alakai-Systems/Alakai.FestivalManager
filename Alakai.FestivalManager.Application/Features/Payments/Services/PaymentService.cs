@@ -132,7 +132,14 @@ public class PaymentService : IPaymentService
 
             if (becameFullyPaid)
             {
-                await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+                try
+                {
+                    await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+                }
+                catch (Exception ticketEx)
+                {
+                    _logger.LogWarning(ticketEx, "Could not generate the ticket for registration {RegistrationId}; the payment confirmation email will still be sent.", registration.Id);
+                }
             }
 
             if (isApproved)
@@ -242,7 +249,14 @@ public class PaymentService : IPaymentService
 
         if (becameFullyPaid)
         {
-            await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+            try
+            {
+                await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+            }
+            catch (Exception ticketEx)
+            {
+                _logger.LogWarning(ticketEx, "Could not generate the ticket for registration {RegistrationId}; the payment confirmation email will still be sent.", registration.Id);
+            }
         }
 
         if (notification.IsApproved)

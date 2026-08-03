@@ -1,3 +1,7 @@
+using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Application.Features.Files.Services;
+using Alakai.FestivalManager.Application.Features.Files.Services;
 using Alakai.FestivalManager.Infrastructure.Email;
 
 namespace Alakai.FestivalManager.Application.Features.Emails.Services;
@@ -19,6 +23,8 @@ public class EmailNotificationService : IEmailNotificationService
     private readonly ApplicationUrlsOptions _applicationUrlsOptions;
     private readonly IMapper _mapper;
     private readonly SystemEmailOptions _systemEmailOptions;
+    private readonly ITicketService _ticketService;
+    private readonly IFileStorageService _fileStorageService;
 
     public EmailNotificationService(IEmailTemplateRepository emailTemplateRepository, IEmailLogRepository emailLogRepository, 
         IEmailTemplateRendererService emailTemplateRendererService, IMapper mapper, IRegistrationRepository registrationRepository,
@@ -26,7 +32,7 @@ public class EmailNotificationService : IEmailNotificationService
         IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
         IMealPreferenceRepository mealPreferenceRepository, IAccommodationBuildingRepository accommodationBuildingRepository,
         IOptions<SystemEmailOptions> systemEmailOptions, ICompetitionEntryRepository competitionEntryRepository,
-        IOptions<ApplicationUrlsOptions> applicationUrlsOptions)
+        IOptions<ApplicationUrlsOptions> applicationUrlsOptions, ITicketService ticketService, IFileStorageService fileStorageService)
     {
         _emailTemplateRepository = emailTemplateRepository;
         _emailLogRepository = emailLogRepository;
@@ -43,6 +49,8 @@ public class EmailNotificationService : IEmailNotificationService
         _systemEmailOptions = systemEmailOptions.Value;
         _competitionEntryRepository = competitionEntryRepository;
         _applicationUrlsOptions = applicationUrlsOptions.Value;
+        _ticketService = ticketService;
+        _fileStorageService = fileStorageService;
     }
 
     private const int EmailShellWidth = 640;
@@ -403,6 +411,32 @@ public class EmailNotificationService : IEmailNotificationService
                 HtmlBody = emailLog.BodyHtml,
                 TextBody = emailLog.BodyText ?? string.Empty
             };
+
+            if (templateKey == EmailTemplateKey.PaymentConfirmed)
+            {
+                try
+                {
+                    string? ticketPdfUrl = await _ticketService.EnsureTicketGeneratedAsync(registrationId, cancellationToken);
+                    string? ticketLocalPath = ticketPdfUrl is null ? null : _fileStorageService.ResolveLocalPath(ticketPdfUrl);
+
+                    if (ticketLocalPath is not null && File.Exists(ticketLocalPath))
+                    {
+                        byte[] ticketBytes = await File.ReadAllBytesAsync(ticketLocalPath, cancellationToken);
+
+                        message.Attachments.Add(new EmailAttachment
+                        {
+                            FileName = "ticket.pdf",
+                            Content = ticketBytes,
+                            ContentType = "application/pdf"
+                        });
+                    }
+                }
+                catch (Exception)
+                {
+                    // No dejamos que un fallo generando/adjuntando el ticket impida
+                    // enviar el email de confirmación de pago en sí.
+                }
+            }
 
             await _emailSender.SendAsync(message, senderSettings, cancellationToken);
 
