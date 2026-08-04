@@ -48,9 +48,9 @@ public static class InfrastructureDependencyInjectionExtension
         services.Configure<GoogleAnalyticsOptions>(configuration.GetSection("GoogleAnalytics"));
         services.AddSingleton<IAnalyticsClient, GoogleAnalyticsClient>();
         services.Configure<FileStorageOptions>(configuration.GetSection("FileStorage"));
-        services.Configure<AzureBlobStorageOptions>(configuration.GetSection("AzureBlobStorage"));
+        services.Configure<AzureBlobStorageOptions>(configuration.GetSection("BlobStorage"));
 
-        string azureBlobConnectionString = configuration["AzureBlobStorage:ConnString"] ?? string.Empty;
+        string azureBlobConnectionString = configuration["BlobStorage:ConnString"] ?? string.Empty;
 
         if (string.IsNullOrWhiteSpace(azureBlobConnectionString))
         {
