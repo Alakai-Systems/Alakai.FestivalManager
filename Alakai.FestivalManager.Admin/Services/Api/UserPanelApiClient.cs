@@ -84,4 +84,73 @@ public class UserPanelApiClient
 
         return response.Data.Dashboard;
     }
+
+    public async Task CreateCompetitionEntryAsync(CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/competition-entries", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be created.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task UpdateCompetitionEntryAsync(Guid id, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/user-panel/competition-entries/{id}", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be updated.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task DeleteCompetitionEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/user-panel/competition-entries/{id}", cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be deleted.";
+            throw new Exception(message);
+        }
+    }
 }

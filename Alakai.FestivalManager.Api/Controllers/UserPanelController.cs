@@ -52,6 +52,26 @@ public class UserPanelController : ControllerBase
         return Ok(response);
     }
 
+    [HttpPost("competition-entries")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateCompetitionEntry([FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateCompetitionEntryAsync(userId, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
     [HttpPut("competition-entries/{id:guid}")]
     public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry(Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
     {

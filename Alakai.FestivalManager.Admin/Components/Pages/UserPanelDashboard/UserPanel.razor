@@ -13,7 +13,6 @@
 @inject UserPanelApiClient UserPanelApiClient
 @inject Alakai.FestivalManager.Admin.Services.Localisation.ITranslationService T
 @inject RegistrationApiClient RegistrationApiClient
-@inject CompetitionEntryApiClient CompetitionEntryApiClient
 @inject AccommodationApiClient AccommodationApiClient
 @inject FestivalModuleApiClient FestivalModuleApiClient
 @inject BusApiClient BusApiClient
@@ -2736,7 +2735,7 @@
 
             try
             {
-                await CompetitionEntryApiClient.UpdateAsync(EditingCompetitionEntryId.Value, request);
+                await UserPanelApiClient.UpdateCompetitionEntryAsync(EditingCompetitionEntryId.Value, request);
                 CloseCompetitionModal();
                 await LoadDashboardAsync();
                 await ShowCompetitionSuccessAsync(T.Get("up_competition_updated"));
@@ -2763,7 +2762,7 @@
 
         try
         {
-            await CompetitionEntryApiClient.CreateAsync(createRequest);
+            await UserPanelApiClient.CreateCompetitionEntryAsync(createRequest);
             CloseCompetitionModal();
             await LoadDashboardAsync();
             await ShowCompetitionSuccessAsync(T.Get("up_competition_created"));
@@ -2794,7 +2793,7 @@
 
         try
         {
-            await CompetitionEntryApiClient.DeleteAsync(DeletingCompetitionEntryId.Value);
+            await UserPanelApiClient.DeleteCompetitionEntryAsync(DeletingCompetitionEntryId.Value);
             CloseDeleteCompetitionModal();
             await LoadDashboardAsync();
             await ShowCompetitionSuccessAsync(T.Get("up_competition_deleted"));

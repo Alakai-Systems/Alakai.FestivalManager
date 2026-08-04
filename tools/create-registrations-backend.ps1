@@ -1,26 +1,60 @@
 <#
 .SINOPSIS
-  Arregla el error de compilacion que ha dado el Script 22: al anadir
-  IFileStorageService como parametro nuevo de DeleteRegistrationHandler, el
-  test DeleteRegistrationHandlerTests.cs (que lo instancia directamente con
-  "new") se quedo con un argumento de menos:
+  Arregla el 401 al inscribirse/cancelar una competicion desde el panel de
+  participante (UserPanel.razor).
 
-    CS7036: There is no argument given that corresponds to the required
-    parameter 'fileStorageService' of 'DeleteRegistrationHandler...'
+  DIAGNOSTICO (comprobado leyendo el codigo real, no supuesto):
+    - UserPanel.razor (panel del PARTICIPANTE) esta usando
+      CompetitionEntryApiClient para crear/editar/borrar inscripciones a
+      competiciones. Ese cliente ataca "api/competition-entries" con el
+      token de ADMIN (IAdminTokenProvider) - y ese endpoint en la Api
+      (CompetitionEntriesController) esta protegido con
+      [Authorize(Roles = "SuperAdmin,Admin")]. Un participante normal no
+      tiene ese rol -> 401 siempre, para cualquier participante, en
+      cualquier momento. No tiene nada que ver con el token caducado ni
+      con ningun cambio de hoy - es un bug de cableado preexistente: el
+      panel de participante quedo enganchado al cliente de Admin en vez de
+      al suyo propio.
+    - El cliente correcto para el participante ya existe:
+      UserPanelApiClient, que usa el token del propio participante
+      (ITokenStorageService) y ataca "api/user-panel/...", protegido solo
+      con [Authorize] (cualquier usuario autenticado). Ya tiene
+      GetDashboardAsync, UpdateProfileAsync y CreateInvoiceAsync.
+    - El problema es que a UserPanelApiClient le faltan los 3 metodos de
+      competicion, Y a la Api (UserPanelController) le falta el endpoint
+      POST para crear una inscripcion (el PUT de editar y el DELETE de
+      cancelar SI existen y estan bien). La logica de negocio para crear
+      (IUserPanelService.CreateCompetitionEntryAsync, en
+      UserPanelService.cs) YA esta completa e implementada - incluye la
+      comprobacion de seguridad de sobreescribir RegistrationId con la
+      ultima inscripcion del propio usuario autenticado, para que nadie
+      pueda crear una entrada para el registro de otra persona. Solo le
+      faltaba el endpoint del controller que la expusiera.
 
-  Culpa mia - se me paso ese test al escribir el Script 22. Este script anade
-  el mock que falta y lo pasa al constructor.
+  FIX: se completa el cableado que faltaba, sin tocar la logica de negocio
+  (que ya era correcta) ni el CompetitionEntryApiClient (que sigue
+  haciendo falta tal cual para las pantallas de Admin reales, como
+  Competitions.razor / CompetitionEntries.razor).
 
-  Archivo que modifica:
-    - Alakai.FestivalManager.Tests\Unit\Application\Features\Registrations\DeleteRegistrationHandlerTests.cs
+  Archivos que modifica:
+    - Api\Controllers\UserPanelController.cs                (+POST competition-entries)
+    - Admin\Services\Api\UserPanelApiClient.cs               (+3 metodos: Create/Update/Delete competition entry)
+    - Admin\Components\Pages\UserPanelDashboard\UserPanel.razor (usa UserPanelApiClient en vez de
+                                                                   CompetitionEntryApiClient para las 3 llamadas,
+                                                                   quita el @inject que se queda sin uso)
 
   Idempotente.
 
 .USO
   Ejecutar desde la raiz del repo:
-    .\24-fix-delete-registration-test.ps1
+    .\25-fix-userpanel-competition-entries-401.ps1
 
-  Despues: dotnet build (y si quieres, dotnet test) - debe compilar limpio.
+  Luego: dotnet build (Api y Admin, deben compilar limpio), redeploy de
+  AMBOS App Services (app-alakai-swimout-api y app-alakai-swimout-admin).
+
+  Verificacion: como participante (no como Admin), entra al panel de
+  usuario, inscribete a una competicion y luego cancelala. Ya no deberia
+  salir 401 en ninguno de los dos casos.
 #>
 
 function Patch-File {
@@ -73,76 +107,198 @@ function Patch-File {
 
 $ErrorActionPreference = "Stop"
 
-$TestPath = ".\Alakai.FestivalManager.Tests\Unit\Application\Features\Registrations\DeleteRegistrationHandlerTests.cs"
+$ApiControllerPath = ".\Alakai.FestivalManager.Api\Controllers\UserPanelController.cs"
+$ApiClientPath      = ".\Alakai.FestivalManager.Admin\Services\Api\UserPanelApiClient.cs"
+$RazorPath          = ".\Alakai.FestivalManager.Admin\Components\Pages\UserPanelDashboard\UserPanel.razor"
 
 # ----------------------------------------------------------------------------
-# 1. +using Files.Services
+# 1. Api: +POST api/user-panel/competition-entries (crear inscripcion).
+#    El PUT (editar) y el DELETE (cancelar) ya existian y estaban bien.
 # ----------------------------------------------------------------------------
 Patch-File `
-    -Path $TestPath `
-    -Description "+using Files.Services" `
+    -Path $ApiControllerPath `
+    -Description "+POST competition-entries" `
     -OldString @'
-using Alakai.FestivalManager.Application.Features.Emails.Services;
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
-using Alakai.FestivalManager.Tests.Unit.Application.Common;
+    [HttpPut("competition-entries/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry(Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
 '@ `
     -NewString @'
-using Alakai.FestivalManager.Application.Features.Emails.Services;
-using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
-using Alakai.FestivalManager.Tests.Unit.Application.Common;
+    [HttpPost("competition-entries")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateCompetitionEntry([FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateCompetitionEntryAsync(userId, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPut("competition-entries/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry(Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
 '@
 
 # ----------------------------------------------------------------------------
-# 2. +mock de IFileStorageService, pasado al constructor
+# 2. Admin: +3 metodos en UserPanelApiClient (usan el token del propio
+#    participante, igual que CreateInvoiceAsync que ya funciona).
 # ----------------------------------------------------------------------------
 Patch-File `
-    -Path $TestPath `
-    -Description "+mock IFileStorageService" `
+    -Path $ApiClientPath `
+    -Description "+Create/Update/DeleteCompetitionEntryAsync" `
     -OldString @'
-    private readonly Mock<IInvoiceRepository> _invoiceRepo = new();
-    private readonly Mock<IEmailNotificationService> _emailSvc = new();
-    private readonly DeleteRegistrationHandler _sut;
+        if (response?.Success is not true || response.Data?.Dashboard is null)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Invoice could not be created.";
+            throw new Exception(message);
+        }
 
-    public DeleteRegistrationHandlerTests()
-    {
-        _sut = new DeleteRegistrationHandler(
-            _regRepo.Object, _compRepo.Object, _emailLogRepo.Object, _discountRepo.Object,
-            _accomRepo.Object, _busRepo.Object, _invoiceRepo.Object, _emailSvc.Object);
-
-        _compRepo.Setup(r => r.GetByPartnerRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _compRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _accomRepo.Setup(r => r.GetByResponsibleRegistrationIdTrackedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((AccommodationReservation?)null);
-        _busRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _invoiceRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Invoice?)null);
-        _emailLogRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _regRepo.Setup(r => r.CountByDiscountCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        return response.Data.Dashboard;
     }
+}
 '@ `
     -NewString @'
-    private readonly Mock<IInvoiceRepository> _invoiceRepo = new();
-    private readonly Mock<IEmailNotificationService> _emailSvc = new();
-    private readonly Mock<IFileStorageService> _fileStorageService = new();
-    private readonly DeleteRegistrationHandler _sut;
+        if (response?.Success is not true || response.Data?.Dashboard is null)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Invoice could not be created.";
+            throw new Exception(message);
+        }
 
-    public DeleteRegistrationHandlerTests()
-    {
-        _sut = new DeleteRegistrationHandler(
-            _regRepo.Object, _compRepo.Object, _emailLogRepo.Object, _discountRepo.Object,
-            _accomRepo.Object, _busRepo.Object, _invoiceRepo.Object, _emailSvc.Object, _fileStorageService.Object);
-
-        _compRepo.Setup(r => r.GetByPartnerRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _compRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _accomRepo.Setup(r => r.GetByResponsibleRegistrationIdTrackedAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((AccommodationReservation?)null);
-        _busRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _invoiceRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Invoice?)null);
-        _emailLogRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
-        _regRepo.Setup(r => r.CountByDiscountCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
-        _fileStorageService.Setup(f => f.DeleteAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        return response.Data.Dashboard;
     }
+
+    public async Task CreateCompetitionEntryAsync(CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/competition-entries", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be created.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task UpdateCompetitionEntryAsync(Guid id, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/user-panel/competition-entries/{id}", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be updated.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task DeleteCompetitionEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/user-panel/competition-entries/{id}", cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be deleted.";
+            throw new Exception(message);
+        }
+    }
+}
+'@
+
+# ----------------------------------------------------------------------------
+# 3. Admin: UserPanel.razor deja de usar el cliente de Admin y pasa a usar
+#    el cliente correcto del propio participante.
+# ----------------------------------------------------------------------------
+Patch-File `
+    -Path $RazorPath `
+    -Description "UpdateCompetitionEntry usa UserPanelApiClient" `
+    -OldString @'
+                await CompetitionEntryApiClient.UpdateAsync(EditingCompetitionEntryId.Value, request);
+'@ `
+    -NewString @'
+                await UserPanelApiClient.UpdateCompetitionEntryAsync(EditingCompetitionEntryId.Value, request);
+'@
+
+Patch-File `
+    -Path $RazorPath `
+    -Description "CreateCompetitionEntry usa UserPanelApiClient" `
+    -OldString @'
+            await CompetitionEntryApiClient.CreateAsync(createRequest);
+'@ `
+    -NewString @'
+            await UserPanelApiClient.CreateCompetitionEntryAsync(createRequest);
+'@
+
+Patch-File `
+    -Path $RazorPath `
+    -Description "DeleteCompetitionEntry usa UserPanelApiClient" `
+    -OldString @'
+            await CompetitionEntryApiClient.DeleteAsync(DeletingCompetitionEntryId.Value);
+'@ `
+    -NewString @'
+            await UserPanelApiClient.DeleteCompetitionEntryAsync(DeletingCompetitionEntryId.Value);
+'@
+
+Patch-File `
+    -Path $RazorPath `
+    -Description "quita @inject CompetitionEntryApiClient (ya sin uso en este fichero)" `
+    -OldString @'
+@inject RegistrationApiClient RegistrationApiClient
+@inject CompetitionEntryApiClient CompetitionEntryApiClient
+@inject AccommodationApiClient AccommodationApiClient
+'@ `
+    -NewString @'
+@inject RegistrationApiClient RegistrationApiClient
+@inject AccommodationApiClient AccommodationApiClient
 '@
 
 Write-Host ""
-Write-Host "Deberias ver 2 lineas 'OK: aplicado'." -ForegroundColor Cyan
+Write-Host "Deberias ver 6 lineas 'OK: aplicado'." -ForegroundColor Cyan
 Write-Host ""
-Write-Host "SIGUIENTE PASO: dotnet build (y dotnet test si quieres) - debe compilar limpio." -ForegroundColor Cyan
+Write-Host "SIGUIENTE PASO:" -ForegroundColor Cyan
+Write-Host "  1. dotnet build (Api y Admin, deben compilar limpio)." -ForegroundColor Cyan
+Write-Host "  2. Redeploy de AMBOS App Services (app-alakai-swimout-api Y app-alakai-swimout-admin)." -ForegroundColor Cyan
+Write-Host "     Si solo redeployas uno de los dos, el otro seguira con el bug hasta que lo redeployes tambien." -ForegroundColor Cyan
+Write-Host "  3. Verificacion: como PARTICIPANTE (no Admin), inscribete a una competicion y luego cancelala." -ForegroundColor Cyan
+Write-Host "     Ya no deberia dar 401 en ninguno de los dos casos." -ForegroundColor Cyan
