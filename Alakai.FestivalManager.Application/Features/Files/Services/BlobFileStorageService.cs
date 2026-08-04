@@ -70,6 +70,32 @@ public class BlobFileStorageService : IFileStorageService
         }
     }
 
+    public async Task DeleteAsync(string? publicUrl, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(publicUrl))
+        {
+            return;
+        }
+
+        string? blobName = TryGetBlobName(publicUrl);
+
+        if (blobName is null)
+        {
+            return;
+        }
+
+        try
+        {
+            BlobClient blobClient = _containerClient.GetBlobClient(blobName);
+            await blobClient.DeleteIfExistsAsync(cancellationToken: cancellationToken);
+        }
+        catch (RequestFailedException)
+        {
+            // Mejor esfuerzo: si Azure Blob Storage falla al borrar (red, permisos, etc.),
+            // no debe impedir que se complete el borrado del registro.
+        }
+    }
+
     private async Task<string> UploadAsync(Stream content, string blobName, string contentType, CancellationToken cancellationToken)
     {
         await _containerClient.CreateIfNotExistsAsync(PublicAccessType.Blob, cancellationToken: cancellationToken);

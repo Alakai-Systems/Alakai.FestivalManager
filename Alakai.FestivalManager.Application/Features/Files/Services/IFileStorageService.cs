@@ -18,6 +18,14 @@ public interface IFileStorageService
     /// storage backend (local disk, Azure Blob Storage, etc).
     /// </summary>
     Task<byte[]?> TryDownloadAsync(string publicUrl, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Elimina un fichero previamente guardado a partir de su URL publica. Es "mejor
+    /// esfuerzo": si la URL esta vacia, no pertenece a este storage, el fichero ya no
+    /// existe, o falla el borrado (red, permisos), no lanza excepcion - nunca debe romper
+    /// el flujo que lo llama (p.ej. borrar un registro y sus PDFs asociados).
+    /// </summary>
+    Task DeleteAsync(string? publicUrl, CancellationToken cancellationToken = default);
 }
 
 public record SavedImageResult(string Url, int Width, int Height);

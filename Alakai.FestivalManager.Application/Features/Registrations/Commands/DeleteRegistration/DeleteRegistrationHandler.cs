@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Domain.Entities;
+using Alakai.FestivalManager.Domain.Entities;
 
 namespace Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 
@@ -12,11 +12,12 @@ public class DeleteRegistrationHandler
     private readonly IBusReservationRepository _busReservationRepository;
     private readonly IInvoiceRepository _invoiceRepository;
     private readonly IEmailNotificationService _emailNotificationService;
+    private readonly IFileStorageService _fileStorageService;
 
     public DeleteRegistrationHandler(IRegistrationRepository registrationRepository, ICompetitionEntryRepository competitionEntryRepository,
         IEmailLogRepository emailLogRepository, IDiscountCodeRepository discountCodeRepository,
         IAccommodationReservationRepository accommodationReservationRepository, IBusReservationRepository busReservationRepository,
-        IInvoiceRepository invoiceRepository, IEmailNotificationService emailNotificationService)
+        IInvoiceRepository invoiceRepository, IEmailNotificationService emailNotificationService, IFileStorageService fileStorageService)
     {
         _registrationRepository = registrationRepository;
         _competitionEntryRepository = competitionEntryRepository;
@@ -26,6 +27,7 @@ public class DeleteRegistrationHandler
         _busReservationRepository = busReservationRepository;
         _invoiceRepository = invoiceRepository;
         _emailNotificationService = emailNotificationService;
+        _fileStorageService = fileStorageService;
     }
 
     public async Task<Guid> HandleAsync(DeleteRegistrationCommand command, CancellationToken cancellationToken = default)
@@ -111,6 +113,15 @@ public class DeleteRegistrationHandler
 
         _registrationRepository.Delete(existing);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        // Borra tambien los PDFs huerfanos del storage (ticket + factura si la habia) -
+        // mejor esfuerzo, nunca debe impedir que el registro se haya borrado ya.
+        await _fileStorageService.DeleteAsync(existing.TicketPdfUrl, cancellationToken);
+
+        if (invoice is not null)
+        {
+            await _fileStorageService.DeleteAsync(invoice.PdfUrl, cancellationToken);
+        }
 
         // Send email to new accommodation responsible (after save so registration is gone and nav props are clean)
         if (accommodationReservation is not null && accommodationReservation.ResponsibleRegistrationId != command.Id)

@@ -124,6 +124,35 @@ public class LocalFileStorageService : IFileStorageService
         return await File.ReadAllBytesAsync(physicalPath, cancellationToken);
     }
 
+    public Task DeleteAsync(string? publicUrl, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(publicUrl))
+        {
+            return Task.CompletedTask;
+        }
+
+        string? physicalPath = ResolveLocalPath(publicUrl);
+
+        try
+        {
+            if (physicalPath is not null && File.Exists(physicalPath))
+            {
+                File.Delete(physicalPath);
+            }
+        }
+        catch (IOException)
+        {
+            // Mejor esfuerzo: fichero bloqueado o problema de disco - no debe impedir
+            // que se complete el borrado del registro.
+        }
+        catch (UnauthorizedAccessException)
+        {
+            // Igual que arriba - problema de permisos.
+        }
+
+        return Task.CompletedTask;
+    }
+
     private string? ResolveLocalPath(string publicUrl)
     {
         if (string.IsNullOrWhiteSpace(publicUrl))

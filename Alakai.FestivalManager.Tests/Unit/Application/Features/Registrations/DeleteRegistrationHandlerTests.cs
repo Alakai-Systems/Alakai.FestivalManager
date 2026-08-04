@@ -1,4 +1,5 @@
-﻿using Alakai.FestivalManager.Application.Features.Emails.Services;
+using Alakai.FestivalManager.Application.Features.Emails.Services;
+using Alakai.FestivalManager.Application.Features.Files.Services;
 using Alakai.FestivalManager.Application.Features.Registrations.Commands.DeleteRegistration;
 using Alakai.FestivalManager.Tests.Unit.Application.Common;
 
@@ -14,13 +15,14 @@ public class DeleteRegistrationHandlerTests
     private readonly Mock<IBusReservationRepository> _busRepo = new();
     private readonly Mock<IInvoiceRepository> _invoiceRepo = new();
     private readonly Mock<IEmailNotificationService> _emailSvc = new();
+    private readonly Mock<IFileStorageService> _fileStorageService = new();
     private readonly DeleteRegistrationHandler _sut;
 
     public DeleteRegistrationHandlerTests()
     {
         _sut = new DeleteRegistrationHandler(
             _regRepo.Object, _compRepo.Object, _emailLogRepo.Object, _discountRepo.Object,
-            _accomRepo.Object, _busRepo.Object, _invoiceRepo.Object, _emailSvc.Object);
+            _accomRepo.Object, _busRepo.Object, _invoiceRepo.Object, _emailSvc.Object, _fileStorageService.Object);
 
         _compRepo.Setup(r => r.GetByPartnerRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _compRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
@@ -29,6 +31,7 @@ public class DeleteRegistrationHandlerTests
         _invoiceRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync((Invoice?)null);
         _emailLogRepo.Setup(r => r.GetByRegistrationIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync([]);
         _regRepo.Setup(r => r.CountByDiscountCodeAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(0);
+        _fileStorageService.Setup(f => f.DeleteAsync(It.IsAny<string?>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
     }
 
     [Fact]
