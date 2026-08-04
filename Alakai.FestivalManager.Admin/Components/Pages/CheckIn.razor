@@ -121,13 +121,15 @@
             return;
         }
 
+        string ticketToken = ExtractTicketToken(token.Trim());
+
         isChecking = true;
         lastResult = null;
         StateHasChanged();
 
         try
         {
-            lastResult = await TicketsApiClient.CheckInAsync(token.Trim());
+            lastResult = await TicketsApiClient.CheckInAsync(ticketToken);
         }
         catch (Exception ex)
         {
@@ -144,6 +146,21 @@
             isChecking = false;
             StateHasChanged();
         }
+    }
+
+    private static string ExtractTicketToken(string scannedText)
+    {
+        // El QR de la entrada ahora codifica una URL publica de check-in
+        // (https://.../checkin/{token}), no el token en crudo. Si lo que se
+        // ha escaneado o pegado es esa URL, nos quedamos solo con el ultimo
+        // segmento. Si es el token en crudo (entradas generadas antes de este
+        // cambio), se usa tal cual - compatibilidad hacia atras.
+        if (Uri.TryCreate(scannedText, UriKind.Absolute, out Uri? uri))
+        {
+            return uri.Segments.Length > 0 ? uri.Segments[^1].TrimEnd('/') : scannedText;
+        }
+
+        return scannedText;
     }
 
     private async Task ResumeScannerAsync()

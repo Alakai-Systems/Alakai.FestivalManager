@@ -6,15 +6,18 @@ public class TicketService : ITicketService
     private readonly ITicketTokenService _ticketTokenService;
     private readonly ITicketPdfService _ticketPdfService;
     private readonly IFileStorageService _fileStorageService;
+    private readonly TicketSecurityOptions _ticketSecurityOptions;
     private readonly ILogger<TicketService> _logger;
 
     public TicketService(IRegistrationRepository registrationRepository, ITicketTokenService ticketTokenService,
-        ITicketPdfService ticketPdfService, IFileStorageService fileStorageService, ILogger<TicketService> logger)
+        ITicketPdfService ticketPdfService, IFileStorageService fileStorageService,
+        IOptions<TicketSecurityOptions> ticketSecurityOptions, ILogger<TicketService> logger)
     {
         _registrationRepository = registrationRepository;
         _ticketTokenService = ticketTokenService;
         _ticketPdfService = ticketPdfService;
         _fileStorageService = fileStorageService;
+        _ticketSecurityOptions = ticketSecurityOptions.Value;
         _logger = logger;
     }
 
@@ -50,7 +53,14 @@ public class TicketService : ITicketService
         }
 
         string token = _ticketTokenService.GenerateToken(registration.Id);
-        byte[] qrBytes = _ticketPdfService.GenerateQrCode(token);
+
+        if (string.IsNullOrWhiteSpace(_ticketSecurityOptions.PublicApiBaseUrl))
+        {
+            _logger.LogWarning("TicketSecurity:PublicApiBaseUrl no esta configurado - el QR de check-in quedara incompleto.");
+        }
+
+        string checkInUrl = $"{_ticketSecurityOptions.PublicApiBaseUrl.TrimEnd('/')}/checkin/{token}";
+        byte[] qrBytes = _ticketPdfService.GenerateQrCode(checkInUrl);
 
         TicketInfo ticketInfo = new()
         {
