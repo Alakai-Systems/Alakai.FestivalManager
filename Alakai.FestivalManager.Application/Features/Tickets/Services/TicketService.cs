@@ -31,7 +31,14 @@ public class TicketService : ITicketService
 
         if (!string.IsNullOrWhiteSpace(registration.TicketPdfUrl))
         {
-            return registration.TicketPdfUrl;
+            byte[]? existingFile = await _fileStorageService.TryDownloadAsync(registration.TicketPdfUrl, cancellationToken);
+
+            if (existingFile is not null)
+            {
+                return registration.TicketPdfUrl;
+            }
+
+            _logger.LogWarning("EnsureTicketGeneratedAsync: registration {RegistrationId} had a TicketPdfUrl but the file no longer exists (probably wiped by a deploy) - regenerating.", registrationId);
         }
 
         if (registration.PaymentStatus != PaymentStatus.Paid)

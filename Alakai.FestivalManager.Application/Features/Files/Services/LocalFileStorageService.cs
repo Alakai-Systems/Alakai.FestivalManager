@@ -112,7 +112,19 @@ public class LocalFileStorageService : IFileStorageService
         return $"{_options.PublicBaseUrl.TrimEnd('/')}/{uniqueFileName}";
     }
 
-    public string? ResolveLocalPath(string publicUrl)
+    public async Task<byte[]?> TryDownloadAsync(string publicUrl, CancellationToken cancellationToken = default)
+    {
+        string? physicalPath = ResolveLocalPath(publicUrl);
+
+        if (physicalPath is null || !File.Exists(physicalPath))
+        {
+            return null;
+        }
+
+        return await File.ReadAllBytesAsync(physicalPath, cancellationToken);
+    }
+
+    private string? ResolveLocalPath(string publicUrl)
     {
         if (string.IsNullOrWhiteSpace(publicUrl))
         {

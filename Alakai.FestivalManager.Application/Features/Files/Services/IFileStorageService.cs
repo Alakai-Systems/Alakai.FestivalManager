@@ -11,8 +11,13 @@ public interface IFileStorageService
     /// <summary>Saves a non-image file (e.g. a generated PDF) as-is, without any image processing.</summary>
     Task<string> SaveFileAsync(Stream content, string fileName, CancellationToken cancellationToken = default);
 
-    /// <summary>Resolves a previously-returned public URL back to its physical file path on disk, or null if it doesn't match this storage's public base URL.</summary>
-    string? ResolveLocalPath(string publicUrl);
+    /// <summary>
+    /// Downloads the bytes of a previously-saved file from its public URL, or null if the
+    /// URL doesn't belong to this storage or the file no longer exists (e.g. wiped by a
+    /// deploy when using local disk storage). Works the same way regardless of the actual
+    /// storage backend (local disk, Azure Blob Storage, etc).
+    /// </summary>
+    Task<byte[]?> TryDownloadAsync(string publicUrl, CancellationToken cancellationToken = default);
 }
 
 public record SavedImageResult(string Url, int Width, int Height);

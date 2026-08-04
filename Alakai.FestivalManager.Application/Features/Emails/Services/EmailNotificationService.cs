@@ -1,7 +1,4 @@
 using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Application.Features.Files.Services;
 using Alakai.FestivalManager.Infrastructure.Email;
 
 namespace Alakai.FestivalManager.Application.Features.Emails.Services;
@@ -417,12 +414,10 @@ public class EmailNotificationService : IEmailNotificationService
                 try
                 {
                     string? ticketPdfUrl = await _ticketService.EnsureTicketGeneratedAsync(registrationId, cancellationToken);
-                    string? ticketLocalPath = ticketPdfUrl is null ? null : _fileStorageService.ResolveLocalPath(ticketPdfUrl);
+                    byte[]? ticketBytes = ticketPdfUrl is null ? null : await _fileStorageService.TryDownloadAsync(ticketPdfUrl, cancellationToken);
 
-                    if (ticketLocalPath is not null && File.Exists(ticketLocalPath))
+                    if (ticketBytes is not null)
                     {
-                        byte[] ticketBytes = await File.ReadAllBytesAsync(ticketLocalPath, cancellationToken);
-
                         message.Attachments.Add(new EmailAttachment
                         {
                             FileName = "ticket.pdf",

@@ -1,10 +1,3 @@
-using Alakai.FestivalManager.Application.Common.Exceptions;
-using Alakai.FestivalManager.Application.Features.Files.Services;
-using Alakai.FestivalManager.Application.Features.Invoices.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Features.Invoices.Services;
-using Alakai.FestivalManager.Application.Interfaces.Repositories;
-using Alakai.FestivalManager.Domain.Entities;
-
 namespace Alakai.FestivalManager.Application.Features.Invoices.Commands.UpdateInvoice;
 
 public class UpdateInvoiceHandler
@@ -44,12 +37,7 @@ public class UpdateInvoiceHandler
 
         if (template is not null && !string.IsNullOrWhiteSpace(template.LogoUrl))
         {
-            string? localPath = _fileStorageService.ResolveLocalPath(template.LogoUrl);
-
-            if (localPath is not null && File.Exists(localPath))
-            {
-                logoBytes = await File.ReadAllBytesAsync(localPath, cancellationToken);
-            }
+            logoBytes = await _fileStorageService.TryDownloadAsync(template.LogoUrl, cancellationToken);
         }
 
         InvoiceIssuerInfo issuer = new()

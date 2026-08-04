@@ -1,4 +1,5 @@
 using Alakai.FestivalManager.Infrastructure.BackgroundTasks;
+using Azure.Storage.Blobs;
 
 namespace Alakai.FestivalManager.Infrastructure.Extensions;
 
@@ -47,7 +48,19 @@ public static class InfrastructureDependencyInjectionExtension
         services.Configure<GoogleAnalyticsOptions>(configuration.GetSection("GoogleAnalytics"));
         services.AddSingleton<IAnalyticsClient, GoogleAnalyticsClient>();
         services.Configure<FileStorageOptions>(configuration.GetSection("FileStorage"));
-        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        services.Configure<AzureBlobStorageOptions>(configuration.GetSection("AzureBlobStorage"));
+
+        string azureBlobConnectionString = configuration["AzureBlobStorage:ConnString"] ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(azureBlobConnectionString))
+        {
+            services.AddScoped<IFileStorageService, LocalFileStorageService>();
+        }
+        else
+        {
+            services.AddSingleton(new BlobServiceClient(azureBlobConnectionString));
+            services.AddScoped<IFileStorageService, BlobFileStorageService>();
+        }
         services.AddScoped<IDiscountCodeRepository, DiscountCodeRepository>();
         services.AddScoped<IAuthRepository, AuthRepository>();
         services.AddScoped<IUserPanelRepository, UserPanelRepository>();
