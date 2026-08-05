@@ -12,11 +12,18 @@ public class UserPanelService : IUserPanelService
     private readonly ICompetitionCapacityRepository _competitionCapacityRepository;
     private readonly IEmailNotificationService _emailNotificationService;
     private readonly IInvoiceService _invoiceService;
+    private readonly IMealPreferenceService _mealPreferenceService;
+    private readonly IRegistrationFestivalInfoService _registrationFestivalInfoService;
+    private readonly IBusReservationService _busReservationService;
+    private readonly IBusService _busService;
+    private readonly IAccommodationReservationService _accommodationReservationService;
+    private readonly IAccommodationBuildingService _accommodationBuildingService;
     private readonly IMapper _mapper;
-    public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper, 
-        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository, 
+    public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper,
+        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository,
         ICompetitionCapacityRepository competitionCapacityRepository, IEmailNotificationService emailNotificationService,
-        IInvoiceService invoiceService)
+        IInvoiceService invoiceService, IMealPreferenceService mealPreferenceService, IRegistrationFestivalInfoService registrationFestivalInfoService,
+        IBusReservationService busReservationService, IBusService busService, IAccommodationReservationService accommodationReservationService, IAccommodationBuildingService accommodationBuildingService)
     {
         _userPanelRepository = userPanelRepository;
         _competitionEntryService = competitionEntryService;
@@ -26,6 +33,12 @@ public class UserPanelService : IUserPanelService
         _competitionCapacityRepository = competitionCapacityRepository;
         _emailNotificationService = emailNotificationService;
         _invoiceService = invoiceService;
+        _mealPreferenceService = mealPreferenceService;
+        _registrationFestivalInfoService = registrationFestivalInfoService;
+        _busReservationService = busReservationService;
+        _busService = busService;
+        _accommodationReservationService = accommodationReservationService;
+        _accommodationBuildingService = accommodationBuildingService;
     }
 
     public async Task<ApiResponse<GetUserPanelDashboardResponse>> GetDashboardAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
@@ -325,5 +338,256 @@ public class UserPanelService : IUserPanelService
         await _invoiceService.CreateAsync(command, cancellationToken);
 
         return await GetDashboardAsync(userId, null, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetMealPreferenceResponse>
+            {
+                Success = false,
+                Message = "Meal preference could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _mealPreferenceService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<SaveMealPreferenceResponse>
+            {
+                Success = false,
+                Message = "Meal preference could not be saved.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.RegistrationId = registration.Id;
+
+        return await _mealPreferenceService.SaveAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<RegistrationFestivalInfoDto>
+            {
+                Success = false,
+                Message = "Festival info could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _registrationFestivalInfoService.GetForRegistrationAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetBusReservationsResponse>> GetBusReservationsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetBusReservationsResponse>
+            {
+                Success = false,
+                Message = "Bus reservations could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _busReservationService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetBusesResponse>> GetAvailableBusesAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetBusesResponse>
+            {
+                Success = false,
+                Message = "Available buses could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _busService.GetAvailableForRegistrationAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetBusReservationsResponse>> CreateBusReservationsAsync(Guid userId, CreateBusReservationsCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetBusReservationsResponse>
+            {
+                Success = false,
+                Message = "Bus reservation could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.RegistrationId = registration.Id;
+
+        return await _busReservationService.CreateManyAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<CreateBusReservationResponse>> UpdateBusReservationAsync(Guid userId, Guid reservationId, UpdateBusReservationCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<CreateBusReservationResponse>
+            {
+                Success = false,
+                Message = "Bus reservation could not be updated.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.ReservationId = reservationId;
+        command.RequestingRegistrationId = registration.Id;
+
+        return await _busReservationService.UpdateAsync(command, isAdmin: false, cancellationToken);
+    }
+
+    public async Task<ApiResponse<DeleteBusReservationResponse>> DeleteBusReservationAsync(Guid userId, Guid reservationId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<DeleteBusReservationResponse>
+            {
+                Success = false,
+                Message = "Bus reservation could not be cancelled.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _busReservationService.DeleteAsync(reservationId, registration.Id, isAdmin: false, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetAccommodationReservationResponse>> GetAccommodationReservationAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _accommodationReservationService.GetByResponsibleRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetAccommodationBuildingsResponse>> GetAvailableAccommodationsAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetAccommodationBuildingsResponse>
+            {
+                Success = false,
+                Message = "Available accommodations could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _accommodationBuildingService.GetAvailableForRegistrationAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetAccommodationBuildingResponse>> GetAccommodationBuildingAsync(Guid buildingId, CancellationToken cancellationToken = default)
+    {
+        return await _accommodationBuildingService.GetByIdAsync(buildingId, cancellationToken);
+    }
+
+    public async Task<ApiResponse<CreateAccommodationReservationResponse>> CreateAccommodationReservationAsync(Guid userId, CreateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<CreateAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.ResponsibleRegistrationId = registration.Id;
+
+        return await _accommodationReservationService.CreateAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<CreateAccommodationReservationResponse>> UpdateAccommodationReservationAsync(Guid userId, Guid reservationId, UpdateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<CreateAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be updated.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.ReservationId = reservationId;
+        command.RequestingRegistrationId = registration.Id;
+
+        return await _accommodationReservationService.UpdateAsync(command, isAdmin: false, cancellationToken);
+    }
+
+    public async Task<ApiResponse<DeleteAccommodationReservationResponse>> DeleteAccommodationReservationAsync(Guid userId, Guid reservationId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<DeleteAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be cancelled.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _accommodationReservationService.DeleteAsync(reservationId, registration.Id, isAdmin: false, cancellationToken);
     }
 }

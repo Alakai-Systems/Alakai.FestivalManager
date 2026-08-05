@@ -18,7 +18,9 @@ public class CompetitionEntryRepository : ICompetitionEntryRepository
 
     public async Task<CompetitionEntry?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.CompetitionEntries.FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
+        return await _context.CompetitionEntries
+            .Include(e => e.Registration)
+            .FirstOrDefaultAsync(e => e.Id == id, cancellationToken);
     }
 
     public async Task<IReadOnlyList<CompetitionEntry>> GetAllAsync(CancellationToken cancellationToken = default)

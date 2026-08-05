@@ -13,10 +13,6 @@
 @inject UserPanelApiClient UserPanelApiClient
 @inject Alakai.FestivalManager.Admin.Services.Localisation.ITranslationService T
 @inject RegistrationApiClient RegistrationApiClient
-@inject AccommodationApiClient AccommodationApiClient
-@inject FestivalModuleApiClient FestivalModuleApiClient
-@inject BusApiClient BusApiClient
-@inject MealPreferenceApiClient MealPreferenceApiClient
 @inject PaymentApiClient PaymentApiClient
 @inject NavigationManager Navigation
 @inject IAuthApiClient AuthApiClient
@@ -1241,7 +1237,7 @@
 
         try
         {
-            MealPreferenceDto? preference = await MealPreferenceApiClient.GetByRegistrationAsync(Dashboard.Registration.Id);
+            MealPreferenceDto? preference = await UserPanelApiClient.GetMealPreferenceAsync();
 
             if (preference is not null && preference.HasPreference)
             {
@@ -1291,17 +1287,13 @@
                 AllergiesNotes = MealAllergiesNotes
             };
 
-            await MealPreferenceApiClient.SaveAsync(request);
+            await UserPanelApiClient.SaveMealPreferenceAsync(request);
             HasMealPreferenceSet = true;
             ShowMealSuccess(T.Get("up_meal_saved"));
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowMealError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowMealError(ex.Message);
+            ShowMealError(T.Get("up_meal_save_error"));
         }
         finally
         {
@@ -1376,8 +1368,8 @@
 
         try
         {
-            BusReservations = (await BusApiClient.GetReservationsByRegistrationAsync(Dashboard.Registration.Id)).ToList();
-            AvailableBuses = (await BusApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+            BusReservations = (await UserPanelApiClient.GetBusReservationsAsync()).ToList();
+            AvailableBuses = (await UserPanelApiClient.GetAvailableBusesAsync()).ToList();
             PendingBusSelection = new() { [1] = Guid.Empty, [2] = Guid.Empty };
         }
         catch
@@ -1423,17 +1415,13 @@
                 BusIds = busIds
             };
 
-            await BusApiClient.CreateReservationsAsync(request);
+            await UserPanelApiClient.CreateBusReservationsAsync(request);
             ShowBusSuccess(T.Get("up_bus_reserved"));
             await LoadBusDataAsync();
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowBusError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowBusError(ex.Message);
+            ShowBusError(T.Get("up_bus_reservation_error"));
         }
         finally
         {
@@ -1469,18 +1457,14 @@
                 RequestingRegistrationId = Dashboard.Registration.Id
             };
 
-            await BusApiClient.UpdateReservationAsync(editingBusReservation.Id, request, isAdmin: false);
+            await UserPanelApiClient.UpdateBusReservationAsync(editingBusReservation.Id, request);
             ShowBusSuccess(T.Get("up_bus_updated"));
             editingBusReservation = null;
             await LoadBusDataAsync();
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowBusError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowBusError(ex.Message);
+            ShowBusError(T.Get("up_bus_update_error"));
         }
         finally
         {
@@ -1509,14 +1493,14 @@
 
         try
         {
-            await BusApiClient.DeleteReservationAsync(cancellingBusReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+            await UserPanelApiClient.DeleteBusReservationAsync(cancellingBusReservation.Id);
             ShowBusSuccess(T.Get("up_bus_cancelled"));
             cancellingBusReservation = null;
             await LoadBusDataAsync();
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowBusError(ex.Message);
+            ShowBusError(T.Get("up_bus_cancel_error"));
         }
         finally
         {
@@ -1592,7 +1576,7 @@
 
         try
         {
-            EnabledFestivalModules = await FestivalModuleApiClient.GetEnabledModulesForRegistrationAsync(Dashboard.Registration.Id);
+            EnabledFestivalModules = await UserPanelApiClient.GetEnabledFestivalModulesAsync();
         }
         catch
         {
@@ -1612,15 +1596,15 @@
 
         try
         {
-            ExistingReservation = await AccommodationApiClient.GetReservationByRegistrationAsync(Dashboard.Registration.Id);
+            ExistingReservation = await UserPanelApiClient.GetAccommodationReservationAsync();
 
             if (ExistingReservation is null)
             {
-                AvailableAccommodationBuildings = (await AccommodationApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+                AvailableAccommodationBuildings = (await UserPanelApiClient.GetAvailableAccommodationsAsync()).ToList();
             }
             else
             {
-                SelectedBuildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(ExistingReservation.AccommodationBuildingId);
+                SelectedBuildingDetail = await UserPanelApiClient.GetAccommodationBuildingAsync(ExistingReservation.AccommodationBuildingId);
             }
         }
         catch
@@ -1646,11 +1630,11 @@
 
         try
         {
-            SelectedBuildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(SelectedAccommodationBuildingId);
+            SelectedBuildingDetail = await UserPanelApiClient.GetAccommodationBuildingAsync(SelectedAccommodationBuildingId);
         }
-        catch (Exception ex)
+        catch
         {
-            ShowAccommodationError(ex.Message);
+            ShowAccommodationError(T.Get("up_accommodation_load_error"));
         }
 
         if (SelectedBuildingType == 1)
@@ -1712,7 +1696,7 @@
                 }).ToList()
             };
 
-            await AccommodationApiClient.CreateReservationAsync(request);
+            await UserPanelApiClient.CreateAccommodationReservationAsync(request);
 
             ShowAccommodationSuccess(T.Get("up_accommodation_reserved"));
             SelectedAccommodationBuildingId = Guid.Empty;
@@ -1720,13 +1704,9 @@
             OccupantRows = [];
             await LoadAccommodationDataAsync();
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowAccommodationError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowAccommodationError(ex.Message);
+            ShowAccommodationError(T.Get("up_accommodation_reservation_error"));
         }
         finally
         {
@@ -1781,19 +1761,15 @@
                 }).ToList()
             };
 
-            await AccommodationApiClient.UpdateReservationAsync(ExistingReservation.Id, request, isAdmin: false);
+            await UserPanelApiClient.UpdateAccommodationReservationAsync(ExistingReservation.Id, request);
 
             ShowAccommodationSuccess(T.Get("up_accommodation_updated"));
             ShowEditAccommodationModal = false;
             await LoadAccommodationDataAsync();
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowAccommodationError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowAccommodationError(ex.Message);
+            ShowAccommodationError(T.Get("up_accommodation_update_error"));
         }
         finally
         {
@@ -1822,15 +1798,15 @@
 
         try
         {
-            await AccommodationApiClient.DeleteReservationAsync(ExistingReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+            await UserPanelApiClient.DeleteAccommodationReservationAsync(ExistingReservation.Id);
             ShowAccommodationSuccess(T.Get("up_reservation_cancelled"));
             ExistingReservation = null;
             ShowCancelAccommodationModal = false;
             await LoadAccommodationDataAsync();
         }
-        catch (ApiClientException ex)
+        catch
         {
-            ShowAccommodationError(ex.Message);
+            ShowAccommodationError(T.Get("up_accommodation_cancel_error"));
         }
         finally
         {
@@ -2704,8 +2680,8 @@
         if (competitionCapacityId == Guid.Empty)
         {
             CompetitionModalError = !SelectedCompetitionRequiresRole
-                ? "This competition has no capacity configured. Please create one in the admin panel."
-                : "Competition capacity could not be found for the selected level/role.";
+                ? T.Get("up_competition_no_capacity")
+                : T.Get("up_competition_capacity_not_found");
             await ShowCompetitionErrorAsync(CompetitionModalError);
             return;
         }
@@ -2714,7 +2690,7 @@
         {
             if (!EditingCompetitionEntryId.HasValue)
             {
-                CompetitionModalError = "Competition entry not found.";
+                CompetitionModalError = T.Get("up_competition_entry_not_found");
                 await ShowCompetitionErrorAsync(CompetitionModalError);
                 return;
             }
@@ -2740,9 +2716,9 @@
                 await LoadDashboardAsync();
                 await ShowCompetitionSuccessAsync(T.Get("up_competition_updated"));
             }
-            catch (Exception ex)
+            catch
             {
-                CompetitionModalError = ex.Message;
+                CompetitionModalError = T.Get("up_competition_update_error");
                 await ShowCompetitionErrorAsync(CompetitionModalError);
             }
 
@@ -2786,7 +2762,7 @@
     {
         if (!DeletingCompetitionEntryId.HasValue)
         {
-            CompetitionModalError = "Competition entry not found.";
+            CompetitionModalError = T.Get("up_competition_entry_not_found");
             await ShowCompetitionErrorAsync(CompetitionModalError);
             return;
         }
@@ -2800,7 +2776,7 @@
         }
         catch
         {
-            CompetitionModalError = "Competition entry could not be deleted.";
+            CompetitionModalError = T.Get("up_competition_delete_error");
             await ShowCompetitionErrorAsync(CompetitionModalError);
         }
     }
