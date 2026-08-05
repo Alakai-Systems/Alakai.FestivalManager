@@ -36,7 +36,7 @@ public class UserPanelApiClient
         return response.Data?.Dashboard;
     }
 
-    public async Task<UserPanelDashboardDto?> UpdateProfileAsync(UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserPanelDashboardDto?> UpdateProfileAsync(UpdateUserPanelProfileRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -47,7 +47,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync("api/user-panel/profile", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/profile"
+            : $"api/user-panel/profile?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<GetUserPanelDashboardResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
@@ -60,7 +64,7 @@ public class UserPanelApiClient
         return response.Data?.Dashboard;
     }
 
-    public async Task<UserPanelDashboardDto> CreateInvoiceAsync(CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    public async Task<UserPanelDashboardDto> CreateInvoiceAsync(CreateUserPanelInvoiceRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -71,7 +75,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/invoices", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/invoices"
+            : $"api/user-panel/invoices?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<GetUserPanelDashboardResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
@@ -85,7 +93,7 @@ public class UserPanelApiClient
         return response.Data.Dashboard;
     }
 
-    public async Task CreateCompetitionEntryAsync(CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    public async Task CreateCompetitionEntryAsync(CreateCompetitionEntryRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -96,7 +104,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/competition-entries", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/competition-entries"
+            : $"api/user-panel/competition-entries?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<GetUserPanelDashboardResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
@@ -108,7 +120,7 @@ public class UserPanelApiClient
         }
     }
 
-    public async Task UpdateCompetitionEntryAsync(Guid id, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    public async Task UpdateCompetitionEntryAsync(Guid id, UpdateCompetitionEntryRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -119,7 +131,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/user-panel/competition-entries/{id}", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/competition-entries/{id}"
+            : $"api/user-panel/competition-entries/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<GetUserPanelDashboardResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
@@ -131,7 +147,7 @@ public class UserPanelApiClient
         }
     }
 
-    public async Task DeleteCompetitionEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task DeleteCompetitionEntryAsync(Guid id, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -142,7 +158,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/user-panel/competition-entries/{id}", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/competition-entries/{id}"
+            : $"api/user-panel/competition-entries/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync(url, cancellationToken);
 
         ApiResponse<GetUserPanelDashboardResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
@@ -154,7 +174,7 @@ public class UserPanelApiClient
         }
     }
 
-    public async Task<MealPreferenceDto?> GetMealPreferenceAsync(CancellationToken cancellationToken = default)
+    public async Task<MealPreferenceDto?> GetMealPreferenceAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -165,7 +185,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<GetMealPreferenceResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetMealPreferenceResponse>>("api/user-panel/meal-preference", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/meal-preference"
+            : $"api/user-panel/meal-preference?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetMealPreferenceResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetMealPreferenceResponse>>(url, cancellationToken);
 
         if (response?.Success is not true)
         {
@@ -175,7 +199,7 @@ public class UserPanelApiClient
         return response.Data?.Preference;
     }
 
-    public async Task<MealPreferenceDto?> SaveMealPreferenceAsync(SaveMealPreferenceRequest request, CancellationToken cancellationToken = default)
+    public async Task<MealPreferenceDto?> SaveMealPreferenceAsync(SaveMealPreferenceRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -186,7 +210,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/meal-preference", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/meal-preference"
+            : $"api/user-panel/meal-preference?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<SaveMealPreferenceResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<SaveMealPreferenceResponse>>(cancellationToken);
@@ -200,7 +228,7 @@ public class UserPanelApiClient
         return response.Data?.Preference;
     }
 
-    public async Task<int> GetEnabledFestivalModulesAsync(CancellationToken cancellationToken = default)
+    public async Task<int> GetEnabledFestivalModulesAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -211,7 +239,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<RegistrationFestivalInfoDto>? response = await _httpClient.GetFromJsonAsync<ApiResponse<RegistrationFestivalInfoDto>>("api/user-panel/festival-modules", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/festival-modules"
+            : $"api/user-panel/festival-modules?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<RegistrationFestivalInfoDto>? response = await _httpClient.GetFromJsonAsync<ApiResponse<RegistrationFestivalInfoDto>>(url, cancellationToken);
 
         if (response?.Success is not true || response.Data is null)
         {
@@ -221,7 +253,7 @@ public class UserPanelApiClient
         return response.Data.EnabledModules;
     }
 
-    public async Task<IReadOnlyList<BusReservationDto>> GetBusReservationsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BusReservationDto>> GetBusReservationsAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -232,7 +264,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<GetBusReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusReservationsResponse>>("api/user-panel/bus-reservations", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/bus-reservations"
+            : $"api/user-panel/bus-reservations?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetBusReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusReservationsResponse>>(url, cancellationToken);
 
         if (response?.Success is not true)
         {
@@ -242,7 +278,7 @@ public class UserPanelApiClient
         return response.Data?.Reservations ?? [];
     }
 
-    public async Task<IReadOnlyList<BusDto>> GetAvailableBusesAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BusDto>> GetAvailableBusesAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -253,7 +289,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<GetBusesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusesResponse>>("api/user-panel/available-buses", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/available-buses"
+            : $"api/user-panel/available-buses?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetBusesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusesResponse>>(url, cancellationToken);
 
         if (response?.Success is not true)
         {
@@ -263,7 +303,7 @@ public class UserPanelApiClient
         return response.Data?.Buses ?? [];
     }
 
-    public async Task<IReadOnlyList<BusReservationDto>> CreateBusReservationsAsync(CreateBusReservationsRequest request, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BusReservationDto>> CreateBusReservationsAsync(CreateBusReservationsRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -274,7 +314,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/bus-reservations", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/bus-reservations"
+            : $"api/user-panel/bus-reservations?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<GetBusReservationsResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetBusReservationsResponse>>(cancellationToken);
@@ -288,7 +332,7 @@ public class UserPanelApiClient
         return response.Data?.Reservations ?? [];
     }
 
-    public async Task<BusReservationDto?> UpdateBusReservationAsync(Guid id, UpdateBusReservationRequest request, CancellationToken cancellationToken = default)
+    public async Task<BusReservationDto?> UpdateBusReservationAsync(Guid id, UpdateBusReservationRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -299,7 +343,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/user-panel/bus-reservations/{id}", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/bus-reservations/{id}"
+            : $"api/user-panel/bus-reservations/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<CreateBusReservationResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<CreateBusReservationResponse>>(cancellationToken);
@@ -313,7 +361,7 @@ public class UserPanelApiClient
         return response.Data?.Reservation;
     }
 
-    public async Task DeleteBusReservationAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task DeleteBusReservationAsync(Guid id, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -324,7 +372,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/user-panel/bus-reservations/{id}", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/bus-reservations/{id}"
+            : $"api/user-panel/bus-reservations/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync(url, cancellationToken);
 
         ApiResponse<DeleteBusReservationResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<DeleteBusReservationResponse>>(cancellationToken);
@@ -336,7 +388,7 @@ public class UserPanelApiClient
         }
     }
 
-    public async Task<AccommodationReservationDto?> GetAccommodationReservationAsync(CancellationToken cancellationToken = default)
+    public async Task<AccommodationReservationDto?> GetAccommodationReservationAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -347,7 +399,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<GetAccommodationReservationResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationReservationResponse>>("api/user-panel/accommodation-reservation", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/accommodation-reservation"
+            : $"api/user-panel/accommodation-reservation?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetAccommodationReservationResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationReservationResponse>>(url, cancellationToken);
 
         if (response?.Success is not true)
         {
@@ -357,7 +413,7 @@ public class UserPanelApiClient
         return response.Data?.Reservation;
     }
 
-    public async Task<IReadOnlyList<AccommodationBuildingSummaryDto>> GetAvailableAccommodationsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<AccommodationBuildingSummaryDto>> GetAvailableAccommodationsAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -368,7 +424,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        ApiResponse<GetAccommodationBuildingsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingsResponse>>("api/user-panel/available-accommodations", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/available-accommodations"
+            : $"api/user-panel/available-accommodations?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetAccommodationBuildingsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingsResponse>>(url, cancellationToken);
 
         if (response?.Success is not true)
         {
@@ -399,7 +459,7 @@ public class UserPanelApiClient
         return response.Data?.Building;
     }
 
-    public async Task<AccommodationReservationDto?> CreateAccommodationReservationAsync(CreateAccommodationReservationRequest request, CancellationToken cancellationToken = default)
+    public async Task<AccommodationReservationDto?> CreateAccommodationReservationAsync(CreateAccommodationReservationRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -410,7 +470,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/accommodation-reservation", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/accommodation-reservation"
+            : $"api/user-panel/accommodation-reservation?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<CreateAccommodationReservationResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<CreateAccommodationReservationResponse>>(cancellationToken);
@@ -424,7 +488,7 @@ public class UserPanelApiClient
         return response.Data?.Reservation;
     }
 
-    public async Task<AccommodationReservationDto?> UpdateAccommodationReservationAsync(Guid id, UpdateAccommodationReservationRequest request, CancellationToken cancellationToken = default)
+    public async Task<AccommodationReservationDto?> UpdateAccommodationReservationAsync(Guid id, UpdateAccommodationReservationRequest request, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -435,7 +499,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/user-panel/accommodation-reservation/{id}", request, cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/accommodation-reservation/{id}"
+            : $"api/user-panel/accommodation-reservation/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
 
         ApiResponse<CreateAccommodationReservationResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<CreateAccommodationReservationResponse>>(cancellationToken);
@@ -449,7 +517,7 @@ public class UserPanelApiClient
         return response.Data?.Reservation;
     }
 
-    public async Task DeleteAccommodationReservationAsync(Guid id, CancellationToken cancellationToken = default)
+    public async Task DeleteAccommodationReservationAsync(Guid id, string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();
 
@@ -460,7 +528,11 @@ public class UserPanelApiClient
 
         _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/user-panel/accommodation-reservation/{id}", cancellationToken);
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/accommodation-reservation/{id}"
+            : $"api/user-panel/accommodation-reservation/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync(url, cancellationToken);
 
         ApiResponse<DeleteAccommodationReservationResponse>? response =
             await httpResponse.Content.ReadFromJsonAsync<ApiResponse<DeleteAccommodationReservationResponse>>(cancellationToken);

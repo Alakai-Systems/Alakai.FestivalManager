@@ -33,7 +33,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPut("profile")]
-    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateProfile([FromBody] UpdateUserPanelProfileRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateProfile([FromQuery] string? domain, [FromBody] UpdateUserPanelProfileRequest request, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -42,7 +42,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateProfileAsync(userId, request, cancellationToken);
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateProfileAsync(userId, domain, request, cancellationToken);
 
         if (!response.Success)
         {
@@ -53,7 +53,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPost("competition-entries")]
-    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateCompetitionEntry([FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateCompetitionEntry([FromQuery] string? domain, [FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -62,7 +62,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateCompetitionEntryAsync(userId, request, cancellationToken);
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateCompetitionEntryAsync(userId, domain, request, cancellationToken);
 
         if (!response.Success)
         {
@@ -73,7 +73,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPut("competition-entries/{id:guid}")]
-    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry(Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry([FromQuery] string? domain, Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -82,7 +82,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateCompetitionEntryAsync(userId, id, request, cancellationToken);
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateCompetitionEntryAsync(userId, domain, id, request, cancellationToken);
 
         if (!response.Success)
         {
@@ -93,7 +93,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpDelete("competition-entries/{id:guid}")]
-    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> DeleteCompetitionEntry(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> DeleteCompetitionEntry([FromQuery] string? domain, Guid id, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -102,7 +102,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.DeleteCompetitionEntryAsync(userId, id, cancellationToken);
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.DeleteCompetitionEntryAsync(userId, domain, id, cancellationToken);
 
         if (!response.Success)
         {
@@ -113,7 +113,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPost("invoices")]
-    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateInvoice([FromBody] CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateInvoice([FromQuery] string? domain, [FromBody] CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -122,7 +122,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateInvoiceAsync(userId, request, cancellationToken);
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateInvoiceAsync(userId, domain, request, cancellationToken);
 
         if (!response.Success)
         {
@@ -133,7 +133,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("meal-preference")]
-    public async Task<ActionResult<ApiResponse<GetMealPreferenceResponse>>> GetMealPreference(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetMealPreferenceResponse>>> GetMealPreference([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -142,7 +142,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetMealPreferenceResponse> response = await _userPanelService.GetMealPreferenceAsync(userId, cancellationToken);
+        ApiResponse<GetMealPreferenceResponse> response = await _userPanelService.GetMealPreferenceAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
@@ -153,7 +153,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPost("meal-preference")]
-    public async Task<ActionResult<ApiResponse<SaveMealPreferenceResponse>>> SaveMealPreference([FromBody] SaveMealPreferenceCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<SaveMealPreferenceResponse>>> SaveMealPreference([FromQuery] string? domain, [FromBody] SaveMealPreferenceCommand command, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -162,7 +162,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<SaveMealPreferenceResponse> response = await _userPanelService.SaveMealPreferenceAsync(userId, command, cancellationToken);
+        ApiResponse<SaveMealPreferenceResponse> response = await _userPanelService.SaveMealPreferenceAsync(userId, domain, command, cancellationToken);
 
         if (!response.Success)
         {
@@ -173,7 +173,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("festival-modules")]
-    public async Task<ActionResult<ApiResponse<RegistrationFestivalInfoDto>>> GetFestivalModules(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<RegistrationFestivalInfoDto>>> GetFestivalModules([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -182,7 +182,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<RegistrationFestivalInfoDto> response = await _userPanelService.GetFestivalModulesAsync(userId, cancellationToken);
+        ApiResponse<RegistrationFestivalInfoDto> response = await _userPanelService.GetFestivalModulesAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
@@ -193,7 +193,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("bus-reservations")]
-    public async Task<ActionResult<ApiResponse<GetBusReservationsResponse>>> GetBusReservations(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetBusReservationsResponse>>> GetBusReservations([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -202,7 +202,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetBusReservationsResponse> response = await _userPanelService.GetBusReservationsAsync(userId, cancellationToken);
+        ApiResponse<GetBusReservationsResponse> response = await _userPanelService.GetBusReservationsAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
@@ -213,7 +213,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("available-buses")]
-    public async Task<ActionResult<ApiResponse<GetBusesResponse>>> GetAvailableBuses(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetBusesResponse>>> GetAvailableBuses([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -222,7 +222,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetBusesResponse> response = await _userPanelService.GetAvailableBusesAsync(userId, cancellationToken);
+        ApiResponse<GetBusesResponse> response = await _userPanelService.GetAvailableBusesAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
@@ -233,7 +233,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPost("bus-reservations")]
-    public async Task<ActionResult<ApiResponse<GetBusReservationsResponse>>> CreateBusReservations([FromBody] CreateBusReservationsCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetBusReservationsResponse>>> CreateBusReservations([FromQuery] string? domain, [FromBody] CreateBusReservationsCommand command, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -242,7 +242,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetBusReservationsResponse> response = await _userPanelService.CreateBusReservationsAsync(userId, command, cancellationToken);
+        ApiResponse<GetBusReservationsResponse> response = await _userPanelService.CreateBusReservationsAsync(userId, domain, command, cancellationToken);
 
         if (!response.Success)
         {
@@ -253,7 +253,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPut("bus-reservations/{id:guid}")]
-    public async Task<ActionResult<ApiResponse<CreateBusReservationResponse>>> UpdateBusReservation(Guid id, [FromBody] UpdateBusReservationCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<CreateBusReservationResponse>>> UpdateBusReservation([FromQuery] string? domain, Guid id, [FromBody] UpdateBusReservationCommand command, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -262,7 +262,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<CreateBusReservationResponse> response = await _userPanelService.UpdateBusReservationAsync(userId, id, command, cancellationToken);
+        ApiResponse<CreateBusReservationResponse> response = await _userPanelService.UpdateBusReservationAsync(userId, domain, id, command, cancellationToken);
 
         if (!response.Success)
         {
@@ -273,7 +273,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpDelete("bus-reservations/{id:guid}")]
-    public async Task<ActionResult<ApiResponse<DeleteBusReservationResponse>>> DeleteBusReservation(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<DeleteBusReservationResponse>>> DeleteBusReservation([FromQuery] string? domain, Guid id, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -282,7 +282,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<DeleteBusReservationResponse> response = await _userPanelService.DeleteBusReservationAsync(userId, id, cancellationToken);
+        ApiResponse<DeleteBusReservationResponse> response = await _userPanelService.DeleteBusReservationAsync(userId, domain, id, cancellationToken);
 
         if (!response.Success)
         {
@@ -293,7 +293,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("accommodation-reservation")]
-    public async Task<ActionResult<ApiResponse<GetAccommodationReservationResponse>>> GetAccommodationReservation(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetAccommodationReservationResponse>>> GetAccommodationReservation([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -302,7 +302,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetAccommodationReservationResponse> response = await _userPanelService.GetAccommodationReservationAsync(userId, cancellationToken);
+        ApiResponse<GetAccommodationReservationResponse> response = await _userPanelService.GetAccommodationReservationAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
@@ -313,7 +313,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpGet("available-accommodations")]
-    public async Task<ActionResult<ApiResponse<GetAccommodationBuildingsResponse>>> GetAvailableAccommodations(CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<GetAccommodationBuildingsResponse>>> GetAvailableAccommodations([FromQuery] string? domain, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -322,7 +322,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<GetAccommodationBuildingsResponse> response = await _userPanelService.GetAvailableAccommodationsAsync(userId, cancellationToken);
+        ApiResponse<GetAccommodationBuildingsResponse> response = await _userPanelService.GetAvailableAccommodationsAsync(userId, domain, cancellationToken);
 
         if (!response.Success)
         {
@@ -353,7 +353,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPost("accommodation-reservation")]
-    public async Task<ActionResult<ApiResponse<CreateAccommodationReservationResponse>>> CreateAccommodationReservation([FromBody] CreateAccommodationReservationCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<CreateAccommodationReservationResponse>>> CreateAccommodationReservation([FromQuery] string? domain, [FromBody] CreateAccommodationReservationCommand command, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -362,7 +362,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<CreateAccommodationReservationResponse> response = await _userPanelService.CreateAccommodationReservationAsync(userId, command, cancellationToken);
+        ApiResponse<CreateAccommodationReservationResponse> response = await _userPanelService.CreateAccommodationReservationAsync(userId, domain, command, cancellationToken);
 
         if (!response.Success)
         {
@@ -373,7 +373,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpPut("accommodation-reservation/{id:guid}")]
-    public async Task<ActionResult<ApiResponse<CreateAccommodationReservationResponse>>> UpdateAccommodationReservation(Guid id, [FromBody] UpdateAccommodationReservationCommand command, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<CreateAccommodationReservationResponse>>> UpdateAccommodationReservation([FromQuery] string? domain, Guid id, [FromBody] UpdateAccommodationReservationCommand command, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -382,7 +382,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<CreateAccommodationReservationResponse> response = await _userPanelService.UpdateAccommodationReservationAsync(userId, id, command, cancellationToken);
+        ApiResponse<CreateAccommodationReservationResponse> response = await _userPanelService.UpdateAccommodationReservationAsync(userId, domain, id, command, cancellationToken);
 
         if (!response.Success)
         {
@@ -393,7 +393,7 @@ public class UserPanelController : ControllerBase
     }
 
     [HttpDelete("accommodation-reservation/{id:guid}")]
-    public async Task<ActionResult<ApiResponse<DeleteAccommodationReservationResponse>>> DeleteAccommodationReservation(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ApiResponse<DeleteAccommodationReservationResponse>>> DeleteAccommodationReservation([FromQuery] string? domain, Guid id, CancellationToken cancellationToken)
     {
         string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
@@ -402,7 +402,7 @@ public class UserPanelController : ControllerBase
             return Unauthorized();
         }
 
-        ApiResponse<DeleteAccommodationReservationResponse> response = await _userPanelService.DeleteAccommodationReservationAsync(userId, id, cancellationToken);
+        ApiResponse<DeleteAccommodationReservationResponse> response = await _userPanelService.DeleteAccommodationReservationAsync(userId, domain, id, cancellationToken);
 
         if (!response.Success)
         {

@@ -188,9 +188,9 @@ public class UserPanelService : IUserPanelService
         };
     }
 
-    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, string? domain, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -212,10 +212,10 @@ public class UserPanelService : IUserPanelService
 
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registration.Id, cancellationToken);
 
-        return await GetDashboardAsync(userId, null, cancellationToken);
+        return await GetDashboardAsync(userId, domain, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, string? domain, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
     {
         CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
 
@@ -241,10 +241,10 @@ public class UserPanelService : IUserPanelService
 
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registrationId, cancellationToken);
 
-        return await GetDashboardAsync(userId, null, cancellationToken);
+        return await GetDashboardAsync(userId, domain, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, Guid competitionEntryId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, string? domain, Guid competitionEntryId, CancellationToken cancellationToken = default)
     {
         CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
 
@@ -265,10 +265,10 @@ public class UserPanelService : IUserPanelService
 
         await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, registrationId, cancellationToken);
 
-        return await GetDashboardAsync(userId, null, cancellationToken);
+        return await GetDashboardAsync(userId, domain, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, string? domain, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
     {
         User? user = await _userPanelRepository.GetUserByIdAsync(userId, cancellationToken);
 
@@ -283,7 +283,7 @@ public class UserPanelService : IUserPanelService
             };
         }
 
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         user.FirstName = request.FirstName;
         user.LastName = request.LastName;
@@ -306,12 +306,12 @@ public class UserPanelService : IUserPanelService
 
         await _userPanelRepository.SaveChangesAsync(cancellationToken);
 
-        return await GetDashboardAsync(userId, null, cancellationToken);
+        return await GetDashboardAsync(userId, domain, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, string? domain, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -337,12 +337,12 @@ public class UserPanelService : IUserPanelService
 
         await _invoiceService.CreateAsync(command, cancellationToken);
 
-        return await GetDashboardAsync(userId, null, cancellationToken);
+        return await GetDashboardAsync(userId, domain, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -358,9 +358,9 @@ public class UserPanelService : IUserPanelService
         return await _mealPreferenceService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
     }
 
-    public async Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, string? domain, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -378,9 +378,9 @@ public class UserPanelService : IUserPanelService
         return await _mealPreferenceService.SaveAsync(command, cancellationToken);
     }
 
-    public async Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -396,9 +396,9 @@ public class UserPanelService : IUserPanelService
         return await _registrationFestivalInfoService.GetForRegistrationAsync(registration.Id, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetBusReservationsResponse>> GetBusReservationsAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetBusReservationsResponse>> GetBusReservationsAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -414,9 +414,9 @@ public class UserPanelService : IUserPanelService
         return await _busReservationService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetBusesResponse>> GetAvailableBusesAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetBusesResponse>> GetAvailableBusesAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -432,9 +432,9 @@ public class UserPanelService : IUserPanelService
         return await _busService.GetAvailableForRegistrationAsync(registration.Id, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetBusReservationsResponse>> CreateBusReservationsAsync(Guid userId, CreateBusReservationsCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetBusReservationsResponse>> CreateBusReservationsAsync(Guid userId, string? domain, CreateBusReservationsCommand command, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -452,9 +452,9 @@ public class UserPanelService : IUserPanelService
         return await _busReservationService.CreateManyAsync(command, cancellationToken);
     }
 
-    public async Task<ApiResponse<CreateBusReservationResponse>> UpdateBusReservationAsync(Guid userId, Guid reservationId, UpdateBusReservationCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<CreateBusReservationResponse>> UpdateBusReservationAsync(Guid userId, string? domain, Guid reservationId, UpdateBusReservationCommand command, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -473,9 +473,9 @@ public class UserPanelService : IUserPanelService
         return await _busReservationService.UpdateAsync(command, isAdmin: false, cancellationToken);
     }
 
-    public async Task<ApiResponse<DeleteBusReservationResponse>> DeleteBusReservationAsync(Guid userId, Guid reservationId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<DeleteBusReservationResponse>> DeleteBusReservationAsync(Guid userId, string? domain, Guid reservationId, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -491,9 +491,9 @@ public class UserPanelService : IUserPanelService
         return await _busReservationService.DeleteAsync(reservationId, registration.Id, isAdmin: false, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetAccommodationReservationResponse>> GetAccommodationReservationAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetAccommodationReservationResponse>> GetAccommodationReservationAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -509,9 +509,9 @@ public class UserPanelService : IUserPanelService
         return await _accommodationReservationService.GetByResponsibleRegistrationIdAsync(registration.Id, cancellationToken);
     }
 
-    public async Task<ApiResponse<GetAccommodationBuildingsResponse>> GetAvailableAccommodationsAsync(Guid userId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<GetAccommodationBuildingsResponse>> GetAvailableAccommodationsAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -532,9 +532,9 @@ public class UserPanelService : IUserPanelService
         return await _accommodationBuildingService.GetByIdAsync(buildingId, cancellationToken);
     }
 
-    public async Task<ApiResponse<CreateAccommodationReservationResponse>> CreateAccommodationReservationAsync(Guid userId, CreateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<CreateAccommodationReservationResponse>> CreateAccommodationReservationAsync(Guid userId, string? domain, CreateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -552,9 +552,9 @@ public class UserPanelService : IUserPanelService
         return await _accommodationReservationService.CreateAsync(command, cancellationToken);
     }
 
-    public async Task<ApiResponse<CreateAccommodationReservationResponse>> UpdateAccommodationReservationAsync(Guid userId, Guid reservationId, UpdateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<CreateAccommodationReservationResponse>> UpdateAccommodationReservationAsync(Guid userId, string? domain, Guid reservationId, UpdateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {
@@ -573,9 +573,9 @@ public class UserPanelService : IUserPanelService
         return await _accommodationReservationService.UpdateAsync(command, isAdmin: false, cancellationToken);
     }
 
-    public async Task<ApiResponse<DeleteAccommodationReservationResponse>> DeleteAccommodationReservationAsync(Guid userId, Guid reservationId, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<DeleteAccommodationReservationResponse>> DeleteAccommodationReservationAsync(Guid userId, string? domain, Guid reservationId, CancellationToken cancellationToken = default)
     {
-        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
 
         if (registration is null)
         {

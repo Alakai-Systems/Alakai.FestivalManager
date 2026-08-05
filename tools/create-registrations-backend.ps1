@@ -1,56 +1,67 @@
 <#
 .SINOPSIS
-  Segundo y ultimo fix pendiente de "comida, autobuses y alojamiento": este
-  cubre AUTOBUSES y ALOJAMIENTO (el de comida y modulos del festival era el
-  script 28, ya aplicado).
+  FIX RAIZ: modulos (comida/bus/alojamiento) que desaparecen en el panel de
+  usuario para festivales como Swim Out, y en general cualquier accion del
+  panel de usuario para participantes con MAS DE UN registro (en distintos
+  festivales).
 
-  DIAGNOSTICO (mismo patron ya visto tres veces):
-    - BusApiClient y AccommodationApiClient (usados por el panel de
-      participante) SIEMPRE mandan el token de Admin (IAdminTokenProvider)
-      contra "api/buses", "api/bus-reservations", "api/accommodation-buildings"
-      y "api/accommodation-reservations", todos [Authorize(Roles=
-      "SuperAdmin,Admin")]. Un participante real recibe 401 siempre que
-      intenta reservar autobus o alojamiento, ver los disponibles, editar su
-      reserva o cancelarla.
+  DIAGNOSTICO (nuevo, distinto de los 401 anteriores):
+    GetLatestRegistrationByUserIdAsync(userId, domain, ...) en
+    UserPanelRepository resuelve "el registro del usuario": si se le pasa el
+    dominio del festival actual, busca el registro de ESE festival; si se le
+    pasa null, devuelve el registro mas reciente del usuario EN CUALQUIER
+    FESTIVAL. GetDashboardAsync ya hacia esto bien (usa
+    new Uri(Navigation.BaseUri).Host como dominio). Pero TODOS los demas
+    metodos del panel de usuario (comida, modulos del festival, autobuses,
+    alojamiento, competiciones, perfil, facturas) llaman a este metodo con
+    domain: null a pelo. Para un participante con un solo registro nunca se
+    nota. Para un participante registrado en MAS DE UN festival (como
+    aparentemente el caso de Swim Out), "el registro mas reciente" puede ser
+    el de OTRO festival, y entonces:
+      - GetFestivalModulesAsync devuelve los modulos habilitados del festival
+        equivocado -> el panel de Swim Out no muestra comida/bus/alojamiento
+        aunque esten activados alli.
+      - UpdateBusReservationAsync / DeleteBusReservationAsync /
+        UpdateAccommodationReservationAsync / DeleteAccommodationReservationAsync
+        rechazan la operacion con "Only the person who made this reservation
+        can modify it." aunque el usuario sea el dueno real, porque comparan
+        contra el ID de registro equivocado.
+      - UpdateProfileAsync y CreateInvoiceAsync (estos dos NO se tocaron en
+        ningun script de esta serie, ya tenian este fallo de antes) tambien
+        actualizan/facturan sobre el registro equivocado.
 
-  FIX: mismo patron que competiciones y comida - nuevos endpoints en
-  UserPanelController que resuelven el registro del usuario autenticado en
-  el SERVIDOR (nunca confiando en lo que mande el cliente) y llaman a los
-  servicios que YA EXISTEN y funcionan (IBusReservationService, IBusService,
-  IAccommodationReservationService, IAccommodationBuildingService) - toda la
-  logica de negocio (capacidad, tipos de pase permitidos, "ya tienes una
-  reserva para esta direccion", propiedad de la reserva vía isAdmin /
-  RequestingRegistrationId) ya existe y esta probada; solo hay que cablearlo
-  de forma segura, exactamente igual que se hizo con competiciones y comida.
-
-  De paso corrige el mismo problema de mensajes de error sin traducir
-  (ex.Message mostrado directamente) en los 7 catch de autobuses/alojamiento
-  del panel, con las traducciones anadidas a los 4 idiomas - igual que se
-  hizo en los scripts 27 y 28.
+  FIX: igual que ya funciona en GetDashboardAsync, se pasa el "domain" (el
+  Host actual del participante) a traves de TODA la cadena: Razor ->
+  UserPanelApiClient -> query string "?domain=..." -> UserPanelController
+  ([FromQuery] string? domain) -> UserPanelService -> repositorio. Ningun
+  metodo cambia su logica de negocio, solo dejan de asumir "el registro mas
+  reciente sin mas" y usan "el registro de ESTE festival".
 
   Archivos que modifica:
-    - Application\Features\UserPanel\Services\IUserPanelService.cs   (+10 firmas)
-    - Application\Features\UserPanel\Services\UserPanelService.cs    (+4 dependencias, +10 metodos)
-    - Api\Controllers\UserPanelController.cs                         (+11 endpoints)
-    - Admin\Services\Api\UserPanelApiClient.cs                       (+11 metodos)
-    - Admin\Components\Pages\UserPanelDashboard\UserPanel.razor      (usa UserPanelApiClient,
-                                                                        quita los 2 @inject que se quedan sin uso,
-                                                                        7 catch usan T.Get() en vez de ex.Message)
-    - wwwroot\i18n\en.json / es.json / fr.json / ca.json             (+7 claves nuevas x 4 idiomas)
+    - Application\Features\UserPanel\Services\IUserPanelService.cs   (18 firmas +domain)
+    - Application\Features\UserPanel\Services\UserPanelService.cs    (18 metodos +domain)
+    - Api\Controllers\UserPanelController.cs                         (18 endpoints +domain)
+    - Admin\Services\Api\UserPanelApiClient.cs                       (18 metodos +domain, igual que ya hace GetDashboardAsync)
+    - Admin\Components\Pages\UserPanelDashboard\UserPanel.razor      (variable local currentDomain -> campo CurrentDomain,
+                                                                        19 puntos de llamada pasan CurrentDomain)
+
+  No cambia NADA de la logica de negocio, capacidad, permisos ni mensajes de
+  error - solo corrige que registro se resuelve como "el mio".
 
   Idempotente.
 
 .USO
   Ejecutar desde la raiz del repo:
-    .\29-userpanel-bus-accommodation.ps1
+    .\30-userpanel-domain-scoping-fix.ps1
 
-  Luego: dotnet build (Api y Admin, deben compilar limpio), redeploy de
-  AMBOS App Services.
+  Luego: dotnet build (Api, Application y Admin, deben compilar limpio),
+  redeploy de AMBOS App Services.
 
-  Verificacion: como PARTICIPANTE, reserva un autobus, edita esa reserva,
-  cancelala; reserva un alojamiento, edita la reserva, cancelala. Antes daba
-  401 en todo. Los mensajes de error deben salir traducidos, no en ingles
-  en crudo.
+  Verificacion: con un usuario registrado en MAS DE UN festival (como el que
+  reporto el problema en Swim Out), entrar al panel de Swim Out y comprobar
+  que aparecen los modulos de comida/bus/alojamiento si estan activados alli.
+  Tambien: reservar/editar/cancelar bus y alojamiento debe seguir funcionando
+  sin el falso "Only the person who made this reservation can modify it.".
 #>
 
 function Patch-File {
@@ -108,22 +119,20 @@ $ServicePath    = ".\Alakai.FestivalManager.Application\Features\UserPanel\Servi
 $ControllerPath = ".\Alakai.FestivalManager.Api\Controllers\UserPanelController.cs"
 $ApiClientPath  = ".\Alakai.FestivalManager.Admin\Services\Api\UserPanelApiClient.cs"
 $RazorPath      = ".\Alakai.FestivalManager.Admin\Components\Pages\UserPanelDashboard\UserPanel.razor"
-$EnPath         = ".\Alakai.FestivalManager.Admin\wwwroot\i18n\en.json"
-$EsPath         = ".\Alakai.FestivalManager.Admin\wwwroot\i18n\es.json"
-$FrPath         = ".\Alakai.FestivalManager.Admin\wwwroot\i18n\fr.json"
-$CaPath         = ".\Alakai.FestivalManager.Admin\wwwroot\i18n\ca.json"
-
 # ----------------------------------------------------------------------------
-# 1. IUserPanelService: +10 firmas
+# 1. IUserPanelService: 18 firmas +domain
 # ----------------------------------------------------------------------------
 Patch-File `
     -Path $IServicePath `
-    -Description "+10 firmas (autobuses, alojamiento)" `
+    -Description "+domain en 18 firmas" `
     -OldString @'
-    Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, CancellationToken cancellationToken = default);
-}
-'@ `
-    -NewString @'
+    Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, Guid competitionEntryId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<ApiResponse<GetBusReservationsResponse>> GetBusReservationsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<ApiResponse<GetBusesResponse>> GetAvailableBusesAsync(Guid userId, CancellationToken cancellationToken = default);
@@ -136,79 +145,241 @@ Patch-File `
     Task<ApiResponse<CreateAccommodationReservationResponse>> CreateAccommodationReservationAsync(Guid userId, CreateAccommodationReservationCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<CreateAccommodationReservationResponse>> UpdateAccommodationReservationAsync(Guid userId, Guid reservationId, UpdateAccommodationReservationCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<DeleteAccommodationReservationResponse>> DeleteAccommodationReservationAsync(Guid userId, Guid reservationId, CancellationToken cancellationToken = default);
-}
+'@ `
+    -NewString @'
+    Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, string? domain, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, string? domain, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, string? domain, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, string? domain, Guid competitionEntryId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, string? domain, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, string? domain, CancellationToken cancellationToken = default);
+    Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, string? domain, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, string? domain, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetBusReservationsResponse>> GetBusReservationsAsync(Guid userId, string? domain, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetBusesResponse>> GetAvailableBusesAsync(Guid userId, string? domain, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetBusReservationsResponse>> CreateBusReservationsAsync(Guid userId, string? domain, CreateBusReservationsCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<CreateBusReservationResponse>> UpdateBusReservationAsync(Guid userId, string? domain, Guid reservationId, UpdateBusReservationCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<DeleteBusReservationResponse>> DeleteBusReservationAsync(Guid userId, string? domain, Guid reservationId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetAccommodationReservationResponse>> GetAccommodationReservationAsync(Guid userId, string? domain, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetAccommodationBuildingsResponse>> GetAvailableAccommodationsAsync(Guid userId, string? domain, CancellationToken cancellationToken = default);
+    Task<ApiResponse<GetAccommodationBuildingResponse>> GetAccommodationBuildingAsync(Guid buildingId, CancellationToken cancellationToken = default);
+    Task<ApiResponse<CreateAccommodationReservationResponse>> CreateAccommodationReservationAsync(Guid userId, string? domain, CreateAccommodationReservationCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<CreateAccommodationReservationResponse>> UpdateAccommodationReservationAsync(Guid userId, string? domain, Guid reservationId, UpdateAccommodationReservationCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<DeleteAccommodationReservationResponse>> DeleteAccommodationReservationAsync(Guid userId, string? domain, Guid reservationId, CancellationToken cancellationToken = default);
 '@
 
 # ----------------------------------------------------------------------------
-# 2. UserPanelService: +4 dependencias en el constructor
+# 2. UserPanelService: 18 metodos +domain
 # ----------------------------------------------------------------------------
 Patch-File `
     -Path $ServicePath `
-    -Description "+IBusReservationService/IBusService/IAccommodationReservationService/IAccommodationBuildingService" `
+    -Description "+domain en 18 metodos" `
     -OldString @'
-    private readonly IMealPreferenceService _mealPreferenceService;
-    private readonly IRegistrationFestivalInfoService _registrationFestivalInfoService;
-    private readonly IMapper _mapper;
-    public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper,
-        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository,
-        ICompetitionCapacityRepository competitionCapacityRepository, IEmailNotificationService emailNotificationService,
-        IInvoiceService invoiceService, IMealPreferenceService mealPreferenceService, IRegistrationFestivalInfoService registrationFestivalInfoService)
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
     {
-        _userPanelRepository = userPanelRepository;
-        _competitionEntryService = competitionEntryService;
-        _mapper = mapper;
-        _competitionEntryRepository = competitionEntryRepository;
-        _competitionRepository = competitionRepository;
-        _competitionCapacityRepository = competitionCapacityRepository;
-        _emailNotificationService = emailNotificationService;
-        _invoiceService = invoiceService;
-        _mealPreferenceService = mealPreferenceService;
-        _registrationFestivalInfoService = registrationFestivalInfoService;
-    }
-'@ `
-    -NewString @'
-    private readonly IMealPreferenceService _mealPreferenceService;
-    private readonly IRegistrationFestivalInfoService _registrationFestivalInfoService;
-    private readonly IBusReservationService _busReservationService;
-    private readonly IBusService _busService;
-    private readonly IAccommodationReservationService _accommodationReservationService;
-    private readonly IAccommodationBuildingService _accommodationBuildingService;
-    private readonly IMapper _mapper;
-    public UserPanelService(IUserPanelRepository userPanelRepository, ICompetitionEntryService competitionEntryService, IMapper mapper,
-        ICompetitionEntryRepository competitionEntryRepository, ICompetitionRepository competitionRepository,
-        ICompetitionCapacityRepository competitionCapacityRepository, IEmailNotificationService emailNotificationService,
-        IInvoiceService invoiceService, IMealPreferenceService mealPreferenceService, IRegistrationFestivalInfoService registrationFestivalInfoService,
-        IBusReservationService busReservationService, IBusService busService, IAccommodationReservationService accommodationReservationService, IAccommodationBuildingService accommodationBuildingService)
-    {
-        _userPanelRepository = userPanelRepository;
-        _competitionEntryService = competitionEntryService;
-        _mapper = mapper;
-        _competitionEntryRepository = competitionEntryRepository;
-        _competitionRepository = competitionRepository;
-        _competitionCapacityRepository = competitionCapacityRepository;
-        _emailNotificationService = emailNotificationService;
-        _invoiceService = invoiceService;
-        _mealPreferenceService = mealPreferenceService;
-        _registrationFestivalInfoService = registrationFestivalInfoService;
-        _busReservationService = busReservationService;
-        _busService = busService;
-        _accommodationReservationService = accommodationReservationService;
-        _accommodationBuildingService = accommodationBuildingService;
-    }
-'@
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
 
-# ----------------------------------------------------------------------------
-# 3. UserPanelService: +10 metodos nuevos, al final de la clase.
-# ----------------------------------------------------------------------------
-Patch-File `
-    -Path $ServicePath `
-    -Description "+10 metodos (autobuses, alojamiento)" `
-    -OldString @'
-        return await _registrationFestivalInfoService.GetForRegistrationAsync(registration.Id, cancellationToken);
+        if (registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        request.RegistrationId = registration.Id;
+        request.InternalNotes = null;
+
+        CreateCompetitionEntryCommand competitionCommand = _mapper.Map<CreateCompetitionEntryCommand>(request);
+
+        await _competitionEntryService.CreateAsync(competitionCommand, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registration.Id, cancellationToken);
+
+        return await GetDashboardAsync(userId, null, cancellationToken);
     }
-}
-'@ `
-    -NewString @'
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
+
+        if (existing is null || existing.Registration.UserId != userId)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be updated.",
+                Data = null,
+                Errors = ["Competition entry not found."]
+            };
+        }
+
+        Guid registrationId = existing.RegistrationId;
+
+        request.RegistrationId = existing.RegistrationId;
+        request.InternalNotes = null;
+
+        UpdateCompetitionEntryCommand competitionCommand = _mapper.Map<UpdateCompetitionEntryCommand>(request);
+
+        await _competitionEntryService.UpdateAsync(competitionEntryId, competitionCommand, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registrationId, cancellationToken);
+
+        return await GetDashboardAsync(userId, null, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, Guid competitionEntryId, CancellationToken cancellationToken = default)
+    {
+        CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
+
+        if (existing is null || existing.Registration.UserId != userId)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be deleted.",
+                Data = null,
+                Errors = ["Competition entry not found."]
+            };
+        }
+
+        Guid registrationId = existing.RegistrationId;
+
+        await _competitionEntryService.DeleteAsync(competitionEntryId, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, registrationId, cancellationToken);
+
+        return await GetDashboardAsync(userId, null, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
+    {
+        User? user = await _userPanelRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Profile could not be updated.",
+                Data = null,
+                Errors = ["User not found."]
+            };
+        }
+
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+        user.Email = request.Email;
+        user.Phone = request.Phone;
+        user.Country = request.Country;
+        user.City = request.City;
+
+        if (registration is not null)
+        {
+            registration.FirstName = request.FirstName;
+            registration.LastName = request.LastName;
+            registration.Email = request.Email;
+            registration.Phone = request.Phone;
+            registration.Country = request.Country;
+            registration.City = request.City;
+            registration.DocumentNumber = request.DocumentNumber;
+            registration.DocumentCountry = request.DocumentCountry;
+        }
+
+        await _userPanelRepository.SaveChangesAsync(cancellationToken);
+
+        return await GetDashboardAsync(userId, null, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Invoice could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        CreateInvoiceCommand command = new()
+        {
+            RegistrationId = registration.Id,
+            FiscalName = request.FiscalName,
+            TaxId = request.TaxId,
+            Address = request.Address,
+            City = request.City,
+            PostalCode = request.PostalCode,
+            Country = request.Country
+        };
+
+        await _invoiceService.CreateAsync(command, cancellationToken);
+
+        return await GetDashboardAsync(userId, null, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetMealPreferenceResponse>
+            {
+                Success = false,
+                Message = "Meal preference could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _mealPreferenceService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<SaveMealPreferenceResponse>
+            {
+                Success = false,
+                Message = "Meal preference could not be saved.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.RegistrationId = registration.Id;
+
+        return await _mealPreferenceService.SaveAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, null, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<RegistrationFestivalInfoDto>
+            {
+                Success = false,
+                Message = "Festival info could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
         return await _registrationFestivalInfoService.GetForRegistrationAsync(registration.Id, cancellationToken);
     }
 
@@ -407,16 +578,431 @@ Patch-File `
         return await _accommodationReservationService.DeleteAsync(reservationId, registration.Id, isAdmin: false, cancellationToken);
     }
 }
+'@ `
+    -NewString @'
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateCompetitionEntryAsync(Guid userId, string? domain, CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        request.RegistrationId = registration.Id;
+        request.InternalNotes = null;
+
+        CreateCompetitionEntryCommand competitionCommand = _mapper.Map<CreateCompetitionEntryCommand>(request);
+
+        await _competitionEntryService.CreateAsync(competitionCommand, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registration.Id, cancellationToken);
+
+        return await GetDashboardAsync(userId, domain, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateCompetitionEntryAsync(Guid userId, string? domain, Guid competitionEntryId, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
+
+        if (existing is null || existing.Registration.UserId != userId)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be updated.",
+                Data = null,
+                Errors = ["Competition entry not found."]
+            };
+        }
+
+        Guid registrationId = existing.RegistrationId;
+
+        request.RegistrationId = existing.RegistrationId;
+        request.InternalNotes = null;
+
+        UpdateCompetitionEntryCommand competitionCommand = _mapper.Map<UpdateCompetitionEntryCommand>(request);
+
+        await _competitionEntryService.UpdateAsync(competitionEntryId, competitionCommand, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryConfirmed, registrationId, cancellationToken);
+
+        return await GetDashboardAsync(userId, domain, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> DeleteCompetitionEntryAsync(Guid userId, string? domain, Guid competitionEntryId, CancellationToken cancellationToken = default)
+    {
+        CompetitionEntry? existing = await _competitionEntryRepository.GetByIdAsync(competitionEntryId, cancellationToken);
+
+        if (existing is null || existing.Registration.UserId != userId)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Competition entry could not be deleted.",
+                Data = null,
+                Errors = ["Competition entry not found."]
+            };
+        }
+
+        Guid registrationId = existing.RegistrationId;
+
+        await _competitionEntryService.DeleteAsync(competitionEntryId, cancellationToken);
+
+        await _emailNotificationService.CreateAndSendEmailAsync(EmailTemplateKey.CompetitionEntryCancelled, registrationId, cancellationToken);
+
+        return await GetDashboardAsync(userId, domain, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> UpdateProfileAsync(Guid userId, string? domain, UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
+    {
+        User? user = await _userPanelRepository.GetUserByIdAsync(userId, cancellationToken);
+
+        if (user is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Profile could not be updated.",
+                Data = null,
+                Errors = ["User not found."]
+            };
+        }
+
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        user.FirstName = request.FirstName;
+        user.LastName = request.LastName;
+        user.Email = request.Email;
+        user.Phone = request.Phone;
+        user.Country = request.Country;
+        user.City = request.City;
+
+        if (registration is not null)
+        {
+            registration.FirstName = request.FirstName;
+            registration.LastName = request.LastName;
+            registration.Email = request.Email;
+            registration.Phone = request.Phone;
+            registration.Country = request.Country;
+            registration.City = request.City;
+            registration.DocumentNumber = request.DocumentNumber;
+            registration.DocumentCountry = request.DocumentCountry;
+        }
+
+        await _userPanelRepository.SaveChangesAsync(cancellationToken);
+
+        return await GetDashboardAsync(userId, domain, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetUserPanelDashboardResponse>> CreateInvoiceAsync(Guid userId, string? domain, CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetUserPanelDashboardResponse>
+            {
+                Success = false,
+                Message = "Invoice could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        CreateInvoiceCommand command = new()
+        {
+            RegistrationId = registration.Id,
+            FiscalName = request.FiscalName,
+            TaxId = request.TaxId,
+            Address = request.Address,
+            City = request.City,
+            PostalCode = request.PostalCode,
+            Country = request.Country
+        };
+
+        await _invoiceService.CreateAsync(command, cancellationToken);
+
+        return await GetDashboardAsync(userId, domain, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetMealPreferenceResponse>> GetMealPreferenceAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetMealPreferenceResponse>
+            {
+                Success = false,
+                Message = "Meal preference could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _mealPreferenceService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<SaveMealPreferenceResponse>> SaveMealPreferenceAsync(Guid userId, string? domain, SaveMealPreferenceCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<SaveMealPreferenceResponse>
+            {
+                Success = false,
+                Message = "Meal preference could not be saved.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.RegistrationId = registration.Id;
+
+        return await _mealPreferenceService.SaveAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<RegistrationFestivalInfoDto>> GetFestivalModulesAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<RegistrationFestivalInfoDto>
+            {
+                Success = false,
+                Message = "Festival info could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _registrationFestivalInfoService.GetForRegistrationAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetBusReservationsResponse>> GetBusReservationsAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetBusReservationsResponse>
+            {
+                Success = false,
+                Message = "Bus reservations could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _busReservationService.GetByRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetBusesResponse>> GetAvailableBusesAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetBusesResponse>
+            {
+                Success = false,
+                Message = "Available buses could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _busService.GetAvailableForRegistrationAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetBusReservationsResponse>> CreateBusReservationsAsync(Guid userId, string? domain, CreateBusReservationsCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetBusReservationsResponse>
+            {
+                Success = false,
+                Message = "Bus reservation could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.RegistrationId = registration.Id;
+
+        return await _busReservationService.CreateManyAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<CreateBusReservationResponse>> UpdateBusReservationAsync(Guid userId, string? domain, Guid reservationId, UpdateBusReservationCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<CreateBusReservationResponse>
+            {
+                Success = false,
+                Message = "Bus reservation could not be updated.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.ReservationId = reservationId;
+        command.RequestingRegistrationId = registration.Id;
+
+        return await _busReservationService.UpdateAsync(command, isAdmin: false, cancellationToken);
+    }
+
+    public async Task<ApiResponse<DeleteBusReservationResponse>> DeleteBusReservationAsync(Guid userId, string? domain, Guid reservationId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<DeleteBusReservationResponse>
+            {
+                Success = false,
+                Message = "Bus reservation could not be cancelled.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _busReservationService.DeleteAsync(reservationId, registration.Id, isAdmin: false, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetAccommodationReservationResponse>> GetAccommodationReservationAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _accommodationReservationService.GetByResponsibleRegistrationIdAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetAccommodationBuildingsResponse>> GetAvailableAccommodationsAsync(Guid userId, string? domain, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<GetAccommodationBuildingsResponse>
+            {
+                Success = false,
+                Message = "Available accommodations could not be loaded.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _accommodationBuildingService.GetAvailableForRegistrationAsync(registration.Id, cancellationToken);
+    }
+
+    public async Task<ApiResponse<GetAccommodationBuildingResponse>> GetAccommodationBuildingAsync(Guid buildingId, CancellationToken cancellationToken = default)
+    {
+        return await _accommodationBuildingService.GetByIdAsync(buildingId, cancellationToken);
+    }
+
+    public async Task<ApiResponse<CreateAccommodationReservationResponse>> CreateAccommodationReservationAsync(Guid userId, string? domain, CreateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<CreateAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be created.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.ResponsibleRegistrationId = registration.Id;
+
+        return await _accommodationReservationService.CreateAsync(command, cancellationToken);
+    }
+
+    public async Task<ApiResponse<CreateAccommodationReservationResponse>> UpdateAccommodationReservationAsync(Guid userId, string? domain, Guid reservationId, UpdateAccommodationReservationCommand command, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<CreateAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be updated.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        command.ReservationId = reservationId;
+        command.RequestingRegistrationId = registration.Id;
+
+        return await _accommodationReservationService.UpdateAsync(command, isAdmin: false, cancellationToken);
+    }
+
+    public async Task<ApiResponse<DeleteAccommodationReservationResponse>> DeleteAccommodationReservationAsync(Guid userId, string? domain, Guid reservationId, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _userPanelRepository.GetLatestRegistrationByUserIdAsync(userId, domain, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<DeleteAccommodationReservationResponse>
+            {
+                Success = false,
+                Message = "Accommodation reservation could not be cancelled.",
+                Data = null,
+                Errors = ["Registration not found."]
+            };
+        }
+
+        return await _accommodationReservationService.DeleteAsync(reservationId, registration.Id, isAdmin: false, cancellationToken);
+    }
+}
 '@
 
 # ----------------------------------------------------------------------------
-# 4. UserPanelController: +11 endpoints
+# 3. UserPanelController: 18 endpoints +domain
 # ----------------------------------------------------------------------------
 Patch-File `
     -Path $ControllerPath `
-    -Description "+11 endpoints (autobuses, alojamiento)" `
+    -Description "+domain en 18 endpoints" `
     -OldString @'
-        ApiResponse<RegistrationFestivalInfoDto> response = await _userPanelService.GetFestivalModulesAsync(userId, cancellationToken);
+    [HttpPut("profile")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateProfile([FromBody] UpdateUserPanelProfileRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateProfileAsync(userId, request, cancellationToken);
 
         if (!response.Success)
         {
@@ -425,9 +1011,137 @@ Patch-File `
 
         return Ok(response);
     }
-}
-'@ `
-    -NewString @'
+
+    [HttpPost("competition-entries")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateCompetitionEntry([FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateCompetitionEntryAsync(userId, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPut("competition-entries/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry(Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateCompetitionEntryAsync(userId, id, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpDelete("competition-entries/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> DeleteCompetitionEntry(Guid id, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.DeleteCompetitionEntryAsync(userId, id, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("invoices")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateInvoice([FromBody] CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateInvoiceAsync(userId, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("meal-preference")]
+    public async Task<ActionResult<ApiResponse<GetMealPreferenceResponse>>> GetMealPreference(CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetMealPreferenceResponse> response = await _userPanelService.GetMealPreferenceAsync(userId, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("meal-preference")]
+    public async Task<ActionResult<ApiResponse<SaveMealPreferenceResponse>>> SaveMealPreference([FromBody] SaveMealPreferenceCommand command, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<SaveMealPreferenceResponse> response = await _userPanelService.SaveMealPreferenceAsync(userId, command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("festival-modules")]
+    public async Task<ActionResult<ApiResponse<RegistrationFestivalInfoDto>>> GetFestivalModules(CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
         ApiResponse<RegistrationFestivalInfoDto> response = await _userPanelService.GetFestivalModulesAsync(userId, cancellationToken);
 
         if (!response.Success)
@@ -657,28 +1371,571 @@ Patch-File `
 
         return Ok(response);
     }
-}
+'@ `
+    -NewString @'
+    [HttpPut("profile")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateProfile([FromQuery] string? domain, [FromBody] UpdateUserPanelProfileRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateProfileAsync(userId, domain, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("competition-entries")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateCompetitionEntry([FromQuery] string? domain, [FromBody] CreateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateCompetitionEntryAsync(userId, domain, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPut("competition-entries/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> UpdateCompetitionEntry([FromQuery] string? domain, Guid id, [FromBody] UpdateCompetitionEntryRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.UpdateCompetitionEntryAsync(userId, domain, id, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpDelete("competition-entries/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> DeleteCompetitionEntry([FromQuery] string? domain, Guid id, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.DeleteCompetitionEntryAsync(userId, domain, id, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("invoices")]
+    public async Task<ActionResult<ApiResponse<GetUserPanelDashboardResponse>>> CreateInvoice([FromQuery] string? domain, [FromBody] CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetUserPanelDashboardResponse> response = await _userPanelService.CreateInvoiceAsync(userId, domain, request, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("meal-preference")]
+    public async Task<ActionResult<ApiResponse<GetMealPreferenceResponse>>> GetMealPreference([FromQuery] string? domain, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetMealPreferenceResponse> response = await _userPanelService.GetMealPreferenceAsync(userId, domain, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("meal-preference")]
+    public async Task<ActionResult<ApiResponse<SaveMealPreferenceResponse>>> SaveMealPreference([FromQuery] string? domain, [FromBody] SaveMealPreferenceCommand command, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<SaveMealPreferenceResponse> response = await _userPanelService.SaveMealPreferenceAsync(userId, domain, command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("festival-modules")]
+    public async Task<ActionResult<ApiResponse<RegistrationFestivalInfoDto>>> GetFestivalModules([FromQuery] string? domain, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<RegistrationFestivalInfoDto> response = await _userPanelService.GetFestivalModulesAsync(userId, domain, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("bus-reservations")]
+    public async Task<ActionResult<ApiResponse<GetBusReservationsResponse>>> GetBusReservations([FromQuery] string? domain, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetBusReservationsResponse> response = await _userPanelService.GetBusReservationsAsync(userId, domain, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("available-buses")]
+    public async Task<ActionResult<ApiResponse<GetBusesResponse>>> GetAvailableBuses([FromQuery] string? domain, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetBusesResponse> response = await _userPanelService.GetAvailableBusesAsync(userId, domain, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("bus-reservations")]
+    public async Task<ActionResult<ApiResponse<GetBusReservationsResponse>>> CreateBusReservations([FromQuery] string? domain, [FromBody] CreateBusReservationsCommand command, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetBusReservationsResponse> response = await _userPanelService.CreateBusReservationsAsync(userId, domain, command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPut("bus-reservations/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<CreateBusReservationResponse>>> UpdateBusReservation([FromQuery] string? domain, Guid id, [FromBody] UpdateBusReservationCommand command, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<CreateBusReservationResponse> response = await _userPanelService.UpdateBusReservationAsync(userId, domain, id, command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpDelete("bus-reservations/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<DeleteBusReservationResponse>>> DeleteBusReservation([FromQuery] string? domain, Guid id, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<DeleteBusReservationResponse> response = await _userPanelService.DeleteBusReservationAsync(userId, domain, id, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("accommodation-reservation")]
+    public async Task<ActionResult<ApiResponse<GetAccommodationReservationResponse>>> GetAccommodationReservation([FromQuery] string? domain, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetAccommodationReservationResponse> response = await _userPanelService.GetAccommodationReservationAsync(userId, domain, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("available-accommodations")]
+    public async Task<ActionResult<ApiResponse<GetAccommodationBuildingsResponse>>> GetAvailableAccommodations([FromQuery] string? domain, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetAccommodationBuildingsResponse> response = await _userPanelService.GetAvailableAccommodationsAsync(userId, domain, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpGet("accommodation-buildings/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<GetAccommodationBuildingResponse>>> GetAccommodationBuilding(Guid id, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<GetAccommodationBuildingResponse> response = await _userPanelService.GetAccommodationBuildingAsync(id, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPost("accommodation-reservation")]
+    public async Task<ActionResult<ApiResponse<CreateAccommodationReservationResponse>>> CreateAccommodationReservation([FromQuery] string? domain, [FromBody] CreateAccommodationReservationCommand command, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<CreateAccommodationReservationResponse> response = await _userPanelService.CreateAccommodationReservationAsync(userId, domain, command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpPut("accommodation-reservation/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<CreateAccommodationReservationResponse>>> UpdateAccommodationReservation([FromQuery] string? domain, Guid id, [FromBody] UpdateAccommodationReservationCommand command, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<CreateAccommodationReservationResponse> response = await _userPanelService.UpdateAccommodationReservationAsync(userId, domain, id, command, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
+
+    [HttpDelete("accommodation-reservation/{id:guid}")]
+    public async Task<ActionResult<ApiResponse<DeleteAccommodationReservationResponse>>> DeleteAccommodationReservation([FromQuery] string? domain, Guid id, CancellationToken cancellationToken)
+    {
+        string? userIdValue = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+        if (!Guid.TryParse(userIdValue, out Guid userId))
+        {
+            return Unauthorized();
+        }
+
+        ApiResponse<DeleteAccommodationReservationResponse> response = await _userPanelService.DeleteAccommodationReservationAsync(userId, domain, id, cancellationToken);
+
+        if (!response.Success)
+        {
+            return BadRequest(response);
+        }
+
+        return Ok(response);
+    }
 '@
 
 # ----------------------------------------------------------------------------
-# 5. UserPanelApiClient: +11 metodos
+# 4. UserPanelApiClient: 18 metodos +domain
 # ----------------------------------------------------------------------------
 Patch-File `
     -Path $ApiClientPath `
-    -Description "+11 metodos (autobuses, alojamiento)" `
+    -Description "+domain en 18 metodos" `
     -OldString @'
-        ApiResponse<RegistrationFestivalInfoDto>? response = await _httpClient.GetFromJsonAsync<ApiResponse<RegistrationFestivalInfoDto>>("api/user-panel/festival-modules", cancellationToken);
+    public async Task<UserPanelDashboardDto?> UpdateProfileAsync(UpdateUserPanelProfileRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
 
-        if (response?.Success is not true || response.Data is null)
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync("api/user-panel/profile", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return null;
+        }
+
+        return response.Data?.Dashboard;
+    }
+
+    public async Task<UserPanelDashboardDto> CreateInvoiceAsync(CreateUserPanelInvoiceRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/invoices", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true || response.Data?.Dashboard is null)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Invoice could not be created.";
+            throw new Exception(message);
+        }
+
+        return response.Data.Dashboard;
+    }
+
+    public async Task CreateCompetitionEntryAsync(CreateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/competition-entries", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be created.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task UpdateCompetitionEntryAsync(Guid id, UpdateCompetitionEntryRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync($"api/user-panel/competition-entries/{id}", request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be updated.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task DeleteCompetitionEntryAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/user-panel/competition-entries/{id}", cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be deleted.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task<MealPreferenceDto?> GetMealPreferenceAsync(CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        ApiResponse<GetMealPreferenceResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetMealPreferenceResponse>>("api/user-panel/meal-preference", cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return null;
+        }
+
+        return response.Data?.Preference;
+    }
+
+    public async Task<MealPreferenceDto?> SaveMealPreferenceAsync(SaveMealPreferenceRequest request, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/user-panel/meal-preference", request, cancellationToken);
+
+        ApiResponse<SaveMealPreferenceResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<SaveMealPreferenceResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Meal preference could not be saved.";
+            throw new Exception(message);
+        }
+
+        return response.Data?.Preference;
+    }
+
+    public async Task<int> GetEnabledFestivalModulesAsync(CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
         {
             return 0;
         }
 
-        return response.Data.EnabledModules;
-    }
-}
-'@ `
-    -NewString @'
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
         ApiResponse<RegistrationFestivalInfoDto>? response = await _httpClient.GetFromJsonAsync<ApiResponse<RegistrationFestivalInfoDto>>("api/user-panel/festival-modules", cancellationToken);
 
         if (response?.Success is not true || response.Data is null)
@@ -940,545 +2197,725 @@ Patch-File `
         }
     }
 }
+'@ `
+    -NewString @'
+    public async Task<UserPanelDashboardDto?> UpdateProfileAsync(UpdateUserPanelProfileRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/profile"
+            : $"api/user-panel/profile?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return null;
+        }
+
+        return response.Data?.Dashboard;
+    }
+
+    public async Task<UserPanelDashboardDto> CreateInvoiceAsync(CreateUserPanelInvoiceRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/invoices"
+            : $"api/user-panel/invoices?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true || response.Data?.Dashboard is null)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Invoice could not be created.";
+            throw new Exception(message);
+        }
+
+        return response.Data.Dashboard;
+    }
+
+    public async Task CreateCompetitionEntryAsync(CreateCompetitionEntryRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/competition-entries"
+            : $"api/user-panel/competition-entries?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be created.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task UpdateCompetitionEntryAsync(Guid id, UpdateCompetitionEntryRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/competition-entries/{id}"
+            : $"api/user-panel/competition-entries/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be updated.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task DeleteCompetitionEntryAsync(Guid id, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/competition-entries/{id}"
+            : $"api/user-panel/competition-entries/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync(url, cancellationToken);
+
+        ApiResponse<GetUserPanelDashboardResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetUserPanelDashboardResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Competition entry could not be deleted.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task<MealPreferenceDto?> GetMealPreferenceAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/meal-preference"
+            : $"api/user-panel/meal-preference?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetMealPreferenceResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetMealPreferenceResponse>>(url, cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return null;
+        }
+
+        return response.Data?.Preference;
+    }
+
+    public async Task<MealPreferenceDto?> SaveMealPreferenceAsync(SaveMealPreferenceRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/meal-preference"
+            : $"api/user-panel/meal-preference?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<SaveMealPreferenceResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<SaveMealPreferenceResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Meal preference could not be saved.";
+            throw new Exception(message);
+        }
+
+        return response.Data?.Preference;
+    }
+
+    public async Task<int> GetEnabledFestivalModulesAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return 0;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/festival-modules"
+            : $"api/user-panel/festival-modules?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<RegistrationFestivalInfoDto>? response = await _httpClient.GetFromJsonAsync<ApiResponse<RegistrationFestivalInfoDto>>(url, cancellationToken);
+
+        if (response?.Success is not true || response.Data is null)
+        {
+            return 0;
+        }
+
+        return response.Data.EnabledModules;
+    }
+
+    public async Task<IReadOnlyList<BusReservationDto>> GetBusReservationsAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return [];
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/bus-reservations"
+            : $"api/user-panel/bus-reservations?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetBusReservationsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusReservationsResponse>>(url, cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return [];
+        }
+
+        return response.Data?.Reservations ?? [];
+    }
+
+    public async Task<IReadOnlyList<BusDto>> GetAvailableBusesAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return [];
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/available-buses"
+            : $"api/user-panel/available-buses?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetBusesResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetBusesResponse>>(url, cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return [];
+        }
+
+        return response.Data?.Buses ?? [];
+    }
+
+    public async Task<IReadOnlyList<BusReservationDto>> CreateBusReservationsAsync(CreateBusReservationsRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/bus-reservations"
+            : $"api/user-panel/bus-reservations?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<GetBusReservationsResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<GetBusReservationsResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Bus reservation could not be created.";
+            throw new Exception(message);
+        }
+
+        return response.Data?.Reservations ?? [];
+    }
+
+    public async Task<BusReservationDto?> UpdateBusReservationAsync(Guid id, UpdateBusReservationRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/bus-reservations/{id}"
+            : $"api/user-panel/bus-reservations/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<CreateBusReservationResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<CreateBusReservationResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Bus reservation could not be updated.";
+            throw new Exception(message);
+        }
+
+        return response.Data?.Reservation;
+    }
+
+    public async Task DeleteBusReservationAsync(Guid id, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/bus-reservations/{id}"
+            : $"api/user-panel/bus-reservations/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync(url, cancellationToken);
+
+        ApiResponse<DeleteBusReservationResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<DeleteBusReservationResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Bus reservation could not be cancelled.";
+            throw new Exception(message);
+        }
+    }
+
+    public async Task<AccommodationReservationDto?> GetAccommodationReservationAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/accommodation-reservation"
+            : $"api/user-panel/accommodation-reservation?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetAccommodationReservationResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationReservationResponse>>(url, cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return null;
+        }
+
+        return response.Data?.Reservation;
+    }
+
+    public async Task<IReadOnlyList<AccommodationBuildingSummaryDto>> GetAvailableAccommodationsAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return [];
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/available-accommodations"
+            : $"api/user-panel/available-accommodations?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<GetAccommodationBuildingsResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingsResponse>>(url, cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return [];
+        }
+
+        return response.Data?.Buildings ?? [];
+    }
+
+    public async Task<AccommodationBuildingDto?> GetAccommodationBuildingAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        ApiResponse<GetAccommodationBuildingResponse>? response = await _httpClient.GetFromJsonAsync<ApiResponse<GetAccommodationBuildingResponse>>($"api/user-panel/accommodation-buildings/{id}", cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            return null;
+        }
+
+        return response.Data?.Building;
+    }
+
+    public async Task<AccommodationReservationDto?> CreateAccommodationReservationAsync(CreateAccommodationReservationRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/accommodation-reservation"
+            : $"api/user-panel/accommodation-reservation?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<CreateAccommodationReservationResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<CreateAccommodationReservationResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Accommodation reservation could not be created.";
+            throw new Exception(message);
+        }
+
+        return response.Data?.Reservation;
+    }
+
+    public async Task<AccommodationReservationDto?> UpdateAccommodationReservationAsync(Guid id, UpdateAccommodationReservationRequest request, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/accommodation-reservation/{id}"
+            : $"api/user-panel/accommodation-reservation/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.PutAsJsonAsync(url, request, cancellationToken);
+
+        ApiResponse<CreateAccommodationReservationResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<CreateAccommodationReservationResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Accommodation reservation could not be updated.";
+            throw new Exception(message);
+        }
+
+        return response.Data?.Reservation;
+    }
+
+    public async Task DeleteAccommodationReservationAsync(Guid id, string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            throw new Exception("You are not logged in.");
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? $"api/user-panel/accommodation-reservation/{id}"
+            : $"api/user-panel/accommodation-reservation/{id}?domain={Uri.EscapeDataString(domain)}";
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync(url, cancellationToken);
+
+        ApiResponse<DeleteAccommodationReservationResponse>? response =
+            await httpResponse.Content.ReadFromJsonAsync<ApiResponse<DeleteAccommodationReservationResponse>>(cancellationToken);
+
+        if (response?.Success is not true)
+        {
+            string message = response?.Errors?.FirstOrDefault() ?? response?.Message ?? "Accommodation reservation could not be cancelled.";
+            throw new Exception(message);
+        }
+    }
+}
 '@
 
 # ----------------------------------------------------------------------------
-# 6-12. UserPanel.razor: los 7 catch de autobuses/alojamiento usan T.Get() en
-#       vez de ex.Message (mismo problema que ya se corrigio en competiciones
-#       y comida). Se hacen ANTES de los cambios de punto 13+ para no
-#       depender de ese orden.
+# 5. UserPanel.razor: variable local -> campo CurrentDomain
 # ----------------------------------------------------------------------------
 Patch-File `
     -Path $RazorPath `
-    -Description "catch de reservar autobus usa T.Get()" `
+    -Description "campo CurrentDomain (promovido de variable local)" `
     -OldString @'
-            ShowBusSuccess(T.Get("up_bus_reserved"));
-            await LoadBusDataAsync();
-        }
-        catch (ApiClientException ex)
+    private async Task LoadDashboardAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
+
+        try
         {
-            ShowBusError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowBusError(ex.Message);
-        }
-        finally
-        {
-            IsSavingBus = false;
-        }
-    }
+            string? currentDomain = new Uri(Navigation.BaseUri).Host;
+            Dashboard = await UserPanelApiClient.GetDashboardAsync(currentDomain);
 '@ `
     -NewString @'
-            ShowBusSuccess(T.Get("up_bus_reserved"));
-            await LoadBusDataAsync();
-        }
-        catch
-        {
-            ShowBusError(T.Get("up_bus_reservation_error"));
-        }
-        finally
-        {
-            IsSavingBus = false;
-        }
-    }
-'@
+    private string? CurrentDomain;
 
-Patch-File `
-    -Path $RazorPath `
-    -Description "catch de editar autobus usa T.Get()" `
-    -OldString @'
-            ShowBusSuccess(T.Get("up_bus_updated"));
-            editingBusReservation = null;
-            await LoadBusDataAsync();
-        }
-        catch (ApiClientException ex)
-        {
-            ShowBusError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowBusError(ex.Message);
-        }
-        finally
-        {
-            IsSavingBus = false;
-        }
-    }
-'@ `
-    -NewString @'
-            ShowBusSuccess(T.Get("up_bus_updated"));
-            editingBusReservation = null;
-            await LoadBusDataAsync();
-        }
-        catch
-        {
-            ShowBusError(T.Get("up_bus_update_error"));
-        }
-        finally
-        {
-            IsSavingBus = false;
-        }
-    }
-'@
+    private async Task LoadDashboardAsync()
+    {
+        IsLoading = true;
+        ErrorMessage = null;
 
-Patch-File `
-    -Path $RazorPath `
-    -Description "catch de cancelar autobus usa T.Get()" `
-    -OldString @'
-            ShowBusSuccess(T.Get("up_bus_cancelled"));
-            cancellingBusReservation = null;
-            await LoadBusDataAsync();
-        }
-        catch (ApiClientException ex)
+        try
         {
-            ShowBusError(ex.Message);
-        }
-        finally
-        {
-            IsSavingBus = false;
-        }
-    }
-'@ `
-    -NewString @'
-            ShowBusSuccess(T.Get("up_bus_cancelled"));
-            cancellingBusReservation = null;
-            await LoadBusDataAsync();
-        }
-        catch
-        {
-            ShowBusError(T.Get("up_bus_cancel_error"));
-        }
-        finally
-        {
-            IsSavingBus = false;
-        }
-    }
-'@
-
-Patch-File `
-    -Path $RazorPath `
-    -Description "catch de cargar detalle de alojamiento usa T.Get()" `
-    -OldString @'
-        catch (Exception ex)
-        {
-            ShowAccommodationError(ex.Message);
-        }
-
-        if (SelectedBuildingType == 1)
-'@ `
-    -NewString @'
-        catch
-        {
-            ShowAccommodationError(T.Get("up_accommodation_load_error"));
-        }
-
-        if (SelectedBuildingType == 1)
-'@
-
-Patch-File `
-    -Path $RazorPath `
-    -Description "catch de reservar alojamiento usa T.Get()" `
-    -OldString @'
-            ShowAccommodationSuccess(T.Get("up_accommodation_reserved"));
-            SelectedAccommodationBuildingId = Guid.Empty;
-            SelectedBuildingDetail = null;
-            OccupantRows = [];
-            await LoadAccommodationDataAsync();
-        }
-        catch (ApiClientException ex)
-        {
-            ShowAccommodationError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowAccommodationError(ex.Message);
-        }
-        finally
-        {
-            IsSavingAccommodation = false;
-        }
-    }
-'@ `
-    -NewString @'
-            ShowAccommodationSuccess(T.Get("up_accommodation_reserved"));
-            SelectedAccommodationBuildingId = Guid.Empty;
-            SelectedBuildingDetail = null;
-            OccupantRows = [];
-            await LoadAccommodationDataAsync();
-        }
-        catch
-        {
-            ShowAccommodationError(T.Get("up_accommodation_reservation_error"));
-        }
-        finally
-        {
-            IsSavingAccommodation = false;
-        }
-    }
-'@
-
-Patch-File `
-    -Path $RazorPath `
-    -Description "catch de editar alojamiento usa T.Get()" `
-    -OldString @'
-            ShowAccommodationSuccess(T.Get("up_accommodation_updated"));
-            ShowEditAccommodationModal = false;
-            await LoadAccommodationDataAsync();
-        }
-        catch (ApiClientException ex)
-        {
-            ShowAccommodationError(ex.Message);
-        }
-        catch (Exception ex)
-        {
-            ShowAccommodationError(ex.Message);
-        }
-        finally
-        {
-            IsSavingAccommodation = false;
-        }
-    }
-'@ `
-    -NewString @'
-            ShowAccommodationSuccess(T.Get("up_accommodation_updated"));
-            ShowEditAccommodationModal = false;
-            await LoadAccommodationDataAsync();
-        }
-        catch
-        {
-            ShowAccommodationError(T.Get("up_accommodation_update_error"));
-        }
-        finally
-        {
-            IsSavingAccommodation = false;
-        }
-    }
-'@
-
-Patch-File `
-    -Path $RazorPath `
-    -Description "catch de cancelar alojamiento usa T.Get()" `
-    -OldString @'
-            ShowAccommodationSuccess(T.Get("up_reservation_cancelled"));
-            ExistingReservation = null;
-            ShowCancelAccommodationModal = false;
-            await LoadAccommodationDataAsync();
-        }
-        catch (ApiClientException ex)
-        {
-            ShowAccommodationError(ex.Message);
-        }
-        finally
-        {
-            IsSavingAccommodation = false;
-        }
-    }
-'@ `
-    -NewString @'
-            ShowAccommodationSuccess(T.Get("up_reservation_cancelled"));
-            ExistingReservation = null;
-            ShowCancelAccommodationModal = false;
-            await LoadAccommodationDataAsync();
-        }
-        catch
-        {
-            ShowAccommodationError(T.Get("up_accommodation_cancel_error"));
-        }
-        finally
-        {
-            IsSavingAccommodation = false;
-        }
-    }
+            CurrentDomain = new Uri(Navigation.BaseUri).Host;
+            Dashboard = await UserPanelApiClient.GetDashboardAsync(CurrentDomain);
 '@
 
 # ----------------------------------------------------------------------------
-# 13-24. UserPanel.razor: 12 cambios de sitio de llamada, BusApiClient /
-#        AccommodationApiClient -> UserPanelApiClient.
+# 6. UserPanel.razor: 18 puntos de llamada pasan CurrentDomain
 # ----------------------------------------------------------------------------
 Patch-File `
     -Path $RazorPath `
-    -Description "cargar reservas de autobus usa UserPanelApiClient" `
+    -Description "meal-preference: cargar" `
     -OldString @'
-            BusReservations = (await BusApiClient.GetReservationsByRegistrationAsync(Dashboard.Registration.Id)).ToList();
+MealPreferenceDto? preference = await UserPanelApiClient.GetMealPreferenceAsync();
 '@ `
     -NewString @'
-            BusReservations = (await UserPanelApiClient.GetBusReservationsAsync()).ToList();
+MealPreferenceDto? preference = await UserPanelApiClient.GetMealPreferenceAsync(CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cargar autobuses disponibles usa UserPanelApiClient" `
+    -Description "meal-preference: guardar" `
     -OldString @'
-            AvailableBuses = (await BusApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+await UserPanelApiClient.SaveMealPreferenceAsync(request);
 '@ `
     -NewString @'
-            AvailableBuses = (await UserPanelApiClient.GetAvailableBusesAsync()).ToList();
+await UserPanelApiClient.SaveMealPreferenceAsync(request, CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "reservar autobus usa UserPanelApiClient" `
+    -Description "bus: cargar reservas" `
     -OldString @'
-            await BusApiClient.CreateReservationsAsync(request);
+BusReservations = (await UserPanelApiClient.GetBusReservationsAsync()).ToList();
 '@ `
     -NewString @'
-            await UserPanelApiClient.CreateBusReservationsAsync(request);
+BusReservations = (await UserPanelApiClient.GetBusReservationsAsync(CurrentDomain)).ToList();
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "editar reserva de autobus usa UserPanelApiClient" `
+    -Description "bus: cargar disponibles" `
     -OldString @'
-            await BusApiClient.UpdateReservationAsync(editingBusReservation.Id, request, isAdmin: false);
+AvailableBuses = (await UserPanelApiClient.GetAvailableBusesAsync()).ToList();
 '@ `
     -NewString @'
-            await UserPanelApiClient.UpdateBusReservationAsync(editingBusReservation.Id, request);
+AvailableBuses = (await UserPanelApiClient.GetAvailableBusesAsync(CurrentDomain)).ToList();
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cancelar reserva de autobus usa UserPanelApiClient" `
+    -Description "bus: crear reservas" `
     -OldString @'
-            await BusApiClient.DeleteReservationAsync(cancellingBusReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+await UserPanelApiClient.CreateBusReservationsAsync(request);
 '@ `
     -NewString @'
-            await UserPanelApiClient.DeleteBusReservationAsync(cancellingBusReservation.Id);
+await UserPanelApiClient.CreateBusReservationsAsync(request, CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cargar reserva de alojamiento usa UserPanelApiClient" `
+    -Description "bus: actualizar reserva" `
     -OldString @'
-            ExistingReservation = await AccommodationApiClient.GetReservationByRegistrationAsync(Dashboard.Registration.Id);
+await UserPanelApiClient.UpdateBusReservationAsync(editingBusReservation.Id, request);
 '@ `
     -NewString @'
-            ExistingReservation = await UserPanelApiClient.GetAccommodationReservationAsync();
+await UserPanelApiClient.UpdateBusReservationAsync(editingBusReservation.Id, request, CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cargar alojamientos disponibles usa UserPanelApiClient" `
+    -Description "bus: cancelar reserva" `
     -OldString @'
-                AvailableAccommodationBuildings = (await AccommodationApiClient.GetAvailableForRegistrationAsync(Dashboard.Registration.Id)).ToList();
+await UserPanelApiClient.DeleteBusReservationAsync(cancellingBusReservation.Id);
 '@ `
     -NewString @'
-                AvailableAccommodationBuildings = (await UserPanelApiClient.GetAvailableAccommodationsAsync()).ToList();
+await UserPanelApiClient.DeleteBusReservationAsync(cancellingBusReservation.Id, CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cargar detalle de edificio (reserva existente) usa UserPanelApiClient" `
+    -Description "modulos del festival habilitados" `
     -OldString @'
-                SelectedBuildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(ExistingReservation.AccommodationBuildingId);
+EnabledFestivalModules = await UserPanelApiClient.GetEnabledFestivalModulesAsync();
 '@ `
     -NewString @'
-                SelectedBuildingDetail = await UserPanelApiClient.GetAccommodationBuildingAsync(ExistingReservation.AccommodationBuildingId);
+EnabledFestivalModules = await UserPanelApiClient.GetEnabledFestivalModulesAsync(CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cargar detalle de edificio (seleccion) usa UserPanelApiClient" `
+    -Description "alojamiento: cargar reserva existente" `
     -OldString @'
-            SelectedBuildingDetail = await AccommodationApiClient.GetBuildingByIdAsync(SelectedAccommodationBuildingId);
+ExistingReservation = await UserPanelApiClient.GetAccommodationReservationAsync();
 '@ `
     -NewString @'
-            SelectedBuildingDetail = await UserPanelApiClient.GetAccommodationBuildingAsync(SelectedAccommodationBuildingId);
+ExistingReservation = await UserPanelApiClient.GetAccommodationReservationAsync(CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "reservar alojamiento usa UserPanelApiClient" `
+    -Description "alojamiento: cargar disponibles" `
     -OldString @'
-            await AccommodationApiClient.CreateReservationAsync(request);
+AvailableAccommodationBuildings = (await UserPanelApiClient.GetAvailableAccommodationsAsync()).ToList();
 '@ `
     -NewString @'
-            await UserPanelApiClient.CreateAccommodationReservationAsync(request);
+AvailableAccommodationBuildings = (await UserPanelApiClient.GetAvailableAccommodationsAsync(CurrentDomain)).ToList();
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "editar reserva de alojamiento usa UserPanelApiClient" `
+    -Description "alojamiento: crear reserva" `
     -OldString @'
-            await AccommodationApiClient.UpdateReservationAsync(ExistingReservation.Id, request, isAdmin: false);
+await UserPanelApiClient.CreateAccommodationReservationAsync(request);
 '@ `
     -NewString @'
-            await UserPanelApiClient.UpdateAccommodationReservationAsync(ExistingReservation.Id, request);
+await UserPanelApiClient.CreateAccommodationReservationAsync(request, CurrentDomain);
 '@
-
 Patch-File `
     -Path $RazorPath `
-    -Description "cancelar reserva de alojamiento usa UserPanelApiClient" `
+    -Description "alojamiento: actualizar reserva" `
     -OldString @'
-            await AccommodationApiClient.DeleteReservationAsync(ExistingReservation.Id, Dashboard.Registration.Id, isAdmin: false);
+await UserPanelApiClient.UpdateAccommodationReservationAsync(ExistingReservation.Id, request);
 '@ `
     -NewString @'
-            await UserPanelApiClient.DeleteAccommodationReservationAsync(ExistingReservation.Id);
+await UserPanelApiClient.UpdateAccommodationReservationAsync(ExistingReservation.Id, request, CurrentDomain);
 '@
-
-# ----------------------------------------------------------------------------
-# 25. UserPanel.razor: quita @inject AccommodationApiClient/BusApiClient
-#     (ya sin uso tras los cambios anteriores).
-# ----------------------------------------------------------------------------
 Patch-File `
     -Path $RazorPath `
-    -Description "quita @inject AccommodationApiClient/BusApiClient (ya sin uso)" `
+    -Description "alojamiento: cancelar reserva" `
     -OldString @'
-@inject RegistrationApiClient RegistrationApiClient
-@inject AccommodationApiClient AccommodationApiClient
-@inject BusApiClient BusApiClient
-@inject PaymentApiClient PaymentApiClient
+await UserPanelApiClient.DeleteAccommodationReservationAsync(ExistingReservation.Id);
 '@ `
     -NewString @'
-@inject RegistrationApiClient RegistrationApiClient
-@inject PaymentApiClient PaymentApiClient
+await UserPanelApiClient.DeleteAccommodationReservationAsync(ExistingReservation.Id, CurrentDomain);
 '@
-
-# ----------------------------------------------------------------------------
-# 26-33. Traducciones: 7 claves nuevas en los 4 idiomas, insertadas
-#        alfabeticamente en el mismo bloque donde ya estan up_accommodation_*
-#        y up_bus_*.
-# ----------------------------------------------------------------------------
 Patch-File `
-    -Path $EnPath `
-    -Description "+3 claves up_accommodation_* (en)" `
+    -Path $RazorPath `
+    -Description "factura: crear" `
     -OldString @'
-  "up_accommodation_reserved": "Accommodation reservation created successfully.",
-  "up_accommodation_updated": "Accommodation reservation updated successfully.",
+Dashboard = await UserPanelApiClient.CreateInvoiceAsync(request);
 '@ `
     -NewString @'
-  "up_accommodation_cancel_error": "Accommodation reservation could not be cancelled.",
-  "up_accommodation_load_error": "Accommodation details could not be loaded.",
-  "up_accommodation_reservation_error": "Accommodation reservation could not be created.",
-  "up_accommodation_reserved": "Accommodation reservation created successfully.",
-  "up_accommodation_update_error": "Accommodation reservation could not be updated.",
-  "up_accommodation_updated": "Accommodation reservation updated successfully.",
+Dashboard = await UserPanelApiClient.CreateInvoiceAsync(request, CurrentDomain);
 '@
-
 Patch-File `
-    -Path $EnPath `
-    -Description "+3 claves up_bus_* (en)" `
+    -Path $RazorPath `
+    -Description "perfil: actualizar" `
     -OldString @'
-  "up_bus_cancelled": "Bus reservation cancelled successfully.",
-  "up_bus_reserved": "Bus reservation created successfully.",
-  "up_bus_updated": "Bus reservation updated successfully.",
+UserPanelDashboardDto? updatedDashboard = await UserPanelApiClient.UpdateProfileAsync(request);
 '@ `
     -NewString @'
-  "up_bus_cancel_error": "Bus reservation could not be cancelled.",
-  "up_bus_cancelled": "Bus reservation cancelled successfully.",
-  "up_bus_reservation_error": "Bus reservation could not be created.",
-  "up_bus_reserved": "Bus reservation created successfully.",
-  "up_bus_update_error": "Bus reservation could not be updated.",
-  "up_bus_updated": "Bus reservation updated successfully.",
+UserPanelDashboardDto? updatedDashboard = await UserPanelApiClient.UpdateProfileAsync(request, CurrentDomain);
 '@
-
 Patch-File `
-    -Path $EsPath `
-    -Description "+3 claves up_accommodation_* (es)" `
+    -Path $RazorPath `
+    -Description "competicion: actualizar entrada" `
     -OldString @'
-  "up_accommodation_reserved": "Reserva de alojamiento creada correctamente.",
-  "up_accommodation_updated": "Reserva de alojamiento actualizada correctamente.",
+await UserPanelApiClient.UpdateCompetitionEntryAsync(EditingCompetitionEntryId.Value, request);
 '@ `
     -NewString @'
-  "up_accommodation_cancel_error": "No se pudo cancelar la reserva de alojamiento.",
-  "up_accommodation_load_error": "No se pudieron cargar los datos del alojamiento.",
-  "up_accommodation_reservation_error": "No se pudo crear la reserva de alojamiento.",
-  "up_accommodation_reserved": "Reserva de alojamiento creada correctamente.",
-  "up_accommodation_update_error": "No se pudo actualizar la reserva de alojamiento.",
-  "up_accommodation_updated": "Reserva de alojamiento actualizada correctamente.",
+await UserPanelApiClient.UpdateCompetitionEntryAsync(EditingCompetitionEntryId.Value, request, CurrentDomain);
 '@
-
 Patch-File `
-    -Path $EsPath `
-    -Description "+3 claves up_bus_* (es)" `
+    -Path $RazorPath `
+    -Description "competicion: crear entrada" `
     -OldString @'
-  "up_bus_cancelled": "Reserva de autobús cancelada correctamente.",
-  "up_bus_reserved": "Reserva de autobús creada correctamente.",
-  "up_bus_updated": "Reserva de autobús actualizada correctamente.",
+await UserPanelApiClient.CreateCompetitionEntryAsync(createRequest);
 '@ `
     -NewString @'
-  "up_bus_cancel_error": "No se pudo cancelar la reserva de autobús.",
-  "up_bus_cancelled": "Reserva de autobús cancelada correctamente.",
-  "up_bus_reservation_error": "No se pudo crear la reserva de autobús.",
-  "up_bus_reserved": "Reserva de autobús creada correctamente.",
-  "up_bus_update_error": "No se pudo actualizar la reserva de autobús.",
-  "up_bus_updated": "Reserva de autobús actualizada correctamente.",
+await UserPanelApiClient.CreateCompetitionEntryAsync(createRequest, CurrentDomain);
 '@
-
 Patch-File `
-    -Path $FrPath `
-    -Description "+3 claves up_accommodation_* (fr)" `
+    -Path $RazorPath `
+    -Description "competicion: eliminar entrada" `
     -OldString @'
-  "up_accommodation_reserved": "Réservation d’hébergement créée avec succès.",
-  "up_accommodation_updated": "Réservation d’hébergement mise à jour avec succès.",
+await UserPanelApiClient.DeleteCompetitionEntryAsync(DeletingCompetitionEntryId.Value);
 '@ `
     -NewString @'
-  "up_accommodation_cancel_error": "La réservation d’hébergement n’a pas pu être annulée.",
-  "up_accommodation_load_error": "Les détails de l’hébergement n’ont pas pu être chargés.",
-  "up_accommodation_reservation_error": "La réservation d’hébergement n’a pas pu être créée.",
-  "up_accommodation_reserved": "Réservation d’hébergement créée avec succès.",
-  "up_accommodation_update_error": "La réservation d’hébergement n’a pas pu être mise à jour.",
-  "up_accommodation_updated": "Réservation d’hébergement mise à jour avec succès.",
-'@
-
-Patch-File `
-    -Path $FrPath `
-    -Description "+3 claves up_bus_* (fr)" `
-    -OldString @'
-  "up_bus_cancelled": "Réservation de bus annulée avec succès.",
-  "up_bus_reserved": "Réservation de bus créée avec succès.",
-  "up_bus_updated": "Réservation de bus mise à jour avec succès.",
-'@ `
-    -NewString @'
-  "up_bus_cancel_error": "La réservation de bus n’a pas pu être annulée.",
-  "up_bus_cancelled": "Réservation de bus annulée avec succès.",
-  "up_bus_reservation_error": "La réservation de bus n’a pas pu être créée.",
-  "up_bus_reserved": "Réservation de bus créée avec succès.",
-  "up_bus_update_error": "La réservation de bus n’a pas pu être mise à jour.",
-  "up_bus_updated": "Réservation de bus mise à jour avec succès.",
-'@
-
-Patch-File `
-    -Path $CaPath `
-    -Description "+3 claves up_accommodation_* (ca)" `
-    -OldString @'
-  "up_accommodation_reserved": "Reserva d’allotjament creada correctament.",
-  "up_accommodation_updated": "Reserva d’allotjament actualitzada correctament.",
-'@ `
-    -NewString @'
-  "up_accommodation_cancel_error": "No s’ha pogut cancel·lar la reserva d’allotjament.",
-  "up_accommodation_load_error": "No s’han pogut carregar les dades de l’allotjament.",
-  "up_accommodation_reservation_error": "No s’ha pogut crear la reserva d’allotjament.",
-  "up_accommodation_reserved": "Reserva d’allotjament creada correctament.",
-  "up_accommodation_update_error": "No s’ha pogut actualitzar la reserva d’allotjament.",
-  "up_accommodation_updated": "Reserva d’allotjament actualitzada correctament.",
-'@
-
-Patch-File `
-    -Path $CaPath `
-    -Description "+3 claves up_bus_* (ca)" `
-    -OldString @'
-  "up_bus_cancelled": "Reserva d’autobús cancel·lada correctament.",
-  "up_bus_reserved": "Reserva d’autobús creada correctament.",
-  "up_bus_updated": "Reserva d’autobús actualitzada correctament.",
-'@ `
-    -NewString @'
-  "up_bus_cancel_error": "No s’ha pogut cancel·lar la reserva d’autobús.",
-  "up_bus_cancelled": "Reserva d’autobús cancel·lada correctament.",
-  "up_bus_reservation_error": "No s’ha pogut crear la reserva d’autobús.",
-  "up_bus_reserved": "Reserva d’autobús creada correctament.",
-  "up_bus_update_error": "No s’ha pogut actualitzar la reserva d’autobús.",
-  "up_bus_updated": "Reserva d’autobús actualitzada correctament.",
+await UserPanelApiClient.DeleteCompetitionEntryAsync(DeletingCompetitionEntryId.Value, CurrentDomain);
 '@
 
 Write-Host ""
-Write-Host "Deberias ver 33 lineas 'OK: aplicado'." -ForegroundColor Cyan
+Write-Host "Deberias ver 23 lineas 'OK: aplicado'." -ForegroundColor Cyan
 Write-Host ""
 Write-Host "SIGUIENTE PASO:" -ForegroundColor Cyan
-Write-Host "  1. dotnet build (Api y Admin, deben compilar limpio)." -ForegroundColor Cyan
+Write-Host "  1. dotnet build (Application, Api y Admin, deben compilar limpio)." -ForegroundColor Cyan
 Write-Host "  2. Redeploy de AMBOS App Services." -ForegroundColor Cyan
-Write-Host "  3. Verificacion: como PARTICIPANTE, reserva/edita/cancela un autobus" -ForegroundColor Cyan
-Write-Host "     y un alojamiento. Antes daba 401 en todo." -ForegroundColor Cyan
+Write-Host "  3. Verificacion: con un usuario registrado en mas de un festival, entrar" -ForegroundColor Cyan
+Write-Host "     al panel de Swim Out y comprobar que aparecen los modulos de" -ForegroundColor Cyan
+Write-Host "     comida/bus/alojamiento si estan activados alli." -ForegroundColor Cyan
 Write-Host ""
-Write-Host "Con esto quedan cubiertos los 4 puntos de la auditoria de Controllers.zip:" -ForegroundColor Cyan
-Write-Host "  competiciones (script 25/27), comida y modulos (script 28), autobuses y alojamiento (este)." -ForegroundColor Cyan
+Write-Host "IMPORTANTE: UpdateProfileAsync y CreateInvoiceAsync tenian este mismo fallo" -ForegroundColor Cyan
+Write-Host "desde antes de esta serie de scripts (no lo introduje yo); tambien quedan" -ForegroundColor Cyan
+Write-Host "corregidos aqui." -ForegroundColor Cyan
