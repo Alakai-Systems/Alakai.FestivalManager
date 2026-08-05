@@ -80,6 +80,23 @@ public class ReportService : IReportService
         return BuildXlsx("Registrations", ["First Name", "Last Name", "Email", "Pass Type", "Level", "Status", "Payment Status", "Final Price", "Discount Code", "Partner Email"], rows);
     }
 
+    public async Task<byte[]> GenerateCheckInReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = registrations.Select(r => new[]
+        {
+            $"{r.FirstName} {r.LastName}",
+            r.PassType?.Name ?? "",
+            r.Level?.Name ?? "",
+            r.CheckedInAt.HasValue ? r.CheckedInAt.Value.ToString("yyyy-MM-dd HH:mm") : ""
+        }).ToList();
+
+        List<bool> highlightRows = registrations.Select(r => r.CheckedInAt.HasValue).ToList();
+
+        return BuildXlsx("Check-in", ["Name", "Pass Type", "Level", "Checked-in At"], rows, highlightRows);
+    }
+
     public async Task<byte[]> GenerateCompetitionsReportAsync(Guid editionId, CancellationToken cancellationToken = default)
     {
         IReadOnlyList<CompetitionEntry> entries = await _competitionEntryRepository.GetByEditionIdAsync(editionId, cancellationToken);
@@ -723,5 +740,43 @@ public class ReportService : IReportService
         using MemoryStream stream = new();
         workbook.SaveAs(stream);
         return stream.ToArray();
+    }
+
+    private static byte[] BuildXlsx(string sheetName, string[] headers, List<string[]> rows, List<bool> highlightRows)
+    {
+        using XLWorkbook workbook = new();
+        IXLWorksheet worksheet = workbook.Worksheets.Add(sheetName);
+
+        for (int c = 0; c < headers.Length; c++)
+        {
+            IXLCell cell = worksheet.Cell(1, c + 1);
+            cell.Value = headers[c];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromArgb(243, 244, 246);
+        }
+
+        for (int r = 0; r < rows.Count; r++)
+        {
+            for (int c = 0; c < rows[r].Length; c++)
+            {
+                worksheet.Cell(r + 2, c + 1).Value = rows[r][c];
+            }
+
+            if (r < highlightRows.Count && highlightRows[r])
+            {
+                worksheet.Row(r + 2).Style.Fill.BackgroundColor = XLColor.LightGreen;
+            }
+        }
+
+        if (rows.Count > 0)
+        {
+            worksheet.RangeUsed()?.SetAutoFilter();
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using MemoryStream stream2 = new();
+        workbook.SaveAs(stream2);
+        return stream2.ToArray();
     }
 }

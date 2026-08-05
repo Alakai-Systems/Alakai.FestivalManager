@@ -68,6 +68,14 @@
                             </td>
                         </tr>
                         <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Check-in</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "checkin")" @onclick='() => DownloadAsync("checkin")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "checkin" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
                             <td class="px-4 py-3">Competitions</td>
                             <td class="px-4 py-3 text-right">
                                 <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "competitions")" @onclick='() => DownloadAsync("competitions")'>

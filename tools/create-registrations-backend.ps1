@@ -1,105 +1,243 @@
+#Requires -Version 7.0
 <#
-.SINOPSIS
-  Elimina la pagina "Check-in" del panel de Admin (la que aparece en el menu
-  Operations > Check-in, /checkin) y su enlace en el menu lateral. No toca
-  nada de la Api (TicketsController, PublicCheckInController, el check-in
-  publico por QR) ni ningun otro fichero - solo esta pagina de Admin y su
-  entrada de menu, que es exactamente lo que se ha pedido quitar.
+    Script 32 - Add "Check-in" downloadable Excel report to the Reports screen.
 
-  Archivos que modifica:
-    - Admin\Components\Layout\Sidebar.razor   (quita el <li> de Check-in)
-    - Admin\Components\Pages\CheckIn.razor    (se elimina el fichero)
+    Adds a new report type ("checkin") to the existing Reports architecture:
+      - Alakai.FestivalManager.Application/Features/Reports/Services/IReportService.cs
+          new interface method GenerateCheckInReportAsync
+      - Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs
+          new GenerateCheckInReportAsync method (Name, Pass Type, Level, Checked-in At)
+          new BuildXlsx overload that highlights checked-in rows in light green
+      - Alakai.FestivalManager.Api/Controllers/ReportsController.cs
+          new "checkin" switch case + NotFound-check tuple entry
+      - Alakai.FestivalManager.Admin/Components/Pages/Reports.razor
+          new "Check-in" row with a Download button, between Registrations and Competitions
 
-  Idempotente.
-
-.USO
-  Ejecutar desde la raiz del repo:
-    .\31-remove-checkin-admin-page.ps1
-
-  Luego: dotnet build (Admin, debe compilar limpio), redeploy del App Service
-  de Admin.
+    Idempotent: safe to re-run. Uses the shared Patch-File helper (exact-string
+    anchor match; SKIP on zero or multiple matches; never partial/silent writes).
 #>
+
+$ErrorActionPreference = 'Stop'
 
 function Patch-File {
     param(
-        [Parameter(Mandatory = $true)] [string]$Path,
-        [Parameter(Mandatory = $true)] [string]$OldString,
-        [Parameter(Mandatory = $true)] [string]$NewString,
-        [string]$Description = ""
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$OldString,
+        [Parameter(Mandatory)][string]$NewString,
+        [Parameter(Mandatory)][string]$Description
     )
 
     if (-not (Test-Path -LiteralPath $Path)) {
-        Write-Host "SKIP: archivo no encontrado -> $Path" -ForegroundColor Yellow
+        Write-Host "  [SKIP] $Description -- file not found: $Path" -ForegroundColor Yellow
         return
     }
 
-    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-    $rawContent = [System.IO.File]::ReadAllText($Path, [System.Text.Encoding]::UTF8)
-    $usesCrlf = $rawContent.Contains("`r`n")
+    $raw = [System.IO.File]::ReadAllText($Path)
+    $usesCrlf = $raw.Contains("`r`n")
 
-    $content = $rawContent -replace "`r`n", "`n"
+    $content = $raw -replace "`r`n", "`n"
     $oldNormalized = $OldString -replace "`r`n", "`n"
     $newNormalized = $NewString -replace "`r`n", "`n"
 
     if ($content.Contains($newNormalized)) {
-        Write-Host "SKIP: ya aplicado -> $Path ($Description)" -ForegroundColor DarkGray
+        Write-Host "  [SKIP] $Description -- already applied" -ForegroundColor Yellow
         return
     }
 
-    $occurrences = ([regex]::Matches($content, [regex]::Escape($oldNormalized))).Count
-
-    if ($occurrences -eq 0) {
-        Write-Host "SKIP: anchor no encontrado -> $Path ($Description)" -ForegroundColor Red
+    $matches = [regex]::Matches($content, [regex]::Escape($oldNormalized))
+    if ($matches.Count -eq 0) {
+        Write-Host "  [SKIP] $Description -- anchor not found" -ForegroundColor Yellow
+        return
+    }
+    if ($matches.Count -gt 1) {
+        Write-Host "  [SKIP] $Description -- anchor ambiguous ($($matches.Count) matches)" -ForegroundColor Yellow
         return
     }
 
-    if ($occurrences -gt 1) {
-        Write-Host "SKIP: anchor ambiguo, aparece $occurrences veces -> $Path ($Description)" -ForegroundColor Red
-        return
-    }
-
-    $newContent = $content.Replace($oldNormalized, $newNormalized)
+    $updated = $content.Replace($oldNormalized, $newNormalized)
 
     if ($usesCrlf) {
-        $newContent = $newContent -replace "`n", "`r`n"
+        $updated = $updated -replace "`n", "`r`n"
     }
 
-    [System.IO.File]::WriteAllText($Path, $newContent, $utf8NoBom)
-    Write-Host "OK: aplicado -> $Path ($Description)" -ForegroundColor Green
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($Path, $updated, $utf8NoBom)
+    Write-Host "  [OK]   $Description" -ForegroundColor Green
 }
 
-$ErrorActionPreference = "Stop"
+Write-Host "Script 32 - Add Check-in downloadable report" -ForegroundColor Cyan
 
-$SidebarPath = ".\Alakai.FestivalManager.Admin\Components\Layout\Sidebar.razor"
-$CheckInPagePath = ".\Alakai.FestivalManager.Admin\Components\Pages\CheckIn.razor"
-
-# ----------------------------------------------------------------------------
-# 1. Quitar el enlace "Check-in" del menu lateral
-# ----------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# 1) IReportService.cs - new interface method
+# ---------------------------------------------------------------------------
 Patch-File `
-    -Path $SidebarPath `
-    -Description "quitar enlace Check-in del menu" `
-    -OldString @'
-                        <li><NavLink href="/registrations">Registrations</NavLink></li>
-                        <li><NavLink href="/checkin">Check-in</NavLink></li>
-                        <li><NavLink href="/competition-entries">Competition Entries</NavLink></li>
-'@ `
-    -NewString @'
-                        <li><NavLink href="/registrations">Registrations</NavLink></li>
-                        <li><NavLink href="/competition-entries">Competition Entries</NavLink></li>
-'@
+    -Path ".\Alakai.FestivalManager.Application\Features\Reports\Services\IReportService.cs" `
+    -Description "IReportService: add GenerateCheckInReportAsync" `
+    -OldString @"
+    Task<byte[]> GenerateRegistrationsReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateCompetitionsReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+"@ `
+    -NewString @"
+    Task<byte[]> GenerateRegistrationsReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateCheckInReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateCompetitionsReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+"@
 
-# ----------------------------------------------------------------------------
-# 2. Eliminar el fichero de la pagina Check-in
-# ----------------------------------------------------------------------------
-if (Test-Path -LiteralPath $CheckInPagePath) {
-    Remove-Item -LiteralPath $CheckInPagePath -Force
-    Write-Host "OK: eliminado -> $CheckInPagePath" -ForegroundColor Green
-} else {
-    Write-Host "SKIP: ya no existe -> $CheckInPagePath" -ForegroundColor DarkGray
+# ---------------------------------------------------------------------------
+# 2a) ReportService.cs - new GenerateCheckInReportAsync method
+# ---------------------------------------------------------------------------
+Patch-File `
+    -Path ".\Alakai.FestivalManager.Application\Features\Reports\Services\ReportService.cs" `
+    -Description "ReportService: add GenerateCheckInReportAsync method" `
+    -OldString @"
+        return BuildXlsx("Registrations", ["First Name", "Last Name", "Email", "Pass Type", "Level", "Status", "Payment Status", "Final Price", "Discount Code", "Partner Email"], rows);
+    }
+
+    public async Task<byte[]> GenerateCompetitionsReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+"@ `
+    -NewString @"
+        return BuildXlsx("Registrations", ["First Name", "Last Name", "Email", "Pass Type", "Level", "Status", "Payment Status", "Final Price", "Discount Code", "Partner Email"], rows);
+    }
+
+    public async Task<byte[]> GenerateCheckInReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = registrations.Select(r => new[]
+        {
+            `$"{r.FirstName} {r.LastName}",
+            r.PassType?.Name ?? "",
+            r.Level?.Name ?? "",
+            r.CheckedInAt.HasValue ? r.CheckedInAt.Value.ToString("yyyy-MM-dd HH:mm") : ""
+        }).ToList();
+
+        List<bool> highlightRows = registrations.Select(r => r.CheckedInAt.HasValue).ToList();
+
+        return BuildXlsx("Check-in", ["Name", "Pass Type", "Level", "Checked-in At"], rows, highlightRows);
+    }
+
+    public async Task<byte[]> GenerateCompetitionsReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+"@
+
+# ---------------------------------------------------------------------------
+# 2b) ReportService.cs - new BuildXlsx overload with row highlighting
+# ---------------------------------------------------------------------------
+Patch-File `
+    -Path ".\Alakai.FestivalManager.Application\Features\Reports\Services\ReportService.cs" `
+    -Description "ReportService: add BuildXlsx overload with highlightRows" `
+    -OldString @"
+        using MemoryStream stream = new();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
 }
+"@ `
+    -NewString @"
+        using MemoryStream stream = new();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private static byte[] BuildXlsx(string sheetName, string[] headers, List<string[]> rows, List<bool> highlightRows)
+    {
+        using XLWorkbook workbook = new();
+        IXLWorksheet worksheet = workbook.Worksheets.Add(sheetName);
+
+        for (int c = 0; c < headers.Length; c++)
+        {
+            IXLCell cell = worksheet.Cell(1, c + 1);
+            cell.Value = headers[c];
+            cell.Style.Font.Bold = true;
+            cell.Style.Fill.BackgroundColor = XLColor.FromArgb(243, 244, 246);
+        }
+
+        for (int r = 0; r < rows.Count; r++)
+        {
+            for (int c = 0; c < rows[r].Length; c++)
+            {
+                worksheet.Cell(r + 2, c + 1).Value = rows[r][c];
+            }
+
+            if (r < highlightRows.Count && highlightRows[r])
+            {
+                worksheet.Row(r + 2).Style.Fill.BackgroundColor = XLColor.LightGreen;
+            }
+        }
+
+        if (rows.Count > 0)
+        {
+            worksheet.RangeUsed()?.SetAutoFilter();
+        }
+
+        worksheet.Columns().AdjustToContents();
+
+        using MemoryStream stream2 = new();
+        workbook.SaveAs(stream2);
+        return stream2.ToArray();
+    }
+}
+"@
+
+# ---------------------------------------------------------------------------
+# 3) ReportsController.cs - switch case + NotFound-check tuple
+# ---------------------------------------------------------------------------
+Patch-File `
+    -Path ".\Alakai.FestivalManager.Api\Controllers\ReportsController.cs" `
+    -Description "ReportsController: add checkin switch case" `
+    -OldString @"
+            "registrations" => await _reportService.GenerateRegistrationsReportAsync(editionId, cancellationToken),
+            "competitions" => await _reportService.GenerateCompetitionsReportAsync(editionId, cancellationToken),
+"@ `
+    -NewString @"
+            "registrations" => await _reportService.GenerateRegistrationsReportAsync(editionId, cancellationToken),
+            "checkin" => await _reportService.GenerateCheckInReportAsync(editionId, cancellationToken),
+            "competitions" => await _reportService.GenerateCompetitionsReportAsync(editionId, cancellationToken),
+"@
+
+Patch-File `
+    -Path ".\Alakai.FestivalManager.Api\Controllers\ReportsController.cs" `
+    -Description "ReportsController: add checkin to NotFound-check tuple" `
+    -OldString 'if (bytes.Length == 0 && reportType.ToLowerInvariant() is not ("users" or "registrations" or "competitions" or "accommodation" or "accommodation-grid" or "buses" or "meals" or "production-team" or "production-suppliers" or "production-trips" or "production-itineraries" or "production-accommodation" or "production-accommodation-grid"))' `
+    -NewString 'if (bytes.Length == 0 && reportType.ToLowerInvariant() is not ("users" or "registrations" or "checkin" or "competitions" or "accommodation" or "accommodation-grid" or "buses" or "meals" or "production-team" or "production-suppliers" or "production-trips" or "production-itineraries" or "production-accommodation" or "production-accommodation-grid"))'
+
+# ---------------------------------------------------------------------------
+# 4) Reports.razor - new "Check-in" row
+# ---------------------------------------------------------------------------
+Patch-File `
+    -Path ".\Alakai.FestivalManager.Admin\Components\Pages\Reports.razor" `
+    -Description "Reports.razor: add Check-in row" `
+    -OldString @"
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Registrations</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "registrations")" @onclick='() => DownloadAsync("registrations")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "registrations" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Competitions</td>
+"@ `
+    -NewString @"
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Registrations</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "registrations")" @onclick='() => DownloadAsync("registrations")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "registrations" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Check-in</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "checkin")" @onclick='() => DownloadAsync("checkin")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "checkin" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Competitions</td>
+"@
 
 Write-Host ""
-Write-Host "Deberias ver 2 lineas 'OK'." -ForegroundColor Cyan
-Write-Host ""
-Write-Host "SIGUIENTE PASO: dotnet build (Admin) y redeploy del App Service de Admin." -ForegroundColor Cyan
+Write-Host "Script 32 complete." -ForegroundColor Cyan
