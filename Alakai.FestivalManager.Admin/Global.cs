@@ -96,3 +96,8 @@ global using System.Net.Http.Headers;
 global using System.Net.Http.Json;
 global using System.Security.Claims;
 global using System.Text.Json;
+global using Azure.Monitor.OpenTelemetry.AspNetCore;
+global using OpenTelemetry;
+global using OpenTelemetry.Resources;
+global using Microsoft.AspNetCore.HttpOverrides;
+global using Microsoft.AspNetCore.DataProtection;

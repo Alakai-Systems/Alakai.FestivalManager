@@ -4,9 +4,11 @@
     <TargetFramework>net9.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>77128743-6d83-4387-8915-d5f560fe4371</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Azure.Monitor.OpenTelemetry.AspNetCore" Version="1.6.0" />
     <PackageReference Include="MudBlazor" Version="9.5.0" />
     <PackageReference Include="Radzen.Blazor" Version="11.0.5" />
   </ItemGroup>

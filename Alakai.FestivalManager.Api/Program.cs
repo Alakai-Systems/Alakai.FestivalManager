@@ -1,5 +1,3 @@
-using Alakai.FestivalManager.Infrastructure.Persistence;
-
 QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -77,6 +75,20 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 builder.Services.AddScoped<FestivalService>();
 
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor(options =>
+    {
+        options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+    })
+    .ConfigureResource(resourceBuilder => resourceBuilder.AddAttributes(new Dictionary<string, object>
+    {
+        { "service.name", "FestivalManager-Api" }
+    }));
+
+//Health check para Azure Monitor Availability Tests
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<FestivalManagerDbContext>();
+
 //CORS
 builder.Services.AddCors(options =>
 {
@@ -130,5 +142,6 @@ app.UseAuthorization();
 app.UseCors("Admin");
 
 app.MapControllers();
+app.MapHealthChecks("/health");
 
 app.Run();

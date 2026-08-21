@@ -29,6 +29,9 @@ jobs:
       - name: Build
         run: dotnet build Alakai.FestivalManager.sln --configuration Release --no-restore
 
+      - name: Test
+        run: dotnet test Alakai.FestivalManager.sln --configuration Release --no-build
+
       - name: Publish API
         run: dotnet publish ${{ env.API_PROJECT }} --configuration Release --output ./publish/api --no-build
 

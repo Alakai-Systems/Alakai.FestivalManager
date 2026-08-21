@@ -1,6 +1,3 @@
-using Microsoft.AspNetCore.HttpOverrides;
-using Microsoft.AspNetCore.DataProtection;
-
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 
@@ -16,6 +13,16 @@ builder.Services.AddRadzenComponents();
 
 builder.Services.AddMudServices();
 builder.Services.AddApiClients(builder.Configuration);
+
+builder.Services.AddOpenTelemetry()
+    .UseAzureMonitor(options =>
+    {
+        options.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"];
+    })
+    .ConfigureResource(resourceBuilder => resourceBuilder.AddAttributes(new Dictionary<string, object>
+    {
+        { "service.name", "FestivalManager-Admin" }
+    }));
 
 string dataProtectionKeysPath = builder.Configuration["DataProtection:KeyRingPath"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "keys");
