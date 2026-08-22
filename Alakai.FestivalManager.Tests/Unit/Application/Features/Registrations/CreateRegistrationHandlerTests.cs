@@ -1,11 +1,3 @@
-using Alakai.FestivalManager.Application.Features.Emails.Services;
-using Alakai.FestivalManager.Application.Features.Registrations.Commands.CreateRegistration;
-using Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
-using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
-using Alakai.FestivalManager.Application.Features.Registrations.Services;
-using Alakai.FestivalManager.Application.Services.Security;
-using Alakai.FestivalManager.Tests.Unit.Application.Common;
-using AutoMapper;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Alakai.FestivalManager.Tests.Unit.Application.Features.Registrations;
@@ -172,12 +164,29 @@ public class CreateRegistrationHandlerTests
     }
 
     [Fact]
-    public async Task HandleAsync_WhenSuccessful_SavesRegistrationAndSendsEmail()
+    public async Task HandleAsync_WhenSuccessful_SavesRegistrationAndQueuesConfirmationEmail()
     {
+        Func<IServiceProvider, CancellationToken, Task>? queuedWorkItem = null;
+        _backgroundTaskQueue
+            .Setup(q => q.QueueBackgroundWorkItem(It.IsAny<Func<IServiceProvider, CancellationToken, Task>>()))
+            .Callback<Func<IServiceProvider, CancellationToken, Task>>(item => queuedWorkItem = item);
+
         await _sut.HandleAsync(BuildCommand());
 
         _regRepo.Verify(r => r.AddAsync(It.IsAny<Registration>(), It.IsAny<CancellationToken>()), Times.Once);
         _regRepo.Verify(r => r.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+
+        // El handler difiere el envío a la cola en segundo plano — primero comprobamos que se encoló.
+        _backgroundTaskQueue.Verify(q => q.QueueBackgroundWorkItem(It.IsAny<Func<IServiceProvider, CancellationToken, Task>>()), Times.Once);
+        queuedWorkItem.Should().NotBeNull();
+
+        // Y luego ejecutamos ese trabajo contra un IServiceProvider de prueba que resuelve nuestro mock.
+        ServiceProvider serviceProvider = new ServiceCollection()
+            .AddSingleton(_emailSvc.Object)
+            .BuildServiceProvider();
+
+        await queuedWorkItem!(serviceProvider, CancellationToken.None);
+
         _emailSvc.Verify(e => e.CreateAndSendEmailAsync(
             EmailTemplateKey.RegistrationCreated, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }
