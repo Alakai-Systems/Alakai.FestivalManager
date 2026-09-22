@@ -88,6 +88,7 @@ global using Alakai.FestivalManager.Admin.Services.Localisation;
 global using Alakai.FestivalManager.Application.Extensions;
 global using Microsoft.AspNetCore.Authentication;
 global using Microsoft.AspNetCore.Authentication.Cookies;
+global using Microsoft.AspNetCore.Components;
 global using Microsoft.AspNetCore.Components.Server.ProtectedBrowserStorage;
 global using Microsoft.AspNetCore.Mvc;
 global using MudBlazor.Services;

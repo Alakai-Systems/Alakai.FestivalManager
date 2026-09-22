@@ -44,7 +44,7 @@ public static class AdminAuthEndpoints
                 AuthenticationProperties authProperties = new()
                 {
                     IsPersistent = true,
-                    ExpiresUtc = DateTimeOffset.UtcNow.AddDays(7)
+                    ExpiresUtc = DateTimeOffset.UtcNow.AddHours(8)
                 };
 
                 await httpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, authProperties);

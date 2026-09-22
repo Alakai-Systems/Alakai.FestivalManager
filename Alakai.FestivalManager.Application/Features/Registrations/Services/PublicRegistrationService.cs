@@ -28,6 +28,8 @@ public class PublicRegistrationService : IPublicRegistrationService
             throw new NotFoundException($"Edition with id '{editionId}' was not found.");
         }
 
+        bool earlyBirdAvailable = edition.EarlyBirdCapacity.HasValue && edition.EarlyBirdUsedCount < edition.EarlyBirdCapacity.Value;
+
         IReadOnlyList<PassType> passTypes = await _passTypeRepository.GetActiveByEditionIdWithLevelsAsync(editionId, cancellationToken);
 
         IReadOnlyList<AccommodationBuilding> buildings = await _accommodationBuildingRepository.GetByEditionIdAsync(editionId, cancellationToken);
@@ -102,7 +104,7 @@ public class PublicRegistrationService : IPublicRegistrationService
                     Id = level.Id,
                     Name = level.Name,
                     Description = level.Description,
-                    Price = level.RegularPrice,
+                    Price = earlyBirdAvailable ? level.EarlyBirdPrice : level.RegularPrice,
                     RequiresRole = requiresRole,
                     IsFull = isFull,
                     LeaderFull = leaderFull,

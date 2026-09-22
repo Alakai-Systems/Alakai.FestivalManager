@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
 
 public class EditionConfiguration : IEntityTypeConfiguration<Edition>
 {
@@ -23,6 +23,12 @@ public class EditionConfiguration : IEntityTypeConfiguration<Edition>
 
         builder.Property(e => e.IsActive)
             .IsRequired();
+
+        builder.Property(e => e.EarlyBirdCapacity);
+
+        builder.Property(e => e.EarlyBirdUsedCount)
+            .IsRequired()
+            .HasDefaultValue(0);
 
         builder.HasOne(e => e.Festival)
             .WithMany(f => f.Editions)

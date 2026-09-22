@@ -66,4 +66,12 @@ public class EditionsController : ControllerBase
 
         return Ok(response);
     }
+
+    [HttpPost("{id:guid}/reset-early-bird-usage")]
+    public async Task<IActionResult> ResetEarlyBirdUsage(Guid id, CancellationToken cancellationToken)
+    {
+        ApiResponse<ResetEarlyBirdUsageResponse> response = await _editionService.ResetEarlyBirdUsageAsync(id, cancellationToken);
+
+        return Ok(response);
+    }
 }

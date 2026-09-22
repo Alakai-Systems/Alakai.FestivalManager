@@ -1,6 +1,7 @@
 @page "/user-panel/dashboard"
 @page "/user-panel/dashboard/{Lang}"
 @layout UserPanelLayout
+@implements IDisposable
 
 @using Alakai.FestivalManager.Admin.Contracts.UserPanel.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Accommodations.DTOs
@@ -1995,6 +1996,8 @@
     // ==================== Payments (Redsys) ====================
     private bool IsStartingPayment { get; set; }
 
+    private CancellationTokenSource? _paymentPollCts;
+
     private string? PaymentBannerMessage { get; set; }
 
     private bool PaymentBannerIsError { get; set; }
@@ -2011,12 +2014,13 @@
 
         try
         {
-            decimal? amountOverride = null;
-            if (Dashboard.Registration.PaymentStatus == "PartiallyPaid")
-            {
-                decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
-                amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
-            }
+            // Igual que en el formulario publico (Register.razor): el 1% de comision
+            // se aplica SIEMPRE sobre lo que se cobra ahora, sea el importe completo
+            // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
+            // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
+            // completo o el primer tramo de un Split se cobraban sin comision.
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
+            decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
             CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
             RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(request);
 
@@ -2024,11 +2028,79 @@
 
             IsStartingPayment = false;
             ShowPaymentBanner(T.Get("up_payment_new_tab"), isError: false);
+
+            // El pago se abre en una pestana NUEVA (redsysSubmit usa target=_blank);
+            // esta pestana (la que ya tenias abierta) no se entera sola de que se
+            // pago. Mientras esa pestana de pago sigue abierta, sondeamos el estado
+            // de la inscripcion para refrescar esta pestana en cuanto cambie.
+            StartPaymentPolling();
         }
         catch (Exception ex)
         {
             IsStartingPayment = false;
             ShowPaymentBanner(ex.Message, isError: true);
+        }
+    }
+
+    private void StartPaymentPolling()
+    {
+        _paymentPollCts?.Cancel();
+        _paymentPollCts?.Dispose();
+        _paymentPollCts = new CancellationTokenSource();
+
+        string statusBeforePayment = Dashboard?.Registration?.PaymentStatus ?? string.Empty;
+
+        _ = PollForPaymentUpdateAsync(statusBeforePayment, _paymentPollCts.Token);
+    }
+
+    // Sondea el estado de la inscripcion cada 4s (hasta 15 minutos) mientras la
+    // pestana de pago (Redsys) sigue abierta en otra pestana. En cuanto el banco
+    // confirma el pago y PaymentStatus cambia, refresca esta pestana sola: recarga
+    // el Dashboard y muestra el aviso de pago confirmado, sin que el usuario tenga
+    // que volver manualmente desde la pagina "pago realizado" del banco.
+    private async Task PollForPaymentUpdateAsync(string statusBeforePayment, CancellationToken cancellationToken)
+    {
+        DateTime deadline = DateTime.UtcNow.AddMinutes(15);
+
+        while (!cancellationToken.IsCancellationRequested && DateTime.UtcNow < deadline)
+        {
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(4), cancellationToken);
+            }
+            catch (TaskCanceledException)
+            {
+                return;
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return;
+            }
+
+            UserPanelDashboardDto? refreshed;
+
+            try
+            {
+                refreshed = await UserPanelApiClient.GetDashboardAsync(CurrentDomain, cancellationToken);
+            }
+            catch
+            {
+                continue; // fallo transitorio (p.ej. red) - se reintenta en el siguiente ciclo
+            }
+
+            if (refreshed?.Registration is null || refreshed.Registration.PaymentStatus == statusBeforePayment)
+            {
+                continue;
+            }
+
+            Dashboard = refreshed;
+            SyncFormFromDashboard();
+            ShowPaymentBanner(T.Get("up_payment_confirmed"), isError: false);
+
+            await InvokeAsync(StateHasChanged);
+
+            return;
         }
     }
 
@@ -2271,6 +2343,12 @@
 
             StateHasChanged();
         }
+    }
+
+    public void Dispose()
+    {
+        _paymentPollCts?.Cancel();
+        _paymentPollCts?.Dispose();
     }
 
     private string? CurrentDomain;

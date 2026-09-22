@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
+namespace Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
 
 public class CreateEditionCommand
 {
@@ -9,4 +9,5 @@ public class CreateEditionCommand
     public DateTime EndDate { get; set; }
     public DateTime? RegistrationOpenDate { get; set; }
     public DateTime? RegistrationCloseDate { get; set; }
+    public int? EarlyBirdCapacity { get; set; }
 }

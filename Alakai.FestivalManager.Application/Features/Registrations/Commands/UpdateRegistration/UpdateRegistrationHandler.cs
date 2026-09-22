@@ -88,7 +88,12 @@ public class UpdateRegistrationHandler
             }
         }
 
-        decimal basePrice = level.RegularPrice;
+        // Se respeta el tier (Early Bird o no) con el que se creo la inscripcion.
+        // No se re-evalua contra el cupo ACTUAL de la edicion: si se re-evaluara,
+        // editar una inscripcion antigua (p.ej. corregir un telefono) podria
+        // cambiarle el precio en cuanto el cupo Early Bird se agotase con
+        // inscripciones posteriores, algo que no deberia pasar nunca en produccion.
+        decimal basePrice = existing.IsEarlyBirdPrice ? level.EarlyBirdPrice : level.RegularPrice;
         DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue, cancellationToken);
 
         _mapper.Map(command, existing);

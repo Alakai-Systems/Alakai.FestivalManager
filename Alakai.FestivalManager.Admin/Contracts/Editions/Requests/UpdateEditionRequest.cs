@@ -19,4 +19,6 @@ public class UpdateEditionRequest
     public DateTime? RegistrationCloseDate { get; set; }
 
     public bool IsActive { get; set; }
+
+    public int? EarlyBirdCapacity { get; set; }
 }

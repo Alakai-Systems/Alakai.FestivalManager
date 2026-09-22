@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Services;
+namespace Alakai.FestivalManager.Application.Features.Editions.Services;
 
 public class EditionService : IEditionService
 {
@@ -8,11 +8,12 @@ public class EditionService : IEditionService
     private readonly GetEditionsHandler _getEditionsHandler;
     private readonly UpdateEditionHandler _updateEditionHandler;
     private readonly DeleteEditionHandler _deleteEditionHandler;
+    private readonly ResetEarlyBirdUsageHandler _resetEarlyBirdUsageHandler;
     private readonly IValidator<CreateEditionCommand> _createEditionValidator;
     private readonly IValidator<UpdateEditionCommand> _updateEditionValidator;
 
     public EditionService(CreateEditionHandler createEditionHandler, GetEditionByIdHandler getEditionByIdHandler, GetEditionsByFestivalIdHandler getEditionsByFestivalIdHandler,
-        GetEditionsHandler getEditionsHandler, UpdateEditionHandler updateEditionHandler, DeleteEditionHandler deleteEditionHandler,
+        GetEditionsHandler getEditionsHandler, UpdateEditionHandler updateEditionHandler, DeleteEditionHandler deleteEditionHandler, ResetEarlyBirdUsageHandler resetEarlyBirdUsageHandler,
         IValidator<CreateEditionCommand> createEditionValidator, IValidator<UpdateEditionCommand> updateEditionValidator)
     {
         _createEditionHandler = createEditionHandler;
@@ -20,6 +21,7 @@ public class EditionService : IEditionService
         _getEditionsHandler = getEditionsHandler;
         _updateEditionHandler = updateEditionHandler;
         _deleteEditionHandler = deleteEditionHandler;
+        _resetEarlyBirdUsageHandler = resetEarlyBirdUsageHandler;
         _createEditionValidator = createEditionValidator;
         _updateEditionValidator = updateEditionValidator;
         _getEditionsByFestivalIdHandler = getEditionsByFestivalIdHandler;
@@ -126,6 +128,21 @@ public class EditionService : IEditionService
             Success = true,
             Message = "Edition deleted successfully.",
             Data = new DeleteEditionResponse { Id = deletedId, Deleted = true },
+            Errors = []
+        };
+    }
+
+    public async Task<ApiResponse<ResetEarlyBirdUsageResponse>> ResetEarlyBirdUsageAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        ResetEarlyBirdUsageCommand command = new(id);
+
+        int newUsedCount = await _resetEarlyBirdUsageHandler.HandleAsync(command, cancellationToken);
+
+        return new ApiResponse<ResetEarlyBirdUsageResponse>
+        {
+            Success = true,
+            Message = "Early Bird usage reset to 0.",
+            Data = new ResetEarlyBirdUsageResponse { EditionId = id, EarlyBirdUsedCount = newUsedCount },
             Errors = []
         };
     }

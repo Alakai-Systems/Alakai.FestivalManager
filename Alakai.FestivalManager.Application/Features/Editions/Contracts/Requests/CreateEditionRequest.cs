@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;
+namespace Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;
 
 public class CreateEditionRequest
 {
@@ -9,4 +9,6 @@ public class CreateEditionRequest
     public DateTime EndDate { get; set; }
     public DateTime? RegistrationOpenDate { get; set; }
     public DateTime? RegistrationCloseDate { get; set; }
+
+    public int? EarlyBirdCapacity { get; set; }
 }

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Domain.Entities;
+namespace Alakai.FestivalManager.Domain.Entities;
 
 public class Edition : BaseEntity
 {
@@ -12,4 +12,10 @@ public class Edition : BaseEntity
     public DateTime? RegistrationCloseDate { get; set; }
     public bool IsActive { get; set; } = true;
     public ICollection<PassType> PassTypes { get; set; } = new List<PassType>();
+
+    // Cupo Early Bird compartido por toda la edicion (todos los pases/niveles).
+    // Null o 0 = Early Bird desactivado; se aplica EarlyBirdPrice mientras
+    // EarlyBirdUsedCount < EarlyBirdCapacity, luego cae a RegularPrice.
+    public int? EarlyBirdCapacity { get; set; }
+    public int EarlyBirdUsedCount { get; set; } = 0;
 }

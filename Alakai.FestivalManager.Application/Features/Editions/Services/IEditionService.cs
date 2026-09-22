@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Services;
+namespace Alakai.FestivalManager.Application.Features.Editions.Services;
 
 public interface IEditionService
 {
@@ -8,4 +8,5 @@ public interface IEditionService
     Task<ApiResponse<GetEditionsResponse>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<ApiResponse<UpdateEditionResponse>> UpdateAsync(UpdateEditionCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<DeleteEditionResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<ResetEarlyBirdUsageResponse>> ResetEarlyBirdUsageAsync(Guid id, CancellationToken cancellationToken = default);
 }

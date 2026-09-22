@@ -98,7 +98,8 @@ public class CreateRegistrationHandler
             await _userRepository.AddAsync(user, cancellationToken);
         }
 
-        decimal basePrice = level.RegularPrice;
+        bool earlyBirdApplies = edition.EarlyBirdCapacity.HasValue && edition.EarlyBirdUsedCount < edition.EarlyBirdCapacity.Value;
+        decimal basePrice = earlyBirdApplies ? level.EarlyBirdPrice : level.RegularPrice;
 
         DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue, cancellationToken);
 
@@ -108,6 +109,7 @@ public class CreateRegistrationHandler
         registration.PaymentStatus = PaymentStatus.Unpaid;
         registration.IsActive = true;
         registration.BasePrice = basePrice;
+        registration.IsEarlyBirdPrice = earlyBirdApplies;
         registration.DiscountAmount = discount.DiscountAmount;
         registration.FinalPrice = discount.FinalPrice;
         registration.DiscountCodeId = discount.DiscountCodeId;
@@ -126,6 +128,13 @@ public class CreateRegistrationHandler
         await _registrationRepository.AddAsync(registration, cancellationToken);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
         await _registrationPartnerService.LinkPartnerAsync(registration.Id, cancellationToken);
+
+        if (earlyBirdApplies)
+        {
+            edition.EarlyBirdUsedCount += 1;
+
+            await _editionRepository.SaveChangesAsync(cancellationToken);
+        }
 
         if (discount.DiscountCodeId.HasValue)
         {

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Contracts.DTOs;
+namespace Alakai.FestivalManager.Application.Features.Editions.Contracts.DTOs;
 
 public class EditionDto
 {
@@ -11,4 +11,6 @@ public class EditionDto
     public DateTime? RegistrationOpenDate { get; set; }
     public DateTime? RegistrationCloseDate { get; set; }
     public bool IsActive { get; set; }
+    public int? EarlyBirdCapacity { get; set; }
+    public int EarlyBirdUsedCount { get; set; }
 }

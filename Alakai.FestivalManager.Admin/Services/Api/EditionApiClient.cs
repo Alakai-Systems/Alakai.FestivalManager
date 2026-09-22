@@ -99,6 +99,18 @@ public class EditionApiClient
         EnsureSuccess(httpResponse, response);
     }
 
+    public async Task<int> ResetEarlyBirdUsageAsync(Guid id, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsync($"api/editions/{id}/reset-early-bird-usage", null, cancellationToken);
+        ApiResponse<ResetEarlyBirdUsageResponse>? response = await ReadResponseAsync<ResetEarlyBirdUsageResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+
+        return response!.Data!.EarlyBirdUsedCount;
+    }
+
     private static async Task<ApiResponse<T>?> ReadResponseAsync<T>(HttpResponseMessage httpResponse, CancellationToken cancellationToken)
     {
         try

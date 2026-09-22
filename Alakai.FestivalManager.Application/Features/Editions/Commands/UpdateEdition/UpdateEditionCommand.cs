@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
+namespace Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
 
 public class UpdateEditionCommand
 {
@@ -11,4 +11,5 @@ public class UpdateEditionCommand
     public DateTime? RegistrationOpenDate { get; set; }
     public DateTime? RegistrationCloseDate { get; set; }
     public bool IsActive { get; set; }
+    public int? EarlyBirdCapacity { get; set; }
 }

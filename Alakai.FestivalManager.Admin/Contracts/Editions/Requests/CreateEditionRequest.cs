@@ -17,4 +17,6 @@ public class CreateEditionRequest
     public DateTime? RegistrationOpenDate { get; set; }
 
     public DateTime? RegistrationCloseDate { get; set; }
+
+    public int? EarlyBirdCapacity { get; set; }
 }

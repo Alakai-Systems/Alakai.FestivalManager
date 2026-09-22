@@ -29,6 +29,7 @@ public static class ApplicationDependencyInjectionExtension
         services.AddScoped<GetEditionsHandler>();
         services.AddScoped<UpdateEditionHandler>();
         services.AddScoped<DeleteEditionHandler>();
+        services.AddScoped<ResetEarlyBirdUsageHandler>();
         services.AddScoped<IEditionService, EditionService>();
 
         //PassTypes

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Editions.Validators;
+namespace Alakai.FestivalManager.Application.Features.Editions.Validators;
 
 public class CreateEditionValidator : AbstractValidator<CreateEditionCommand>
 {
@@ -21,5 +21,9 @@ public class CreateEditionValidator : AbstractValidator<CreateEditionCommand>
             .LessThan(x => x.RegistrationCloseDate)
             .When(x => x.RegistrationOpenDate.HasValue &&
                        x.RegistrationCloseDate.HasValue);
+
+        RuleFor(x => x.EarlyBirdCapacity)
+            .GreaterThanOrEqualTo(0)
+            .When(x => x.EarlyBirdCapacity.HasValue);
     }
 }

@@ -81,6 +81,10 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
             .IsRequired()
             .HasColumnType("decimal(18,2)");
 
+        builder.Property(r => r.IsEarlyBirdPrice)
+            .IsRequired()
+            .HasDefaultValue(false);
+
         builder.Property(r => r.ManagementFee)
             .IsRequired()
             .HasColumnType("decimal(18,2)");

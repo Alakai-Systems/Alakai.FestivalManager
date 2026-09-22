@@ -70,6 +70,7 @@ global using Alakai.FestivalManager.Application.Features.DiscountCodes.Queries.G
 global using Alakai.FestivalManager.Application.Features.DiscountCodes.Services;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.CreateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.DeleteEdition;
+global using Alakai.FestivalManager.Application.Features.Editions.Commands.ResetEarlyBirdUsage;
 global using Alakai.FestivalManager.Application.Features.Editions.Commands.UpdateEdition;
 global using Alakai.FestivalManager.Application.Features.Editions.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Editions.Contracts.Requests;

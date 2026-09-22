@@ -180,14 +180,13 @@
                     </button>
                 </div>
 
-                <!-- New Edition modal input area -->
-                <div class="p-5 space-y-4">
+                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
-                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                        <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
                     }
 
-                    <select class="form-select" @bind="createRequest.FestivalId">
+                    <select class="form-select md:col-span-2" @bind="createRequest.FestivalId">
                         <option value="@Guid.Empty">Select festival</option>
                         @foreach (FestivalDto festival in festivals)
                         {
@@ -198,17 +197,30 @@
                     <input class="form-input" placeholder="Name" @bind="createRequest.Name" />
                     <input class="form-input" placeholder="Year" type="number" @bind="createRequest.Year" />
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
-                    <InputDate class="form-input" @bind-Value="createRequest.StartDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
+                        <InputDate class="form-input" @bind-Value="createRequest.StartDate" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
-                    <InputDate class="form-input" @bind-Value="createRequest.EndDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
+                        <InputDate class="form-input" @bind-Value="createRequest.EndDate" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
-                    <InputDate class="form-input" @bind-Value="createRequest.RegistrationOpenDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
+                        <InputDate class="form-input" @bind-Value="createRequest.RegistrationOpenDate" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
-                    <InputDate class="form-input" @bind-Value="createRequest.RegistrationCloseDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
+                        <InputDate class="form-input" @bind-Value="createRequest.RegistrationCloseDate" />
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-black/60 dark:text-white/60">Early Bird capacity (leave empty to disable)</label>
+                        <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="createRequest.EarlyBirdCapacity" />
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -234,40 +246,71 @@
                     </button>
                 </div>
 
-                <div class="p-5 space-y-4">
+                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
-                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
+                        <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
                     }
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Festival</label>
-                    <select class="form-select" @bind="updateRequest.FestivalId">
-                        <option value="@Guid.Empty">Select festival</option>
-                        @foreach (FestivalDto festival in festivals)
-                        {
-                            <option value="@festival.Id">@festival.Name</option>
-                        }
-                    </select>
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-black/60 dark:text-white/60">Festival</label>
+                        <select class="form-select" @bind="updateRequest.FestivalId">
+                            <option value="@Guid.Empty">Select festival</option>
+                            @foreach (FestivalDto festival in festivals)
+                            {
+                                <option value="@festival.Id">@festival.Name</option>
+                            }
+                        </select>
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
-                    <input class="form-input" placeholder="Name" @bind="updateRequest.Name" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
+                        <input class="form-input" placeholder="Name" @bind="updateRequest.Name" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Year</label>
-                    <input class="form-input" placeholder="Year" type="number" @bind="updateRequest.Year" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Year</label>
+                        <input class="form-input" placeholder="Year" type="number" @bind="updateRequest.Year" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
-                    <InputDate class="form-input" @bind-Value="updateRequest.StartDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
+                        <InputDate class="form-input" @bind-Value="updateRequest.StartDate" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
-                    <InputDate class="form-input" @bind-Value="updateRequest.EndDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
+                        <InputDate class="form-input" @bind-Value="updateRequest.EndDate" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
-                    <InputDate class="form-input" @bind-Value="updateRequest.RegistrationOpenDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
+                        <InputDate class="form-input" @bind-Value="updateRequest.RegistrationOpenDate" />
+                    </div>
 
-                    <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
-                    <InputDate class="form-input" @bind-Value="updateRequest.RegistrationCloseDate" />
+                    <div>
+                        <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
+                        <InputDate class="form-input" @bind-Value="updateRequest.RegistrationCloseDate" />
+                    </div>
 
-                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                    <div class="md:col-span-2">
+                        <label class="block text-sm text-black/60 dark:text-white/60">Early Bird capacity (leave empty to disable)</label>
+                        <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
+                    </div>
+
+                    @if (selectedEdition is not null)
+                    {
+                        <div class="md:col-span-2 flex items-center justify-between gap-3">
+                            <span class="text-sm text-black/70 dark:text-white/70">
+                                Early Bird used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
+                            </span>
+                            <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
+                                Reset to 0
+                            </button>
+                        </div>
+                    }
+
+                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white md:col-span-2">
                         <input type="checkbox" @bind="updateRequest.IsActive" />
                         Active
                     </label>
@@ -534,7 +577,8 @@
             EndDate = edition.EndDate,
             RegistrationOpenDate = edition.RegistrationOpenDate,
             RegistrationCloseDate = edition.RegistrationCloseDate,
-            IsActive = edition.IsActive
+            IsActive = edition.IsActive,
+            EarlyBirdCapacity = edition.EarlyBirdCapacity
         };
 
         showEditModal = true;
@@ -609,6 +653,40 @@
             await EditionApiClient.UpdateAsync(selectedEdition.Id, updateRequest);
             CloseModals();
             successMessage = "Edition updated successfully.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadEditionsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task ResetEarlyBirdUsageAsync()
+    {
+        if (isSaving || selectedEdition is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            int newUsedCount = await EditionApiClient.ResetEarlyBirdUsageAsync(selectedEdition.Id);
+
+            selectedEdition.EarlyBirdUsedCount = newUsedCount;
+            successMessage = "Early Bird usage reset to 0.";
             errorMessage = null;
             _ = ClearMessagesAfterDelayAsync();
             await LoadEditionsAsync();

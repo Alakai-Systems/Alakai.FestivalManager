@@ -21,4 +21,8 @@ public class EditionDto
     public DateTime? RegistrationCloseDate { get; set; }
 
     public bool IsActive { get; set; }
+
+    public int? EarlyBirdCapacity { get; set; }
+
+    public int EarlyBirdUsedCount { get; set; }
 }

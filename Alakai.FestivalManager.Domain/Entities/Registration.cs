@@ -42,6 +42,12 @@ public class Registration : BaseEntity
     public decimal BasePrice { get; set; }
     public decimal FinalPrice { get; set; }
 
+    // True si esta inscripcion se creo mientras el cupo Early Bird de la
+    // edicion estaba disponible. Se fija SOLO al crear; al editar la
+    // inscripcion se respeta este valor (no se re-evalua contra el cupo
+    // actual, para no re-tarificar inscripciones antiguas al editarlas).
+    public bool IsEarlyBirdPrice { get; set; }
+
     public string? PaymentReference { get; set; }
     public string? PaymentAuthCodes { get; set; }
     public DateTime? PaidAt { get; set; }
