@@ -1,4 +1,4 @@
-﻿@page "/pass-types"
+@page "/pass-types"
 @using System
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes.Requests
@@ -243,6 +243,38 @@
                         <input type="checkbox" @bind="updateRequest.IsActive" />
                         Active
                     </label>
+
+                    <div>
+                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules available on this pass</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateHasCompetitions" />
+                                Competitions
+                            </label>
+                            @if (UpdateFestivalHasAccommodation)
+                            {
+                                <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                    <input type="checkbox" @bind="UpdateHasAccommodation" />
+                                    Accommodation
+                                </label>
+                            }
+                            @if (UpdateFestivalHasTransport)
+                            {
+                                <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                    <input type="checkbox" @bind="UpdateHasTransport" />
+                                    Transport
+                                </label>
+                            }
+                            @if (UpdateFestivalHasMeals)
+                            {
+                                <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                    <input type="checkbox" @bind="UpdateHasMeals" />
+                                    Meals
+                                </label>
+                            }
+                        </div>
+                        <p class="mt-1 text-xs text-black/40 dark:text-white/60">Only modules enabled for the festival are shown here. Competitions is on by default and can be turned off for this pass.</p>
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -483,7 +515,8 @@
             Name = passType.Name,
             SortOrder = passType.SortOrder,
             Description = passType.Description,
-            IsActive = passType.IsActive
+            IsActive = passType.IsActive,
+            EnabledModules = passType.EnabledModules
         };
         showEditModal = true;
     }
@@ -633,6 +666,51 @@
         }
 
         return $"{ed.Year} - {ed.Name}";
+    }
+
+    private int SelectedEditionFestivalModules
+    {
+        get
+        {
+            EditionDto? edition = editions.FirstOrDefault(e => e.Id == updateRequest.EditionId);
+
+            if (edition is null)
+            {
+                return 0;
+            }
+
+            FestivalDto? festival = festivals.FirstOrDefault(f => f.Id == edition.FestivalId);
+
+            return festival?.EnabledModules ?? 0;
+        }
+    }
+
+    private bool UpdateFestivalHasAccommodation => (SelectedEditionFestivalModules & 2) != 0;
+    private bool UpdateFestivalHasTransport => (SelectedEditionFestivalModules & 4) != 0;
+    private bool UpdateFestivalHasMeals => (SelectedEditionFestivalModules & 8) != 0;
+
+    private bool UpdateHasCompetitions
+    {
+        get => (updateRequest.EnabledModules & 1) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | 1 : updateRequest.EnabledModules & ~1;
+    }
+
+    private bool UpdateHasAccommodation
+    {
+        get => (updateRequest.EnabledModules & 2) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | 2 : updateRequest.EnabledModules & ~2;
+    }
+
+    private bool UpdateHasTransport
+    {
+        get => (updateRequest.EnabledModules & 4) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | 4 : updateRequest.EnabledModules & ~4;
+    }
+
+    private bool UpdateHasMeals
+    {
+        get => (updateRequest.EnabledModules & 8) != 0;
+        set => updateRequest.EnabledModules = value ? updateRequest.EnabledModules | 8 : updateRequest.EnabledModules & ~8;
     }
 
     private void SortBy(string column)

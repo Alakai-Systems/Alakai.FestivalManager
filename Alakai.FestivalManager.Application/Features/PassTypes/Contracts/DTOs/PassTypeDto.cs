@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.PassTypes.Contracts.DTOs;
+namespace Alakai.FestivalManager.Application.Features.PassTypes.Contracts.DTOs;
 
 public class PassTypeDto
 {
@@ -8,4 +8,5 @@ public class PassTypeDto
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+    public FestivalModule EnabledModules { get; set; }
 }

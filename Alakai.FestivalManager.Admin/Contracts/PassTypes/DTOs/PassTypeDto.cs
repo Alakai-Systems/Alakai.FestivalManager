@@ -8,4 +8,5 @@ public class PassTypeDto
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+    public int EnabledModules { get; set; }
 }

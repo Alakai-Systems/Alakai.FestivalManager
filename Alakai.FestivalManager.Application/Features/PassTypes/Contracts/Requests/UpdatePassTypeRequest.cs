@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.PassTypes.Contracts.Requests;
+namespace Alakai.FestivalManager.Application.Features.PassTypes.Contracts.Requests;
 
 public class UpdatePassTypeRequest
 {
@@ -7,4 +7,5 @@ public class UpdatePassTypeRequest
     public string? Description { get; set; }
     public int SortOrder { get; set; }
     public bool IsActive { get; set; }
+    public FestivalModule EnabledModules { get; set; }
 }

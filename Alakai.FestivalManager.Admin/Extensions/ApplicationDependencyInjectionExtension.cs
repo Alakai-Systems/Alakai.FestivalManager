@@ -173,6 +173,11 @@ public static class ApiCLientsDependencyInjectionExtension
             string baseUrl = configuration["ApiSettings:BaseUrl"]
                 ?? throw new InvalidOperationException("ApiSettings:BaseUrl is not configured.");
             client.BaseAddress = new Uri(baseUrl);
+            // El import masivo de CSV puede tardar mas que el timeout por defecto de
+            // HttpClient (100s) con miles de filas. El resto de llamadas de este cliente
+            // (un solo usuario) siguen respondiendo en milisegundos -- esto solo sube el
+            // limite maximo de espera.
+            client.Timeout = TimeSpan.FromMinutes(10);
         }).AddHttpMessageHandler<AdminAuthDelegatingHandler>();
 
         services.AddHttpClient<InvoiceApiClient>(client =>

@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Common.Responses;
+using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Common.Exceptions;
 using Alakai.FestivalManager.Application.Features.Festivals.Contracts.DTOs;
 using Alakai.FestivalManager.Application.Interfaces.Repositories;
@@ -45,10 +45,16 @@ public class RegistrationFestivalInfoService : IRegistrationFestivalInfoService
             throw new NotFoundException($"Festival with id '{edition.FestivalId}' was not found.");
         }
 
+        // registration.PassType ya viene cargado (Include en RegistrationRepository.GetByIdAsync).
         return new ApiResponse<RegistrationFestivalInfoDto>
         {
             Success = true,
-            Data = new RegistrationFestivalInfoDto { EnabledModules = (int)festival.EnabledModules, TermsUrl = festival.TermsUrl },
+            Data = new RegistrationFestivalInfoDto
+            {
+                EnabledModules = (int)festival.EnabledModules,
+                PassTypeEnabledModules = (int)registration.PassType.EnabledModules,
+                TermsUrl = festival.TermsUrl
+            },
             Errors = [],
             Message = "Festival info loaded."
         };

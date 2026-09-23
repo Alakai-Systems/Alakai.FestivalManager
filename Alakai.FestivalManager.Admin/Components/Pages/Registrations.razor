@@ -161,7 +161,7 @@
                                                 <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="View user panel" @onclick="() => ImpersonateAsync(registration.Id)"><i class="ri-key-2-line"></i></button>
                                             }
                                             <button type="button" class="text-black dark:text-white/80 hover:text-purple" title="Edit" @onclick="() => OpenEditModal(registration)"><i class="ri-pencil-line"></i></button>
-                                            <button type="button" class="text-danger hover:text-danger/70" title="Delete and send cancellation email" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
+                                            <button type="button" class="text-danger hover:text-danger/70" title="Cancel registration" @onclick="() => OpenDeleteModal(registration)"><i class="ri-delete-bin-line"></i></button>
                                         </div>
                                     </td>
                                 </tr>
@@ -347,12 +347,30 @@
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
             <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Delete Registration</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to delete <strong>@deleteRegistration.FullName</strong>?</p>
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Cancel Registration</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Are you sure you want to cancel <strong>@deleteRegistration.FullName</strong>'s registration?</p>
                 </div>
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
                     <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseDeleteModal">Cancel</button>
-                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ConfirmDeleteAsync">@(isSaving ? "Deleting..." : "Delete")</button>
+                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ProceedToCancelEmailChoice">Continue</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@if (cancelEmailChoiceRegistration is not null)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Cancellation Email</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">Send a cancellation email to <strong>@cancelEmailChoiceRegistration.FullName</strong>? The registration will be cancelled either way.</p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="() => ConfirmCancelRegistrationAsync(false)">@(isSaving ? "Cancelling..." : "No, don't send")</button>
+                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="() => ConfirmCancelRegistrationAsync(true)">@(isSaving ? "Cancelling..." : "Yes, send email")</button>
                 </div>
             </div>
         </div>
@@ -404,6 +422,7 @@
     private List<FestivalDto> festivals = [];
     private RegistrationDto? editingRegistration;
     private RegistrationDto? deleteRegistration;
+    private RegistrationDto? cancelEmailChoiceRegistration;
     private RegistrationDto? emailConfirmRegistration;
     private string emailConfirmAction = string.Empty;
     private string searchText = string.Empty;
@@ -844,9 +863,20 @@
         deleteRegistration = null;
     }
 
-    private async Task ConfirmDeleteAsync()
+    private void ProceedToCancelEmailChoice()
     {
-        if (deleteRegistration is null)
+        cancelEmailChoiceRegistration = deleteRegistration;
+        deleteRegistration = null;
+    }
+
+    private void CloseCancelEmailChoiceModal()
+    {
+        cancelEmailChoiceRegistration = null;
+    }
+
+    private async Task ConfirmCancelRegistrationAsync(bool sendEmail)
+    {
+        if (cancelEmailChoiceRegistration is null)
         {
             return;
         }
@@ -857,17 +887,18 @@
 
         try
         {
-            await EmailNotificationApiClient.SendRegistrationEmailAsync(deleteRegistration.Id, EmailTemplateKey.RegistrationCancelled);
+            if (sendEmail)
+            {
+                await EmailNotificationApiClient.SendRegistrationEmailAsync(cancelEmailChoiceRegistration.Id, EmailTemplateKey.RegistrationCancelled);
+            }
 
-            await RegistrationApiClient.DeleteAsync(deleteRegistration.Id);
+            await RegistrationApiClient.DeleteAsync(cancelEmailChoiceRegistration.Id);
 
-            CloseDeleteModal();
-
-            deleteRegistration = null;
+            CloseCancelEmailChoiceModal();
 
             await LoadDataAsync();
 
-            ShowSuccess("Registration deleted and cancellation email sent successfully.");
+            ShowSuccess(sendEmail ? "Registration cancelled and cancellation email sent successfully." : "Registration cancelled. No email was sent.");
         }
         catch (Exception ex)
         {

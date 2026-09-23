@@ -253,6 +253,31 @@ public class UserPanelApiClient
         return response.Data.EnabledModules;
     }
 
+    public async Task<int> GetEnabledPassTypeModulesAsync(string? domain = null, CancellationToken cancellationToken = default)
+    {
+        string? token = await _tokenStorageService.GetTokenAsync();
+
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return 0;
+        }
+
+        _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        string url = string.IsNullOrWhiteSpace(domain)
+            ? "api/user-panel/festival-modules"
+            : $"api/user-panel/festival-modules?domain={Uri.EscapeDataString(domain)}";
+
+        ApiResponse<RegistrationFestivalInfoDto>? response = await _httpClient.GetFromJsonAsync<ApiResponse<RegistrationFestivalInfoDto>>(url, cancellationToken);
+
+        if (response?.Success is not true || response.Data is null)
+        {
+            return 0;
+        }
+
+        return response.Data.PassTypeEnabledModules;
+    }
+
     public async Task<IReadOnlyList<BusReservationDto>> GetBusReservationsAsync(string? domain = null, CancellationToken cancellationToken = default)
     {
         string? token = await _tokenStorageService.GetTokenAsync();

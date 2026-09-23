@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.PassTypes.Commands.UpdatePassType;
+namespace Alakai.FestivalManager.Application.Features.PassTypes.Commands.UpdatePassType;
 
 public class UpdatePassTypeCommand
 {
@@ -7,5 +7,6 @@ public class UpdatePassTypeCommand
     public string Name { get; set; } = string.Empty;
     public string? Description { get; set; }
     public int SortOrder { get; set; }
+    public FestivalModule EnabledModules { get; set; }
     public bool IsActive { get; set; }
 }

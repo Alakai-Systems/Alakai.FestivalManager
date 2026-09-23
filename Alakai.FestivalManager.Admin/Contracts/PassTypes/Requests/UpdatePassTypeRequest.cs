@@ -13,4 +13,6 @@ public class UpdatePassTypeRequest
     public int SortOrder { get; set; }
 
     public bool IsActive { get; set; }
+
+    public int EnabledModules { get; set; }
 }

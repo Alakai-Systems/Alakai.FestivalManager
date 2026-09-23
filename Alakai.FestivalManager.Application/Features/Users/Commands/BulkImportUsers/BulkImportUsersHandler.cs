@@ -13,9 +13,13 @@ public class BulkImportUsersHandler
         _mapper = mapper;
     }
 
+    private const int SaveBatchSize = 200;
+
     public async Task<BulkImportUsersResultDto> HandleAsync(BulkImportUsersCommand command, CancellationToken cancellationToken = default)
     {
         BulkImportUsersResultDto result = new() { TotalRows = command.Rows.Count };
+        HashSet<string> processedEmails = new(StringComparer.OrdinalIgnoreCase);
+        int pendingSinceLastSave = 0;
 
         for (int i = 0; i < command.Rows.Count; i++)
         {
@@ -38,7 +42,10 @@ public class BulkImportUsersHandler
             }
 
             string normalizedEmail = email.ToLowerInvariant();
-            bool exists = await _userRepository.ExistsByEmailAsync(normalizedEmail, cancellationToken);
+
+            // Duplicado dentro del propio CSV (ya procesado en este mismo lote, todavia no
+            // guardado) o ya existente en la base de datos desde antes de este import.
+            bool exists = processedEmails.Contains(normalizedEmail) || await _userRepository.ExistsByEmailAsync(normalizedEmail, cancellationToken);
 
             if (exists)
             {
@@ -51,9 +58,20 @@ public class BulkImportUsersHandler
             user.IsActive = true;
 
             await _userRepository.AddAsync(user, cancellationToken);
-            await _userRepository.SaveChangesAsync(cancellationToken);
-
+            processedEmails.Add(normalizedEmail);
             result.Created++;
+            pendingSinceLastSave++;
+
+            if (pendingSinceLastSave >= SaveBatchSize)
+            {
+                await _userRepository.SaveChangesAsync(cancellationToken);
+                pendingSinceLastSave = 0;
+            }
+        }
+
+        if (pendingSinceLastSave > 0)
+        {
+            await _userRepository.SaveChangesAsync(cancellationToken);
         }
 
         return result;

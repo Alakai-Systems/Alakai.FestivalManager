@@ -92,6 +92,8 @@
             </div>
         </div>
 
+@if (HasCompetitionsModule)
+{
         <div class="card shadow-sm">
             <div class="flex items-center gap-4">
                 <div class="flex items-center justify-center w-12 h-12 rounded bg-success/10 text-success shrink-0">
@@ -109,6 +111,7 @@
                 </div>
             </div>
         </div>
+}
 
         <div class="card shadow-sm">
             <div class="flex items-center gap-4">
@@ -415,6 +418,8 @@
             </div>
         </div>
 
+@if (HasCompetitionsModule)
+{
         <div class="card shadow-sm">
             <div class="flex items-center justify-between gap-4 mb-4">
                 <div class="mb-5" id="competitions">
@@ -485,6 +490,7 @@
                 </table>
             </div>
         </div>
+}
 
 @if (HasAccommodationModule)
 {
@@ -1200,7 +1206,7 @@
 @code {
     // ==================== Meals ====================
     private const int MealsModuleFlag = 8;
-    private bool HasMealsModule => (EnabledFestivalModules & MealsModuleFlag) != 0;
+    private bool HasMealsModule => (EnabledFestivalModules & MealsModuleFlag) != 0 && (EnabledPassTypeModules & MealsModuleFlag) != 0;
 
     private int MealMenuType { get; set; } = 1;
     private bool MealIsCeliac { get; set; }
@@ -1312,7 +1318,7 @@
 
     // ==================== Buses ====================
     private const int TransportModuleFlag = 4;
-    private bool HasTransportModule => (EnabledFestivalModules & TransportModuleFlag) != 0;
+    private bool HasTransportModule => (EnabledFestivalModules & TransportModuleFlag) != 0 && (EnabledPassTypeModules & TransportModuleFlag) != 0;
 
     private List<BusDto> AvailableBuses { get; set; } = [];
     private List<BusReservationDto> BusReservations { get; set; } = [];
@@ -1519,8 +1525,11 @@
 
     // ==================== Accommodation ====================
     private const int AccommodationModuleFlag = 2;
+    private const int CompetitionsModuleFlag = 1;
     private int EnabledFestivalModules { get; set; }
-    private bool HasAccommodationModule => (EnabledFestivalModules & AccommodationModuleFlag) != 0;
+    private int EnabledPassTypeModules { get; set; }
+    private bool HasAccommodationModule => (EnabledFestivalModules & AccommodationModuleFlag) != 0 && (EnabledPassTypeModules & AccommodationModuleFlag) != 0;
+    private bool HasCompetitionsModule => (EnabledFestivalModules & CompetitionsModuleFlag) != 0 && (EnabledPassTypeModules & CompetitionsModuleFlag) != 0;
 
     private List<AccommodationBuildingSummaryDto> AvailableAccommodationBuildings { get; set; } = [];
     private AccommodationReservationDto? ExistingReservation { get; set; }
@@ -1586,6 +1595,7 @@
         try
         {
             EnabledFestivalModules = await UserPanelApiClient.GetEnabledFestivalModulesAsync(CurrentDomain);
+            EnabledPassTypeModules = await UserPanelApiClient.GetEnabledPassTypeModulesAsync(CurrentDomain);
         }
         catch
         {

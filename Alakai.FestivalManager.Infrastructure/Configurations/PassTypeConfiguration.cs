@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
+namespace Alakai.FestivalManager.Infrastructure.Persistence.Configurations;
 
 public class PassTypeConfiguration : IEntityTypeConfiguration<PassType>
 {
@@ -20,6 +20,13 @@ public class PassTypeConfiguration : IEntityTypeConfiguration<PassType>
 
         builder.Property(p => p.IsActive)
             .IsRequired();
+
+        // Por defecto los 4 modulos activos (Competitions=1, Accommodation=2, Transport=4, Meals=8
+        // -> 15), para que los pases ya existentes no pierdan visibilidad de ningun modulo al
+        // aplicar la migracion.
+        builder.Property(p => p.EnabledModules)
+            .IsRequired()
+            .HasDefaultValue(FestivalModule.Competitions | FestivalModule.Accommodation | FestivalModule.Transport | FestivalModule.Meals);
 
         builder.HasOne(p => p.Edition)
             .WithMany(e => e.PassTypes)
