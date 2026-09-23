@@ -259,6 +259,7 @@ global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.DTO
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Requests;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Contracts.Responses;
 global using Alakai.FestivalManager.Application.Features.UserPanel.Services;
+global using Alakai.FestivalManager.Application.Features.Users.Commands.BulkImportUsers;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 global using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;

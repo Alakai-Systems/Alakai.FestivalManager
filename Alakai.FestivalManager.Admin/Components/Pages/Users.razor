@@ -1,4 +1,5 @@
-﻿@page "/users"
+@page "/users"
+@using System.Text
 @inject UserApiClient UserApiClient
 @inject RegistrationApiClient RegistrationApiClient
 @inject EditionApiClient EditionApiClient
@@ -29,14 +30,19 @@
                     </select>
 
                     <select class="form-select md:w-32" @bind="pageSize" @bind:after="ResetPage">
-                        <option value="10">10 rows</option>
-                        <option value="25">25 rows</option>
                         <option value="50">50 rows</option>
+                        <option value="100">100 rows</option>
+                        <option value="500">500 rows</option>
                     </select>
 
                     <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenCreateModal">
                         <i class="ri-add-line ltr:mr-1 rtl:ml-1"></i>
                         New User
+                    </button>
+
+                    <button type="button" class="transition-all duration-300 border rounded-md btn text-purple border-purple hover:bg-purple hover:text-white whitespace-nowrap" @onclick="OpenImportModal">
+                        <i class="ri-upload-2-line ltr:mr-1 rtl:ml-1"></i>
+                        Import CSV
                     </button>
                 </div>
             </div>
@@ -196,6 +202,188 @@
     </div>
 }
 
+@if (showImportModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative mx-auto overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder" style="width: min(95vw, 880px);">
+                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Import Users from CSV</h3>
+                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseImportModal"><i class="ri-close-line text-2xl"></i></button>
+                </div>
+
+                <div class="p-5 space-y-4">
+                    @if (!string.IsNullOrWhiteSpace(importError))
+                    {
+                        <div class="p-3 text-sm rounded bg-danger/10 text-danger">@importError</div>
+                    }
+
+                    @if (importStep == 1)
+                    {
+                        <p class="text-sm text-black/60 dark:text-white/60">
+                            Select a CSV file exported from another system. On the next step you can match its
+                            columns to the fields Alakai expects, so it doesn't matter if the headers or column
+                            order are different.
+                        </p>
+                        <InputFile OnChange="OnImportFileSelected" accept=".csv,text/csv" />
+                    }
+                    else if (importStep == 2)
+                    {
+                        <p class="text-sm text-black/60 dark:text-white/60">
+                            <strong>@importFileName</strong> &middot; @importDataRows.Count rows detected. Match each
+                            column below to a field (or leave it as "Ignore"). An Email column is required.
+                        </p>
+
+                        <div class="overflow-x-auto border rounded-lg border-black/10 dark:border-darkborder">
+                            <table class="w-full">
+                                <thead class="bg-gray-50 dark:bg-dark">
+                                    <tr class="text-left">
+                                        <th class="px-3 py-2 font-semibold">CSV column</th>
+                                        <th class="px-3 py-2 font-semibold">Example</th>
+                                        <th class="px-3 py-2 font-semibold">Import as</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @for (int i = 0; i < importHeaders.Count; i++)
+                                    {
+                                        int columnIndex = i;
+                                        <tr class="border-t border-black/10 dark:border-darkborder">
+                                            <td class="px-3 py-2 font-medium">@importHeaders[columnIndex]</td>
+                                            <td class="px-3 py-2 truncate max-w-[220px] text-black/50 dark:text-white/60">@GetSampleValue(columnIndex)</td>
+                                            <td class="px-3 py-2">
+                                                <select class="form-select" value="@importColumnMap[columnIndex]" @onchange="e => importColumnMap[columnIndex] = e.Value?.ToString() ?? string.Empty">
+                                                    <option value="">-- Ignore --</option>
+                                                    <option value="FirstName">First Name</option>
+                                                    <option value="LastName">Last Name</option>
+                                                    <option value="Email">Email</option>
+                                                    <option value="Phone">Phone</option>
+                                                    <option value="Country">Country</option>
+                                                    <option value="City">City</option>
+                                                </select>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                        @if (!HasEmailMapped)
+                        {
+                            <p class="text-sm text-warning">Map a column to Email to continue.</p>
+                        }
+                    }
+                    else if (importStep == 3)
+                    {
+                        <p class="text-sm text-black/60 dark:text-white/60">
+                            Preview of the first rows as they'll be imported (@importDataRows.Count rows in total).
+                            Emails that already exist are skipped automatically -- existing users are never
+                            overwritten.
+                        </p>
+
+                        <div class="overflow-x-auto border rounded-lg border-black/10 dark:border-darkborder">
+                            <table class="w-full">
+                                <thead class="bg-gray-50 dark:bg-dark">
+                                    <tr class="text-left">
+                                        <th class="px-3 py-2 font-semibold">First Name</th>
+                                        <th class="px-3 py-2 font-semibold">Last Name</th>
+                                        <th class="px-3 py-2 font-semibold">Email</th>
+                                        <th class="px-3 py-2 font-semibold">Phone</th>
+                                        <th class="px-3 py-2 font-semibold">Country</th>
+                                        <th class="px-3 py-2 font-semibold">City</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (BulkImportUserRowRequest row in BuildMappedRows().Take(10))
+                                    {
+                                        <tr class="border-t border-black/10 dark:border-darkborder">
+                                            <td class="px-3 py-2">@row.FirstName</td>
+                                            <td class="px-3 py-2">@row.LastName</td>
+                                            <td class="px-3 py-2">@row.Email</td>
+                                            <td class="px-3 py-2">@row.Phone</td>
+                                            <td class="px-3 py-2">@row.Country</td>
+                                            <td class="px-3 py-2">@row.City</td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                    else if (importStep == 4 && importResult is not null)
+                    {
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                            <div class="p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                                <p class="text-2xl font-semibold text-success">@importResult.Created</p>
+                                <p class="text-sm text-black/60 dark:text-white/60">Users created</p>
+                            </div>
+                            <div class="p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                                <p class="text-2xl font-semibold text-warning">@importResult.SkippedDuplicateEmails.Count</p>
+                                <p class="text-sm text-black/60 dark:text-white/60">Skipped (already existed)</p>
+                            </div>
+                            <div class="p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                                <p class="text-2xl font-semibold text-danger">@importResult.Errors.Count</p>
+                                <p class="text-sm text-black/60 dark:text-white/60">Rows with errors</p>
+                            </div>
+                        </div>
+
+                        @if (importResult.Errors.Count > 0)
+                        {
+                            <div class="overflow-y-auto border rounded-lg max-h-48 border-black/10 dark:border-darkborder">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 dark:bg-dark">
+                                        <tr class="text-left">
+                                            <th class="px-3 py-2 font-semibold">Row</th>
+                                            <th class="px-3 py-2 font-semibold">Email</th>
+                                            <th class="px-3 py-2 font-semibold">Reason</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (BulkImportRowErrorDto rowError in importResult.Errors)
+                                        {
+                                            <tr class="border-t border-black/10 dark:border-darkborder">
+                                                <td class="px-3 py-2">@rowError.Row</td>
+                                                <td class="px-3 py-2">@rowError.Email</td>
+                                                <td class="px-3 py-2">@rowError.Reason</td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    }
+                </div>
+
+                <div class="flex justify-between gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <div>
+                        @if (importStep == 2 || importStep == 3)
+                        {
+                            <button type="button" class="btn border border-black/10" @onclick="GoBack">Back</button>
+                        }
+                    </div>
+                    <div class="flex gap-3">
+                        @if (importStep == 4)
+                        {
+                            <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="CloseImportModal">Close</button>
+                        }
+                        else
+                        {
+                            <button type="button" class="btn border border-black/10" @onclick="CloseImportModal">Cancel</button>
+
+                            @if (importStep == 2)
+                            {
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(!HasEmailMapped)" @onclick="GoToPreview">Next: Preview</button>
+                            }
+                            else if (importStep == 3)
+                            {
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@isImporting" @onclick="ImportAsync">@(isImporting ? "Importing..." : $"Import {importDataRows.Count} users")</button>
+                            }
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
 @if (deletingUser is not null)
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
@@ -235,8 +423,28 @@
     private string? successMessage;
     private string? errorMessage;
     private int currentPage = 1;
-    private int pageSize = 10;
+    private int pageSize = 50;
     private Dictionary<Guid, string> documentsByUserId = new();
+
+    private bool showImportModal;
+    private int importStep = 1;
+    private string importFileName = string.Empty;
+    private List<string> importHeaders = [];
+    private List<string[]> importDataRows = [];
+    private Dictionary<int, string> importColumnMap = new();
+    private bool isImporting;
+    private string? importError;
+    private BulkImportUsersResultDto? importResult;
+
+    private static readonly Dictionary<string, string[]> ImportFieldAliases = new()
+    {
+        ["FirstName"] = ["first name", "firstname", "nombre"],
+        ["LastName"] = ["last name", "lastname", "apellidos", "apellido", "surname"],
+        ["Email"] = ["email", "e-mail", "mail", "correo", "correo electronico", "correo electrónico"],
+        ["Phone"] = ["phone", "telefono", "teléfono", "tel", "movil", "móvil", "celular", "whatsapp"],
+        ["Country"] = ["country", "pais", "país"],
+        ["City"] = ["city", "ciudad", "poblacion", "población", "localidad"]
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -539,6 +747,302 @@
     private static string GetStatusClass(bool isActive)
     {
         return isActive ? "inline-block rounded text-xs px-2 py-1 bg-success/10 text-success" : "inline-block rounded text-xs px-2 py-1 bg-danger/10 text-danger";
+    }
+
+    private void OpenImportModal()
+    {
+        showImportModal = true;
+        importStep = 1;
+        importFileName = string.Empty;
+        importHeaders = [];
+        importDataRows = [];
+        importColumnMap = new Dictionary<int, string>();
+        importError = null;
+        importResult = null;
+    }
+
+    private void CloseImportModal()
+    {
+        showImportModal = false;
+    }
+
+    private void GoBack()
+    {
+        if (importStep == 3)
+        {
+            importStep = 2;
+        }
+        else if (importStep == 2)
+        {
+            importStep = 1;
+            importHeaders = [];
+            importDataRows = [];
+            importColumnMap = new Dictionary<int, string>();
+        }
+    }
+
+    private void GoToPreview()
+    {
+        importStep = 3;
+    }
+
+    private bool HasEmailMapped => importColumnMap.Values.Any(v => v == "Email");
+
+    private async Task OnImportFileSelected(InputFileChangeEventArgs e)
+    {
+        importError = null;
+
+        try
+        {
+            IBrowserFile file = e.File;
+            importFileName = file.Name;
+
+            using Stream stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using MemoryStream buffer = new();
+            await stream.CopyToAsync(buffer);
+            string content = DecodeCsvBytes(buffer.ToArray());
+
+            (List<string> headers, List<string[]> rows) = ParseCsv(content);
+
+            if (headers.Count == 0 || rows.Count == 0)
+            {
+                importError = "The file has no readable rows.";
+                return;
+            }
+
+            importHeaders = headers;
+            importDataRows = rows;
+            importColumnMap = new Dictionary<int, string>();
+
+            for (int i = 0; i < headers.Count; i++)
+            {
+                importColumnMap[i] = GuessImportField(headers[i]);
+            }
+
+            importStep = 2;
+        }
+        catch (Exception ex)
+        {
+            importError = $"The file could not be read: {ex.Message}";
+        }
+    }
+
+    private static string DecodeCsvBytes(byte[] bytes)
+    {
+        // UTF-8 con BOM (p.ej. "UTF-8 con BOM" al exportar desde Excel/Sheets).
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        }
+
+        // Sin BOM: probamos UTF-8 estricto. Si los bytes no son UTF-8 valido -- habitual en
+        // CSV exportados desde Excel en Windows, que por defecto usan Windows-1252/ISO-8859-1
+        // -- caemos a Latin1, que decodifica bien las tildes, enes y signos del espanol sin
+        // depender de paquetes adicionales (Windows-1252 no viene incluido en .NET fuera de
+        // Windows; Latin1 cubre el mismo rango de caracteres que de verdad se usan aqui).
+        try
+        {
+            UTF8Encoding strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            return strictUtf8.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            return Encoding.Latin1.GetString(bytes);
+        }
+    }
+
+    private string GetSampleValue(int columnIndex)
+    {
+        if (importDataRows.Count == 0)
+        {
+            return string.Empty;
+        }
+
+        string[] firstRow = importDataRows[0];
+        return columnIndex < firstRow.Length ? firstRow[columnIndex] : string.Empty;
+    }
+
+    private int? ImportColumnIndexFor(string field)
+    {
+        foreach (KeyValuePair<int, string> mapping in importColumnMap)
+        {
+            if (mapping.Value == field)
+            {
+                return mapping.Key;
+            }
+        }
+
+        return null;
+    }
+
+    private static string ImportCellOrEmpty(string[] row, int? columnIndex)
+    {
+        if (columnIndex is null || columnIndex.Value >= row.Length)
+        {
+            return string.Empty;
+        }
+
+        return row[columnIndex.Value] ?? string.Empty;
+    }
+
+    private List<BulkImportUserRowRequest> BuildMappedRows()
+    {
+        int? firstNameCol = ImportColumnIndexFor("FirstName");
+        int? lastNameCol = ImportColumnIndexFor("LastName");
+        int? emailCol = ImportColumnIndexFor("Email");
+        int? phoneCol = ImportColumnIndexFor("Phone");
+        int? countryCol = ImportColumnIndexFor("Country");
+        int? cityCol = ImportColumnIndexFor("City");
+
+        List<BulkImportUserRowRequest> mapped = new();
+
+        foreach (string[] row in importDataRows)
+        {
+            string phone = ImportCellOrEmpty(row, phoneCol);
+            string country = ImportCellOrEmpty(row, countryCol);
+            string city = ImportCellOrEmpty(row, cityCol);
+
+            mapped.Add(new BulkImportUserRowRequest
+            {
+                FirstName = ImportCellOrEmpty(row, firstNameCol),
+                LastName = ImportCellOrEmpty(row, lastNameCol),
+                Email = ImportCellOrEmpty(row, emailCol),
+                Phone = string.IsNullOrWhiteSpace(phone) ? null : phone,
+                Country = string.IsNullOrWhiteSpace(country) ? null : country,
+                City = string.IsNullOrWhiteSpace(city) ? null : city
+            });
+        }
+
+        return mapped;
+    }
+
+    private async Task ImportAsync()
+    {
+        isImporting = true;
+        importError = null;
+
+        try
+        {
+            BulkImportUsersRequest request = new() { Rows = BuildMappedRows() };
+            importResult = await UserApiClient.BulkImportAsync(request);
+            importStep = 4;
+            await LoadDataAsync();
+        }
+        catch (Exception ex)
+        {
+            importError = ex.Message;
+        }
+        finally
+        {
+            isImporting = false;
+        }
+    }
+
+    private static string GuessImportField(string header)
+    {
+        string normalized = header.Trim().ToLowerInvariant();
+
+        foreach (KeyValuePair<string, string[]> candidate in ImportFieldAliases)
+        {
+            if (candidate.Value.Any(alias => normalized == alias))
+            {
+                return candidate.Key;
+            }
+        }
+
+        foreach (KeyValuePair<string, string[]> candidate in ImportFieldAliases)
+        {
+            if (candidate.Value.Any(alias => normalized.Contains(alias)))
+            {
+                return candidate.Key;
+            }
+        }
+
+        return string.Empty;
+    }
+
+    private static (List<string> Headers, List<string[]> Rows) ParseCsv(string content)
+    {
+        content = content.Replace("\r\n", "\n").Replace("\r", "\n");
+
+        if (content.Length > 0 && content[0] == (char)0xFEFF)
+        {
+            content = content[1..];
+        }
+
+        string firstLine = content.Split('\n').FirstOrDefault(line => !string.IsNullOrWhiteSpace(line)) ?? string.Empty;
+        char delimiter = firstLine.Count(c => c == ';') > firstLine.Count(c => c == ',') ? ';' : ',';
+
+        List<List<string>> rows = new();
+        List<string> currentRow = new();
+        StringBuilder field = new();
+        bool inQuotes = false;
+
+        for (int i = 0; i < content.Length; i++)
+        {
+            char c = content[i];
+
+            if (inQuotes)
+            {
+                if (c == '"')
+                {
+                    if (i + 1 < content.Length && content[i + 1] == '"')
+                    {
+                        field.Append('"');
+                        i++;
+                    }
+                    else
+                    {
+                        inQuotes = false;
+                    }
+                }
+                else
+                {
+                    field.Append(c);
+                }
+
+                continue;
+            }
+
+            if (c == '"')
+            {
+                inQuotes = true;
+            }
+            else if (c == delimiter)
+            {
+                currentRow.Add(field.ToString());
+                field.Clear();
+            }
+            else if (c == '\n')
+            {
+                currentRow.Add(field.ToString());
+                field.Clear();
+                rows.Add(currentRow);
+                currentRow = new List<string>();
+            }
+            else
+            {
+                field.Append(c);
+            }
+        }
+
+        if (field.Length > 0 || currentRow.Count > 0)
+        {
+            currentRow.Add(field.ToString());
+            rows.Add(currentRow);
+        }
+
+        rows = rows.Where(row => row.Any(cell => !string.IsNullOrWhiteSpace(cell))).ToList();
+
+        if (rows.Count == 0)
+        {
+            return ([], []);
+        }
+
+        List<string> headers = rows[0].Select(header => header.Trim()).ToList();
+        List<string[]> dataRows = rows.Skip(1).Select(row => row.Select(cell => cell.Trim()).ToArray()).ToList();
+
+        return (headers, dataRows);
     }
 
     private class UserFormModel

@@ -45,6 +45,13 @@ public class UsersController : ControllerBase
         return Ok(await _userService.CreateAsync(command, cancellationToken));
     }
 
+    [HttpPost("bulk-import")]
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    public async Task<ActionResult<ApiResponse<BulkImportUsersResponse>>> BulkImport([FromBody] BulkImportUsersCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await _userService.BulkImportAsync(command, cancellationToken));
+    }
+
     [HttpPost("admins")]
     [Authorize(Roles = "SuperAdmin,Admin")]
     public async Task<ActionResult<ApiResponse<CreateUserResponse>>> CreateAdmin([FromBody] CreateAdminUserCommand command, CancellationToken cancellationToken)

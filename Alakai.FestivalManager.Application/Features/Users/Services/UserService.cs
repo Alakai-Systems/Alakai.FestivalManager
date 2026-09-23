@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Common.Responses;
+using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.DeleteUser;
@@ -14,6 +14,7 @@ namespace Alakai.FestivalManager.Application.Features.Users.Services;
 public class UserService : IUserService
 {
     private readonly CreateUserHandler _createUserHandler;
+    private readonly BulkImportUsersHandler _bulkImportUsersHandler;
     private readonly CreateAdminUserHandler _createAdminUserHandler;
     private readonly UpdateUserHandler _updateUserHandler;
     private readonly DeleteUserHandler _deleteUserHandler;
@@ -21,12 +22,14 @@ public class UserService : IUserService
     private readonly GetUsersHandler _getUsersHandler;
     private readonly GetUserByEmailHandler _getUserByEmailHandler;
     private readonly IValidator<CreateUserCommand> _createUserValidator;
+    private readonly IValidator<BulkImportUsersCommand> _bulkImportUsersValidator;
     private readonly IValidator<UpdateUserCommand> _updateUserValidator;
     private readonly IValidator<CreateAdminUserCommand> _createAdminUserValidator;
 
-    public UserService(CreateUserHandler createUserHandler, CreateAdminUserHandler createAdminUserHandler, UpdateUserHandler updateUserHandler, DeleteUserHandler deleteUserHandler, GetUserByIdHandler getUserByIdHandler, GetUsersHandler getUsersHandler, GetUserByEmailHandler getUserByEmailHandler, IValidator<CreateUserCommand> createUserValidator, IValidator<UpdateUserCommand> updateUserValidator, IValidator<CreateAdminUserCommand> createAdminUserValidator)
+    public UserService(CreateUserHandler createUserHandler, BulkImportUsersHandler bulkImportUsersHandler, CreateAdminUserHandler createAdminUserHandler, UpdateUserHandler updateUserHandler, DeleteUserHandler deleteUserHandler, GetUserByIdHandler getUserByIdHandler, GetUsersHandler getUsersHandler, GetUserByEmailHandler getUserByEmailHandler, IValidator<CreateUserCommand> createUserValidator, IValidator<BulkImportUsersCommand> bulkImportUsersValidator, IValidator<UpdateUserCommand> updateUserValidator, IValidator<CreateAdminUserCommand> createAdminUserValidator)
     {
         _createUserHandler = createUserHandler;
+        _bulkImportUsersHandler = bulkImportUsersHandler;
         _createAdminUserHandler = createAdminUserHandler;
         _updateUserHandler = updateUserHandler;
         _deleteUserHandler = deleteUserHandler;
@@ -34,6 +37,7 @@ public class UserService : IUserService
         _getUsersHandler = getUsersHandler;
         _getUserByEmailHandler = getUserByEmailHandler;
         _createUserValidator = createUserValidator;
+        _bulkImportUsersValidator = bulkImportUsersValidator;
         _updateUserValidator = updateUserValidator;
         _createAdminUserValidator = createAdminUserValidator;
     }
@@ -43,6 +47,13 @@ public class UserService : IUserService
         await _createUserValidator.ValidateAndThrowAsync(command, cancellationToken);
         UserDto userDto = await _createUserHandler.HandleAsync(command, cancellationToken);
         return new ApiResponse<CreateUserResponse> { Success = true, Data = new CreateUserResponse { User = userDto }, Errors = [], Message = $"{userDto.Email} is correctly registered" };
+    }
+
+    public async Task<ApiResponse<BulkImportUsersResponse>> BulkImportAsync(BulkImportUsersCommand command, CancellationToken cancellationToken = default)
+    {
+        await _bulkImportUsersValidator.ValidateAndThrowAsync(command, cancellationToken);
+        BulkImportUsersResultDto resultDto = await _bulkImportUsersHandler.HandleAsync(command, cancellationToken);
+        return new ApiResponse<BulkImportUsersResponse> { Success = true, Data = new BulkImportUsersResponse { Result = resultDto }, Errors = [], Message = $"{resultDto.Created} of {resultDto.TotalRows} users imported ({resultDto.SkippedDuplicateEmails.Count} duplicates skipped, {resultDto.Errors.Count} errors)." };
     }
 
     public async Task<ApiResponse<CreateUserResponse>> CreateAdminAsync(CreateAdminUserCommand command, CancellationToken cancellationToken = default)

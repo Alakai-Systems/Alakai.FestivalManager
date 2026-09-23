@@ -1,4 +1,4 @@
-﻿using Alakai.FestivalManager.Application.Common.Responses;
+using Alakai.FestivalManager.Application.Common.Responses;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateAdminUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.CreateUser;
 using Alakai.FestivalManager.Application.Features.Users.Commands.UpdateUser;
@@ -8,6 +8,7 @@ namespace Alakai.FestivalManager.Application.Features.Users.Services;
 public interface IUserService
 {
     Task<ApiResponse<CreateUserResponse>> CreateAsync(CreateUserCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<BulkImportUsersResponse>> BulkImportAsync(BulkImportUsersCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<CreateUserResponse>> CreateAdminAsync(CreateAdminUserCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<GetUserByIdResponse>> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApiResponse<GetUsersResponse>> GetAllAsync(CancellationToken cancellationToken = default);

@@ -1,34 +1,37 @@
 <#
-    Fix-EditionsModalGrouping.ps1
-    -------------------------------
-    Sigue a Fix-EditionSchedule.ps1 (aplicalo DESPUES de ese, y despues de
-    Fix-ScheduleButtonText.ps1 si ya lo has aplicado -- este no toca lo
-    mismo que ese, no hay conflicto en el orden).
+    Fix-UsersCsvImportEncodingAndLimit.ps1
+    -----------------------------------------
+    Sigue a Fix-UsersCsvImport.ps1 (aplicalo DESPUES de ese).
 
-    Reordena visualmente la parte de abajo del modal "Edit Edition"
-    (Early Bird, Schedule PDF, Active), que ahora mismo queda todo
-    amalgamado sin separacion. Mismo patron que ya usas en el modal de
-    Competitions.razor (los recuadros de "Levels" / "Capacities"):
+    Corrige los dos problemas que te ha dado el CSV real de 2343 filas:
 
-      - "Early Bird" pasa a ser un recuadro con borde redondeado
-        (border rounded-lg border-black/10 p-4) con su propio titulo,
-        agrupando el campo de capacidad y la linea de "Used: X / Y" +
-        "Reset to 0" que antes iban sueltos.
-      - "Schedule PDF" pasa a ser otro recuadro igual, con su titulo,
-        agrupando el enlace al PDF actual + "Remove" + el selector de
-        archivo.
-      - "Active" se separa con una linea superior (border-t) en vez de
-        quedar pegado justo debajo del selector de archivo.
+    1) Limite de filas demasiado bajo: el validador solo permitia 2000 filas
+       por archivo, y tu CSV tiene 2343. Lo sube a 20000.
 
-    No cambia ningun comportamiento, solo la agrupacion visual.
+       (El "Exception User-Unhandled" que te salta en Visual Studio es el
+       debugger parando en la ValidationException de FluentValidation --
+       eso ya lo haria igual con Create/Update de un solo usuario, es el
+       comportamiento normal de esa libreria. No es un fallo nuevo del
+       import: simplemente antes no tenias ningun caso que disparase esa
+       regla. Puedes darle a Continuar (F5) y el backend responde igual
+       con el mensaje de error, que es lo que ves en el banner rojo
+       "Validation failed." del modal.)
+
+    2) Acentos rotos (Trist�n, L�pez...): el CSV no esta en UTF-8 -- es
+       lo habitual en CSV exportados con Excel en Windows, que por
+       defecto usan Windows-1252/ISO-8859-1. El codigo forzaba UTF-8 al
+       leer el archivo, así que esos caracteres se perdian. Ahora se
+       detecta: si el archivo no es UTF-8 valido, se decodifica como
+       Latin1 (cubre bien las tildes, enes y signos del espanol), sin
+       anadir ningun paquete nuevo.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh ./Fix-EditionsModalGrouping.ps1
+        pwsh ./Fix-UsersCsvImportEncodingAndLimit.ps1
 
-    Idempotente y todo-o-nada: si el anchor no encaja porque el archivo
+    Idempotente y todo-o-nada: si algun anchor no encaja porque el archivo
     local difiere de lo esperado (p.ej. porque aun no has aplicado
-    Fix-EditionSchedule.ps1), no escribe nada y lista el problema.
+    Fix-UsersCsvImport.ps1), no escribe nada y lista el problema.
 #>
 
 [CmdletBinding()]
@@ -114,7 +117,7 @@ function Test-PatchOperation {
         if ($replacementCount -ge 1) {
             return $null  # ya aplicado -> idempotente
         }
-        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado -- lo mas probable es que aun no hayas aplicado Fix-EditionSchedule.ps1). Descripcion: $($Op.Description)"
+        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado -- lo mas probable es que aun no hayas aplicado Fix-UsersCsvImport.ps1). Descripcion: $($Op.Description)"
     }
 
     return "Anchor encontrado $anchorCount veces en $($Op.Path) (deberia ser unico). Descripcion: $($Op.Description)"
@@ -138,97 +141,89 @@ function Invoke-PatchOperation {
 }
 
 # ============================================================================
-# Editions.razor: agrupar Early Bird / Schedule PDF en recuadros, separar Active
+# 1) Validator: sube el limite de 2000 a 20000 filas
 # ============================================================================
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Editions.razor' `
-    -Description 'Modal Edit Edition: recuadros para Early Bird / Schedule PDF, separador para Active' `
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Users/Validators/BulkImportUsersCommandValidator.cs' `
+    -Description 'BulkImportUsersCommandValidator: limite 2000 -> 20000 filas' `
     -Anchor @'
-                    <div class="md:col-span-2">
-                        <label class="block text-sm text-black/60 dark:text-white/60">Early Bird capacity (leave empty to disable)</label>
-                        <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
-                    </div>
-
-                    @if (selectedEdition is not null)
-                    {
-                        <div class="md:col-span-2 flex items-center justify-between gap-3">
-                            <span class="text-sm text-black/70 dark:text-white/70">
-                                Early Bird used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
-                            </span>
-                            <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
-                                Reset to 0
-                            </button>
-                        </div>
-                    }
-
-                    @if (selectedEdition is not null)
-                    {
-                        <div class="md:col-span-2 flex flex-col gap-2">
-                            <label class="block text-sm text-black/60 dark:text-white/60">Schedule PDF</label>
-                            @if (!string.IsNullOrWhiteSpace(selectedEdition.ScheduleUrl))
-                            {
-                                <div class="flex items-center justify-between gap-3">
-                                    <a href="@selectedEdition.ScheduleUrl" target="_blank" class="btn border border-purple text-purple hover:bg-purple hover:text-white inline-flex items-center gap-1">
-                                        <i class="ri-file-pdf-line"></i>View current PDF
-                                    </a>
-                                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="RemoveScheduleAsync">
-                                        Remove
-                                    </button>
-                                </div>
-                            }
-                            <InputFile OnChange="OnScheduleSelected" accept="application/pdf" disabled="@isSaving" />
-                        </div>
-                    }
-
-                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white md:col-span-2">
-                        <input type="checkbox" @bind="updateRequest.IsActive" />
-                        Active
-                    </label>
+        RuleFor(command => command.Rows.Count)
+            .LessThanOrEqualTo(2000)
+            .WithMessage("A maximum of 2000 rows can be imported in a single file.");
+    }
+}
 '@ `
     -Replacement @'
-                    @if (selectedEdition is not null)
-                    {
-                        <div class="md:col-span-2 p-4 border rounded-lg border-black/10 dark:border-darkborder">
-                            <h4 class="mb-3 text-sm font-semibold text-black dark:text-white">Early Bird</h4>
+        RuleFor(command => command.Rows.Count)
+            .LessThanOrEqualTo(20000)
+            .WithMessage("A maximum of 20000 rows can be imported in a single file.");
+    }
+}
+'@
 
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Capacity (leave empty to disable)</label>
-                                <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
-                            </div>
+# ============================================================================
+# 2) Users.razor: lee el CSV como bytes en vez de forzar UTF-8
+# ============================================================================
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
+    -Description 'Users.razor: OnImportFileSelected lee bytes en vez de forzar UTF-8' `
+    -Anchor @'
+            using Stream stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using StreamReader reader = new(stream, Encoding.UTF8);
+            string content = await reader.ReadToEndAsync();
+'@ `
+    -Replacement @'
+            using Stream stream = file.OpenReadStream(maxAllowedSize: 10 * 1024 * 1024);
+            using MemoryStream buffer = new();
+            await stream.CopyToAsync(buffer);
+            string content = DecodeCsvBytes(buffer.ToArray());
+'@
 
-                            <div class="flex items-center justify-between gap-3 mt-3">
-                                <span class="text-sm text-black/70 dark:text-white/70">
-                                    Used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
-                                </span>
-                                <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
-                                    Reset to 0
-                                </button>
-                            </div>
-                        </div>
+# ----------------------------------------------------------------------------
+# Users.razor: nuevo metodo DecodeCsvBytes (UTF-8 estricto, con fallback a
+# Latin1 si el archivo no es UTF-8 valido -- caso tipico de Excel/Windows)
+# ----------------------------------------------------------------------------
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
+    -Description 'Users.razor: metodo DecodeCsvBytes' `
+    -Anchor @'
+        catch (Exception ex)
+        {
+            importError = $"The file could not be read: {ex.Message}";
+        }
+    }
 
-                        <div class="md:col-span-2 p-4 border rounded-lg border-black/10 dark:border-darkborder">
-                            <h4 class="mb-3 text-sm font-semibold text-black dark:text-white">Schedule PDF</h4>
+    private string GetSampleValue(int columnIndex)
+'@ `
+    -Replacement @'
+        catch (Exception ex)
+        {
+            importError = $"The file could not be read: {ex.Message}";
+        }
+    }
 
-                            @if (!string.IsNullOrWhiteSpace(selectedEdition.ScheduleUrl))
-                            {
-                                <div class="flex items-center justify-between gap-3 mb-3">
-                                    <a href="@selectedEdition.ScheduleUrl" target="_blank" class="btn border border-purple text-purple hover:bg-purple hover:text-white inline-flex items-center gap-1">
-                                        <i class="ri-file-pdf-line"></i>View current PDF
-                                    </a>
-                                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="RemoveScheduleAsync">
-                                        Remove
-                                    </button>
-                                </div>
-                            }
-                            <InputFile OnChange="OnScheduleSelected" accept="application/pdf" disabled="@isSaving" />
-                        </div>
-                    }
+    private static string DecodeCsvBytes(byte[] bytes)
+    {
+        // UTF-8 con BOM (p.ej. "UTF-8 con BOM" al exportar desde Excel/Sheets).
+        if (bytes.Length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF)
+        {
+            return Encoding.UTF8.GetString(bytes, 3, bytes.Length - 3);
+        }
 
-                    <div class="md:col-span-2 pt-3 border-t border-black/10 dark:border-darkborder">
-                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                            <input type="checkbox" @bind="updateRequest.IsActive" />
-                            Active
-                        </label>
-                    </div>
+        // Sin BOM: probamos UTF-8 estricto. Si los bytes no son UTF-8 valido -- habitual en
+        // CSV exportados desde Excel en Windows, que por defecto usan Windows-1252/ISO-8859-1
+        // -- caemos a Latin1, que decodifica bien las tildes, enes y signos del espanol sin
+        // depender de paquetes adicionales (Windows-1252 no viene incluido en .NET fuera de
+        // Windows; Latin1 cubre el mismo rango de caracteres que de verdad se usan aqui).
+        try
+        {
+            UTF8Encoding strictUtf8 = new(encoderShouldEmitUTF8Identifier: false, throwOnInvalidBytes: true);
+            return strictUtf8.GetString(bytes);
+        }
+        catch (DecoderFallbackException)
+        {
+            return Encoding.Latin1.GetString(bytes);
+        }
+    }
+
+    private string GetSampleValue(int columnIndex)
 '@
 
 # ============================================================================
@@ -252,8 +247,8 @@ if ($script:PlanErrors.Count -gt 0) {
         Write-Host "  - $e" -ForegroundColor Red
     }
     Write-Host ""
-    Write-Host "Si el problema es que no encuentra el anchor, aplica primero" -ForegroundColor Yellow
-    Write-Host "Fix-EditionSchedule.ps1 y luego reintenta este." -ForegroundColor Yellow
+    Write-Host "Lo mas probable es que aun no hayas aplicado Fix-UsersCsvImport.ps1, o que" -ForegroundColor Yellow
+    Write-Host "algun archivo se haya editado desde entonces." -ForegroundColor Yellow
     Write-Host ""
     exit 1
 }
@@ -266,8 +261,9 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. Solo CSS/markup, no hace falta migracion ni build especial." -ForegroundColor Cyan
-Write-Host "En Admin > Editions > Edit deberias ver 'Early Bird' y 'Schedule PDF'" -ForegroundColor Cyan
-Write-Host "cada uno en su propio recuadro con borde, y 'Active' separado por una" -ForegroundColor Cyan
-Write-Host "linea encima." -ForegroundColor Cyan
+Write-Host "Listo. No hace falta migracion ni paquete nuevo." -ForegroundColor Cyan
+Write-Host "  1) dotnet build" -ForegroundColor White
+Write-Host "  2) Vuelve a subir el mismo CSV de 2343 filas: ya no deberia saltar el" -ForegroundColor White
+Write-Host "     limite de filas, y los nombres con tildes (Tristan, Lopez...) deberian" -ForegroundColor White
+Write-Host "     verse bien en la vista previa." -ForegroundColor White
 Write-Host ""

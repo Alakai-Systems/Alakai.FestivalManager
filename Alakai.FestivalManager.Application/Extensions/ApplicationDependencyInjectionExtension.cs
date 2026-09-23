@@ -136,6 +136,7 @@ public static class ApplicationDependencyInjectionExtension
 
         //Users
         services.AddScoped<CreateUserHandler>();
+        services.AddScoped<BulkImportUsersHandler>();
         services.AddScoped<CreateAdminUserHandler>();
         services.AddScoped<GetUserByIdHandler>();
         services.AddScoped<GetUsersHandler>();

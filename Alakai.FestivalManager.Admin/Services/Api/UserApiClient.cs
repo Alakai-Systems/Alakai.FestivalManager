@@ -63,6 +63,18 @@ public class UserApiClient
         EnsureSuccess(httpResponse, response);
     }
 
+    public async Task<BulkImportUsersResultDto> BulkImportAsync(BulkImportUsersRequest request, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/users/bulk-import", request, cancellationToken);
+        ApiResponse<BulkImportUsersResponse>? response = await ReadResponseAsync<BulkImportUsersResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+
+        return response!.Data!.Result;
+    }
+
     public async Task CreateAdminAsync(CreateAdminUserRequest request, CancellationToken cancellationToken = default)
     {
         await AttachAuthHeaderAsync();
