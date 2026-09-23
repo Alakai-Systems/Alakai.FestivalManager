@@ -1,34 +1,31 @@
 <#
-    Fix-UserEditRoleValidation.ps1
-    -------------------------------
+    Fix-UsersPageSlowLoad.ps1
+    ---------------------------
     Independiente de los demas scripts -- no depende de ninguno de ellos.
 
-    Arregla el error "Validation failed." al editar CUALQUIER usuario desde
-    Users > editar (lapiz).
+    Arregla que la pagina Users tarde minutos en cargar.
 
-    Causa: el formulario de "Edit User" nunca ha incluido el Role del
-    usuario (no hay ese campo en el modal). Al guardar, se manda Role = 0
-    al servidor porque el modelo del formulario no lo lleva. El enum
-    UserRole empieza en 1 (SuperAdmin=1, Admin=2, User=3, Production=4), o
-    sea que 0 no es un valor valido, y el validador del servidor
-    (RuleFor(command => command.Role).IsInEnum()) rechaza SIEMPRE la
-    peticion, para cualquier usuario. Por eso ves "Validation failed." al
-    intentar guardar el usuario Jose Maria Camacho (y pasaria con
-    cualquier otro).
+    Causa: LoadDocumentsAsync() (para rellenar la columna "Document" de la
+    tabla) hacia UNA LLAMADA HTTP POR CADA USUARIO, una detras de otra
+    (RegistrationApiClient.GetByUserIdAsync dentro de un foreach con
+    await). Con pocos usuarios no se notaba, pero cuantos mas usuarios
+    haya (especialmente ahora que se pueden importar por CSV), mas
+    llamadas secuenciales se hacen -- de ahi que ahora tarde minutos.
 
-    No es un problema de datos en produccion ni de un usuario concreto: es
-    un bug del formulario, asi que no hace falta tocar nada en la base de
-    datos.
+    La pagina ya carga TODAS las registrations de golpe en una sola
+    llamada (allRegistrations = RegistrationApiClient.GetAllAsync(), justo
+    antes), y esa lista ya incluye el DocumentNumber de cada una. No hacia
+    falta ninguna llamada adicional: este script hace que
+    LoadDocumentsAsync busque el documento en esa lista que ya esta en
+    memoria, en vez de volver a pedirlo al servidor usuario por usuario.
+    Resultado: la pagina pasa de N llamadas HTTP (una por usuario) a 0
+    llamadas adicionales.
 
-    Este script NO anade un selector de Role al formulario (eso cambiaria
-    quien puede tocar el rol de un usuario desde aqui, y no me has pedido
-    eso). Simplemente hace que el formulario conserve el Role que el
-    usuario ya tiene al abrir el modal y lo reenvie tal cual al guardar,
-    para que la validacion del servidor no lo vea como invalido.
+    No toca base de datos ni requiere migracion.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-UserEditRoleValidation.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-UsersPageSlowLoad.ps1
 
     Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
     local difiere de lo esperado, no escribe nada y lista el problema.
@@ -136,108 +133,54 @@ function Invoke-PatchOperation {
     Write-Host "  + patched: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- OpenEditModal: conserva el Role actual del usuario al abrir el formulario
+# 1. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- LoadDataAsync: ya no espera LoadDocumentsAsync (deja de ser async)
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
-    -Description 'OpenEditModal: conserva el Role actual del usuario al abrir el formulario' `
+    -Description 'LoadDataAsync: ya no espera LoadDocumentsAsync (deja de ser async)' `
     -Anchor @'
-    private void OpenEditModal(UserDto user)
-    {
-        editingUser = user;
-        formModel = new UserFormModel
-        {
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            Phone = user.Phone,
-            Country = user.Country,
-            City = user.City,
-            MustChangePassword = user.MustChangePassword,
-            IsActive = user.IsActive
-        };
-        showModal = true;
-    }
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+            await LoadDocumentsAsync();
 '@ `
     -Replacement @'
-    private void OpenEditModal(UserDto user)
-    {
-        editingUser = user;
-        formModel = new UserFormModel
-        {
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Email = user.Email,
-            Phone = user.Phone,
-            Country = user.Country,
-            City = user.City,
-            MustChangePassword = user.MustChangePassword,
-            IsActive = user.IsActive,
-            Role = user.Role
-        };
-        showModal = true;
-    }
+            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
+            LoadDocumentsAsync();
 '@
 
-# 2. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- SaveAsync: envia el Role preservado (si no, siempre llega 0 y falla la validacion del servidor)
+# 2. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- LoadDocumentsAsync: busca el DocumentNumber en memoria (allRegistrations) en vez de 1 llamada HTTP por usuario
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
-    -Description 'SaveAsync: envia el Role preservado (si no, siempre llega 0 y falla la validacion del servidor)' `
+    -Description 'LoadDocumentsAsync: busca el DocumentNumber en memoria (allRegistrations) en vez de 1 llamada HTTP por usuario' `
     -Anchor @'
-                UpdateUserRequest request = new()
-                {
-                    FirstName = formModel.FirstName,
-                    LastName = formModel.LastName,
-                    Email = formModel.Email,
-                    Phone = formModel.Phone,
-                    Country = formModel.Country,
-                    City = formModel.City,
-                    MustChangePassword = formModel.MustChangePassword,
-                    IsActive = formModel.IsActive
-                };
-'@ `
-    -Replacement @'
-                UpdateUserRequest request = new()
-                {
-                    FirstName = formModel.FirstName,
-                    LastName = formModel.LastName,
-                    Email = formModel.Email,
-                    Phone = formModel.Phone,
-                    Country = formModel.Country,
-                    City = formModel.City,
-                    MustChangePassword = formModel.MustChangePassword,
-                    IsActive = formModel.IsActive,
-                    Role = formModel.Role
-                };
-'@
-
-# 3. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- UserFormModel: nuevo campo Role para poder transportarlo por el formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
-    -Description 'UserFormModel: nuevo campo Role para poder transportarlo por el formulario' `
-    -Anchor @'
-    private class UserFormModel
+    private async Task LoadDocumentsAsync()
     {
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string? Phone { get; set; }
-        public string? Country { get; set; }
-        public string? City { get; set; }
-        public string? Password { get; set; }
-        public bool MustChangePassword { get; set; }
-        public bool IsActive { get; set; }
+        documentsByUserId.Clear();
+
+        foreach (UserDto user in users)
+        {
+            try
+            {
+                RegistrationDto registration = await RegistrationApiClient.GetByUserIdAsync(user.Id);
+                documentsByUserId[user.Id] = registration?.DocumentNumber ?? "-";
+            }
+            catch (ApiClientException)
+            {
+                // El usuario no tiene registration asociada, o el backend devolvi� error controlado
+                documentsByUserId[user.Id] = "-";
+            }
+        }
     }
 '@ `
     -Replacement @'
-    private class UserFormModel
+    private void LoadDocumentsAsync()
     {
-        public string FirstName { get; set; } = string.Empty;
-        public string LastName { get; set; } = string.Empty;
-        public string Email { get; set; } = string.Empty;
-        public string? Phone { get; set; }
-        public string? Country { get; set; }
-        public string? City { get; set; }
-        public string? Password { get; set; }
-        public bool MustChangePassword { get; set; }
-        public bool IsActive { get; set; }
-        public int Role { get; set; }
+        documentsByUserId.Clear();
+
+        // Antes esto hacia una llamada HTTP por cada usuario (RegistrationApiClient.GetByUserIdAsync),
+        // que con muchos usuarios tardaba minutos en cargar la pagina. allRegistrations ya trae todo
+        // lo que hace falta (incluido DocumentNumber) en una sola llamada, asi que basta con buscar en memoria.
+        foreach (UserDto user in users)
+        {
+            RegistrationDto? registration = allRegistrations.FirstOrDefault(r => r.UserId == user.Id);
+            documentsByUserId[user.Id] = registration?.DocumentNumber ?? "-";
+        }
     }
 '@
 

@@ -462,7 +462,7 @@
             allRegistrations = (await RegistrationApiClient.GetAllAsync()).ToList();
             editions = (await EditionApiClient.GetAllAsync()).ToList();
             festivals = (await FestivalApiClient.GetAllAsync()).ToList();
-            await LoadDocumentsAsync();
+            LoadDocumentsAsync();
         }
         catch (Exception ex)
         {
@@ -474,22 +474,17 @@
         }
     }
 
-    private async Task LoadDocumentsAsync()
+    private void LoadDocumentsAsync()
     {
         documentsByUserId.Clear();
 
+        // Antes esto hacia una llamada HTTP por cada usuario (RegistrationApiClient.GetByUserIdAsync),
+        // que con muchos usuarios tardaba minutos en cargar la pagina. allRegistrations ya trae todo
+        // lo que hace falta (incluido DocumentNumber) en una sola llamada, asi que basta con buscar en memoria.
         foreach (UserDto user in users)
         {
-            try
-            {
-                RegistrationDto registration = await RegistrationApiClient.GetByUserIdAsync(user.Id);
-                documentsByUserId[user.Id] = registration?.DocumentNumber ?? "-";
-            }
-            catch (ApiClientException)
-            {
-                // El usuario no tiene registration asociada, o el backend devolvi� error controlado
-                documentsByUserId[user.Id] = "-";
-            }
+            RegistrationDto? registration = allRegistrations.FirstOrDefault(r => r.UserId == user.Id);
+            documentsByUserId[user.Id] = registration?.DocumentNumber ?? "-";
         }
     }
 
