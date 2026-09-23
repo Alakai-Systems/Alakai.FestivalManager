@@ -30,6 +30,9 @@ public class EditionConfiguration : IEntityTypeConfiguration<Edition>
             .IsRequired()
             .HasDefaultValue(0);
 
+        builder.Property(e => e.ScheduleUrl)
+            .HasMaxLength(500);
+
         builder.HasOne(e => e.Festival)
             .WithMany(f => f.Editions)
             .HasForeignKey(e => e.FestivalId)

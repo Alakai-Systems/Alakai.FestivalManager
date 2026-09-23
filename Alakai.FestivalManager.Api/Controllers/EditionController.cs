@@ -1,5 +1,10 @@
 namespace Alakai.FestivalManager.Api.Controllers;
 
+public class UploadEditionScheduleForm
+{
+    public IFormFile File { get; set; } = default!;
+}
+
 [ApiController]
 [Route("api/[controller]")]
 [Authorize(Roles = "SuperAdmin,Admin,Production")]
@@ -7,6 +12,9 @@ public class EditionsController : ControllerBase
 {
     private readonly IEditionService _editionService;
     private readonly IMapper _mapper;
+
+    private static readonly HashSet<string> AllowedScheduleContentTypes = new(StringComparer.OrdinalIgnoreCase) { "application/pdf" };
+    private const long MaxScheduleFileSizeBytes = 20 * 1024 * 1024; // 20 MB
 
     public EditionsController(IEditionService editionService, IMapper mapper)
     {
@@ -71,6 +79,41 @@ public class EditionsController : ControllerBase
     public async Task<IActionResult> ResetEarlyBirdUsage(Guid id, CancellationToken cancellationToken)
     {
         ApiResponse<ResetEarlyBirdUsageResponse> response = await _editionService.ResetEarlyBirdUsageAsync(id, cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpPost("{id:guid}/schedule")]
+    [RequestSizeLimit(MaxScheduleFileSizeBytes)]
+    public async Task<IActionResult> SetSchedule(Guid id, [FromForm] UploadEditionScheduleForm form, CancellationToken cancellationToken)
+    {
+        IFormFile file = form.File;
+
+        if (file is null || file.Length == 0)
+        {
+            return BadRequest(new { error = "No file was provided." });
+        }
+
+        if (file.Length > MaxScheduleFileSizeBytes)
+        {
+            return BadRequest(new { error = "File exceeds the maximum allowed size of 20 MB." });
+        }
+
+        if (!AllowedScheduleContentTypes.Contains(file.ContentType))
+        {
+            return BadRequest(new { error = "Only PDF files are allowed." });
+        }
+
+        using Stream stream = file.OpenReadStream();
+        ApiResponse<SetEditionScheduleResponse> response = await _editionService.SetScheduleAsync(id, stream, file.FileName, cancellationToken);
+
+        return Ok(response);
+    }
+
+    [HttpDelete("{id:guid}/schedule")]
+    public async Task<IActionResult> RemoveSchedule(Guid id, CancellationToken cancellationToken)
+    {
+        ApiResponse<RemoveEditionScheduleResponse> response = await _editionService.RemoveScheduleAsync(id, cancellationToken);
 
         return Ok(response);
     }

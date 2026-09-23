@@ -25,4 +25,6 @@ public class EditionDto
     public int? EarlyBirdCapacity { get; set; }
 
     public int EarlyBirdUsedCount { get; set; }
+
+    public string? ScheduleUrl { get; set; }
 }

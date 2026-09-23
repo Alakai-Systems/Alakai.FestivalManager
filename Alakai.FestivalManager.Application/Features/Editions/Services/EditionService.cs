@@ -9,11 +9,14 @@ public class EditionService : IEditionService
     private readonly UpdateEditionHandler _updateEditionHandler;
     private readonly DeleteEditionHandler _deleteEditionHandler;
     private readonly ResetEarlyBirdUsageHandler _resetEarlyBirdUsageHandler;
+    private readonly SetEditionScheduleHandler _setEditionScheduleHandler;
+    private readonly RemoveEditionScheduleHandler _removeEditionScheduleHandler;
     private readonly IValidator<CreateEditionCommand> _createEditionValidator;
     private readonly IValidator<UpdateEditionCommand> _updateEditionValidator;
 
     public EditionService(CreateEditionHandler createEditionHandler, GetEditionByIdHandler getEditionByIdHandler, GetEditionsByFestivalIdHandler getEditionsByFestivalIdHandler,
         GetEditionsHandler getEditionsHandler, UpdateEditionHandler updateEditionHandler, DeleteEditionHandler deleteEditionHandler, ResetEarlyBirdUsageHandler resetEarlyBirdUsageHandler,
+        SetEditionScheduleHandler setEditionScheduleHandler, RemoveEditionScheduleHandler removeEditionScheduleHandler,
         IValidator<CreateEditionCommand> createEditionValidator, IValidator<UpdateEditionCommand> updateEditionValidator)
     {
         _createEditionHandler = createEditionHandler;
@@ -22,6 +25,8 @@ public class EditionService : IEditionService
         _updateEditionHandler = updateEditionHandler;
         _deleteEditionHandler = deleteEditionHandler;
         _resetEarlyBirdUsageHandler = resetEarlyBirdUsageHandler;
+        _setEditionScheduleHandler = setEditionScheduleHandler;
+        _removeEditionScheduleHandler = removeEditionScheduleHandler;
         _createEditionValidator = createEditionValidator;
         _updateEditionValidator = updateEditionValidator;
         _getEditionsByFestivalIdHandler = getEditionsByFestivalIdHandler;
@@ -143,6 +148,36 @@ public class EditionService : IEditionService
             Success = true,
             Message = "Early Bird usage reset to 0.",
             Data = new ResetEarlyBirdUsageResponse { EditionId = id, EarlyBirdUsedCount = newUsedCount },
+            Errors = []
+        };
+    }
+
+    public async Task<ApiResponse<SetEditionScheduleResponse>> SetScheduleAsync(Guid editionId, Stream content, string fileName, CancellationToken cancellationToken = default)
+    {
+        SetEditionScheduleCommand command = new(editionId, content, fileName);
+
+        string url = await _setEditionScheduleHandler.HandleAsync(command, cancellationToken);
+
+        return new ApiResponse<SetEditionScheduleResponse>
+        {
+            Success = true,
+            Message = "Schedule PDF uploaded successfully.",
+            Data = new SetEditionScheduleResponse { EditionId = editionId, ScheduleUrl = url },
+            Errors = []
+        };
+    }
+
+    public async Task<ApiResponse<RemoveEditionScheduleResponse>> RemoveScheduleAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        RemoveEditionScheduleCommand command = new(editionId);
+
+        await _removeEditionScheduleHandler.HandleAsync(command, cancellationToken);
+
+        return new ApiResponse<RemoveEditionScheduleResponse>
+        {
+            Success = true,
+            Message = "Schedule PDF removed.",
+            Data = new RemoveEditionScheduleResponse { EditionId = editionId, Removed = true },
             Errors = []
         };
     }

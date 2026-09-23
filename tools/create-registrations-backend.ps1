@@ -1,40 +1,34 @@
 <#
-    Fix-EditionsModalLayoutV2.ps1
-    ------------------------------
-    Corrige el layout en 2 columnas de los modales "New Edition" / "Edit
-    Edition" (Admin > Editions), que quedo roto tras Fix-EditionsModalLayout.ps1
-    (inventado desde cero, con max-w-2xl y una combinacion de clases -w-full,
-    mb-1, gap-x-4/gap-y-4- que no es la que usa el resto del Admin).
+    Fix-EditionsModalGrouping.ps1
+    -------------------------------
+    Sigue a Fix-EditionSchedule.ps1 (aplicalo DESPUES de ese, y despues de
+    Fix-ScheduleButtonText.ps1 si ya lo has aplicado -- este no toca lo
+    mismo que ese, no hay conflicto en el orden).
 
-    En vez de inventar de nuevo, esta version copia EXACTAMENTE el patron que
-    ya usan los modales de 2 columnas que funcionan bien en esta misma app
-    (Festivals.razor, "New/Edit Festival"):
+    Reordena visualmente la parte de abajo del modal "Edit Edition"
+    (Early Bird, Schedule PDF, Active), que ahora mismo queda todo
+    amalgamado sin separacion. Mismo patron que ya usas en el modal de
+    Competitions.razor (los recuadros de "Levels" / "Capacities"):
 
-      - El modal se queda en max-w-lg (el ancho no cambia; el 2a columna sale
-        del grid de dentro, no de ensanchar el modal).
-      - El grid es "grid grid-cols-1 gap-4 p-5 md:grid-cols-2" (un solo gap,
-        no gap-x/gap-y por separado).
-      - Los campos sin etiqueta (Name, Year) van sueltos como hijos directos
-        del grid, con su placeholder, igual que en Festivals. No hace falta
-        w-full: .form-input/.form-select ya ocupan el 100% del ancho.
-      - Los campos con etiqueta (fechas, Early Bird capacity, Festival en
-        Edit) van en un <div> con <label class="block text-sm text-black/60
-        dark:text-white/60"> (sin mb-1) encima, exactamente como en
-        Festivals.razor.
-      - Los que ocupan las dos columnas llevan la clase md:col-span-2
-        directamente.
-      - El checkbox "Active" va al final del grid como fila completa, con
-        md:col-span-2 en la propia etiqueta -- calcado del checkbox "Active"
-        de Festivals.razor.
+      - "Early Bird" pasa a ser un recuadro con borde redondeado
+        (border rounded-lg border-black/10 p-4) con su propio titulo,
+        agrupando el campo de capacidad y la linea de "Used: X / Y" +
+        "Reset to 0" que antes iban sueltos.
+      - "Schedule PDF" pasa a ser otro recuadro igual, con su titulo,
+        agrupando el enlace al PDF actual + "Remove" + el selector de
+        archivo.
+      - "Active" se separa con una linea superior (border-t) en vez de
+        quedar pegado justo debajo del selector de archivo.
 
-    Requiere tener aplicados Fix-EarlyBirdPricing.ps1 y
-    Fix-EditionsModalLayout.ps1 (el de antes). Si tu Editions.razor no tiene
-    ya el layout de 2 columnas roto, este script no encontrara los anchors y
-    no tocara nada (todo o nada).
+    No cambia ningun comportamiento, solo la agrupacion visual.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh ./Fix-EditionsModalLayoutV2.ps1
+        pwsh ./Fix-EditionsModalGrouping.ps1
+
+    Idempotente y todo-o-nada: si el anchor no encaja porque el archivo
+    local difiere de lo esperado (p.ej. porque aun no has aplicado
+    Fix-EditionSchedule.ps1), no escribe nada y lista el problema.
 #>
 
 [CmdletBinding()]
@@ -46,6 +40,10 @@ if (-not (Test-Path -LiteralPath 'Alakai.FestivalManager.sln')) {
     Write-Error "No se encuentra Alakai.FestivalManager.sln en el directorio actual. Ejecuta este script desde la raiz del repo (Alakai.FestivalManager/)."
     exit 1
 }
+
+# ----------------------------------------------------------------------------
+# Helpers (identicos a los scripts anteriores)
+# ----------------------------------------------------------------------------
 
 function Get-NormalizedContent {
     param([string]$Path)
@@ -89,6 +87,7 @@ function Add-PatchOperation {
     )
 
     $script:Plan += [PSCustomObject]@{
+        Type        = 'Patch'
         Path        = $Path
         Anchor      = Convert-ToLf $Anchor
         Replacement = Convert-ToLf $Replacement
@@ -115,7 +114,7 @@ function Test-PatchOperation {
         if ($replacementCount -ge 1) {
             return $null  # ya aplicado -> idempotente
         }
-        return "Anchor no encontrado en $($Op.Path) (probablemente falta aplicar Fix-EditionsModalLayout.ps1 antes, o el archivo local difiere de lo esperado). Descripcion: $($Op.Description)"
+        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado -- lo mas probable es que aun no hayas aplicado Fix-EditionSchedule.ps1). Descripcion: $($Op.Description)"
     }
 
     return "Anchor encontrado $anchorCount veces en $($Op.Path) (deberia ser unico). Descripcion: $($Op.Description)"
@@ -139,292 +138,11 @@ function Invoke-PatchOperation {
 }
 
 # ============================================================================
-# 1) New Edition: mismo patron de grid que Festivals.razor (max-w-lg)
+# Editions.razor: agrupar Early Bird / Schedule PDF en recuadros, separar Active
 # ============================================================================
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Editions.razor' `
-    -Description 'New Edition: layout igual que Festivals.razor' `
+    -Description 'Modal Edit Edition: recuadros para Early Bird / Schedule PDF, separador para Active' `
     -Anchor @'
-            <div class="relative w-full max-w-2xl overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">New Edition</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
-                        <i class="ri-close-line text-2xl"></i>
-                    </button>
-                </div>
-
-                <!-- New Edition modal input area -->
-                <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
-                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
-                    {
-                        <div class="md:col-span-2 p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
-                    }
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Festival</label>
-                        <select class="form-select w-full" @bind="createRequest.FestivalId">
-                            <option value="@Guid.Empty">Select festival</option>
-                            @foreach (FestivalDto festival in festivals)
-                            {
-                                <option value="@festival.Id">@festival.Name</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Name</label>
-                        <input class="form-input w-full" placeholder="Name" @bind="createRequest.Name" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Year</label>
-                        <input class="form-input w-full" placeholder="Year" type="number" @bind="createRequest.Year" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Start date</label>
-                        <InputDate class="form-input w-full" @bind-Value="createRequest.StartDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">End date</label>
-                        <InputDate class="form-input w-full" @bind-Value="createRequest.EndDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Registration opens</label>
-                        <InputDate class="form-input w-full" @bind-Value="createRequest.RegistrationOpenDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Registration closes</label>
-                        <InputDate class="form-input w-full" @bind-Value="createRequest.RegistrationCloseDate" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Early Bird capacity (leave empty to disable)</label>
-                        <input class="form-input w-full" placeholder="e.g. 30" type="number" min="0" @bind="createRequest.EarlyBirdCapacity" />
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
-                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="CreateEditionAsync">
-                        @(isSaving ? "Creating..." : "Create")
-                    </button>
-                </div>
-            </div>
-'@ `
-    -Replacement @'
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">New Edition</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
-                        <i class="ri-close-line text-2xl"></i>
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
-                    {
-                        <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
-                    }
-
-                    <select class="form-select md:col-span-2" @bind="createRequest.FestivalId">
-                        <option value="@Guid.Empty">Select festival</option>
-                        @foreach (FestivalDto festival in festivals)
-                        {
-                            <option value="@festival.Id">@festival.Name</option>
-                        }
-                    </select>
-
-                    <input class="form-input" placeholder="Name" @bind="createRequest.Name" />
-                    <input class="form-input" placeholder="Year" type="number" @bind="createRequest.Year" />
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
-                        <InputDate class="form-input" @bind-Value="createRequest.StartDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
-                        <InputDate class="form-input" @bind-Value="createRequest.EndDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
-                        <InputDate class="form-input" @bind-Value="createRequest.RegistrationOpenDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
-                        <InputDate class="form-input" @bind-Value="createRequest.RegistrationCloseDate" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-sm text-black/60 dark:text-white/60">Early Bird capacity (leave empty to disable)</label>
-                        <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="createRequest.EarlyBirdCapacity" />
-                    </div>
-                </div>
-
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
-                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="CreateEditionAsync">
-                        @(isSaving ? "Creating..." : "Create")
-                    </button>
-                </div>
-            </div>
-'@
-
-# ============================================================================
-# 2) Edit Edition: mismo patron de grid que Festivals.razor (max-w-lg)
-# ============================================================================
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Editions.razor' `
-    -Description 'Edit Edition: layout igual que Festivals.razor' `
-    -Anchor @'
-            <div class="relative w-full max-w-2xl overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Edition</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
-                        <i class="ri-close-line text-2xl"></i>
-                    </button>
-                </div>
-
-                <div class="p-5 grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
-                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
-                    {
-                        <div class="md:col-span-2 p-3 text-sm rounded bg-danger/10 text-danger">@modalErrorMessage</div>
-                    }
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Festival</label>
-                        <select class="form-select w-full" @bind="updateRequest.FestivalId">
-                            <option value="@Guid.Empty">Select festival</option>
-                            @foreach (FestivalDto festival in festivals)
-                            {
-                                <option value="@festival.Id">@festival.Name</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Name</label>
-                        <input class="form-input w-full" placeholder="Name" @bind="updateRequest.Name" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Year</label>
-                        <input class="form-input w-full" placeholder="Year" type="number" @bind="updateRequest.Year" />
-                    </div>
-
-                    <div class="flex items-end pb-2">
-                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                            <input type="checkbox" @bind="updateRequest.IsActive" />
-                            Active
-                        </label>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Start date</label>
-                        <InputDate class="form-input w-full" @bind-Value="updateRequest.StartDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">End date</label>
-                        <InputDate class="form-input w-full" @bind-Value="updateRequest.EndDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Registration opens</label>
-                        <InputDate class="form-input w-full" @bind-Value="updateRequest.RegistrationOpenDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Registration closes</label>
-                        <InputDate class="form-input w-full" @bind-Value="updateRequest.RegistrationCloseDate" />
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block text-sm text-black/60 dark:text-white/60 mb-1">Early Bird capacity (leave empty to disable)</label>
-                        <input class="form-input w-full" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
-                    </div>
-
-                    @if (selectedEdition is not null)
-                    {
-                        <div class="md:col-span-2 flex items-center justify-between gap-3">
-                            <span class="text-sm text-black/70 dark:text-white/70">
-                                Early Bird used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
-                            </span>
-                            <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
-                                Reset to 0
-                            </button>
-                        </div>
-                    }
-                </div>
-
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
-                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="UpdateEditionAsync">
-                        @(isSaving ? "Saving..." : "Save")
-                    </button>
-                </div>
-            </div>
-'@ `
-    -Replacement @'
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Edit Edition</h3>
-                    <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
-                        <i class="ri-close-line text-2xl"></i>
-                    </button>
-                </div>
-
-                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
-                    @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
-                    {
-                        <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
-                    }
-
-                    <div class="md:col-span-2">
-                        <label class="block text-sm text-black/60 dark:text-white/60">Festival</label>
-                        <select class="form-select" @bind="updateRequest.FestivalId">
-                            <option value="@Guid.Empty">Select festival</option>
-                            @foreach (FestivalDto festival in festivals)
-                            {
-                                <option value="@festival.Id">@festival.Name</option>
-                            }
-                        </select>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Name</label>
-                        <input class="form-input" placeholder="Name" @bind="updateRequest.Name" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Year</label>
-                        <input class="form-input" placeholder="Year" type="number" @bind="updateRequest.Year" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Start date</label>
-                        <InputDate class="form-input" @bind-Value="updateRequest.StartDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">End date</label>
-                        <InputDate class="form-input" @bind-Value="updateRequest.EndDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Registration opens</label>
-                        <InputDate class="form-input" @bind-Value="updateRequest.RegistrationOpenDate" />
-                    </div>
-
-                    <div>
-                        <label class="block text-sm text-black/60 dark:text-white/60">Registration closes</label>
-                        <InputDate class="form-input" @bind-Value="updateRequest.RegistrationCloseDate" />
-                    </div>
-
                     <div class="md:col-span-2">
                         <label class="block text-sm text-black/60 dark:text-white/60">Early Bird capacity (leave empty to disable)</label>
                         <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
@@ -442,19 +160,75 @@ Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Editions
                         </div>
                     }
 
+                    @if (selectedEdition is not null)
+                    {
+                        <div class="md:col-span-2 flex flex-col gap-2">
+                            <label class="block text-sm text-black/60 dark:text-white/60">Schedule PDF</label>
+                            @if (!string.IsNullOrWhiteSpace(selectedEdition.ScheduleUrl))
+                            {
+                                <div class="flex items-center justify-between gap-3">
+                                    <a href="@selectedEdition.ScheduleUrl" target="_blank" class="btn border border-purple text-purple hover:bg-purple hover:text-white inline-flex items-center gap-1">
+                                        <i class="ri-file-pdf-line"></i>View current PDF
+                                    </a>
+                                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="RemoveScheduleAsync">
+                                        Remove
+                                    </button>
+                                </div>
+                            }
+                            <InputFile OnChange="OnScheduleSelected" accept="application/pdf" disabled="@isSaving" />
+                        </div>
+                    }
+
                     <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white md:col-span-2">
                         <input type="checkbox" @bind="updateRequest.IsActive" />
                         Active
                     </label>
-                </div>
+'@ `
+    -Replacement @'
+                    @if (selectedEdition is not null)
+                    {
+                        <div class="md:col-span-2 p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                            <h4 class="mb-3 text-sm font-semibold text-black dark:text-white">Early Bird</h4>
 
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@isSaving" @onclick="CloseModals">Cancel</button>
-                    <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="UpdateEditionAsync">
-                        @(isSaving ? "Saving..." : "Save")
-                    </button>
-                </div>
-            </div>
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Capacity (leave empty to disable)</label>
+                                <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3 mt-3">
+                                <span class="text-sm text-black/70 dark:text-white/70">
+                                    Used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
+                                </span>
+                                <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
+                                    Reset to 0
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                            <h4 class="mb-3 text-sm font-semibold text-black dark:text-white">Schedule PDF</h4>
+
+                            @if (!string.IsNullOrWhiteSpace(selectedEdition.ScheduleUrl))
+                            {
+                                <div class="flex items-center justify-between gap-3 mb-3">
+                                    <a href="@selectedEdition.ScheduleUrl" target="_blank" class="btn border border-purple text-purple hover:bg-purple hover:text-white inline-flex items-center gap-1">
+                                        <i class="ri-file-pdf-line"></i>View current PDF
+                                    </a>
+                                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="RemoveScheduleAsync">
+                                        Remove
+                                    </button>
+                                </div>
+                            }
+                            <InputFile OnChange="OnScheduleSelected" accept="application/pdf" disabled="@isSaving" />
+                        </div>
+                    }
+
+                    <div class="md:col-span-2 pt-3 border-t border-black/10 dark:border-darkborder">
+                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                            <input type="checkbox" @bind="updateRequest.IsActive" />
+                            Active
+                        </label>
+                    </div>
 '@
 
 # ============================================================================
@@ -477,6 +251,10 @@ if ($script:PlanErrors.Count -gt 0) {
     foreach ($e in $script:PlanErrors) {
         Write-Host "  - $e" -ForegroundColor Red
     }
+    Write-Host ""
+    Write-Host "Si el problema es que no encuentra el anchor, aplica primero" -ForegroundColor Yellow
+    Write-Host "Fix-EditionSchedule.ps1 y luego reintenta este." -ForegroundColor Yellow
+    Write-Host ""
     exit 1
 }
 
@@ -488,5 +266,8 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. dotnet build y recarga Admin > Editions para verlo." -ForegroundColor Cyan
+Write-Host "Listo. Solo CSS/markup, no hace falta migracion ni build especial." -ForegroundColor Cyan
+Write-Host "En Admin > Editions > Edit deberias ver 'Early Bird' y 'Schedule PDF'" -ForegroundColor Cyan
+Write-Host "cada uno en su propio recuadro con borde, y 'Active' separado por una" -ForegroundColor Cyan
+Write-Host "linea encima." -ForegroundColor Cyan
 Write-Host ""

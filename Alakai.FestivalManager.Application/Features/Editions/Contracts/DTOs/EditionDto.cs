@@ -13,4 +13,5 @@ public class EditionDto
     public bool IsActive { get; set; }
     public int? EarlyBirdCapacity { get; set; }
     public int EarlyBirdUsedCount { get; set; }
+    public string? ScheduleUrl { get; set; }
 }

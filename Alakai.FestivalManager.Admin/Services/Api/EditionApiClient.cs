@@ -111,6 +111,33 @@ public class EditionApiClient
         return response!.Data!.EarlyBirdUsedCount;
     }
 
+    public async Task<string> UploadScheduleAsync(Guid editionId, Stream content, string fileName, string contentType, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        using MultipartFormDataContent form = new();
+        using StreamContent streamContent = new(content);
+        streamContent.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(contentType);
+        form.Add(streamContent, "file", fileName);
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsync($"api/editions/{editionId}/schedule", form, cancellationToken);
+        ApiResponse<SetEditionScheduleResponse>? response = await ReadResponseAsync<SetEditionScheduleResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+
+        return response!.Data!.ScheduleUrl;
+    }
+
+    public async Task RemoveScheduleAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage httpResponse = await _httpClient.DeleteAsync($"api/editions/{editionId}/schedule", cancellationToken);
+        ApiResponse<RemoveEditionScheduleResponse>? response = await ReadResponseAsync<RemoveEditionScheduleResponse>(httpResponse, cancellationToken);
+
+        EnsureSuccess(httpResponse, response);
+    }
+
     private static async Task<ApiResponse<T>?> ReadResponseAsync<T>(HttpResponseMessage httpResponse, CancellationToken cancellationToken)
     {
         try

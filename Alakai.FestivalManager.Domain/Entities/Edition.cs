@@ -18,4 +18,7 @@ public class Edition : BaseEntity
     // EarlyBirdUsedCount < EarlyBirdCapacity, luego cae a RegularPrice.
     public int? EarlyBirdCapacity { get; set; }
     public int EarlyBirdUsedCount { get; set; } = 0;
+
+    // URL publica del PDF de horarios de esta edicion (null = sin subir).
+    public string? ScheduleUrl { get; set; }
 }

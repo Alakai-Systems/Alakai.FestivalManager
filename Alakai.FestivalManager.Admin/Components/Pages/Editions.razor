@@ -293,27 +293,50 @@
                         <InputDate class="form-input" @bind-Value="updateRequest.RegistrationCloseDate" />
                     </div>
 
-                    <div class="md:col-span-2">
-                        <label class="block text-sm text-black/60 dark:text-white/60">Early Bird capacity (leave empty to disable)</label>
-                        <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
-                    </div>
-
                     @if (selectedEdition is not null)
                     {
-                        <div class="md:col-span-2 flex items-center justify-between gap-3">
-                            <span class="text-sm text-black/70 dark:text-white/70">
-                                Early Bird used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
-                            </span>
-                            <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
-                                Reset to 0
-                            </button>
+                        <div class="md:col-span-2 p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                            <h4 class="mb-3 text-sm font-semibold text-black dark:text-white">Early Bird</h4>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Capacity (leave empty to disable)</label>
+                                <input class="form-input" placeholder="e.g. 30" type="number" min="0" @bind="updateRequest.EarlyBirdCapacity" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3 mt-3">
+                                <span class="text-sm text-black/70 dark:text-white/70">
+                                    Used: <strong>@selectedEdition.EarlyBirdUsedCount</strong>@(updateRequest.EarlyBirdCapacity.HasValue ? $" / {updateRequest.EarlyBirdCapacity}" : "")
+                                </span>
+                                <button type="button" class="btn border border-purple text-purple hover:bg-purple hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="ResetEarlyBirdUsageAsync">
+                                    Reset to 0
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="md:col-span-2 p-4 border rounded-lg border-black/10 dark:border-darkborder">
+                            <h4 class="mb-3 text-sm font-semibold text-black dark:text-white">Schedule PDF</h4>
+
+                            @if (!string.IsNullOrWhiteSpace(selectedEdition.ScheduleUrl))
+                            {
+                                <div class="flex items-center justify-between gap-3 mb-3">
+                                    <a href="@selectedEdition.ScheduleUrl" target="_blank" class="btn border border-purple text-purple hover:bg-purple hover:text-white inline-flex items-center gap-1">
+                                        <i class="ri-file-pdf-line"></i>View current PDF
+                                    </a>
+                                    <button type="button" class="btn border border-danger text-danger hover:bg-danger hover:text-white disabled:opacity-50" disabled="@isSaving" @onclick="RemoveScheduleAsync">
+                                        Remove
+                                    </button>
+                                </div>
+                            }
+                            <InputFile OnChange="OnScheduleSelected" accept="application/pdf" disabled="@isSaving" />
                         </div>
                     }
 
-                    <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white md:col-span-2">
-                        <input type="checkbox" @bind="updateRequest.IsActive" />
-                        Active
-                    </label>
+                    <div class="md:col-span-2 pt-3 border-t border-black/10 dark:border-darkborder">
+                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                            <input type="checkbox" @bind="updateRequest.IsActive" />
+                            Active
+                        </label>
+                    </div>
                 </div>
 
                 <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
@@ -687,6 +710,76 @@
 
             selectedEdition.EarlyBirdUsedCount = newUsedCount;
             successMessage = "Early Bird usage reset to 0.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadEditionsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task OnScheduleSelected(InputFileChangeEventArgs e)
+    {
+        if (isSaving || selectedEdition is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            IBrowserFile file = e.File;
+            using Stream stream = file.OpenReadStream(maxAllowedSize: 20 * 1024 * 1024);
+            string url = await EditionApiClient.UploadScheduleAsync(selectedEdition.Id, stream, file.Name, file.ContentType);
+
+            selectedEdition.ScheduleUrl = url;
+            successMessage = "Schedule PDF uploaded successfully.";
+            errorMessage = null;
+            _ = ClearMessagesAfterDelayAsync();
+            await LoadEditionsAsync();
+        }
+        catch (ApiClientException ex)
+        {
+            modalErrorMessage = BuildErrorMessage(ex);
+        }
+        catch (Exception ex)
+        {
+            modalErrorMessage = ex.Message;
+        }
+        finally
+        {
+            isSaving = false;
+        }
+    }
+
+    private async Task RemoveScheduleAsync()
+    {
+        if (isSaving || selectedEdition is null)
+        {
+            return;
+        }
+
+        try
+        {
+            isSaving = true;
+            modalErrorMessage = null;
+
+            await EditionApiClient.RemoveScheduleAsync(selectedEdition.Id);
+
+            selectedEdition.ScheduleUrl = null;
+            successMessage = "Schedule PDF removed.";
             errorMessage = null;
             _ = ClearMessagesAfterDelayAsync();
             await LoadEditionsAsync();

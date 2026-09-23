@@ -25,7 +25,7 @@ public class DeleteUserHandler
         }
         catch (DbUpdateException ex)
         {
-            throw new BusinessRuleException("This user cannot be deleted because it has a related registration.");
+            throw new BusinessRuleException($"This user cannot be deleted because it has a related registration / {ex.Message}");
         }
 
         return true;

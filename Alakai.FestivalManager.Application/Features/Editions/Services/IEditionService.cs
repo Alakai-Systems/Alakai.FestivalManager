@@ -9,4 +9,6 @@ public interface IEditionService
     Task<ApiResponse<UpdateEditionResponse>> UpdateAsync(UpdateEditionCommand command, CancellationToken cancellationToken = default);
     Task<ApiResponse<DeleteEditionResponse>> DeleteAsync(Guid id, CancellationToken cancellationToken = default);
     Task<ApiResponse<ResetEarlyBirdUsageResponse>> ResetEarlyBirdUsageAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<ApiResponse<SetEditionScheduleResponse>> SetScheduleAsync(Guid editionId, Stream content, string fileName, CancellationToken cancellationToken = default);
+    Task<ApiResponse<RemoveEditionScheduleResponse>> RemoveScheduleAsync(Guid editionId, CancellationToken cancellationToken = default);
 }
