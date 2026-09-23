@@ -613,7 +613,8 @@
             Country = user.Country,
             City = user.City,
             MustChangePassword = user.MustChangePassword,
-            IsActive = user.IsActive
+            IsActive = user.IsActive,
+            Role = user.Role
         };
         showModal = true;
     }
@@ -679,7 +680,8 @@
                     Country = formModel.Country,
                     City = formModel.City,
                     MustChangePassword = formModel.MustChangePassword,
-                    IsActive = formModel.IsActive
+                    IsActive = formModel.IsActive,
+                    Role = formModel.Role
                 };
 
                 await UserApiClient.UpdateAsync(editingUser.Id, request);
@@ -1056,5 +1058,6 @@
         public string? Password { get; set; }
         public bool MustChangePassword { get; set; }
         public bool IsActive { get; set; }
+        public int Role { get; set; }
     }
 }
