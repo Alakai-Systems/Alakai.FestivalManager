@@ -153,6 +153,7 @@ global using Alakai.FestivalManager.Application.Features.PassTypes.Queries.GetPa
 global using Alakai.FestivalManager.Application.Features.PassTypes.Queries.GetPassTypesByEditionId;
 global using Alakai.FestivalManager.Application.Features.PassTypes.Services;
 global using Alakai.FestivalManager.Application.Features.Payments.Commands.CreatePaymentSession;
+global using Alakai.FestivalManager.Application.Features.Payments.Commands.RefundRegistration;
 global using Alakai.FestivalManager.Application.Features.Payments.Contracts.DTOs;
 global using Alakai.FestivalManager.Application.Features.Payments.Services;
 global using Alakai.FestivalManager.Application.Features.ProductionAccommodationBuildings.Commands.CreateProductionAccommodationBuilding;

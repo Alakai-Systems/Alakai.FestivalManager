@@ -93,6 +93,11 @@ public class RegistrationConfiguration : IEntityTypeConfiguration<Registration>
             .IsRequired()
             .HasColumnType("decimal(18,2)");
 
+        builder.Property(r => r.RefundedAmount)
+            .IsRequired()
+            .HasColumnType("decimal(18,2)")
+            .HasDefaultValue(0m);
+
         builder.Property(r => r.PaymentReference)
             .HasMaxLength(200);
 

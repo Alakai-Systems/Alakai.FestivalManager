@@ -32,6 +32,12 @@ public class AnalyticsPageStatDto
     public decimal? ViewsChangePercent { get; set; }
 }
 
+public class AnalyticsBreakdownDto
+{
+    public string Label { get; set; } = string.Empty;
+    public long Value { get; set; }
+}
+
 public class AnalyticsStatsDto
 {
     public bool IsAvailable { get; set; }
@@ -40,6 +46,8 @@ public class AnalyticsStatsDto
     public AnalyticsOverviewDto Overview { get; set; } = new();
     public List<AnalyticsCountryStatDto> TopCountries { get; set; } = [];
     public List<AnalyticsPageStatDto> TopPages { get; set; } = [];
+    public List<AnalyticsBreakdownDto> TrafficSources { get; set; } = [];
+    public List<AnalyticsBreakdownDto> DeviceCategories { get; set; } = [];
 }
 
 internal class AnalyticsApiResponse

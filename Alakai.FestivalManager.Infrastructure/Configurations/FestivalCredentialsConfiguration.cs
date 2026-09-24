@@ -56,6 +56,11 @@ public class FestivalCredentialsConfiguration : IEntityTypeConfiguration<Festiva
         builder.Property(fc => fc.EmailUseSSL)
             .IsRequired();
 
+        builder.Property(fc => fc.Currency)
+            .IsRequired()
+            .HasMaxLength(3)
+            .HasDefaultValue("EUR");
+
         builder.HasOne(fc => fc.Festival)
             .WithOne(f => f.Credentials)
             .HasForeignKey<FestivalCredentials>(fc => fc.FestivalId)

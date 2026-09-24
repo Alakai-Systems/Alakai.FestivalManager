@@ -96,6 +96,7 @@ global using Alakai.FestivalManager.Application.Features.PassTypes.Contracts.Res
 global using Alakai.FestivalManager.Application.Features.PassTypes.Services;
 global using Alakai.FestivalManager.Application.Features.Payments.Commands.ConfirmRedsysReturn;
 global using Alakai.FestivalManager.Application.Features.Payments.Commands.CreatePaymentSession;
+global using Alakai.FestivalManager.Application.Features.Payments.Commands.RefundRegistration;
 global using Alakai.FestivalManager.Application.Features.Payments.Services;
 global using Alakai.FestivalManager.Application.Features.ProductionAccommodations.Commands.CreateProductionAccommodation;
 global using Alakai.FestivalManager.Application.Features.ProductionAccommodations.Commands.UpdateProductionAccommodation;

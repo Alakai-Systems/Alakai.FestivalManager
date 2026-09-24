@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
+namespace Alakai.FestivalManager.Application.Features.Dashboard.Contracts.DTOs;
 
 public class LevelStatDto
 {
@@ -16,6 +16,7 @@ public class PassTypeStatDto
 {
     public Guid PassTypeId { get; set; }
     public string PassTypeName { get; set; } = string.Empty;
+    public decimal Revenue { get; set; }
     public int Purchased { get; set; }
     public int FullyPaid { get; set; }
     public int PartiallyPaid { get; set; }
@@ -52,12 +53,53 @@ public class CompetitionStatDto
     public List<CompetitionLevelStatDto> Levels { get; set; } = [];
 }
 
+public class PaymentStatusBreakdownDto
+{
+    public decimal PaidAmount { get; set; }
+    public decimal PartiallyPaidAmount { get; set; }
+    public decimal PendingAmount { get; set; }
+}
+
+public class AgedPendingPaymentDto
+{
+    public string Bucket { get; set; } = string.Empty;
+    public int Count { get; set; }
+    public decimal Amount { get; set; }
+}
+
+public class DiscountCodeCostDto
+{
+    public string CodeName { get; set; } = string.Empty;
+    public int UsageCount { get; set; }
+    public decimal TotalDiscountAmount { get; set; }
+}
+
+public class PaymentPlanMixDto
+{
+    public string PlanName { get; set; } = string.Empty;
+    public int Count { get; set; }
+}
+
 public class DashboardStatsDto
 {
     public Guid EditionId { get; set; }
     public List<PassTypeStatDto> PassTypes { get; set; } = [];
     public List<GroupStatDto> Groups { get; set; } = [];
     public List<CompetitionStatDto> Competitions { get; set; } = [];
+    public PaymentStatusBreakdownDto PaymentStatusBreakdown { get; set; } = new();
+    public List<AgedPendingPaymentDto> AgedPendingPayments { get; set; } = [];
+    public List<DiscountCodeCostDto> DiscountCodeCosts { get; set; } = [];
+    public decimal TotalManagementFees { get; set; }
+    public int ManagementFeeRegistrationCount { get; set; }
+    public List<PaymentPlanMixDto> PaymentPlanMix { get; set; } = [];
+    public decimal TotalRevenue { get; set; }
+    public List<RegistrationTrendPointDto> RegistrationsOverTime { get; set; } = [];
+}
+
+public class RegistrationTrendPointDto
+{
+    public string Label { get; set; } = string.Empty;
+    public int Count { get; set; }
 }
 
 public class RevenuePointDto

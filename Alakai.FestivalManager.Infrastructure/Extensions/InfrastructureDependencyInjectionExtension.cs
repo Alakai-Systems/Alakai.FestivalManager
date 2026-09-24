@@ -80,7 +80,7 @@ public static class InfrastructureDependencyInjectionExtension
         services.Configure<ExternalAuthOptions>(configuration.GetSection("ExternalAuth"));
         services.AddSingleton<IExternalAuthService, ExternalAuthService>();
         services.Configure<RedsysOptions>(configuration.GetSection("Redsys"));
-        services.AddSingleton<IRedsysGateway, RedsysGateway>();
+        services.AddHttpClient<IRedsysGateway, RedsysGateway>();
         services.Configure<Alakai.FestivalManager.Infrastructure.Email.SystemEmailOptions>(configuration.GetSection("Email"));
         services.Configure<Alakai.FestivalManager.Infrastructure.Email.ApplicationUrlsOptions>(configuration.GetSection("ApplicationUrls"));
         services.Configure<Alakai.FestivalManager.Infrastructure.Email.ApplicationUrlsOptions>(configuration.GetSection("ApplicationUrls"));

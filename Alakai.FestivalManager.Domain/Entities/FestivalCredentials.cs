@@ -19,6 +19,9 @@ public class FestivalCredentials : BaseEntity
     /// <summary>URL del endpoint de Redsys para este festival (test o produccion). Vacio = usa el fallback global.</summary>
     public string? RedsysPaymentUrl { get; set; }
 
+    /// <summary>Divisa en la que este festival cobra (codigo ISO alpha: EUR, USD, CAD...). Se traduce al codigo numerico que pide Redsys en RedsysGateway.</summary>
+    public string Currency { get; set; } = "EUR";
+
     // Email (SMTP)
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; } = 587;

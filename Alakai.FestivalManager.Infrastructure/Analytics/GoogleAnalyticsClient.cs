@@ -1,4 +1,4 @@
-﻿using Google.Analytics.Data.V1Beta;
+using Google.Analytics.Data.V1Beta;
 using Microsoft.Extensions.Logging;
 
 namespace Alakai.FestivalManager.Infrastructure.Analytics;
@@ -136,13 +136,18 @@ public class GoogleAnalyticsClient : IAnalyticsClient
                 })
                 .ToList();
 
+            List<AnalyticsBreakdownDto> trafficSources = await GetTrafficSourceBreakdownAsync(client, property, currentRange, cancellationToken);
+            List<AnalyticsBreakdownDto> deviceCategories = await GetDeviceCategoryBreakdownAsync(client, property, currentRange, cancellationToken);
+
             return new AnalyticsStatsDto
             {
                 IsAvailable = true,
                 DateRangeLabel = $"{startDate:dd MMM} - {endDate:dd MMM yyyy}",
                 Overview = overview,
                 TopCountries = topCountries,
-                TopPages = topPages
+                TopPages = topPages,
+                TrafficSources = trafficSources,
+                DeviceCategories = deviceCategories
             };
         }
         catch (Exception ex)
@@ -220,6 +225,46 @@ public class GoogleAnalyticsClient : IAnalyticsClient
         RunReportResponse response = await client.RunReportAsync(request, cancellationToken);
 
         return response.Rows.ToDictionary(r => r.DimensionValues[0].Value, r => ParseLong(r.MetricValues[0].Value));
+    }
+
+    private static async Task<List<AnalyticsBreakdownDto>> GetTrafficSourceBreakdownAsync(
+        BetaAnalyticsDataClient client, string property, DateRange range, CancellationToken cancellationToken)
+    {
+        RunReportRequest request = new()
+        {
+            Property = property,
+            DateRanges = { range },
+            Dimensions = { new Dimension { Name = "sessionDefaultChannelGroup" } },
+            Metrics = { new Metric { Name = "sessions" } },
+            OrderBys = { new OrderBy { Metric = new OrderBy.Types.MetricOrderBy { MetricName = "sessions" }, Desc = true } },
+            Limit = 6
+        };
+
+        RunReportResponse response = await client.RunReportAsync(request, cancellationToken);
+
+        return response.Rows
+            .Select(r => new AnalyticsBreakdownDto { Label = r.DimensionValues[0].Value, Value = ParseLong(r.MetricValues[0].Value) })
+            .ToList();
+    }
+
+    private static async Task<List<AnalyticsBreakdownDto>> GetDeviceCategoryBreakdownAsync(
+        BetaAnalyticsDataClient client, string property, DateRange range, CancellationToken cancellationToken)
+    {
+        RunReportRequest request = new()
+        {
+            Property = property,
+            DateRanges = { range },
+            Dimensions = { new Dimension { Name = "deviceCategory" } },
+            Metrics = { new Metric { Name = "activeUsers" } },
+            OrderBys = { new OrderBy { Metric = new OrderBy.Types.MetricOrderBy { MetricName = "activeUsers" }, Desc = true } },
+            Limit = 6
+        };
+
+        RunReportResponse response = await client.RunReportAsync(request, cancellationToken);
+
+        return response.Rows
+            .Select(r => new AnalyticsBreakdownDto { Label = r.DimensionValues[0].Value, Value = ParseLong(r.MetricValues[0].Value) })
+            .ToList();
     }
 
     private static async Task<(List<long> views, List<long> users, List<long> events, List<long> newUsers)> GetDailySeriesAsync(

@@ -55,6 +55,11 @@ public class Registration : BaseEntity
     public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;
     public decimal ManagementFee { get; set; }
     public decimal AmountPaid { get; set; }
+
+    // Suma de los reembolsos ya confirmados por Redsys para esta inscripcion.
+    // Fuente de verdad para saber cuanto queda disponible para reembolsar
+    // (AmountPaid - RefundedAmount). Nunca se resta de AmountPaid directamente.
+    public decimal RefundedAmount { get; set; }
     public DateTime? PaymentDueAt { get; set; }
     public string Language { get; set; } = "en";
     public string? Notes { get; set; }

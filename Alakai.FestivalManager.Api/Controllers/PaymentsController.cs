@@ -35,6 +35,13 @@ public class PaymentsController : ControllerBase
         return Ok(new ApiResponse<bool> { Success = true, Data = processed, Errors = [], Message = processed ? "Payment confirmed" : "Payment not approved" });
     }
 
+    [Authorize(Roles = "SuperAdmin,Admin")]
+    [HttpPost("refund")]
+    public async Task<IActionResult> Refund([FromBody] RefundRegistrationCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await _paymentService.RefundRegistrationAsync(command, cancellationToken));
+    }
+
     [AllowAnonymous]
     [HttpPost("redsys/notification")]
     [Consumes("application/x-www-form-urlencoded")]

@@ -1,4 +1,4 @@
-﻿namespace Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
+namespace Alakai.FestivalManager.Application.Features.Registrations.Contracts.DTOs;
 
 public class RegistrationDto
 {
@@ -48,5 +48,6 @@ public class RegistrationDto
     public PaymentPlan PaymentPlan { get; set; }
     public decimal ManagementFee { get; set; }
     public decimal AmountPaid { get; set; }
+    public decimal RefundedAmount { get; set; }
     public DateTime? PaymentDueAt { get; set; }
 }

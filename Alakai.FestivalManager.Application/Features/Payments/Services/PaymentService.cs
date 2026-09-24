@@ -267,4 +267,75 @@ public class PaymentService : IPaymentService
 
         return true;
     }
+
+    public async Task<ApiResponse<bool>> RefundRegistrationAsync(RefundRegistrationCommand command, CancellationToken cancellationToken = default)
+    {
+        if (command.Amount <= 0)
+        {
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = ["The refund amount must be greater than zero."], Message = "Refund failed" };
+        }
+
+        Registration? registration = await _registrationRepository.GetByIdAsync(command.RegistrationId, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = ["Registration not found."], Message = "Refund failed" };
+        }
+
+        decimal alreadyRefunded = registration.RefundedAmount;
+        decimal refundable = registration.AmountPaid - alreadyRefunded;
+
+        if (command.Amount > refundable)
+        {
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = [$"The refund amount exceeds the amount available to refund ({refundable:0.00})."], Message = "Refund failed" };
+        }
+
+        // El Order que confirmo el cobro en Redsys, tal y como se guardo en PaymentAuthCodes
+        // ("order:authcode", varias entradas separadas por "|" si hubo mas de un cobro,
+        // p.ej. en un plan de pago dividido). Se reembolsa contra el ultimo cobro confirmado.
+        string? order = registration.PaymentAuthCodes?
+            .Split('|', StringSplitOptions.RemoveEmptyEntries)
+            .LastOrDefault()?
+            .Split(':')[0];
+
+        if (string.IsNullOrWhiteSpace(order))
+        {
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = ["No Redsys payment is on record for this registration."], Message = "Refund failed" };
+        }
+
+        FestivalCredentials? credentials = registration.Edition?.Festival?.Credentials;
+
+        if (credentials is null)
+        {
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = ["Payment configuration missing for this festival."], Message = "Refund failed" };
+        }
+
+        long amountInCents = (long)Math.Round(command.Amount * 100m, MidpointRounding.AwayFromZero);
+
+        RedsysRefundResultDto result = await _redsysGateway.SendRefundAsync(credentials, order, amountInCents, cancellationToken);
+
+        if (!result.Success)
+        {
+            _logger.LogWarning("Redsys refund rejected for registration {RegistrationId}, order {Order}: {Message}", registration.Id, order, result.Message);
+
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = [result.Message], Message = "Refund failed" };
+        }
+
+        registration.RefundedAmount = alreadyRefunded + command.Amount;
+        registration.PaymentStatus = registration.RefundedAmount >= registration.AmountPaid ? PaymentStatus.Refunded : PaymentStatus.PartiallyPaid;
+
+        string note = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC] Reembolso de {command.Amount:0.00} via Redsys (order {order})." +
+            (string.IsNullOrWhiteSpace(command.Reason) ? string.Empty : $" Motivo: {command.Reason}");
+        registration.InternalNotes = string.IsNullOrWhiteSpace(registration.InternalNotes)
+            ? note
+            : registration.InternalNotes + "\n" + note;
+
+        registration.SetUpdated();
+        _registrationRepository.Update(registration);
+        await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Redsys refund confirmed for registration {RegistrationId}, order {Order}, amount {Amount} cents.", registration.Id, order, amountInCents);
+
+        return new ApiResponse<bool> { Success = true, Data = true, Errors = [], Message = "Refund processed" };
+    }
 }

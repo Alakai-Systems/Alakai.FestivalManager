@@ -46,10 +46,33 @@
     }
     else if (stats is not null)
     {
-        @if (analytics is { IsAvailable: true })
+        <div class="inline-flex items-center gap-1 p-1 rounded-lg bg-black/5 dark:bg-white/5 w-fit" role="tablist">
+            <button type="button" role="tab" aria-selected="@(activeTab == "finance" ? "true" : "false")" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors @(activeTab == "finance" ? "bg-white dark:bg-dark text-purple shadow-sm" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white")" @onclick='() => SwitchTab("finance")'>
+                Analytics &amp; Finance
+            </button>
+            <button type="button" role="tab" aria-selected="@(activeTab == "operations" ? "true" : "false")" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors @(activeTab == "operations" ? "bg-white dark:bg-dark text-purple shadow-sm" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white")" @onclick='() => SwitchTab("operations")'>
+                Operations
+            </button>
+        </div>
+
+        @if (activeTab == "finance")
         {
-            <p class="text-xs text-black/40 dark:text-white/60">Analytics period: @analytics.DateRangeLabel</p>
-        }
+        <div class="flex flex-wrap items-center justify-between gap-3">
+            <h2 class="text-lg font-bold text-black dark:text-white">Analytics</h2>
+            <div class="flex items-center gap-3">
+                @if (analytics is { IsAvailable: true })
+                {
+                    <p class="text-sm whitespace-nowrap text-black/70 dark:text-white/80">@analytics.DateRangeLabel</p>
+                }
+                <select class="form-select" style="width:auto; max-width:240px;" @bind="analyticsRange" @bind:after="LoadAnalyticsAsync">
+                    <option value="edition">Since registration opened</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="14">Last 14 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                </select>
+            </div>
+        </div>
 
         <!-- Row 1: Google Analytics KPI cards, full-width sparkline below value -->
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -133,31 +156,9 @@
             </div>
         }
 
-        <!-- Row 2: Revenue 50% + Top Countries 25% + Top Pages 25% -->
-        <div class="grid grid-cols-1 gap-4 md:grid-cols-4">
-            <div class="card shadow-sm md:col-span-2">
-                <div class="flex items-center justify-between gap-3 mb-4">
-                    <h2 class="text-lg font-bold text-black dark:text-white">Revenue</h2>
-                    <select class="form-select w-auto min-w-[110px]" @bind="revenueRange" @bind:after="LoadRevenueAsync">
-                        <option value="week">Weekly</option>
-                        <option value="month">Monthly</option>
-                        <option value="year">Yearly</option>
-                    </select>
-                </div>
-
-                @if (ChartPoints.Count == 0)
-                {
-                    <p class="text-sm text-black/40 dark:text-white/60">No revenue data.</p>
-                }
-                else
-                {
-                    <svg viewBox="0 0 800 235" preserveAspectRatio="none" style="width:100%; height:235px;">
-                        @BuildSvgContent()
-                    </svg>
-                }
-            </div>
-
-            <div class="card shadow-sm md:col-span-1">
+        <!-- Row 2: Top Countries + Top Pages + Traffic Source + Device Category -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div class="card shadow-sm">
                 <h2 class="mb-4 text-base font-bold text-black dark:text-white">Top Countries</h2>
                 @if (analytics is { IsAvailable: true } && analytics.TopCountries.Count > 0)
                 {
@@ -188,7 +189,7 @@
                 }
             </div>
 
-            <div class="card shadow-sm md:col-span-1">
+            <div class="card shadow-sm">
                 <h2 class="mb-4 text-base font-bold text-black dark:text-white">Top Pages</h2>
                 @if (analytics is { IsAvailable: true } && analytics.TopPages.Count > 0)
                 {
@@ -218,8 +219,155 @@
                     <p class="text-sm text-black/40 dark:text-white/60">No data available.</p>
                 }
             </div>
+
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Traffic Source</h2>
+                @if (analytics is { IsAvailable: true } && analytics.TrafficSources.Count > 0)
+                {
+                    <div id="traffic-source-chart"></div>
+                }
+                else
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No data available.</p>
+                }
+            </div>
+
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Device Category</h2>
+                @if (analytics is { IsAvailable: true } && analytics.DeviceCategories.Count > 0)
+                {
+                    <div id="device-category-chart"></div>
+                }
+                else
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No data available.</p>
+                }
+            </div>
         </div>
 
+        <hr class="border-black/10 dark:border-darkborder" />
+        <h2 class="text-lg font-bold text-black dark:text-white">Finance</h2>
+
+        <!-- Row 2b: Revenue, full width -->
+        <div class="grid grid-cols-1 gap-4">
+            <div class="card shadow-sm">
+                <div class="flex items-center justify-between gap-3 mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-black dark:text-white">Revenue</h2>
+                        <p class="text-sm text-black/60 dark:text-white/70">Total: @stats.TotalRevenue.ToString("0.##") &euro;</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        @if (revenueRange is "day" or "week" or "month")
+                        {
+                            <button type="button" class="rounded-md px-2 py-1 text-black/50 hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/5" @onclick="() => ShiftRevenueOffsetAsync(1)">
+                                &lsaquo;
+                            </button>
+                            <button type="button" class="rounded-md px-2 py-1 text-black/50 hover:bg-black/5 disabled:cursor-not-allowed disabled:opacity-30 dark:text-white/50 dark:hover:bg-white/5" disabled="@(revenueOffset <= 0)" @onclick="() => ShiftRevenueOffsetAsync(-1)">
+                                &rsaquo;
+                            </button>
+                        }
+                        <select class="form-select" style="width:auto; max-width:160px;" @bind="revenueRange" @bind:after="OnRevenueRangeChangedAsync">
+                            <option value="day">Daily</option>
+                            <option value="week">Weekly</option>
+                            <option value="month">Monthly</option>
+                            <option value="quarter">Quarterly</option>
+                            <option value="year">Yearly</option>
+                        </select>
+                    </div>
+                </div>
+
+                @if (revenuePoints.Count == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No revenue data.</p>
+                }
+                else
+                {
+                    <div id="revenue-chart"></div>
+                }
+            </div>
+        </div>
+
+        <!-- Row 3: Revenue by pass type, Payment status, Aged pending payments -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Revenue by pass type</h2>
+                @if (stats.PassTypes.Count == 0 || stats.PassTypes.Sum(p => p.Revenue) == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No revenue data.</p>
+                }
+                else
+                {
+                    <div id="passtype-revenue-chart"></div>
+                }
+            </div>
+
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Payment status</h2>
+                @if (stats.PaymentStatusBreakdown.PaidAmount == 0 && stats.PaymentStatusBreakdown.PartiallyPaidAmount == 0 && stats.PaymentStatusBreakdown.PendingAmount == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No payment data.</p>
+                }
+                else
+                {
+                    <div id="payment-status-chart"></div>
+                }
+            </div>
+
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Aged pending payments</h2>
+                @if (stats.AgedPendingPayments.Sum(b => b.Count) == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No overdue pending payments.</p>
+                }
+                else
+                {
+                    <div id="aged-pending-chart"></div>
+                }
+            </div>
+        </div>
+
+        <!-- Row 4: Payment plan mix, Discount code cost, Registrations over time -->
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Payment plan mix</h2>
+                @if (stats.PaymentPlanMix.Count == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No registrations yet.</p>
+                }
+                else
+                {
+                    <div id="payment-plan-mix-chart"></div>
+                }
+            </div>
+
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Discount code cost</h2>
+                @if (stats.DiscountCodeCosts.Count == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No discount codes used.</p>
+                }
+                else
+                {
+                    <div id="discount-cost-chart"></div>
+                }
+            </div>
+
+            <div class="card shadow-sm">
+                <h2 class="mb-4 text-base font-bold text-black dark:text-white">Registrations over time</h2>
+                @if (stats.RegistrationsOverTime.Sum(p => p.Count) == 0)
+                {
+                    <p class="text-sm text-black/40 dark:text-white/60">No registrations yet.</p>
+                }
+                else
+                {
+                    <div id="registrations-trend-chart"></div>
+                }
+            </div>
+        </div>
+        }
+
+        @if (activeTab == "operations")
+        {
         <!-- Pass Type Purchases + Levels per pass type: one shared grid -->
         <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div class="card shadow-sm">
@@ -416,6 +564,7 @@
                 }
             </div>
         </div>
+        }
     }
 </div>
 
@@ -429,17 +578,13 @@
     private AnalyticsStatsDto? analytics;
     private List<RevenuePointDto> revenuePoints = [];
     private string revenueRange = "month";
+    private int revenueOffset;
+    private string analyticsRange = "edition";
+    private string activeTab = "finance";
+    private bool chartNeedsRender;
+    private bool analyticsChartsNeedRender;
     private bool isLoading = true;
     private string? errorMessage;
-
-    private List<RevenueChartPoint> ChartPoints { get; set; } = [];
-    private decimal axisMax = 200000m;
-
-    private const double ViewBoxWidth = 800;
-    private const double LeftPadding = 50;
-    private const double RightPadding = 20;
-    private const double ChartTop = 10;
-    private const double ChartHeight = 200;
 
     private List<EditionDto> editionsForSelectedFestival =>
         allEditions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
@@ -490,6 +635,25 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
+        if (chartNeedsRender)
+        {
+            chartNeedsRender = false;
+            await RenderRevenueChartAsync();
+            await RenderPaymentStatusChartAsync();
+            await RenderPassTypeRevenueChartAsync();
+            await RenderAgedPendingPaymentsChartAsync();
+            await RenderDiscountCodeCostChartAsync();
+            await RenderPaymentPlanMixChartAsync();
+            await RenderRegistrationsOverTimeChartAsync();
+        }
+
+        if (analyticsChartsNeedRender)
+        {
+            analyticsChartsNeedRender = false;
+            await RenderTrafficSourceChartAsync();
+            await RenderDeviceCategoryChartAsync();
+        }
+
         if (!firstRender)
         {
             return;
@@ -591,18 +755,7 @@
         {
             stats = await DashboardApiClient.GetStatsAsync(selectedEditionId);
 
-            EditionDto? edition = allEditions.FirstOrDefault(e => e.Id == selectedEditionId);
-
-            if (edition is not null)
-            {
-                DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
-                DateOnly candidateStart = DateOnly.FromDateTime(edition.RegistrationOpenDate ?? edition.StartDate);
-                DateOnly start = candidateStart > today ? today.AddDays(-7) : candidateStart;
-                DateOnly end = today;
-
-                analytics = await AnalyticsApiClient.GetAnalyticsAsync(selectedFestivalId, start, end);
-            }
-
+            await LoadAnalyticsAsync();
             await LoadRevenueAsync();
         }
         catch (Exception ex)
@@ -615,6 +768,42 @@
         }
     }
 
+    private async Task LoadAnalyticsAsync()
+    {
+        analytics = null;
+
+        EditionDto? edition = allEditions.FirstOrDefault(e => e.Id == selectedEditionId);
+
+        if (edition is null)
+        {
+            return;
+        }
+
+        try
+        {
+            DateOnly today = DateOnly.FromDateTime(DateTime.UtcNow);
+            DateOnly start;
+
+            if (analyticsRange == "edition")
+            {
+                DateOnly candidateStart = DateOnly.FromDateTime(edition.RegistrationOpenDate ?? edition.StartDate);
+                start = candidateStart > today ? today.AddDays(-7) : candidateStart;
+            }
+            else
+            {
+                int days = int.Parse(analyticsRange, CultureInfo.InvariantCulture);
+                start = today.AddDays(-days);
+            }
+
+            analytics = await AnalyticsApiClient.GetAnalyticsAsync(selectedFestivalId, start, today);
+            analyticsChartsNeedRender = true;
+        }
+        catch (Exception ex)
+        {
+            errorMessage = ex.Message;
+        }
+    }
+
     private async Task LoadRevenueAsync()
     {
         if (selectedEditionId == Guid.Empty)
@@ -624,8 +813,8 @@
 
         try
         {
-            revenuePoints = await DashboardApiClient.GetRevenueAsync(selectedEditionId, revenueRange);
-            BuildChartGeometry();
+            revenuePoints = await DashboardApiClient.GetRevenueAsync(selectedEditionId, revenueRange, revenueOffset);
+            chartNeedsRender = true;
         }
         catch (Exception ex)
         {
@@ -633,101 +822,245 @@
         }
     }
 
-    private void BuildChartGeometry()
+    private async Task OnRevenueRangeChangedAsync()
     {
-        ChartPoints = [];
+        revenueOffset = 0;
+        await LoadRevenueAsync();
+    }
 
-        if (revenuePoints.Count == 0)
+    private async Task ShiftRevenueOffsetAsync(int delta)
+    {
+        revenueOffset = Math.Max(0, revenueOffset + delta);
+        await LoadRevenueAsync();
+    }
+
+    private void SwitchTab(string tab)
+    {
+        if (activeTab == tab)
         {
-            axisMax = 200000m;
             return;
         }
 
-        decimal rawMax = revenuePoints.Max(p => p.Amount);
-        decimal rounded = rawMax <= 0 ? 0 : Math.Ceiling(rawMax / 50000m) * 50000m;
-        axisMax = Math.Max(200000m, rounded);
+        activeTab = tab;
 
-        double plotWidth = ViewBoxWidth - LeftPadding - RightPadding;
-        int count = revenuePoints.Count;
-
-        for (int i = 0; i < count; i++)
+        if (tab == "finance")
         {
-            double x = count <= 1
-                ? LeftPadding + (plotWidth / 2)
-                : LeftPadding + (i * (plotWidth / (count - 1)));
-
-            double ratio = axisMax == 0 ? 0 : (double)(revenuePoints[i].Amount / axisMax);
-            double y = ChartTop + ((1 - ratio) * ChartHeight);
-
-            ChartPoints.Add(new RevenueChartPoint
-            {
-                X = x,
-                Y = y,
-                Label = revenuePoints[i].Label,
-                Amount = revenuePoints[i].Amount
-            });
+            chartNeedsRender = true;
+            analyticsChartsNeedRender = true;
         }
     }
 
-    private string PolylinePoints =>
-        string.Join(" ", ChartPoints.Select(p => $"{p.X.ToString(CultureInfo.InvariantCulture)},{p.Y.ToString(CultureInfo.InvariantCulture)}"));
-
-    private int LabelStep => ChartPoints.Count <= 10 ? 1 : (int)Math.Ceiling(ChartPoints.Count / 10.0);
-
-    private List<(double Y, decimal Value)> GridLines
+    private async Task RenderRevenueChartAsync()
     {
-        get
+        if (revenuePoints.Count == 0)
         {
-            List<(double Y, decimal Value)> lines = [];
+            return;
+        }
 
-            for (int g = 0; g <= 4; g++)
-            {
-                double y = ChartTop + (g * ChartHeight / 4.0);
-                decimal value = axisMax - (axisMax * g / 4m);
-                lines.Add((y, value));
-            }
+        try
+        {
+            string[] categories = revenuePoints.Select(p => p.Label).ToArray();
+            decimal[] data = revenuePoints.Select(p => p.Amount).ToArray();
+            object series = new[] { new { name = "Revenue", data } };
+            object options = new { colors = new[] { "#7c3aed" }, height = 320, yTickAmount = 5, yFormatterSuffix = "€" };
 
-            return lines;
+            await JsRuntime.InvokeVoidAsync("financeCharts.render", "revenue-chart", "area", series, categories, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
         }
     }
 
-    private MarkupString BuildSvgContent()
+    private async Task RenderPaymentStatusChartAsync()
     {
-        StringBuilder sb = new();
-
-        foreach ((double Y, decimal Value) line in GridLines)
+        if (stats is null)
         {
-            string y = line.Y.ToString(CultureInfo.InvariantCulture);
-            string width = ViewBoxWidth.ToString(CultureInfo.InvariantCulture);
-            string labelY = (line.Y + 4).ToString(CultureInfo.InvariantCulture);
-            string value = line.Value.ToString("0", CultureInfo.InvariantCulture);
-
-            sb.Append($"<line x1=\"{LeftPadding.ToString(CultureInfo.InvariantCulture)}\" y1=\"{y}\" x2=\"{width}\" y2=\"{y}\" stroke=\"#e5e7eb\" stroke-dasharray=\"4,4\" stroke-width=\"1\" vector-effect=\"non-scaling-stroke\" />");
-            sb.Append($"<text x=\"0\" y=\"{labelY}\" font-size=\"11\" fill=\"#9ca3af\">{value}</text>");
+            return;
         }
 
-        if (ChartPoints.Count > 1)
+        decimal[] amounts =
+        [
+            stats.PaymentStatusBreakdown.PaidAmount,
+            stats.PaymentStatusBreakdown.PartiallyPaidAmount,
+            stats.PaymentStatusBreakdown.PendingAmount
+        ];
+
+        if (amounts.Sum() == 0)
         {
-            sb.Append($"<polyline points=\"{PolylinePoints}\" fill=\"none\" stroke=\"#7c3aed\" stroke-width=\"2\" vector-effect=\"non-scaling-stroke\" />");
+            return;
         }
 
-        for (int i = 0; i < ChartPoints.Count; i++)
+        try
         {
-            RevenueChartPoint point = ChartPoints[i];
-            string x = point.X.ToString(CultureInfo.InvariantCulture);
-            string y = point.Y.ToString(CultureInfo.InvariantCulture);
-            string amount = point.Amount.ToString("0.00", CultureInfo.InvariantCulture);
-            string label = System.Net.WebUtility.HtmlEncode(point.Label);
+            string[] labels = ["Paid", "Partially paid", "Pending"];
+            object options = new { colors = new[] { "#16a34a", "#f59e0b", "#dc2626" }, height = 230 };
 
-            sb.Append($"<circle cx=\"{x}\" cy=\"{y}\" r=\"3.5\" fill=\"#7c3aed\" vector-effect=\"non-scaling-stroke\"><title>{label}: {amount} &#8364;</title></circle>");
+            await JsRuntime.InvokeVoidAsync("financeCharts.renderDonut", "payment-status-chart", amounts, labels, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
 
-            if (i % LabelStep == 0)
-            {
-                sb.Append($"<text x=\"{x}\" y=\"225\" font-size=\"11\" fill=\"#9ca3af\" text-anchor=\"middle\">{label}</text>");
-            }
+    private async Task RenderPassTypeRevenueChartAsync()
+    {
+        if (stats is null || stats.PassTypes.Count == 0)
+        {
+            return;
         }
 
-        return new MarkupString(sb.ToString());
+        List<PassTypeStatDto> withRevenue = stats.PassTypes.Where(p => p.Revenue > 0).ToList();
+
+        if (withRevenue.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            string[] categories = withRevenue.Select(p => p.PassTypeName).ToArray();
+            decimal[] data = withRevenue.Select(p => p.Revenue).ToArray();
+            object series = new[] { new { name = "Revenue", data } };
+            object options = new { colors = new[] { "#7c3aed", "#0ea5e9", "#16a34a", "#f59e0b", "#ec4899", "#14b8a6", "#f97316", "#6366f1" }, height = 230, distributed = true };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.render", "passtype-revenue-chart", "bar", series, categories, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
+
+    private async Task RenderAgedPendingPaymentsChartAsync()
+    {
+        if (stats is null || stats.AgedPendingPayments.Sum(b => b.Count) == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            string[] categories = stats.AgedPendingPayments.Select(b => b.Bucket).ToArray();
+            decimal[] data = stats.AgedPendingPayments.Select(b => b.Amount).ToArray();
+            object series = new[] { new { name = "Outstanding", data } };
+            object options = new { colors = new[] { "#dc2626" }, height = 230 };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.render", "aged-pending-chart", "bar", series, categories, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
+
+    private async Task RenderDiscountCodeCostChartAsync()
+    {
+        if (stats is null || stats.DiscountCodeCosts.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            string[] categories = stats.DiscountCodeCosts.Select(d => d.CodeName).ToArray();
+            decimal[] data = stats.DiscountCodeCosts.Select(d => d.TotalDiscountAmount).ToArray();
+            string[] usageLabels = stats.DiscountCodeCosts.Select(d => d.UsageCount == 1 ? "1 use" : $"{d.UsageCount} uses").ToArray();
+            object series = new[] { new { name = "Discount cost", data } };
+            object options = new { colors = new[] { "#7c3aed", "#0ea5e9", "#16a34a", "#f59e0b", "#ec4899", "#14b8a6", "#f97316", "#6366f1" }, height = 230, distributed = true, dataLabelExtra = usageLabels };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.render", "discount-cost-chart", "bar", series, categories, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
+
+    private async Task RenderRegistrationsOverTimeChartAsync()
+    {
+        if (stats is null || stats.RegistrationsOverTime.Sum(p => p.Count) == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            string[] categories = stats.RegistrationsOverTime.Select(p => p.Label).ToArray();
+            int[] data = stats.RegistrationsOverTime.Select(p => p.Count).ToArray();
+            object series = new[] { new { name = "Registrations", data } };
+            object options = new { colors = new[] { "#6366f1" }, height = 230 };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.render", "registrations-trend-chart", "bar", series, categories, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
+
+    private async Task RenderPaymentPlanMixChartAsync()
+    {
+        if (stats is null || stats.PaymentPlanMix.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            int[] amounts = stats.PaymentPlanMix.Select(p => p.Count).ToArray();
+            string[] labels = stats.PaymentPlanMix.Select(p => p.PlanName).ToArray();
+            object options = new { colors = new[] { "#7c3aed", "#16a34a", "#f59e0b" }, height = 230 };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.renderDonut", "payment-plan-mix-chart", amounts, labels, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
+
+    private async Task RenderTrafficSourceChartAsync()
+    {
+        if (analytics is not { IsAvailable: true } || analytics.TrafficSources.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            long[] amounts = analytics.TrafficSources.Select(s => s.Value).ToArray();
+            string[] labels = analytics.TrafficSources.Select(s => s.Label).ToArray();
+            object options = new { colors = new[] { "#7c3aed", "#16a34a", "#f59e0b", "#0ea5e9", "#dc2626", "#9ca3af" }, height = 260 };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.renderDonut", "traffic-source-chart", amounts, labels, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
+    }
+
+    private async Task RenderDeviceCategoryChartAsync()
+    {
+        if (analytics is not { IsAvailable: true } || analytics.DeviceCategories.Count == 0)
+        {
+            return;
+        }
+
+        try
+        {
+            long[] amounts = analytics.DeviceCategories.Select(d => d.Value).ToArray();
+            string[] labels = analytics.DeviceCategories.Select(d => d.Label).ToArray();
+            object options = new { colors = new[] { "#0ea5e9", "#7c3aed", "#16a34a" }, height = 260 };
+
+            await JsRuntime.InvokeVoidAsync("financeCharts.renderDonut", "device-category-chart", amounts, labels, options);
+        }
+        catch
+        {
+            // Non-critical: if ApexCharts/JS interop fails, the rest of the dashboard still works.
+        }
     }
 
     private static MarkupString BuildSparkline(List<long> values, decimal? changePercent)
@@ -777,14 +1110,6 @@
         string text = $"{arrow}{percent.Value.ToString("0.#", CultureInfo.InvariantCulture)}%";
 
         return new MarkupString($"<span class=\"inline-block rounded-full px-2 py-0.5 text-xs font-semibold {colorClass}\">{text}</span>");
-    }
-
-    private class RevenueChartPoint
-    {
-        public double X { get; set; }
-        public double Y { get; set; }
-        public string Label { get; set; } = string.Empty;
-        public decimal Amount { get; set; }
     }
 }
 

@@ -103,6 +103,15 @@ public class RegistrationApiClient
         EnsureSuccess(httpResponse, response);
     }
 
+    public async Task RefundAsync(RefundRegistrationRequest request, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/payments/refund", request, cancellationToken);
+        ApiResponse<bool>? response = await ReadResponseAsync<bool>(httpResponse, cancellationToken);
+        EnsureSuccess(httpResponse, response);
+    }
+
     private static async Task<ApiResponse<T>?> ReadResponseAsync<T>(HttpResponseMessage httpResponse, CancellationToken cancellationToken)
     {
         try

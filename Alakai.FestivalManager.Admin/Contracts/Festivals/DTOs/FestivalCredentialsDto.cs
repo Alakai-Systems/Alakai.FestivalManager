@@ -8,6 +8,7 @@ public class FestivalCredentialsDto
     public bool HasRedsysSecretKey { get; set; }
     public string RedsysMerchantName { get; set; } = string.Empty;
     public string? RedsysPaymentUrl { get; set; }
+    public string Currency { get; set; } = "EUR";
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; }
     public string EmailUsername { get; set; } = string.Empty;

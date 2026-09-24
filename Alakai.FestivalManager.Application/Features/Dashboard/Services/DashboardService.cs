@@ -22,9 +22,9 @@ public class DashboardService : IDashboardService
         };
     }
 
-    public async Task<ApiResponse<List<RevenuePointDto>>> GetRevenueAsync(Guid editionId, string range, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse<List<RevenuePointDto>>> GetRevenueAsync(Guid editionId, string range, int offset = 0, DateOnly? customStart = null, DateOnly? customEnd = null, CancellationToken cancellationToken = default)
     {
-        List<RevenuePointDto> points = await _dashboardRepository.GetRevenueAsync(editionId, range, cancellationToken);
+        List<RevenuePointDto> points = await _dashboardRepository.GetRevenueAsync(editionId, range, offset, customStart, customEnd, cancellationToken);
 
         return new ApiResponse<List<RevenuePointDto>>
         {

@@ -30,6 +30,7 @@ public class UpsertFestivalCredentialsHandler
         credentials.RedsysTerminal = command.RedsysTerminal;
         credentials.RedsysMerchantName = command.RedsysMerchantName;
         credentials.RedsysPaymentUrl = command.RedsysPaymentUrl;
+        credentials.Currency = command.Currency;
         credentials.EmailHost = command.EmailHost;
         credentials.EmailPort = command.EmailPort;
         credentials.EmailUsername = command.EmailUsername;

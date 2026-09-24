@@ -1,34 +1,33 @@
 <#
-    Fix-UsersPageSlowLoad.ps1
-    ---------------------------
-    Independiente de los demas scripts -- no depende de ninguno de ellos.
+    Fix-DashboardRevenueDailyOption.ps1
+    -----------------------------------------------
 
-    Arregla que la pagina Users tarde minutos en cargar.
+    IMPORTANTE -- este script depende de TODOS los anteriores del dashboard,
+    incluido Fix-DashboardFinanceGrid3x2.ps1 (el ultimo que te mande). Aplica
+    todos esos ANTES que este, en ese orden.
 
-    Causa: LoadDocumentsAsync() (para rellenar la columna "Document" de la
-    tabla) hacia UNA LLAMADA HTTP POR CADA USUARIO, una detras de otra
-    (RegistrationApiClient.GetByUserIdAsync dentro de un foreach con
-    await). Con pocos usuarios no se notaba, pero cuantos mas usuarios
-    haya (especialmente ahora que se pueden importar por CSV), mas
-    llamadas secuenciales se hacen -- de ahi que ahora tarde minutos.
+    Responde a tu pregunta sobre una franja diaria en el grafico de Revenue:
 
-    La pagina ya carga TODAS las registrations de golpe en una sola
-    llamada (allRegistrations = RegistrationApiClient.GetAllAsync(), justo
-    antes), y esa lista ya incluye el DocumentNumber de cada una. No hacia
-    falta ninguna llamada adicional: este script hace que
-    LoadDocumentsAsync busque el documento en esa lista que ya esta en
-    memoria, en vez de volver a pedirlo al servidor usuario por usuario.
-    Resultado: la pagina pasa de N llamadas HTTP (una por usuario) a 0
-    llamadas adicionales.
+      - Nueva opcion "Daily" en el selector de rango (antes de "Weekly"):
+        muestra los ultimos 15 dias, uno por dia. Reutiliza BuildDailyPoints,
+        que ya existia en el repositorio (se usaba para el rango libre de
+        fechas) pero no estaba conectado a ningun valor del selector.
+      - Las flechas de navegacion (que ya funcionaban en Weekly/Monthly)
+        tambien funcionan ahora en Daily: cada clic mueve la ventana 15 dias
+        hacia atras o hacia delante, igual que semanas/meses en las otras
+        vistas.
 
-    No toca base de datos ni requiere migracion.
+    Verificado con un navegador real (Playwright + el bundle exacto de
+    ApexCharts): 15 puntos diarios se ven bien, sin amontonarse, con el
+    mismo formato en euros y franjas del eje Y que ya tenia el grafico.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-UsersPageSlowLoad.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-DashboardRevenueDailyOption.ps1
 
     Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
-    local difiere de lo esperado, no escribe nada y lista el problema.
+    local difiere de lo esperado (por ejemplo porque falta aplicar alguno de
+    los scripts anteriores), no escribe nada y lista el problema.
 #>
 
 [CmdletBinding()]
@@ -40,6 +39,10 @@ if (-not (Test-Path -LiteralPath 'Alakai.FestivalManager.sln')) {
     Write-Error "No se encuentra Alakai.FestivalManager.sln en el directorio actual. Ejecuta este script desde la raiz del repo (Alakai.FestivalManager/)."
     exit 1
 }
+
+# ----------------------------------------------------------------------------
+# Helpers (identicos a los scripts anteriores)
+# ----------------------------------------------------------------------------
 
 function Get-NormalizedContent {
     param([string]$Path)
@@ -91,6 +94,21 @@ function Add-PatchOperation {
     }
 }
 
+function Add-CreateOperation {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Content,
+        [Parameter(Mandatory)][string]$Description
+    )
+
+    $script:Plan += [PSCustomObject]@{
+        Type        = 'Create'
+        Path        = $Path
+        Content     = Convert-ToLf $Content
+        Description = $Description
+    }
+}
+
 function Test-PatchOperation {
     param($Op)
 
@@ -110,10 +128,26 @@ function Test-PatchOperation {
         if ($replacementCount -ge 1) {
             return $null  # ya aplicado -> idempotente
         }
-        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado). Descripcion: $($Op.Description)"
+        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado -- revisalo a mano, o falta aplicar alguno de los scripts anteriores). Descripcion: $($Op.Description)"
     }
 
     return "Anchor encontrado $anchorCount veces en $($Op.Path) (deberia ser unico). Descripcion: $($Op.Description)"
+}
+
+function Test-CreateOperation {
+    param($Op)
+
+    if (-not (Test-Path -LiteralPath $Op.Path)) {
+        return $null
+    }
+
+    $existing = Get-NormalizedContent -Path $Op.Path
+
+    if ($existing.Normalized.TrimEnd() -eq $Op.Content.TrimEnd()) {
+        return $null  # ya existe con el contenido esperado -> idempotente
+    }
+
+    return "Ya existe $($Op.Path) con un contenido distinto al esperado; revisalo a mano antes de reintentar."
 }
 
 function Invoke-PatchOperation {
@@ -133,63 +167,98 @@ function Invoke-PatchOperation {
     Write-Host "  + patched: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- LoadDataAsync: ya no espera LoadDocumentsAsync (deja de ser async)
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
-    -Description 'LoadDataAsync: ya no espera LoadDocumentsAsync (deja de ser async)' `
+function Invoke-CreateOperation {
+    param($Op)
+
+    if (Test-Path -LiteralPath $Op.Path) {
+        Write-Host "  = ya existe: $($Op.Path) -- $($Op.Description)" -ForegroundColor DarkGray
+        return
+    }
+
+    $dir = Split-Path -Parent $Op.Path
+    if ($dir -and -not (Test-Path -LiteralPath $dir)) {
+        New-Item -ItemType Directory -Path $dir -Force | Out-Null
+    }
+
+    Set-NormalizedContent -Path $Op.Path -NormalizedContent $Op.Content -UsesCrlf $false
+
+    Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
+}
+
+# 1. Alakai.FestivalManager.Application/Interfaces/Repositories/IDashboardRepository.cs -- Doc comment: nueva opcion de rango 'day'
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Interfaces/Repositories/IDashboardRepository.cs' `
+    -Description 'Doc comment: nueva opcion de rango ''day''' `
     -Anchor @'
-            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
-            await LoadDocumentsAsync();
+    /// <param name="range">"week" (last 8 calendar weeks, one point per week), "month" (last 6 calendar months, one point per month), "quarter" (last 4 natural calendar quarters, quarterly) or "year" (last 12 months, monthly). Ignored when <paramref name="customStart"/> and <paramref name="customEnd"/> are both provided.</param>
+    /// <param name="offset">How many periods back from the most recent to anchor "week"/"month" on (0 = current period). Ignored for "quarter", "year" and the custom range.</param>
 '@ `
     -Replacement @'
-            festivals = (await FestivalApiClient.GetAllAsync()).ToList();
-            LoadDocumentsAsync();
+    /// <param name="range">"day" (last 15 calendar days, one point per day), "week" (last 8 calendar weeks, one point per week), "month" (last 6 calendar months, one point per month), "quarter" (last 4 natural calendar quarters, quarterly) or "year" (last 12 months, monthly). Ignored when <paramref name="customStart"/> and <paramref name="customEnd"/> are both provided.</param>
+    /// <param name="offset">How many periods back from the most recent to anchor "day"/"week"/"month" on (0 = current period). Ignored for "quarter", "year" and the custom range.</param>
 '@
 
-# 2. Alakai.FestivalManager.Admin/Components/Pages/Users.razor -- LoadDocumentsAsync: busca el DocumentNumber en memoria (allRegistrations) en vez de 1 llamada HTTP por usuario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Users.razor' `
-    -Description 'LoadDocumentsAsync: busca el DocumentNumber en memoria (allRegistrations) en vez de 1 llamada HTTP por usuario' `
+# 2. Alakai.FestivalManager.Infrastructure/Repositories/DashboardRepository.cs -- Nueva rama 'day' en GetRevenueAsync: ultimos 15 dias, navegable con offset igual que week/month
+Add-PatchOperation -Path 'Alakai.FestivalManager.Infrastructure/Repositories/DashboardRepository.cs' `
+    -Description 'Nueva rama ''day'' en GetRevenueAsync: ultimos 15 dias, navegable con offset igual que week/month' `
     -Anchor @'
-    private async Task LoadDocumentsAsync()
-    {
-        documentsByUserId.Clear();
+        int normalizedOffset = Math.Max(0, offset);
 
-        foreach (UserDto user in users)
+        if (string.Equals(range, "week", StringComparison.OrdinalIgnoreCase))
         {
-            try
-            {
-                RegistrationDto registration = await RegistrationApiClient.GetByUserIdAsync(user.Id);
-                documentsByUserId[user.Id] = registration?.DocumentNumber ?? "-";
-            }
-            catch (ApiClientException)
-            {
-                // El usuario no tiene registration asociada, o el backend devolvi� error controlado
-                documentsByUserId[user.Id] = "-";
-            }
+            return BuildWeeklyPoints(paidRegistrations, Effective, 8, normalizedOffset);
         }
-    }
 '@ `
     -Replacement @'
-    private void LoadDocumentsAsync()
-    {
-        documentsByUserId.Clear();
+        int normalizedOffset = Math.Max(0, offset);
 
-        // Antes esto hacia una llamada HTTP por cada usuario (RegistrationApiClient.GetByUserIdAsync),
-        // que con muchos usuarios tardaba minutos en cargar la pagina. allRegistrations ya trae todo
-        // lo que hace falta (incluido DocumentNumber) en una sola llamada, asi que basta con buscar en memoria.
-        foreach (UserDto user in users)
+        if (string.Equals(range, "day", StringComparison.OrdinalIgnoreCase))
         {
-            RegistrationDto? registration = allRegistrations.FirstOrDefault(r => r.UserId == user.Id);
-            documentsByUserId[user.Id] = registration?.DocumentNumber ?? "-";
+            DateOnly anchorEnd = DateOnly.FromDateTime(DateTime.UtcNow.Date).AddDays(-15 * normalizedOffset);
+            DateOnly anchorStart = anchorEnd.AddDays(-14);
+            return BuildDailyPoints(paidRegistrations, Effective, anchorStart, anchorEnd, "dd MMM");
         }
-    }
+
+        if (string.Equals(range, "week", StringComparison.OrdinalIgnoreCase))
+        {
+            return BuildWeeklyPoints(paidRegistrations, Effective, 8, normalizedOffset);
+        }
 '@
 
+# 3. Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor -- Flechas de navegacion tambien visibles en la vista Diaria
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor' `
+    -Description 'Flechas de navegacion tambien visibles en la vista Diaria' `
+    -Anchor @'
+                        @if (revenueRange is "week" or "month")
+                        {
+'@ `
+    -Replacement @'
+                        @if (revenueRange is "day" or "week" or "month")
+                        {
+'@
+
+# 4. Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor -- Nueva opcion 'Daily' (ultimos 15 dias) en el selector de rango de Revenue
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor' `
+    -Description 'Nueva opcion ''Daily'' (ultimos 15 dias) en el selector de rango de Revenue' `
+    -Anchor @'
+                        <select class="form-select" style="width:auto; max-width:160px;" @bind="revenueRange" @bind:after="OnRevenueRangeChangedAsync">
+                            <option value="week">Weekly</option>
+'@ `
+    -Replacement @'
+                        <select class="form-select" style="width:auto; max-width:160px;" @bind="revenueRange" @bind:after="OnRevenueRangeChangedAsync">
+                            <option value="day">Daily</option>
+                            <option value="week">Weekly</option>
+'@
+
+
+# ============================================================================
+# EJECUCION: validar TODO primero (todo o nada), luego aplicar
+# ============================================================================
 
 Write-Host ""
 Write-Host "Validando $($script:Plan.Count) cambios contra los archivos locales..." -ForegroundColor Cyan
 
 foreach ($op in $script:Plan) {
-    $err = Test-PatchOperation -Op $op
+    $err = if ($op.Type -eq 'Patch') { Test-PatchOperation -Op $op } else { Test-CreateOperation -Op $op }
     if ($err) {
         $script:PlanErrors += $err
     }
@@ -202,6 +271,9 @@ if ($script:PlanErrors.Count -gt 0) {
         Write-Host "  - $e" -ForegroundColor Red
     }
     Write-Host ""
+    Write-Host "Lo mas probable es que alguno de los scripts anteriores del dashboard no" -ForegroundColor Yellow
+    Write-Host "se haya aplicado todavia, o que algun archivo se haya editado desde entonces." -ForegroundColor Yellow
+    Write-Host "Revisa esos archivos a mano, o dime que ha cambiado para regenerar el script." -ForegroundColor Yellow
     exit 1
 }
 
@@ -209,9 +281,18 @@ Write-Host "Todo valida OK. Aplicando cambios..." -ForegroundColor Cyan
 Write-Host ""
 
 foreach ($op in $script:Plan) {
-    Invoke-PatchOperation -Op $op
+    if ($op.Type -eq 'Patch') {
+        Invoke-PatchOperation -Op $op
+    }
+    else {
+        Invoke-CreateOperation -Op $op
+    }
 }
 
 Write-Host ""
-Write-Host "Listo. Solo falta 'dotnet build' -- no hace falta migracion, no se toca la BD." -ForegroundColor Cyan
+Write-Host "Listo. Siguientes pasos:" -ForegroundColor Cyan
+Write-Host ""
+Write-Host "  1) Revisa el diff (git diff) antes de compilar." -ForegroundColor White
+Write-Host "  2) dotnet build (no hace falta migracion, este script no toca la BD)." -ForegroundColor White
+Write-Host "  3) Prueba la opcion Daily del grafico de Revenue y sus flechas." -ForegroundColor White
 Write-Host ""
