@@ -1,34 +1,34 @@
 <#
-    Fix-PaymentReturnUrlsAndCardLabels.ps1
+    Fix-DashboardRefundDisplay.ps1
     -----------------------------------------------
 
-    Dos arreglos independientes:
+    Tras un reembolso parcial (probado con Stripe), el panel del usuario
+    no lo reflejaba bien en dos sitios:
 
-    1) BUG CRITICO: "Pay Now" desde el panel del usuario (pagos pendientes /
-       segundo plazo de un Split) no mandaba UrlOk/UrlKo al crear la sesion
-       de pago. Redsys lo disimulaba con un fallback en appsettings, pero
-       Stripe no tiene ese fallback y responde "Missing return URLs for the
-       Stripe checkout session" -- el pago ni arranca. Se construyen ahora
-       igual que en el formulario publico (Register.razor), apuntando de
-       vuelta al dashboard. De paso, el aviso que se mostraba al volver del
-       pago (cuando no llegan parametros firmados en la URL) dejaba de
-       llamar a Redsys "culpable" cuando en realidad la pasarela usada era
-       Stripe.
+      1) BUG: la mini-card "Payment" de arriba del dashboard calculaba lo
+         pendiente como FinalPrice - AmountPaid, sin sumar RefundedAmount
+         -- a diferencia del apartado de pago de mas abajo, que ya sumaba
+         RefundedAmount correctamente. Con un reembolso de 27.50e sobre un
+         registro de 255e (127.50 pagado, split 50/50), la mini-card se
+         quedaba en "127.50 pending" en vez de los "155.00 pending"
+         correctos.
 
-    2) Coherencia visual: los titulos de las 3 cards del modal New/Edit
-       Festival (Modules, Payment Plans, Payment Platforms) se quedaron en
-       negro (text-black/70, negrita) tras el fix anterior de las cards,
-       mientras el resto de labels del mismo formulario van en gris
-       (text-black/60, sin negrita). Se igualan al resto para que el
-       formulario sea coherente.
+      2) Ni la mini-card ni el apartado de pago mostraban en ningun sitio
+         que hubiera habido un reembolso. AmountPaid no baja al reembolsar
+         a proposito (queda guardado en RefundedAmount, para no perder el
+         historico de lo cobrado -- ver Fix-RedsysRefunds.ps1), pero sin
+         una linea que lo explique, parece que el reembolso no se ha
+         registrado en ningun lado. Se anade una linea con el importe
+         reembolsado en los dos sitios, con el mismo estilo (texto rojo)
+         que ya se usa para esto en el listado de inscripciones del Admin.
 
-    Verificado contra los archivos reales del repo, con las 10 correcciones
+    Verificado contra los archivos reales del repo, con las 12 correcciones
     anteriores ya aplicadas. Anchors unicos, balance de llaves/parentesis
     limpio, diff revisado.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-PaymentReturnUrlsAndCardLabels.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-DashboardRefundDisplay.ps1
 
     Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
     local difiere de lo esperado, no escribe nada y lista el problema.
@@ -189,160 +189,54 @@ function Invoke-CreateOperation {
     Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): label 'Modules' vuelve al gris estandar del formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Create modal): label ''Modules'' vuelve al gris estandar del formulario' `
-    -Anchor @'
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Modules</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasAccommodation" />
-'@ `
-    -Replacement @'
-                        <label class="block text-sm text-black/60 dark:text-white/60">Modules</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasAccommodation" />
-'@
-
-# 2. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): label 'Payment Plans' vuelve al gris estandar del formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Create modal): label ''Payment Plans'' vuelve al gris estandar del formulario' `
-    -Anchor @'
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowFullOnline" />
-'@ `
-    -Replacement @'
-                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Plans</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowFullOnline" />
-'@
-
-# 3. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): label 'Payment Platforms' vuelve al gris estandar del formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Create modal): label ''Payment Platforms'' vuelve al gris estandar del formulario' `
-    -Anchor @'
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
-'@ `
-    -Replacement @'
-                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
-'@
-
-# 4. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): label 'Modules' vuelve al gris estandar del formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Edit modal): label ''Modules'' vuelve al gris estandar del formulario' `
-    -Anchor @'
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Modules</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasAccommodation" />
-'@ `
-    -Replacement @'
-                        <label class="block text-sm text-black/60 dark:text-white/60">Modules</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasAccommodation" />
-'@
-
-# 5. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): label 'Payment Plans' vuelve al gris estandar del formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Edit modal): label ''Payment Plans'' vuelve al gris estandar del formulario' `
-    -Anchor @'
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowFullOnline" />
-'@ `
-    -Replacement @'
-                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Plans</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowFullOnline" />
-'@
-
-# 6. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): label 'Payment Platforms' vuelve al gris estandar del formulario
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Edit modal): label ''Payment Platforms'' vuelve al gris estandar del formulario' `
-    -Anchor @'
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowRedsysPlatform" />
-'@ `
-    -Replacement @'
-                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowRedsysPlatform" />
-'@
-
-# 7. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: PayNowAsync manda UrlOk/UrlKo (arregla 'Missing return URLs' de Stripe) y marca la plataforma usada
+# 1. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: PaymentCardSuffix (mini-card del dashboard) suma RefundedAmount al pendiente, igual que el resto del fichero, y muestra el importe reembolsado
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
-    -Description 'UserPanel.razor: PayNowAsync manda UrlOk/UrlKo (arregla ''Missing return URLs'' de Stripe) y marca la plataforma usada' `
+    -Description 'UserPanel.razor: PaymentCardSuffix (mini-card del dashboard) suma RefundedAmount al pendiente, igual que el resto del fichero, y muestra el importe reembolsado' `
     -Anchor @'
-            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
-            decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
-            CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
-
-            if (SelectedPaymentPlatform == "Stripe")
+            if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+            {
+                decimal paid = Dashboard.Registration.AmountPaid;
+                return $"{paid:0.00} € paid · {(FinalPrice - paid):0.00} € pending";
+            }
+            return $"{FinalPrice:0.00} €";
 '@ `
     -Replacement @'
-            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
-            decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
-
-            // Redsys tenia un fallback en appsettings si no se mandaban UrlOk/UrlKo,
-            // pero Stripe no lo tiene -- sin esto, Stripe respondia "Missing return
-            // URLs for the Stripe checkout session" y el pago ni arrancaba. Se
-            // construyen igual que en el formulario publico (Register.razor),
-            // apuntando de vuelta a este mismo dashboard.
-            string baseUrl = Navigation.BaseUri.TrimEnd('/');
-            string langSegment = string.IsNullOrWhiteSpace(Lang) ? string.Empty : $"/{Lang}";
-            string platformSegment = SelectedPaymentPlatform.ToLowerInvariant();
-            CreatePaymentSessionRequest request = new()
+            if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
             {
-                RegistrationId = Dashboard.Registration.Id,
-                AmountOverride = amountOverride,
-                UrlOk = $"{baseUrl}/user-panel/dashboard{langSegment}?payment=ok&platform={platformSegment}",
-                UrlKo = $"{baseUrl}/user-panel/dashboard{langSegment}?payment=ko&platform={platformSegment}"
-            };
+                decimal paid = Dashboard.Registration.AmountPaid;
+                decimal refunded = Dashboard.Registration.RefundedAmount;
 
-            if (SelectedPaymentPlatform == "Stripe")
+                // AmountPaid nunca baja al reembolsar (se guarda aparte en
+                // RefundedAmount, ver PayNowAsync mas abajo para el porque), asi
+                // que lo pendiente real es FinalPrice - paid + refunded. Sin el
+                // +refunded esta card se quedaba con el pendiente de antes del
+                // reembolso.
+                string suffix = $"{paid:0.00} € paid · {(FinalPrice - paid + refunded):0.00} € pending";
+
+                if (refunded > 0)
+                {
+                    suffix += $" · {refunded:0.00} € refunded";
+                }
+
+                return suffix;
+            }
+            return $"{FinalPrice:0.00} €";
 '@
 
-# 8. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: el aviso de retorno de pago ya no culpa a Redsys cuando la pasarela usada fue Stripe
+# 2. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: el apartado de pago muestra el importe reembolsado (antes no se veia en ningun sitio, aunque el pendiente ya lo tenia en cuenta)
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
-    -Description 'UserPanel.razor: el aviso de retorno de pago ya no culpa a Redsys cuando la pasarela usada fue Stripe' `
+    -Description 'UserPanel.razor: el apartado de pago muestra el importe reembolsado (antes no se veia en ningun sitio, aunque el pendiente ya lo tenia en cuenta)' `
     -Anchor @'
-        if (query.Contains("payment=ok", StringComparison.OrdinalIgnoreCase))
-        {
-            ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
-        }
-        else if (query.Contains("payment=ko", StringComparison.OrdinalIgnoreCase))
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") € @T.Get("up_paid")</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) € @T.Get("up_pending")</MudText>
 '@ `
     -Replacement @'
-        if (query.Contains("payment=ok", StringComparison.OrdinalIgnoreCase))
-        {
-            string returnPlatform = GetQueryValue(query, "platform");
-
-            if (string.Equals(returnPlatform, "stripe", StringComparison.OrdinalIgnoreCase))
-            {
-                ShowPaymentBanner("Payment completed at the gateway. Confirming with Stripe, this page will refresh automatically in a few seconds.", isError: false);
-            }
-            else
-            {
-                ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
-            }
-        }
-        else if (query.Contains("payment=ko", StringComparison.OrdinalIgnoreCase))
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") € @T.Get("up_paid")</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) € @T.Get("up_pending")</MudText>
+                        @if (Dashboard.Registration.RefundedAmount > 0)
+                        {
+                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") € refunded</MudText>
+                        }
 '@
 
 
@@ -384,6 +278,6 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. Prueba un pago pendiente (segundo plazo / Split) con Stripe desde" -ForegroundColor Cyan
-Write-Host "el panel del usuario, y revisa el modal New/Edit Festival." -ForegroundColor Cyan
+Write-Host "Listo. Recarga el panel del usuario del registro al que le hiciste el" -ForegroundColor Cyan
+Write-Host "reembolso de prueba y comprueba la mini-card y el apartado de pago." -ForegroundColor Cyan
 Write-Host ""

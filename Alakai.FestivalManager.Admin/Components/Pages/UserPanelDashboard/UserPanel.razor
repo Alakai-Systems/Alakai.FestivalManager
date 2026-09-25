@@ -366,6 +366,10 @@
                     {
                         <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") € @T.Get("up_paid")</MudText>
                         <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) € @T.Get("up_pending")</MudText>
+                        @if (Dashboard.Registration.RefundedAmount > 0)
+                        {
+                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") € refunded</MudText>
+                        }
                     }
                     else
                     {
@@ -1899,7 +1903,21 @@
             if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
             {
                 decimal paid = Dashboard.Registration.AmountPaid;
-                return $"{paid:0.00} € paid · {(FinalPrice - paid):0.00} € pending";
+                decimal refunded = Dashboard.Registration.RefundedAmount;
+
+                // AmountPaid nunca baja al reembolsar (se guarda aparte en
+                // RefundedAmount, ver PayNowAsync mas abajo para el porque), asi
+                // que lo pendiente real es FinalPrice - paid + refunded. Sin el
+                // +refunded esta card se quedaba con el pendiente de antes del
+                // reembolso.
+                string suffix = $"{paid:0.00} € paid · {(FinalPrice - paid + refunded):0.00} € pending";
+
+                if (refunded > 0)
+                {
+                    suffix += $" · {refunded:0.00} € refunded";
+                }
+
+                return suffix;
             }
             return $"{FinalPrice:0.00} €";
         }
