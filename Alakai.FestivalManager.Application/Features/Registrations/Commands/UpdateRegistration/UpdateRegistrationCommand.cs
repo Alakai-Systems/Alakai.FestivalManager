@@ -20,6 +20,7 @@ public class UpdateRegistrationCommand
     public RegistrationStatus Status { get; set; }
     public PaymentStatus PaymentStatus { get; set; }
     public string? DiscountCodeValue { get; set; }
+    public decimal BasePrice { get; set; }
     public string? PaymentReference { get; set; }
     public DateTime? PaidAt { get; set; }
     public string? Notes { get; set; }

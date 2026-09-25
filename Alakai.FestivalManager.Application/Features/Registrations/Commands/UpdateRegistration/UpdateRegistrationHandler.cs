@@ -88,18 +88,18 @@ public class UpdateRegistrationHandler
             }
         }
 
-        // Se respeta el tier (Early Bird o no) con el que se creo la inscripcion.
-        // No se re-evalua contra el cupo ACTUAL de la edicion: si se re-evaluara,
-        // editar una inscripcion antigua (p.ej. corregir un telefono) podria
-        // cambiarle el precio en cuanto el cupo Early Bird se agotase con
-        // inscripciones posteriores, algo que no deberia pasar nunca en produccion.
-        decimal basePrice = existing.IsEarlyBirdPrice ? level.EarlyBirdPrice : level.RegularPrice;
-        DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, basePrice, command.DiscountCodeValue, cancellationToken);
+        // El precio base ahora lo decide SIEMPRE el formulario (command.BasePrice),
+        // nunca se recalcula solo desde el Level. El campo llega precargado con el
+        // precio actual de la inscripcion (Early Bird o no, el que se fijo al
+        // crearla) asi que un guardado normal que no toca el precio lo deja igual;
+        // si el admin lo cambia a mano (p.ej. un gesto comercial), ese es el valor
+        // que se guarda y con el que se recalcula el descuento y el precio final.
+        DiscountCalculationResult discount = await _discountCalculationService.CalculateAsync(command.EditionId, command.BasePrice, command.DiscountCodeValue, cancellationToken);
 
         _mapper.Map(command, existing);
 
         existing.DiscountCodeValue = command.DiscountCodeValue;
-        existing.BasePrice = basePrice;
+        existing.BasePrice = command.BasePrice;
         existing.DiscountAmount = discount.DiscountAmount;
         existing.FinalPrice = discount.FinalPrice;
         existing.DiscountCodeId = discount.DiscountCodeId;

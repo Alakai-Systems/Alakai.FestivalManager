@@ -16,4 +16,11 @@ public interface IReportService
     Task<byte[]> GenerateProductionItinerariesReportAsync(Guid editionId, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateProductionAccommodationReportAsync(Guid editionId, CancellationToken cancellationToken = default);
     Task<byte[]> GenerateProductionAccommodationGridReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+
+    Task<byte[]> GenerateInvoicesReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateFinancialSummaryReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateEarlyBirdReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateRefundsReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateFinancePaymentsReportAsync(Guid editionId, CancellationToken cancellationToken = default);
+    Task<byte[]> GenerateOutstandingBalancesReportAsync(Guid editionId, CancellationToken cancellationToken = default);
 }

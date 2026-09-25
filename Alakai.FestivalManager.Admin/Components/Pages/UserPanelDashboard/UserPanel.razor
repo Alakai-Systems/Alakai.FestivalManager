@@ -356,7 +356,7 @@
                     @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
                     {
                         <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") € @T.Get("up_paid")</MudText>
-                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid).ToString("0.00")) € @T.Get("up_pending")</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) € @T.Get("up_pending")</MudText>
                     }
                     else
                     {
@@ -2037,7 +2037,13 @@
             // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
             // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
             // completo o el primer tramo de un Split se cobraban sin comision.
-            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
+            // AmountPaid nunca se reduce al hacer un reembolso (Fix-RedsysRefunds.ps1 lo
+            // guarda aparte en RefundedAmount a proposito, para no perder el historico de
+            // lo cobrado). Por eso lo pendiente de verdad es FinalPrice menos lo que
+            // TODAVIA se retiene (AmountPaid - RefundedAmount), o lo que es lo mismo:
+            // FinalPrice - AmountPaid + RefundedAmount. Sin el +RefundedAmount, tras un
+            // reembolso esto da 0 y ese 0 es justo lo que se manda a Redsys.
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
             decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
             CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
             RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(request);

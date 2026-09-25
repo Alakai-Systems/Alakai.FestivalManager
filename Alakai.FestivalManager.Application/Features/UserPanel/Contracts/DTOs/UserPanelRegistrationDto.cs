@@ -18,6 +18,7 @@ public class UserPanelRegistrationDto
     public string? DocumentCountry { get; set; }
     public string PaymentPlan { get; set; } = string.Empty;
     public decimal AmountPaid { get; set; }
+    public decimal RefundedAmount { get; set; }
     public DateTime? PaymentDueAt { get; set; }
     public string Language { get; set; } = "en";
 }

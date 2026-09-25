@@ -115,6 +115,7 @@ public class UserPanelService : IUserPanelService
                 DocumentCountry = registration.DocumentCountry,
                 PaymentPlan = registration.PaymentPlan.ToString(),
                 AmountPaid = registration.AmountPaid,
+                RefundedAmount = registration.RefundedAmount,
                 PaymentDueAt = registration.PaymentDueAt
             },
             Competitions = competitionEntries.Select(c => new CompetitionEntryDto

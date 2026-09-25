@@ -1,6 +1,7 @@
 using ClosedXML.Excel;
 using Alakai.FestivalManager.Application.Interfaces.Repositories;
 using Alakai.FestivalManager.Domain.Entities;
+using Alakai.FestivalManager.Domain.Enums;
 
 namespace Alakai.FestivalManager.Application.Features.Reports.Services;
 
@@ -20,6 +21,7 @@ public class ReportService : IReportService
     private readonly IProductionAccommodationBuildingRepository _productionAccommodationBuildingRepository;
     private readonly IProductionAccommodationZoneRepository _productionAccommodationZoneRepository;
     private readonly IProductionAccommodationRepository _productionAccommodationRepository;
+    private readonly IInvoiceRepository _invoiceRepository;
 
     public ReportService(
         IRegistrationRepository registrationRepository,
@@ -35,7 +37,8 @@ public class ReportService : IReportService
         IProductionReservationRepository productionReservationRepository,
         IProductionAccommodationBuildingRepository productionAccommodationBuildingRepository,
         IProductionAccommodationZoneRepository productionAccommodationZoneRepository,
-        IProductionAccommodationRepository productionAccommodationRepository)
+        IProductionAccommodationRepository productionAccommodationRepository,
+        IInvoiceRepository invoiceRepository)
     {
         _registrationRepository = registrationRepository;
         _competitionEntryRepository = competitionEntryRepository;
@@ -51,6 +54,7 @@ public class ReportService : IReportService
         _productionAccommodationBuildingRepository = productionAccommodationBuildingRepository;
         _productionAccommodationZoneRepository = productionAccommodationZoneRepository;
         _productionAccommodationRepository = productionAccommodationRepository;
+        _invoiceRepository = invoiceRepository;
     }
 
     public async Task<byte[]> GenerateUsersReportAsync(Guid editionId, CancellationToken cancellationToken = default)
@@ -352,6 +356,212 @@ public class ReportService : IReportService
         }).ToList();
 
         return BuildXlsx("Meals", ["First Name", "Last Name", "Email", "Menu", "Celiac / Gluten", "Allergies"], rows);
+    }
+
+    public async Task<byte[]> GenerateInvoicesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        List<Invoice> invoices = (await _invoiceRepository.GetAllAsync(cancellationToken))
+            .Where(i => i.Registration.EditionId == editionId)
+            .OrderBy(i => i.Number)
+            .ToList();
+
+        List<string[]> rows = invoices.Select(i => new[]
+        {
+            i.Number, i.IssuedAt.ToString("dd/MM/yyyy"), i.FiscalName, i.TaxId, i.Country,
+            i.BaseAmount.ToString("0.00"), i.VatRate.ToString("0.##") + "%", i.VatAmount.ToString("0.00"), i.Amount.ToString("0.00")
+        }).ToList();
+
+        return BuildXlsx("Invoices", ["Number", "Issued At", "Fiscal Name", "Tax ID", "Country", "Base Amount", "VAT %", "VAT Amount", "Total"], rows);
+    }
+
+    public async Task<byte[]> GenerateFinancialSummaryReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+        List<Registration> active = registrations.Where(r => r.Status != RegistrationStatus.Cancelled).ToList();
+        List<Registration> refundedOrCancelled = registrations.Where(r => r.Status == RegistrationStatus.Cancelled || r.PaymentStatus == PaymentStatus.Refunded).ToList();
+
+        decimal grossRevenue = active.Sum(r => r.FinalPrice);
+        decimal collected = active.Sum(r => r.AmountPaid);
+        // AmountPaid nunca baja al reembolsar (se guarda aparte en RefundedAmount),
+        // asi que hay que sumarselo de vuelta para saber lo que de verdad queda
+        // pendiente; si no, en cuanto hay un reembolso esto da 0 aunque siga
+        // habiendo saldo real por cobrar.
+        decimal totalRefunded = active.Sum(r => r.RefundedAmount);
+        decimal pending = Math.Max(0m, grossRevenue - collected + totalRefunded);
+        decimal refunded = refundedOrCancelled.Sum(r => r.AmountPaid);
+        decimal discountCost = active.Sum(r => r.DiscountAmount);
+        decimal managementFees = active.Sum(r => r.ManagementFee);
+        decimal netRevenue = collected - managementFees;
+        decimal averageTicket = active.Count > 0 ? grossRevenue / active.Count : 0m;
+
+        XLColor titleFill = XLColor.FromArgb(55, 65, 81);
+        XLColor headerFill = XLColor.FromArgb(243, 244, 246);
+
+        using XLWorkbook workbook = new();
+        IXLWorksheet ws = workbook.Worksheets.Add("Financial Summary");
+        ws.ShowGridLines = false;
+
+        IXLRange titleRange = ws.Range(1, 1, 1, 2).Merge();
+        titleRange.Value = "Financial Summary";
+        titleRange.Style.Font.Bold = true;
+        titleRange.Style.Font.FontSize = 14;
+        titleRange.Style.Font.FontColor = XLColor.White;
+        titleRange.Style.Fill.BackgroundColor = titleFill;
+        ws.Row(1).Height = 24;
+
+        (string Label, string Value)[] summaryRows =
+        [
+            ("Total registrations", active.Count.ToString()),
+            ("Gross revenue", grossRevenue.ToString("0.00")),
+            ("Collected", collected.ToString("0.00")),
+            ("Pending collection", pending.ToString("0.00")),
+            ("Refunded (cancelled/refunded regs.)", refunded.ToString("0.00")),
+            ("Discount cost", discountCost.ToString("0.00")),
+            ("Management fees collected", managementFees.ToString("0.00")),
+            ("Net revenue (collected - fees)", netRevenue.ToString("0.00")),
+            ("Average ticket", averageTicket.ToString("0.00"))
+        ];
+
+        int row = 3;
+        foreach ((string label, string value) in summaryRows)
+        {
+            ws.Cell(row, 1).Value = label;
+            ws.Cell(row, 1).Style.Font.Bold = true;
+            ws.Cell(row, 2).Value = value;
+            row++;
+        }
+
+        row += 1;
+
+        IXLRange breakdownTitle = ws.Range(row, 1, row, 5).Merge();
+        breakdownTitle.Value = "By Pass Type";
+        breakdownTitle.Style.Font.Bold = true;
+        breakdownTitle.Style.Font.FontSize = 12;
+        breakdownTitle.Style.Font.FontColor = XLColor.White;
+        breakdownTitle.Style.Fill.BackgroundColor = titleFill;
+        row++;
+
+        string[] breakdownHeaders = ["Pass Type", "Registrations", "Gross Revenue", "Collected", "Pending"];
+        for (int c = 0; c < breakdownHeaders.Length; c++)
+        {
+            IXLCell headerCell = ws.Cell(row, c + 1);
+            headerCell.Value = breakdownHeaders[c];
+            headerCell.Style.Font.Bold = true;
+            headerCell.Style.Fill.BackgroundColor = headerFill;
+        }
+        row++;
+
+        IOrderedEnumerable<IGrouping<string, Registration>> byPassType = active
+            .GroupBy(r => r.PassType?.Name ?? "-")
+            .OrderByDescending(g => g.Sum(r => r.FinalPrice));
+
+        foreach (IGrouping<string, Registration> group in byPassType)
+        {
+            decimal groupGross = group.Sum(r => r.FinalPrice);
+            decimal groupCollected = group.Sum(r => r.AmountPaid);
+            decimal groupRefunded = group.Sum(r => r.RefundedAmount);
+
+            ws.Cell(row, 1).Value = group.Key;
+            ws.Cell(row, 2).Value = group.Count();
+            ws.Cell(row, 3).Value = groupGross.ToString("0.00");
+            ws.Cell(row, 4).Value = groupCollected.ToString("0.00");
+            ws.Cell(row, 5).Value = Math.Max(0m, groupGross - groupCollected + groupRefunded).ToString("0.00");
+            row++;
+        }
+
+        ws.Columns().AdjustToContents();
+
+        using MemoryStream stream = new();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    public async Task<byte[]> GenerateEarlyBirdReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+        List<Registration> active = registrations.Where(r => r.Status != RegistrationStatus.Cancelled).ToList();
+        List<Registration> earlyBird = active.Where(r => r.IsEarlyBirdPrice).ToList();
+        List<Registration> regular = active.Where(r => !r.IsEarlyBirdPrice).ToList();
+
+        List<string[]> rows =
+        [
+            BuildEarlyBirdRow("Early Bird", earlyBird),
+            BuildEarlyBirdRow("Regular", regular),
+            BuildEarlyBirdRow("Total", active)
+        ];
+
+        return BuildXlsx("Early Bird vs Regular", ["Pricing", "Registrations", "Gross Revenue", "Average Ticket"], rows);
+    }
+
+    public async Task<byte[]> GenerateRefundsReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<Registration> affected = registrations
+            .Where(r => r.Status == RegistrationStatus.Cancelled || r.PaymentStatus == PaymentStatus.Refunded)
+            .OrderByDescending(r => r.CancelledAt ?? r.UpdatedAt ?? r.CreatedAt)
+            .ToList();
+
+        List<string[]> rows = affected.Select(r => new[]
+        {
+            r.FirstName, r.LastName, r.Email,
+            r.PassType?.Name ?? "", r.Status.ToString(), r.PaymentStatus.ToString(),
+            r.FinalPrice.ToString("0.00"), r.AmountPaid.ToString("0.00"),
+            r.CreatedAt.ToString("dd/MM/yyyy"),
+            r.CancelledAt.HasValue ? r.CancelledAt.Value.ToString("dd/MM/yyyy HH:mm") : ""
+        }).ToList();
+
+        return BuildXlsx("Refunds and Cancellations", ["First Name", "Last Name", "Email", "Pass Type", "Status", "Payment Status", "Final Price", "Amount Paid", "Registered At", "Cancelled At"], rows);
+    }
+
+    public async Task<byte[]> GenerateFinancePaymentsReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<string[]> rows = registrations.Select(r => new[]
+        {
+            r.FirstName, r.LastName, r.Email,
+            r.PassType?.Name ?? "", r.PaymentPlan.ToString(), r.PaymentStatus.ToString(),
+            r.BasePrice.ToString("0.00"), r.DiscountCodeValue ?? "", r.DiscountAmount.ToString("0.00"),
+            r.FinalPrice.ToString("0.00"), r.AmountPaid.ToString("0.00"), (r.FinalPrice - r.AmountPaid + r.RefundedAmount).ToString("0.00"),
+            r.ManagementFee.ToString("0.00"),
+            r.PaidAt.HasValue ? r.PaidAt.Value.ToString("dd/MM/yyyy HH:mm") : "",
+            r.PaymentReference ?? ""
+        }).ToList();
+
+        return BuildXlsx("Payments Detail", ["First Name", "Last Name", "Email", "Pass Type", "Payment Plan", "Payment Status", "Base Price", "Discount Code", "Discount Amount", "Final Price", "Amount Paid", "Pending", "Management Fee", "Paid At", "Payment Reference"], rows);
+    }
+
+    public async Task<byte[]> GenerateOutstandingBalancesReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+
+        List<Registration> debtors = registrations
+            .Where(r => r.Status != RegistrationStatus.Cancelled && (r.FinalPrice - r.AmountPaid + r.RefundedAmount) > 0)
+            .OrderBy(r => r.PaymentDueAt ?? DateTime.MaxValue)
+            .ToList();
+
+        DateTime today = DateTime.UtcNow.Date;
+
+        List<string[]> rows = debtors.Select(r => new[]
+        {
+            r.FirstName, r.LastName, r.Email, r.Phone ?? "",
+            r.PassType?.Name ?? "", r.PaymentPlan.ToString(),
+            (r.FinalPrice - r.AmountPaid + r.RefundedAmount).ToString("0.00"),
+            r.PaymentDueAt.HasValue ? r.PaymentDueAt.Value.ToString("dd/MM/yyyy") : "",
+            r.PaymentDueAt.HasValue && r.PaymentDueAt.Value.Date < today ? (today - r.PaymentDueAt.Value.Date).Days.ToString() : "",
+            r.PaymentStatus.ToString()
+        }).ToList();
+
+        return BuildXlsx("Outstanding Balances", ["First Name", "Last Name", "Email", "Phone", "Pass Type", "Payment Plan", "Pending Amount", "Payment Due At", "Days Overdue", "Payment Status"], rows);
+    }
+
+    private static string[] BuildEarlyBirdRow(string label, List<Registration> registrations)
+    {
+        decimal total = registrations.Sum(r => r.FinalPrice);
+        decimal average = registrations.Count > 0 ? total / registrations.Count : 0m;
+
+        return [label, registrations.Count.ToString(), total.ToString("0.00"), average.ToString("0.00")];
     }
 
     private static int NaturalSortKey(string name)

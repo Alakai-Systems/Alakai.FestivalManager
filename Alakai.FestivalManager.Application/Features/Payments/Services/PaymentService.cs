@@ -51,6 +51,11 @@ public class PaymentService : IPaymentService
             ? (long)Math.Round(command.AmountOverride.Value * 100m, MidpointRounding.AwayFromZero)
             : (long)Math.Round(registration.FinalPrice * 100m, MidpointRounding.AwayFromZero);
 
+        if (amountInCents <= 0)
+        {
+            return new ApiResponse<RedsysPaymentFormDto> { Success = false, Data = null, Errors = ["There is no pending amount to pay."], Message = "Payment session failed" };
+        }
+
         registration.PaymentStatus = PaymentStatus.Pending;
         registration.PaymentReference = order;
         registration.SetUpdated();

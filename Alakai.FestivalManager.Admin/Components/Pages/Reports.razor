@@ -36,11 +36,16 @@
     }
 
     <div class="card">
+        <div class="flex gap-2 mb-4 border-b border-black/10 dark:border-darkborder">
+            <button type="button" class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px @(activeTab == "operations" ? "border-purple text-purple" : "border-transparent text-black/50 dark:text-white/60")" @onclick='() => activeTab = "operations"'>Operations</button>
+            <button type="button" class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px @(activeTab == "finance" ? "border-purple text-purple" : "border-transparent text-black/50 dark:text-white/60")" @onclick='() => activeTab = "finance"'>Finance</button>
+        </div>
+
         @if (selectedEditionId == Guid.Empty)
         {
             <p class="text-sm text-black/50 dark:text-white/60">Select a festival and edition above.</p>
         }
-        else
+        else if (activeTab == "operations")
         {
             <div class="overflow-x-auto">
                 <table class="w-full table-hover">
@@ -130,6 +135,69 @@
                 </table>
             </div>
         }
+        else
+        {
+            <div class="overflow-x-auto">
+                <table class="w-full table-hover">
+                    <thead class="bg-gray-50 dark:bg-dark">
+                        <tr class="text-left">
+                            <th class="px-4 py-3 font-semibold">Report</th>
+                            <th class="px-4 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="text-black dark:text-white/80">
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Payments Detail</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "finance-payments")" @onclick='() => DownloadAsync("finance-payments")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "finance-payments" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Outstanding Balances</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "outstanding-balances")" @onclick='() => DownloadAsync("outstanding-balances")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "outstanding-balances" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Invoices / VAT</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoices")" @onclick='() => DownloadAsync("invoices")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoices" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Financial Summary</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "financial-summary")" @onclick='() => DownloadAsync("financial-summary")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "financial-summary" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Early Bird vs Regular</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "early-bird")" @onclick='() => DownloadAsync("early-bird")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "early-bird" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Refunds &amp; Cancellations</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "refunds")" @onclick='() => DownloadAsync("refunds")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "refunds" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        }
     </div>
 </div>
 
@@ -159,6 +227,7 @@
     private List<EditionDto> editions = [];
     private Guid selectedFestivalId;
     private Guid selectedEditionId;
+    private string activeTab = "operations";
     private string? downloadingReport;
     private string? successMessage;
     private string? errorMessage;

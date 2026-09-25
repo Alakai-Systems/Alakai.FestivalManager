@@ -1,33 +1,54 @@
 <#
-    Fix-DashboardRevenueDailyOption.ps1
+    Fix-DashboardFinanceReportsRefundedAmount.ps1
     -----------------------------------------------
 
-    IMPORTANTE -- este script depende de TODOS los anteriores del dashboard,
-    incluido Fix-DashboardFinanceGrid3x2.ps1 (el ultimo que te mande). Aplica
-    todos esos ANTES que este, en ese orden.
+    Correccion sobre Fix-DashboardFinanceReports.ps1: los 3 reports
+    financieros que muestran un importe "Pending" (pendiente de cobro)
+    calculaban FinalPrice - AmountPaid sin contar los reembolsos.
 
-    Responde a tu pregunta sobre una franja diaria en el grafico de Revenue:
+    Como AmountPaid nunca baja al reembolsar (se guarda aparte en
+    RefundedAmount, a proposito, para no perder el historico de lo
+    cobrado -- lo introdujo Fix-RedsysRefunds.ps1), en cuanto una
+    inscripcion tenia algun reembolso su "pendiente" en estos reports
+    se quedaba en 0 aunque en realidad siguiera habiendo saldo por
+    cobrar. Es el mismo bug, y la misma correccion, que el que arregle
+    en Fix-RedsysRepayAndBasePrice.ps1 para el Panel de Usuario:
 
-      - Nueva opcion "Daily" en el selector de rango (antes de "Weekly"):
-        muestra los ultimos 15 dias, uno por dia. Reutiliza BuildDailyPoints,
-        que ya existia en el repositorio (se usaba para el rango libre de
-        fechas) pero no estaba conectado a ningun valor del selector.
-      - Las flechas de navegacion (que ya funcionaban en Weekly/Monthly)
-        tambien funcionan ahora en Daily: cada clic mueve la ventana 15 dias
-        hacia atras o hacia delante, igual que semanas/meses en las otras
-        vistas.
+        pendiente = FinalPrice - AmountPaid + RefundedAmount
 
-    Verificado con un navegador real (Playwright + el bundle exacto de
-    ApexCharts): 15 puntos diarios se ven bien, sin amontonarse, con el
-    mismo formato en euros y franjas del eje Y que ya tenia el grafico.
+    REQUISITO: este script da por hecho que ya tienes aplicados, en este
+    orden, Fix-FestivalCurrency.ps1, Fix-RedsysRefunds.ps1 y
+    Fix-DashboardFinanceReports.ps1 (los tres reports que toca este
+    script los creo ese ultimo).
+
+    Que cambia, archivo unico (ReportService.cs):
+
+      1) Financial Summary -- "Pending collection" (el numero global) y
+         la columna "Pending" del desglose por tipo de pase.
+      2) Payments Detail -- columna "Pending" del listado fila a fila.
+      3) Outstanding Balances -- la formula de la columna "Pending Amount"
+         Y el filtro que decide quien aparece como deudor: antes se
+         excluia sin mas a cualquier inscripcion en estado Refunded; con
+         la decision que tomaste de dejar el repago siempre disponible,
+         una inscripcion Refunded puede seguir debiendo dinero de verdad
+         (por ejemplo si solo se habia pagado una parte y esa parte se
+         reembolso), asi que ahora tambien puede salir en este listado si
+         el calculo dice que debe algo.
+
+    No se toca "Refunded (cancelled/refunded regs.)" ni "Net revenue" del
+    Financial Summary -- esas dos filas no tenian el mismo problema (no
+    usan FinalPrice - AmountPaid), asi que se quedan como estaban.
+
+    Verificado contra los archivos reales del repo (anchors unicos, balance
+    de llaves/parentesis/corchetes limpio, diff revisado).
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-DashboardRevenueDailyOption.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-DashboardFinanceReportsRefundedAmount.ps1
 
     Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
-    local difiere de lo esperado (por ejemplo porque falta aplicar alguno de
-    los scripts anteriores), no escribe nada y lista el problema.
+    local difiere de lo esperado (por ejemplo, porque los prerrequisitos no
+    estan aplicados), no escribe nada y lista el problema.
 #>
 
 [CmdletBinding()]
@@ -94,21 +115,6 @@ function Add-PatchOperation {
     }
 }
 
-function Add-CreateOperation {
-    param(
-        [Parameter(Mandatory)][string]$Path,
-        [Parameter(Mandatory)][string]$Content,
-        [Parameter(Mandatory)][string]$Description
-    )
-
-    $script:Plan += [PSCustomObject]@{
-        Type        = 'Create'
-        Path        = $Path
-        Content     = Convert-ToLf $Content
-        Description = $Description
-    }
-}
-
 function Test-PatchOperation {
     param($Op)
 
@@ -128,26 +134,10 @@ function Test-PatchOperation {
         if ($replacementCount -ge 1) {
             return $null  # ya aplicado -> idempotente
         }
-        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado -- revisalo a mano, o falta aplicar alguno de los scripts anteriores). Descripcion: $($Op.Description)"
+        return "Anchor no encontrado en $($Op.Path) (el archivo local no coincide con lo esperado -- revisa si tienes aplicados Fix-FestivalCurrency.ps1, Fix-RedsysRefunds.ps1 y Fix-DashboardFinanceReports.ps1, o si el archivo difiere por otro motivo). Descripcion: $($Op.Description)"
     }
 
     return "Anchor encontrado $anchorCount veces en $($Op.Path) (deberia ser unico). Descripcion: $($Op.Description)"
-}
-
-function Test-CreateOperation {
-    param($Op)
-
-    if (-not (Test-Path -LiteralPath $Op.Path)) {
-        return $null
-    }
-
-    $existing = Get-NormalizedContent -Path $Op.Path
-
-    if ($existing.Normalized.TrimEnd() -eq $Op.Content.TrimEnd()) {
-        return $null  # ya existe con el contenido esperado -> idempotente
-    }
-
-    return "Ya existe $($Op.Path) con un contenido distinto al esperado; revisalo a mano antes de reintentar."
 }
 
 function Invoke-PatchOperation {
@@ -167,86 +157,120 @@ function Invoke-PatchOperation {
     Write-Host "  + patched: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-function Invoke-CreateOperation {
-    param($Op)
-
-    if (Test-Path -LiteralPath $Op.Path) {
-        Write-Host "  = ya existe: $($Op.Path) -- $($Op.Description)" -ForegroundColor DarkGray
-        return
-    }
-
-    $dir = Split-Path -Parent $Op.Path
-    if ($dir -and -not (Test-Path -LiteralPath $dir)) {
-        New-Item -ItemType Directory -Path $dir -Force | Out-Null
-    }
-
-    Set-NormalizedContent -Path $Op.Path -NormalizedContent $Op.Content -UsesCrlf $false
-
-    Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
-}
-
-# 1. Alakai.FestivalManager.Application/Interfaces/Repositories/IDashboardRepository.cs -- Doc comment: nueva opcion de rango 'day'
-Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Interfaces/Repositories/IDashboardRepository.cs' `
-    -Description 'Doc comment: nueva opcion de rango ''day''' `
+# 1. Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs -- Financial Summary: 'Pending collection' cuenta RefundedAmount (si no, da 0 tras un reembolso)
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs' `
+    -Description 'Financial Summary: ''Pending collection'' cuenta RefundedAmount (si no, da 0 tras un reembolso)' `
     -Anchor @'
-    /// <param name="range">"week" (last 8 calendar weeks, one point per week), "month" (last 6 calendar months, one point per month), "quarter" (last 4 natural calendar quarters, quarterly) or "year" (last 12 months, monthly). Ignored when <paramref name="customStart"/> and <paramref name="customEnd"/> are both provided.</param>
-    /// <param name="offset">How many periods back from the most recent to anchor "week"/"month" on (0 = current period). Ignored for "quarter", "year" and the custom range.</param>
+    public async Task<byte[]> GenerateFinancialSummaryReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+        List<Registration> active = registrations.Where(r => r.Status != RegistrationStatus.Cancelled).ToList();
+        List<Registration> refundedOrCancelled = registrations.Where(r => r.Status == RegistrationStatus.Cancelled || r.PaymentStatus == PaymentStatus.Refunded).ToList();
+
+        decimal grossRevenue = active.Sum(r => r.FinalPrice);
+        decimal collected = active.Sum(r => r.AmountPaid);
+        decimal pending = Math.Max(0m, grossRevenue - collected);
+        decimal refunded = refundedOrCancelled.Sum(r => r.AmountPaid);
 '@ `
     -Replacement @'
-    /// <param name="range">"day" (last 15 calendar days, one point per day), "week" (last 8 calendar weeks, one point per week), "month" (last 6 calendar months, one point per month), "quarter" (last 4 natural calendar quarters, quarterly) or "year" (last 12 months, monthly). Ignored when <paramref name="customStart"/> and <paramref name="customEnd"/> are both provided.</param>
-    /// <param name="offset">How many periods back from the most recent to anchor "day"/"week"/"month" on (0 = current period). Ignored for "quarter", "year" and the custom range.</param>
+    public async Task<byte[]> GenerateFinancialSummaryReportAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        IReadOnlyList<Registration> registrations = await _registrationRepository.GetByEditionIdAsync(editionId, cancellationToken);
+        List<Registration> active = registrations.Where(r => r.Status != RegistrationStatus.Cancelled).ToList();
+        List<Registration> refundedOrCancelled = registrations.Where(r => r.Status == RegistrationStatus.Cancelled || r.PaymentStatus == PaymentStatus.Refunded).ToList();
+
+        decimal grossRevenue = active.Sum(r => r.FinalPrice);
+        decimal collected = active.Sum(r => r.AmountPaid);
+        // AmountPaid nunca baja al reembolsar (se guarda aparte en RefundedAmount),
+        // asi que hay que sumarselo de vuelta para saber lo que de verdad queda
+        // pendiente; si no, en cuanto hay un reembolso esto da 0 aunque siga
+        // habiendo saldo real por cobrar.
+        decimal totalRefunded = active.Sum(r => r.RefundedAmount);
+        decimal pending = Math.Max(0m, grossRevenue - collected + totalRefunded);
+        decimal refunded = refundedOrCancelled.Sum(r => r.AmountPaid);
 '@
 
-# 2. Alakai.FestivalManager.Infrastructure/Repositories/DashboardRepository.cs -- Nueva rama 'day' en GetRevenueAsync: ultimos 15 dias, navegable con offset igual que week/month
-Add-PatchOperation -Path 'Alakai.FestivalManager.Infrastructure/Repositories/DashboardRepository.cs' `
-    -Description 'Nueva rama ''day'' en GetRevenueAsync: ultimos 15 dias, navegable con offset igual que week/month' `
+# 2. Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs -- Financial Summary: columna Pending del desglose por tipo de pase cuenta RefundedAmount
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs' `
+    -Description 'Financial Summary: columna Pending del desglose por tipo de pase cuenta RefundedAmount' `
     -Anchor @'
-        int normalizedOffset = Math.Max(0, offset);
-
-        if (string.Equals(range, "week", StringComparison.OrdinalIgnoreCase))
+        foreach (IGrouping<string, Registration> group in byPassType)
         {
-            return BuildWeeklyPoints(paidRegistrations, Effective, 8, normalizedOffset);
+            decimal groupGross = group.Sum(r => r.FinalPrice);
+            decimal groupCollected = group.Sum(r => r.AmountPaid);
+
+            ws.Cell(row, 1).Value = group.Key;
+            ws.Cell(row, 2).Value = group.Count();
+            ws.Cell(row, 3).Value = groupGross.ToString("0.00");
+            ws.Cell(row, 4).Value = groupCollected.ToString("0.00");
+            ws.Cell(row, 5).Value = Math.Max(0m, groupGross - groupCollected).ToString("0.00");
+            row++;
         }
 '@ `
     -Replacement @'
-        int normalizedOffset = Math.Max(0, offset);
-
-        if (string.Equals(range, "day", StringComparison.OrdinalIgnoreCase))
+        foreach (IGrouping<string, Registration> group in byPassType)
         {
-            DateOnly anchorEnd = DateOnly.FromDateTime(DateTime.UtcNow.Date).AddDays(-15 * normalizedOffset);
-            DateOnly anchorStart = anchorEnd.AddDays(-14);
-            return BuildDailyPoints(paidRegistrations, Effective, anchorStart, anchorEnd, "dd MMM");
-        }
+            decimal groupGross = group.Sum(r => r.FinalPrice);
+            decimal groupCollected = group.Sum(r => r.AmountPaid);
+            decimal groupRefunded = group.Sum(r => r.RefundedAmount);
 
-        if (string.Equals(range, "week", StringComparison.OrdinalIgnoreCase))
-        {
-            return BuildWeeklyPoints(paidRegistrations, Effective, 8, normalizedOffset);
+            ws.Cell(row, 1).Value = group.Key;
+            ws.Cell(row, 2).Value = group.Count();
+            ws.Cell(row, 3).Value = groupGross.ToString("0.00");
+            ws.Cell(row, 4).Value = groupCollected.ToString("0.00");
+            ws.Cell(row, 5).Value = Math.Max(0m, groupGross - groupCollected + groupRefunded).ToString("0.00");
+            row++;
         }
 '@
 
-# 3. Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor -- Flechas de navegacion tambien visibles en la vista Diaria
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor' `
-    -Description 'Flechas de navegacion tambien visibles en la vista Diaria' `
+# 3. Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs -- Payments Detail: columna Pending cuenta RefundedAmount
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs' `
+    -Description 'Payments Detail: columna Pending cuenta RefundedAmount' `
     -Anchor @'
-                        @if (revenueRange is "week" or "month")
-                        {
+            r.FinalPrice.ToString("0.00"), r.AmountPaid.ToString("0.00"), (r.FinalPrice - r.AmountPaid).ToString("0.00"),
 '@ `
     -Replacement @'
-                        @if (revenueRange is "day" or "week" or "month")
-                        {
+            r.FinalPrice.ToString("0.00"), r.AmountPaid.ToString("0.00"), (r.FinalPrice - r.AmountPaid + r.RefundedAmount).ToString("0.00"),
 '@
 
-# 4. Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor -- Nueva opcion 'Daily' (ultimos 15 dias) en el selector de rango de Revenue
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Dashboard.razor' `
-    -Description 'Nueva opcion ''Daily'' (ultimos 15 dias) en el selector de rango de Revenue' `
+# 4. Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs -- Outstanding Balances: filtro y columna Pending cuentan RefundedAmount (y ya no se excluye a quien esta en estado Refunded si de verdad debe dinero)
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Reports/Services/ReportService.cs' `
+    -Description 'Outstanding Balances: filtro y columna Pending cuentan RefundedAmount (y ya no se excluye a quien esta en estado Refunded si de verdad debe dinero)' `
     -Anchor @'
-                        <select class="form-select" style="width:auto; max-width:160px;" @bind="revenueRange" @bind:after="OnRevenueRangeChangedAsync">
-                            <option value="week">Weekly</option>
+        List<Registration> debtors = registrations
+            .Where(r => r.Status != RegistrationStatus.Cancelled && r.PaymentStatus != PaymentStatus.Refunded && (r.FinalPrice - r.AmountPaid) > 0)
+            .OrderBy(r => r.PaymentDueAt ?? DateTime.MaxValue)
+            .ToList();
+
+        DateTime today = DateTime.UtcNow.Date;
+
+        List<string[]> rows = debtors.Select(r => new[]
+        {
+            r.FirstName, r.LastName, r.Email, r.Phone ?? "",
+            r.PassType?.Name ?? "", r.PaymentPlan.ToString(),
+            (r.FinalPrice - r.AmountPaid).ToString("0.00"),
+            r.PaymentDueAt.HasValue ? r.PaymentDueAt.Value.ToString("dd/MM/yyyy") : "",
+            r.PaymentDueAt.HasValue && r.PaymentDueAt.Value.Date < today ? (today - r.PaymentDueAt.Value.Date).Days.ToString() : "",
+            r.PaymentStatus.ToString()
+        }).ToList();
 '@ `
     -Replacement @'
-                        <select class="form-select" style="width:auto; max-width:160px;" @bind="revenueRange" @bind:after="OnRevenueRangeChangedAsync">
-                            <option value="day">Daily</option>
-                            <option value="week">Weekly</option>
+        List<Registration> debtors = registrations
+            .Where(r => r.Status != RegistrationStatus.Cancelled && (r.FinalPrice - r.AmountPaid + r.RefundedAmount) > 0)
+            .OrderBy(r => r.PaymentDueAt ?? DateTime.MaxValue)
+            .ToList();
+
+        DateTime today = DateTime.UtcNow.Date;
+
+        List<string[]> rows = debtors.Select(r => new[]
+        {
+            r.FirstName, r.LastName, r.Email, r.Phone ?? "",
+            r.PassType?.Name ?? "", r.PaymentPlan.ToString(),
+            (r.FinalPrice - r.AmountPaid + r.RefundedAmount).ToString("0.00"),
+            r.PaymentDueAt.HasValue ? r.PaymentDueAt.Value.ToString("dd/MM/yyyy") : "",
+            r.PaymentDueAt.HasValue && r.PaymentDueAt.Value.Date < today ? (today - r.PaymentDueAt.Value.Date).Days.ToString() : "",
+            r.PaymentStatus.ToString()
+        }).ToList();
 '@
 
 
@@ -258,7 +282,7 @@ Write-Host ""
 Write-Host "Validando $($script:Plan.Count) cambios contra los archivos locales..." -ForegroundColor Cyan
 
 foreach ($op in $script:Plan) {
-    $err = if ($op.Type -eq 'Patch') { Test-PatchOperation -Op $op } else { Test-CreateOperation -Op $op }
+    $err = Test-PatchOperation -Op $op
     if ($err) {
         $script:PlanErrors += $err
     }
@@ -271,8 +295,6 @@ if ($script:PlanErrors.Count -gt 0) {
         Write-Host "  - $e" -ForegroundColor Red
     }
     Write-Host ""
-    Write-Host "Lo mas probable es que alguno de los scripts anteriores del dashboard no" -ForegroundColor Yellow
-    Write-Host "se haya aplicado todavia, o que algun archivo se haya editado desde entonces." -ForegroundColor Yellow
     Write-Host "Revisa esos archivos a mano, o dime que ha cambiado para regenerar el script." -ForegroundColor Yellow
     exit 1
 }
@@ -281,12 +303,7 @@ Write-Host "Todo valida OK. Aplicando cambios..." -ForegroundColor Cyan
 Write-Host ""
 
 foreach ($op in $script:Plan) {
-    if ($op.Type -eq 'Patch') {
-        Invoke-PatchOperation -Op $op
-    }
-    else {
-        Invoke-CreateOperation -Op $op
-    }
+    Invoke-PatchOperation -Op $op
 }
 
 Write-Host ""
@@ -294,5 +311,7 @@ Write-Host "Listo. Siguientes pasos:" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "  1) Revisa el diff (git diff) antes de compilar." -ForegroundColor White
 Write-Host "  2) dotnet build (no hace falta migracion, este script no toca la BD)." -ForegroundColor White
-Write-Host "  3) Prueba la opcion Daily del grafico de Revenue y sus flechas." -ForegroundColor White
+Write-Host "  3) Descarga Financial Summary, Payments Detail y Outstanding Balances desde" -ForegroundColor White
+Write-Host "     /reports (pestana Finance) con datos que incluyan algun reembolso, y" -ForegroundColor White
+Write-Host "     comprueba que el pendiente ya no sale en 0." -ForegroundColor White
 Write-Host ""
