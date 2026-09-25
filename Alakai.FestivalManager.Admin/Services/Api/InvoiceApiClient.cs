@@ -65,6 +65,36 @@ public class InvoiceApiClient
             throw new ApiClientException($"Could not delete invoice: {errorBody}", null);
         }
     }
+
+    public async Task<byte[]> GetInvoicesZipAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage response = await _httpClient.GetAsync($"api/invoices/zip?editionId={editionId}", cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ApiClientException(string.IsNullOrWhiteSpace(errorContent) ? $"Request failed with status code {(int)response.StatusCode}." : errorContent);
+        }
+
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+    }
+
+    public async Task<byte[]> BulkCreateInvoicesZipAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        await AttachAuthHeaderAsync();
+
+        HttpResponseMessage response = await _httpClient.PostAsync($"api/invoices/bulk-create?editionId={editionId}", null, cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorContent = await response.Content.ReadAsStringAsync(cancellationToken);
+            throw new ApiClientException(string.IsNullOrWhiteSpace(errorContent) ? $"Request failed with status code {(int)response.StatusCode}." : errorContent);
+        }
+
+        return await response.Content.ReadAsByteArrayAsync(cancellationToken);
+    }
 }
 
 public class UpdateInvoiceRequest

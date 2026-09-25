@@ -1,43 +1,50 @@
 <#
-    Fix-RefundDoesNotReopenPending.ps1
+    Fix-ReportsTabsAndInvoicePdfs.ps1
     -----------------------------------------------
 
-    Cambia el comportamiento de los reembolsos: un reembolso ya NO reabre
-    el registro para volver a cobrar. Hasta ahora, al reembolsar (parcial o
-    totalmente), el backend forzaba PaymentStatus a "Refunded" o
-    "PartiallyPaid" segun el caso, lo que hacia reaparecer un importe
-    "pendiente" y el boton de pago en el panel de usuario -- justo lo
-    contrario de lo que se pretende al devolver dinero.
+    Este script es un SEGUIDO de Fix-BulkInvoices.ps1, que ya lanzaste (el
+    de 15 pasos). Ese script funciono -- por eso no toca nada de backend --
+    pero lo construi sin ver que tu Reports.razor YA tenia las pestanas
+    Operations/Finance de un script anterior (Fix-DashboardFinanceReports.ps1),
+    asi que la fila "Invoices" acabo metida dentro de Operations, con el
+    mismo nombre de clave ("invoices") que ya usaba la fila "Invoices / VAT"
+    de Finance -- dos botones distintos compartiendo el mismo estado de
+    "descargando", un bug real aunque no se note a simple vista todavia.
 
-    Con este cambio, el reembolso deja PaymentStatus tal cual estaba antes:
+    Este script, verificado contra tu Reports.razor EXACTO (el que me
+    pegaste, con la fila Invoices ya en Operations), arregla las dos cosas
+    que pediste:
 
-      - Si el registro ya estaba "Paid" (pago completo, o un plan Split ya
-        completado), se queda "Paid": nada pendiente, sin boton de pago,
-        aunque se reembolse parcial o totalmente.
-      - Si estaba "PartiallyPaid" (plan Split con solo el primer 50%
-        pagado), se queda "PartiallyPaid": el segundo 50% sigue pendiente
-        de pago exactamente igual, se reembolse o no ese primer tramo --
-        es un tramo aparte, no depende del reembolso.
+      1. Las pestanas Operations/Finance pasan a verse igual que las de
+         Dashboard (fondo gris, pestana activa con fondo blanco/oscuro y
+         sombra), en vez de la raya inferior que tenian.
 
-    Esto revierte el "+RefundedAmount" que se sumaba antes al calculo de
-    "pendiente" en 3 sitios del panel de usuario (la seccion de pago, la
-    mini-card del dashboard, y el importe real que se manda a la pasarela
-    al pulsar "Pay Remaining"), que era lo que reabria el pendiente tras un
-    reembolso. El aviso de "X reembolsado" se mantiene (informativo) y
-    ahora se muestra siempre que haya algo reembolsado, este el registro
-    pagado del todo o no.
+      2. La fila de facturas se mueve de Operations a Finance (justo
+         despues de "Invoices / VAT"), se renombra a "Invoice PDFs" para
+         no confundirla con esa, y pasa a usar sus propias claves internas
+         (invoice-pdfs / invoice-pdfs-generate) en vez de invoices /
+         invoices-bulk-create -- así ya no colisiona con el boton de
+         "Invoices / VAT". Los botones Download y Generate & Download
+         siguen haciendo exactamente lo mismo que ya hacian.
 
-    Verificado contra los archivos reales del repo, con todo lo anterior
-    (incluyendo Fix-DynamicCurrency.ps1 y Fix-PaymentSettingsCurrencyPlacement.ps1)
-    ya aplicado. Anchors unicos, balance de llaves/parentesis limpio, diff
-    revisado.
+    No toca nada de backend (Global.cs, InvoiceRepository, InvoiceService,
+    InvoicesController, InvoiceApiClient, QuestPdfInvoiceService): eso ya
+    quedo bien aplicado con el script anterior y no depende de las
+    pestanas.
+
+    Verificado contra tu Reports.razor real reconstruido paso a paso
+    (Fix-DashboardFinanceReports.ps1 + tu Fix-BulkInvoices.ps1 de 15 pasos,
+    ambos ya aplicados), asi que los anchors deberian encajar tal cual esta
+    tu archivo ahora. Anchors unicos, balance de llaves/parentesis limpio,
+    diff revisado.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-RefundDoesNotReopenPending.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-ReportsTabsAndInvoicePdfs.ps1
 
-    Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
-    local difiere de lo esperado, no escribe nada y lista el problema.
+    Idempotente y todo-o-nada: si algun anchor no encaja porque el archivo
+    local difiere de lo esperado, no escribe nada y lista el problema --
+    en ese caso, pegame tu Reports.razor actual otra vez y lo reviso.
 #>
 
 [CmdletBinding()]
@@ -195,157 +202,168 @@ function Invoke-CreateOperation {
     Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Application/Features/Payments/Services/PaymentService.cs -- PaymentService.cs: el reembolso ya no cambia PaymentStatus -- no reabre el registro para volver a cobrar
-Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Payments/Services/PaymentService.cs' `
-    -Description 'PaymentService.cs: el reembolso ya no cambia PaymentStatus -- no reabre el registro para volver a cobrar' `
+# 1. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: pestanas Operations/Finance con el mismo estilo 'segmented control' que Dashboard
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
+    -Description 'Reports.razor: pestanas Operations/Finance con el mismo estilo ''segmented control'' que Dashboard' `
     -Anchor @'
-        registration.RefundedAmount = alreadyRefunded + command.Amount;
-        registration.PaymentStatus = registration.RefundedAmount >= registration.AmountPaid ? PaymentStatus.Refunded : PaymentStatus.PartiallyPaid;
+        <div class="flex gap-2 mb-4 border-b border-black/10 dark:border-darkborder">
+            <button type="button" class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px @(activeTab == "operations" ? "border-purple text-purple" : "border-transparent text-black/50 dark:text-white/60")" @onclick='() => activeTab = "operations"'>Operations</button>
+            <button type="button" class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px @(activeTab == "finance" ? "border-purple text-purple" : "border-transparent text-black/50 dark:text-white/60")" @onclick='() => activeTab = "finance"'>Finance</button>
+        </div>
 '@ `
     -Replacement @'
-        registration.RefundedAmount = alreadyRefunded + command.Amount;
-
-        // Un reembolso NO debe reabrir el registro para volver a cobrar: es dinero
-        // que se devuelve a proposito, no una deuda pendiente. Por eso ya NO se toca
-        // PaymentStatus aqui -- se deja tal cual estaba antes del reembolso:
-        //   - Si estaba "Paid" (pago completo, o un Split ya completado), se queda
-        //     "Paid": no aparece nada pendiente ni el boton de pago.
-        //   - Si estaba "PartiallyPaid" (Split con solo el primer 50% pagado), se
-        //     queda "PartiallyPaid": el segundo 50% sigue pendiente de pago, se
-        //     reembolse o no ese primer tramo -- es un tramo aparte.
+        <div class="inline-flex items-center gap-1 p-1 mb-4 rounded-lg bg-black/5 dark:bg-white/5 w-fit" role="tablist">
+            <button type="button" role="tab" aria-selected="@(activeTab == "operations" ? "true" : "false")" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors @(activeTab == "operations" ? "bg-white dark:bg-dark text-purple shadow-sm" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white")" @onclick='() => activeTab = "operations"'>
+                Operations
+            </button>
+            <button type="button" role="tab" aria-selected="@(activeTab == "finance" ? "true" : "false")" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors @(activeTab == "finance" ? "bg-white dark:bg-dark text-purple shadow-sm" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white")" @onclick='() => activeTab = "finance"'>
+                Finance
+            </button>
+        </div>
 '@
 
-# 2. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: la seccion de pago ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre (pagado o no)
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
-    -Description 'UserPanel.razor: la seccion de pago ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre (pagado o no)' `
+# 2. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: quita la fila Invoices de Operations (estaba mal colocada por el script anterior)
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
+    -Description 'Reports.razor: quita la fila Invoices de Operations (estaba mal colocada por el script anterior)' `
     -Anchor @'
-                <div class="text-right">
-                    @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
-                    {
-                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") @CurrencySymbol @T.Get("up_paid")</MudText>
-                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
-                        @if (Dashboard.Registration.RefundedAmount > 0)
-                        {
-                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
-                        }
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
-                        <MudText Class="text-warning">@PaymentStatus</MudText>
-                    }
-                </div>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Competitions</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "competitions")" @onclick='() => DownloadAsync("competitions")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "competitions" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Invoices</td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="inline-flex gap-2">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoices")" @onclick="DownloadInvoicesZipAsync">
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoices" ? "Downloading..." : "Download")
+                                    </button>
+                                    <button type="button" class="btn border border-black/10 dark:border-darkborder disabled:opacity-50" disabled="@(downloadingReport == "invoices-bulk-create")" @onclick="OpenBulkCreateInvoicesModal">
+                                        <i class="ri-file-add-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoices-bulk-create" ? "Generating..." : "Generate & Download")
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        @if (HasAccommodationModule)
 '@ `
     -Replacement @'
-                <div class="text-right">
-                    @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
-                    {
-                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") @CurrencySymbol @T.Get("up_paid")</MudText>
-                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
-                        <MudText Class="text-warning">@PaymentStatus</MudText>
-                    }
-                    @if (Dashboard?.Registration?.RefundedAmount > 0)
-                    {
-                        <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
-                    }
-                </div>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Competitions</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "competitions")" @onclick='() => DownloadAsync("competitions")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "competitions" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        @if (HasAccommodationModule)
 '@
 
-# 3. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: mini-card del dashboard ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
-    -Description 'UserPanel.razor: mini-card del dashboard ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre' `
+# 3. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: fila Invoice PDFs en Finance, justo despues de Invoices / VAT, con claves propias
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
+    -Description 'Reports.razor: fila Invoice PDFs en Finance, justo despues de Invoices / VAT, con claves propias' `
     -Anchor @'
-    private string? PaymentCardSuffix
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Invoices / VAT</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoices")" @onclick='() => DownloadAsync("invoices")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoices" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+'@ `
+    -Replacement @'
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Invoices / VAT</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoices")" @onclick='() => DownloadAsync("invoices")'>
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoices" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Invoice PDFs</td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="inline-flex gap-2">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs")" @onclick="DownloadInvoicesZipAsync">
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs" ? "Downloading..." : "Download")
+                                    </button>
+                                    <button type="button" class="btn border border-black/10 dark:border-darkborder disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="OpenBulkCreateInvoicesModal">
+                                        <i class="ri-file-add-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+'@
+
+# 4. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: el modal usa la nueva clave invoice-pdfs-generate
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
+    -Description 'Reports.razor: el modal usa la nueva clave invoice-pdfs-generate' `
+    -Anchor @'
+                    <button type="button" class="btn border border-black/10" disabled="@(downloadingReport == "invoices-bulk-create")" @onclick="CloseBulkCreateInvoicesModal">Cancel</button>
+                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoices-bulk-create")" @onclick="ConfirmBulkCreateInvoicesAsync">@(downloadingReport == "invoices-bulk-create" ? "Generating..." : "Generate & Download")</button>
+'@ `
+    -Replacement @'
+                    <button type="button" class="btn border border-black/10" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="CloseBulkCreateInvoicesModal">Cancel</button>
+                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="ConfirmBulkCreateInvoicesAsync">@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")</button>
+'@
+
+# 5. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: DownloadInvoicesZipAsync usa la clave invoice-pdfs (ya no invoices, que colisionaba con Invoices / VAT)
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
+    -Description 'Reports.razor: DownloadInvoicesZipAsync usa la clave invoice-pdfs (ya no invoices, que colisionaba con Invoices / VAT)' `
+    -Anchor @'
+    private async Task DownloadInvoicesZipAsync()
     {
-        get
+        if (selectedEditionId == Guid.Empty)
         {
-            if (FinalPrice <= 0) return null;
-            if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
-            {
-                decimal paid = Dashboard.Registration.AmountPaid;
-                decimal refunded = Dashboard.Registration.RefundedAmount;
-
-                // AmountPaid nunca baja al reembolsar (se guarda aparte en
-                // RefundedAmount, ver PayNowAsync mas abajo para el porque), asi
-                // que lo pendiente real es FinalPrice - paid + refunded. Sin el
-                // +refunded esta card se quedaba con el pendiente de antes del
-                // reembolso.
-                string suffix = $"{paid:0.00} {CurrencySymbol} paid · {(FinalPrice - paid + refunded):0.00} {CurrencySymbol} pending";
-
-                if (refunded > 0)
-                {
-                    suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
-                }
-
-                return suffix;
-            }
-            return $"{FinalPrice:0.00} {CurrencySymbol}";
+            return;
         }
-    }
+
+        downloadingReport = "invoices";
+
+        try
+        {
+            byte[] bytes = await InvoiceApiClient.GetInvoicesZipAsync(selectedEditionId);
 '@ `
     -Replacement @'
-    private string? PaymentCardSuffix
+    private async Task DownloadInvoicesZipAsync()
     {
-        get
+        if (selectedEditionId == Guid.Empty)
         {
-            if (FinalPrice <= 0) return null;
-
-            decimal refunded = Dashboard?.Registration?.RefundedAmount ?? 0;
-
-            // Un reembolso no reabre lo pendiente (ver PayNowAsync mas abajo): si el
-            // registro ya estaba "Paid" (o un Split ya completado), reembolsar no debe
-            // volver a pedir ese dinero. Solo un Split con el primer 50% pagado
-            // (PaymentStatus "PartiallyPaid") tiene de verdad un segundo tramo
-            // pendiente, y eso no cambia si se reembolsa el primer tramo o no.
-            string suffix = Dashboard?.Registration?.PaymentStatus == "PartiallyPaid"
-                ? $"{Dashboard.Registration.AmountPaid:0.00} {CurrencySymbol} paid · {(FinalPrice - Dashboard.Registration.AmountPaid):0.00} {CurrencySymbol} pending"
-                : $"{FinalPrice:0.00} {CurrencySymbol}";
-
-            if (refunded > 0)
-            {
-                suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
-            }
-
-            return suffix;
+            return;
         }
-    }
+
+        downloadingReport = "invoice-pdfs";
+
+        try
+        {
+            byte[] bytes = await InvoiceApiClient.GetInvoicesZipAsync(selectedEditionId);
 '@
 
-# 4. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: PayNowAsync ya no suma RefundedAmount al importe a cobrar -- un reembolso no vuelve a cobrarse
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
-    -Description 'UserPanel.razor: PayNowAsync ya no suma RefundedAmount al importe a cobrar -- un reembolso no vuelve a cobrarse' `
+# 6. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: ConfirmBulkCreateInvoicesAsync usa la clave invoice-pdfs-generate
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
+    -Description 'Reports.razor: ConfirmBulkCreateInvoicesAsync usa la clave invoice-pdfs-generate' `
     -Anchor @'
-            // Igual que en el formulario publico (Register.razor): el 1% de comision
-            // se aplica SIEMPRE sobre lo que se cobra ahora, sea el importe completo
-            // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
-            // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
-            // completo o el primer tramo de un Split se cobraban sin comision.
-            // AmountPaid nunca se reduce al hacer un reembolso (Fix-RedsysRefunds.ps1 lo
-            // guarda aparte en RefundedAmount a proposito, para no perder el historico de
-            // lo cobrado). Por eso lo pendiente de verdad es FinalPrice menos lo que
-            // TODAVIA se retiene (AmountPaid - RefundedAmount), o lo que es lo mismo:
-            // FinalPrice - AmountPaid + RefundedAmount. Sin el +RefundedAmount, tras un
-            // reembolso esto da 0 y ese 0 es justo lo que se manda a Redsys.
-            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
+    private async Task ConfirmBulkCreateInvoicesAsync()
+    {
+        showBulkCreateInvoicesModal = false;
+        downloadingReport = "invoices-bulk-create";
+
+        try
+        {
+            byte[] bytes = await InvoiceApiClient.BulkCreateInvoicesZipAsync(selectedEditionId);
 '@ `
     -Replacement @'
-            // Igual que en el formulario publico (Register.razor): el 1% de comision
-            // se aplica SIEMPRE sobre lo que se cobra ahora, sea el importe completo
-            // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
-            // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
-            // completo o el primer tramo de un Split se cobraban sin comision.
-            // AmountPaid nunca se reduce al hacer un reembolso (se guarda aparte en
-            // RefundedAmount, para no perder el historico de lo cobrado), pero un
-            // reembolso NO debe volver a cobrarse: si ya estaba todo pagado (o un
-            // Split ya completado), esta pantalla ni siquiera muestra el boton de pago
-            // tras el reembolso. A este calculo solo se llega en el unico caso
-            // legitimo que sigue pendiente: el segundo tramo de un Split cuyo primer
-            // 50% ya se pago (se haya reembolsado ese primer tramo o no).
-            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
+    private async Task ConfirmBulkCreateInvoicesAsync()
+    {
+        showBulkCreateInvoicesModal = false;
+        downloadingReport = "invoice-pdfs-generate";
+
+        try
+        {
+            byte[] bytes = await InvoiceApiClient.BulkCreateInvoicesZipAsync(selectedEditionId);
 '@
 
 
@@ -387,8 +405,8 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. Prueba: reembolsa (parcial o total) un registro ya pagado del" -ForegroundColor Cyan
-Write-Host "todo -- no debe quedar nada pendiente ni aparecer el boton de pago." -ForegroundColor Cyan
-Write-Host "Y en un Split con solo el primer 50% pagado, reembolsa ese primer" -ForegroundColor Cyan
-Write-Host "tramo -- el segundo 50% debe seguir pendiente igual que antes." -ForegroundColor Cyan
+Write-Host "Listo. En Reports:" -ForegroundColor Cyan
+Write-Host "  - Las pestanas Operations/Finance deben verse igual que las de Dashboard." -ForegroundColor Cyan
+Write-Host "  - En Finance, justo debajo de 'Invoices / VAT', deberia aparecer 'Invoice PDFs'" -ForegroundColor Cyan
+Write-Host "    con sus botones Download y Generate & Download (ya no esta en Operations)." -ForegroundColor Cyan
 Write-Host ""

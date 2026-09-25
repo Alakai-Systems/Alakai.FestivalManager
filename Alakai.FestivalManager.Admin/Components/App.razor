@@ -2,6 +2,8 @@
 @inject IHttpContextAccessor HttpContextAccessor
 @inject Alakai.FestivalManager.Admin.Services.Api.PublicRegistrationApiClient PublicApi
 @inject PersistentComponentState ApplicationState
+@inject IJSRuntime JsRuntime
+@inject Radzen.ThemeService ThemeService
 @implements IDisposable
 <!DOCTYPE html>
 <html lang="en" x-data="{ direction: $store.app.direction }" x-bind:dir="$store.app.direction" class="group/item" x-bind:data-mode="$store.app.mode" x-bind:data-sidebar="$store.app.sidebarMode">
@@ -95,6 +97,27 @@
             document.body.classList.add(className);
         };
 
+        // Puente para que el tema de Radzen (usado por el editor de plantillas de
+        // email, entre otros componentes Radzen) siga el modo oscuro/claro propio
+        // de la app. El modo real vive en el store de Alpine ($store.app.mode) y
+        // siempre se refleja en el atributo data-mode del <html> -- en vez de
+        // engancharnos a Alpine directamente, observamos ese atributo, asi
+        // funciona pase lo que pase quien cambie el modo (el toggle del Topbar, u
+        // otro futuro).
+        window.registerRadzenThemeBridge = function (dotNetObject) {
+            function isDarkMode() {
+                return document.documentElement.getAttribute('data-mode') === 'dark';
+            }
+
+            dotNetObject.invokeMethodAsync('SetRadzenDarkMode', isDarkMode());
+
+            const observer = new MutationObserver(function () {
+                dotNetObject.invokeMethodAsync('SetRadzenDarkMode', isDarkMode());
+            });
+
+            observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-mode'] });
+        };
+
         window.addClickListener = function (dotNetObject) {
             document.body.addEventListener("click", function () {
                 dotNetObject.invokeMethodAsync("HandleClickEvent");
@@ -120,6 +143,7 @@
 @code {
     private Alakai.FestivalManager.Admin.Services.Api.PublicFestivalBrandingDto? Branding;
     private PersistingComponentStateSubscription _persistingSubscription;
+    private DotNetObjectReference<App>? _radzenThemeBridgeRef;
 
     protected override async Task OnInitializedAsync()
     {
@@ -148,6 +172,21 @@
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            _radzenThemeBridgeRef = DotNetObjectReference.Create(this);
+            await JsRuntime.InvokeVoidAsync("registerRadzenThemeBridge", _radzenThemeBridgeRef);
+        }
+    }
+
+    [JSInvokable]
+    public void SetRadzenDarkMode(bool isDark)
+    {
+        ThemeService.SetTheme(isDark ? "standard-dark" : "standard");
+    }
+
     private Task PersistBranding()
     {
         ApplicationState.PersistAsJson("branding", Branding);
@@ -157,5 +196,6 @@
     public void Dispose()
     {
         _persistingSubscription.Dispose();
+        _radzenThemeBridgeRef?.Dispose();
     }
 }

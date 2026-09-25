@@ -5,6 +5,7 @@
 @inject FestivalApiClient FestivalApiClient
 @inject ActiveFestivalState ActiveFestivalState
 @inject IJSRuntime JsRuntime
+@inject InvoiceApiClient InvoiceApiClient
 
 <PageHeader Title="Reports" pTitle="Downloads"></PageHeader>
 
@@ -36,9 +37,13 @@
     }
 
     <div class="card">
-        <div class="flex gap-2 mb-4 border-b border-black/10 dark:border-darkborder">
-            <button type="button" class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px @(activeTab == "operations" ? "border-purple text-purple" : "border-transparent text-black/50 dark:text-white/60")" @onclick='() => activeTab = "operations"'>Operations</button>
-            <button type="button" class="px-4 py-2 text-sm font-semibold border-b-2 -mb-px @(activeTab == "finance" ? "border-purple text-purple" : "border-transparent text-black/50 dark:text-white/60")" @onclick='() => activeTab = "finance"'>Finance</button>
+        <div class="inline-flex items-center gap-1 p-1 mb-4 rounded-lg bg-black/5 dark:bg-white/5 w-fit" role="tablist">
+            <button type="button" role="tab" aria-selected="@(activeTab == "operations" ? "true" : "false")" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors @(activeTab == "operations" ? "bg-white dark:bg-dark text-purple shadow-sm" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white")" @onclick='() => activeTab = "operations"'>
+                Operations
+            </button>
+            <button type="button" role="tab" aria-selected="@(activeTab == "finance" ? "true" : "false")" class="px-4 py-2 text-sm font-semibold rounded-md transition-colors @(activeTab == "finance" ? "bg-white dark:bg-dark text-purple shadow-sm" : "text-black/50 dark:text-white/50 hover:text-black dark:hover:text-white")" @onclick='() => activeTab = "finance"'>
+                Finance
+            </button>
         </div>
 
         @if (selectedEditionId == Guid.Empty)
@@ -171,6 +176,19 @@
                             </td>
                         </tr>
                         <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Invoice PDFs</td>
+                            <td class="px-4 py-3 text-right">
+                                <div class="inline-flex gap-2">
+                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs")" @onclick="DownloadInvoicesZipAsync">
+                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs" ? "Downloading..." : "Download")
+                                    </button>
+                                    <button type="button" class="btn border border-black/10 dark:border-darkborder disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="OpenBulkCreateInvoicesModal">
+                                        <i class="ri-file-add-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
                             <td class="px-4 py-3">Financial Summary</td>
                             <td class="px-4 py-3 text-right">
                                 <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "financial-summary")" @onclick='() => DownloadAsync("financial-summary")'>
@@ -200,6 +218,26 @@
         }
     </div>
 </div>
+
+@if (showBulkCreateInvoicesModal)
+{
+    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
+        <div class="flex items-start justify-center min-h-screen px-4 py-10">
+            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+                <div class="px-5 py-4">
+                    <h3 class="text-lg font-semibold text-black dark:text-white">Generate Invoices</h3>
+                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">
+                        This generates an invoice for every paid registration in this edition that doesn't have one yet, using the data already on file for each attendee (name, document, city, country -- no fiscal address, since the registration form never asks for one). This is for internal accounting, not fiscal invoices for attendees. It can only be done once per registration: it won't recreate invoices that already exist. Continue?
+                    </p>
+                </div>
+                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
+                    <button type="button" class="btn border border-black/10" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="CloseBulkCreateInvoicesModal">Cancel</button>
+                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="ConfirmBulkCreateInvoicesAsync">@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
 
 <script>
     window.downloadFileFromBase64 = (filename, base64, mimeType) => {
@@ -231,6 +269,7 @@
     private string? downloadingReport;
     private string? successMessage;
     private string? errorMessage;
+    private bool showBulkCreateInvoicesModal;
 
     private List<EditionDto> editionsForSelectedFestival =>
         editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
@@ -310,6 +349,7 @@
     }
 
     private const string XlsxMimeType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+    private const string ZipMimeType = "application/zip";
 
     private async Task DownloadAsync(string reportType)
     {
@@ -340,6 +380,69 @@
     private static string Capitalize(string value)
     {
         return string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
+    }
+
+    private async Task DownloadInvoicesZipAsync()
+    {
+        if (selectedEditionId == Guid.Empty)
+        {
+            return;
+        }
+
+        downloadingReport = "invoice-pdfs";
+
+        try
+        {
+            byte[] bytes = await InvoiceApiClient.GetInvoicesZipAsync(selectedEditionId);
+            string base64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFileFromBase64", "invoices.zip", base64, ZipMimeType);
+            ShowSuccess("Invoices downloaded successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            downloadingReport = null;
+        }
+    }
+
+    private void OpenBulkCreateInvoicesModal()
+    {
+        if (selectedEditionId == Guid.Empty)
+        {
+            return;
+        }
+
+        showBulkCreateInvoicesModal = true;
+    }
+
+    private void CloseBulkCreateInvoicesModal()
+    {
+        showBulkCreateInvoicesModal = false;
+    }
+
+    private async Task ConfirmBulkCreateInvoicesAsync()
+    {
+        showBulkCreateInvoicesModal = false;
+        downloadingReport = "invoice-pdfs-generate";
+
+        try
+        {
+            byte[] bytes = await InvoiceApiClient.BulkCreateInvoicesZipAsync(selectedEditionId);
+            string base64 = Convert.ToBase64String(bytes);
+            await JsRuntime.InvokeVoidAsync("downloadFileFromBase64", "invoices.zip", base64, ZipMimeType);
+            ShowSuccess("Invoices generated and downloaded successfully.");
+        }
+        catch (Exception ex)
+        {
+            ShowError(ex.Message);
+        }
+        finally
+        {
+            downloadingReport = null;
+        }
     }
     private void HandleFestivalStateChanged()
     {

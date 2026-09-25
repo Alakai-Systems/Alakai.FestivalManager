@@ -71,9 +71,18 @@ public class QuestPdfInvoiceService : IInvoicePdfService
                         {
                             billed.Item().Text("BILLED TO").FontSize(9).Bold().FontColor(AccentColor);
                             billed.Item().PaddingTop(4).Text(invoice.FiscalName).Bold();
-                            billed.Item().Text($"Tax ID: {invoice.TaxId}").FontColor(MutedTextColor);
-                            billed.Item().Text(invoice.Address).FontColor(MutedTextColor);
-                            billed.Item().Text($"{invoice.PostalCode} {invoice.City}, {invoice.Country}").FontColor(MutedTextColor);
+                            if (!string.IsNullOrWhiteSpace(invoice.TaxId))
+                            {
+                                billed.Item().Text($"Tax ID: {invoice.TaxId}").FontColor(MutedTextColor);
+                            }
+                            if (!string.IsNullOrWhiteSpace(invoice.Address))
+                            {
+                                billed.Item().Text(invoice.Address).FontColor(MutedTextColor);
+                            }
+                            if (!string.IsNullOrWhiteSpace(invoice.City) || !string.IsNullOrWhiteSpace(invoice.Country))
+                            {
+                                billed.Item().Text($"{invoice.PostalCode} {invoice.City}, {invoice.Country}".Trim()).FontColor(MutedTextColor);
+                            }
                         });
                     });
 

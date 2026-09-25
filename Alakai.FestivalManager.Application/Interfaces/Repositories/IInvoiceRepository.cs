@@ -6,6 +6,7 @@ public interface IInvoiceRepository
     Task<Invoice?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Invoice?> GetByRegistrationIdAsync(Guid registrationId, CancellationToken cancellationToken = default);
     Task<IReadOnlyList<Invoice>> GetAllAsync(CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<Invoice>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default);
     Task<int> GetMaxSequenceNumberForYearAsync(int year, CancellationToken cancellationToken = default);
     void Update(Invoice invoice);
     void Delete(Invoice invoice);

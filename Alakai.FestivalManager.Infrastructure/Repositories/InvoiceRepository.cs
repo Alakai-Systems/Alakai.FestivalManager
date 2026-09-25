@@ -37,6 +37,16 @@ public class InvoiceRepository : IInvoiceRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<IReadOnlyList<Invoice>> GetByEditionIdAsync(Guid editionId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Invoices
+            .Include(i => i.Registration)
+                .ThenInclude(r => r.Edition)
+            .Where(i => i.Registration.EditionId == editionId)
+            .OrderByDescending(i => i.IssuedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<int> GetMaxSequenceNumberForYearAsync(int year, CancellationToken cancellationToken = default)
     {
         bool any = await _context.Invoices.AnyAsync(i => i.Year == year, cancellationToken);
