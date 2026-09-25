@@ -2056,7 +2056,22 @@
             // reembolso esto da 0 y ese 0 es justo lo que se manda a Redsys.
             decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
             decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
-            CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
+
+            // Redsys tenia un fallback en appsettings si no se mandaban UrlOk/UrlKo,
+            // pero Stripe no lo tiene -- sin esto, Stripe respondia "Missing return
+            // URLs for the Stripe checkout session" y el pago ni arrancaba. Se
+            // construyen igual que en el formulario publico (Register.razor),
+            // apuntando de vuelta a este mismo dashboard.
+            string baseUrl = Navigation.BaseUri.TrimEnd('/');
+            string langSegment = string.IsNullOrWhiteSpace(Lang) ? string.Empty : $"/{Lang}";
+            string platformSegment = SelectedPaymentPlatform.ToLowerInvariant();
+            CreatePaymentSessionRequest request = new()
+            {
+                RegistrationId = Dashboard.Registration.Id,
+                AmountOverride = amountOverride,
+                UrlOk = $"{baseUrl}/user-panel/dashboard{langSegment}?payment=ok&platform={platformSegment}",
+                UrlKo = $"{baseUrl}/user-panel/dashboard{langSegment}?payment=ko&platform={platformSegment}"
+            };
 
             if (SelectedPaymentPlatform == "Stripe")
             {
@@ -2189,7 +2204,16 @@
 
         if (query.Contains("payment=ok", StringComparison.OrdinalIgnoreCase))
         {
-            ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
+            string returnPlatform = GetQueryValue(query, "platform");
+
+            if (string.Equals(returnPlatform, "stripe", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowPaymentBanner("Payment completed at the gateway. Confirming with Stripe, this page will refresh automatically in a few seconds.", isError: false);
+            }
+            else
+            {
+                ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
+            }
         }
         else if (query.Contains("payment=ko", StringComparison.OrdinalIgnoreCase))
         {

@@ -1,23 +1,34 @@
 <#
-    Fix-FestivalCardsLayout.ps1
+    Fix-PaymentReturnUrlsAndCardLabels.ps1
     -----------------------------------------------
 
-    Mejora visual en los modales "New Festival" y "Edit Festival": las
-    secciones Modules, Payment Plans y Payment Platforms ahora van cada
-    una dentro de su propia card (recuadro con borde suave y fondo
-    ligeramente distinto), en vez de ir las 3 seguidas sin separacion
-    visual como hasta ahora.
+    Dos arreglos independientes:
 
-    No cambia ningun campo, binding ni logica -- solo el markup/estilos
-    de esas 3 secciones, en los dos modales (Create y Edit).
+    1) BUG CRITICO: "Pay Now" desde el panel del usuario (pagos pendientes /
+       segundo plazo de un Split) no mandaba UrlOk/UrlKo al crear la sesion
+       de pago. Redsys lo disimulaba con un fallback en appsettings, pero
+       Stripe no tiene ese fallback y responde "Missing return URLs for the
+       Stripe checkout session" -- el pago ni arranca. Se construyen ahora
+       igual que en el formulario publico (Register.razor), apuntando de
+       vuelta al dashboard. De paso, el aviso que se mostraba al volver del
+       pago (cuando no llegan parametros firmados en la URL) dejaba de
+       llamar a Redsys "culpable" cuando en realidad la pasarela usada era
+       Stripe.
 
-    Verificado contra los archivos reales del repo, con las 9 correcciones
+    2) Coherencia visual: los titulos de las 3 cards del modal New/Edit
+       Festival (Modules, Payment Plans, Payment Platforms) se quedaron en
+       negro (text-black/70, negrita) tras el fix anterior de las cards,
+       mientras el resto de labels del mismo formulario van en gris
+       (text-black/60, sin negrita). Se igualan al resto para que el
+       formulario sea coherente.
+
+    Verificado contra los archivos reales del repo, con las 10 correcciones
     anteriores ya aplicadas. Anchors unicos, balance de llaves/parentesis
     limpio, diff revisado.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-FestivalCardsLayout.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-PaymentReturnUrlsAndCardLabels.ps1
 
     Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
     local difiere de lo esperado, no escribe nada y lista el problema.
@@ -178,216 +189,160 @@ function Invoke-CreateOperation {
     Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): Modules/Payment Plans/Payment Platforms cada uno en su propia card (recuadro suave)
+# 1. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): label 'Modules' vuelve al gris estandar del formulario
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Create modal): Modules/Payment Plans/Payment Platforms cada uno en su propia card (recuadro suave)' `
+    -Description 'Festivals.razor (Create modal): label ''Modules'' vuelve al gris estandar del formulario' `
     -Anchor @'
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasAccommodation" />
-                                Accommodation
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasTransport" />
-                                Transport
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasMeals" />
-                                Meals
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Payment Plans</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowFullOnline" />
-                                Pay 100% now
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowSplitFiftyFifty" />
-                                Split 50/50
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowDeferredTenDays" />
-                                Deferred (10 days)
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
-                                Redsys (bank)
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowStripePlatform" />
-                                Stripe
-                            </label>
-                        </div>
-                    </div>
-'@ `
-    -Replacement @'
-                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
                         <label class="block text-sm font-medium text-black/70 dark:text-white/70">Modules</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="CreateHasAccommodation" />
-                                Accommodation
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasTransport" />
-                                Transport
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateHasMeals" />
-                                Meals
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
+'@ `
+    -Replacement @'
+                        <label class="block text-sm text-black/60 dark:text-white/60">Modules</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowFullOnline" />
-                                Pay 100% now
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowSplitFiftyFifty" />
-                                Split 50/50
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowDeferredTenDays" />
-                                Deferred (10 days)
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
-                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
-                                Redsys (bank)
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="CreateAllowStripePlatform" />
-                                Stripe
-                            </label>
-                        </div>
-                    </div>
+                                <input type="checkbox" @bind="CreateHasAccommodation" />
 '@
 
-# 2. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): Modules/Payment Plans/Payment Platforms cada uno en su propia card (recuadro suave)
+# 2. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): label 'Payment Plans' vuelve al gris estandar del formulario
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor (Edit modal): Modules/Payment Plans/Payment Platforms cada uno en su propia card (recuadro suave)' `
+    -Description 'Festivals.razor (Create modal): label ''Payment Plans'' vuelve al gris estandar del formulario' `
     -Anchor @'
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules</label>
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasAccommodation" />
-                                Accommodation
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasTransport" />
-                                Transport
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasMeals" />
-                                Meals
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Payment Plans</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowFullOnline" />
-                                Pay 100% now
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowSplitFiftyFifty" />
-                                Split 50/50
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowDeferredTenDays" />
-                                Deferred (10 days)
-                            </label>
-                        </div>
-                    </div>
-
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Payment Platforms</label>
-                        <div class="flex flex-wrap gap-4">
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowRedsysPlatform" />
-                                Redsys (bank)
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowStripePlatform" />
-                                Stripe
-                            </label>
-                        </div>
-                    </div>
+                                <input type="checkbox" @bind="CreateAllowFullOnline" />
 '@ `
     -Replacement @'
-                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Plans</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowFullOnline" />
+'@
+
+# 3. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Create modal): label 'Payment Platforms' vuelve al gris estandar del formulario
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
+    -Description 'Festivals.razor (Create modal): label ''Payment Platforms'' vuelve al gris estandar del formulario' `
+    -Anchor @'
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
+'@ `
+    -Replacement @'
+                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Platforms</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
+'@
+
+# 4. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): label 'Modules' vuelve al gris estandar del formulario
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
+    -Description 'Festivals.razor (Edit modal): label ''Modules'' vuelve al gris estandar del formulario' `
+    -Anchor @'
                         <label class="block text-sm font-medium text-black/70 dark:text-white/70">Modules</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="UpdateHasAccommodation" />
-                                Accommodation
-                            </label>
+'@ `
+    -Replacement @'
+                        <label class="block text-sm text-black/60 dark:text-white/60">Modules</label>
+                        <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasTransport" />
-                                Transport
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateHasMeals" />
-                                Meals
-                            </label>
-                        </div>
-                    </div>
+                                <input type="checkbox" @bind="UpdateHasAccommodation" />
+'@
 
-                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+# 5. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): label 'Payment Plans' vuelve al gris estandar del formulario
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
+    -Description 'Festivals.razor (Edit modal): label ''Payment Plans'' vuelve al gris estandar del formulario' `
+    -Anchor @'
                         <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="UpdateAllowFullOnline" />
-                                Pay 100% now
-                            </label>
+'@ `
+    -Replacement @'
+                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Plans</label>
+                        <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowSplitFiftyFifty" />
-                                Split 50/50
-                            </label>
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowDeferredTenDays" />
-                                Deferred (10 days)
-                            </label>
-                        </div>
-                    </div>
+                                <input type="checkbox" @bind="UpdateAllowFullOnline" />
+'@
 
-                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+# 6. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor (Edit modal): label 'Payment Platforms' vuelve al gris estandar del formulario
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
+    -Description 'Festivals.razor (Edit modal): label ''Payment Platforms'' vuelve al gris estandar del formulario' `
+    -Anchor @'
                         <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="UpdateAllowRedsysPlatform" />
-                                Redsys (bank)
-                            </label>
+'@ `
+    -Replacement @'
+                        <label class="block text-sm text-black/60 dark:text-white/60">Payment Platforms</label>
+                        <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="UpdateAllowStripePlatform" />
-                                Stripe
-                            </label>
-                        </div>
-                    </div>
+                                <input type="checkbox" @bind="UpdateAllowRedsysPlatform" />
+'@
+
+# 7. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: PayNowAsync manda UrlOk/UrlKo (arregla 'Missing return URLs' de Stripe) y marca la plataforma usada
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
+    -Description 'UserPanel.razor: PayNowAsync manda UrlOk/UrlKo (arregla ''Missing return URLs'' de Stripe) y marca la plataforma usada' `
+    -Anchor @'
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
+            decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
+            CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
+
+            if (SelectedPaymentPlatform == "Stripe")
+'@ `
+    -Replacement @'
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
+            decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
+
+            // Redsys tenia un fallback en appsettings si no se mandaban UrlOk/UrlKo,
+            // pero Stripe no lo tiene -- sin esto, Stripe respondia "Missing return
+            // URLs for the Stripe checkout session" y el pago ni arrancaba. Se
+            // construyen igual que en el formulario publico (Register.razor),
+            // apuntando de vuelta a este mismo dashboard.
+            string baseUrl = Navigation.BaseUri.TrimEnd('/');
+            string langSegment = string.IsNullOrWhiteSpace(Lang) ? string.Empty : $"/{Lang}";
+            string platformSegment = SelectedPaymentPlatform.ToLowerInvariant();
+            CreatePaymentSessionRequest request = new()
+            {
+                RegistrationId = Dashboard.Registration.Id,
+                AmountOverride = amountOverride,
+                UrlOk = $"{baseUrl}/user-panel/dashboard{langSegment}?payment=ok&platform={platformSegment}",
+                UrlKo = $"{baseUrl}/user-panel/dashboard{langSegment}?payment=ko&platform={platformSegment}"
+            };
+
+            if (SelectedPaymentPlatform == "Stripe")
+'@
+
+# 8. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: el aviso de retorno de pago ya no culpa a Redsys cuando la pasarela usada fue Stripe
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
+    -Description 'UserPanel.razor: el aviso de retorno de pago ya no culpa a Redsys cuando la pasarela usada fue Stripe' `
+    -Anchor @'
+        if (query.Contains("payment=ok", StringComparison.OrdinalIgnoreCase))
+        {
+            ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
+        }
+        else if (query.Contains("payment=ko", StringComparison.OrdinalIgnoreCase))
+'@ `
+    -Replacement @'
+        if (query.Contains("payment=ok", StringComparison.OrdinalIgnoreCase))
+        {
+            string returnPlatform = GetQueryValue(query, "platform");
+
+            if (string.Equals(returnPlatform, "stripe", StringComparison.OrdinalIgnoreCase))
+            {
+                ShowPaymentBanner("Payment completed at the gateway. Confirming with Stripe, this page will refresh automatically in a few seconds.", isError: false);
+            }
+            else
+            {
+                ShowPaymentBanner("Payment completed at the gateway, but Redsys did not send the confirmation parameters back. Enable 'send parameters in the response URLs' on the terminal.", isError: true);
+            }
+        }
+        else if (query.Contains("payment=ko", StringComparison.OrdinalIgnoreCase))
 '@
 
 
@@ -429,6 +384,6 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. Revisa el diff (git diff) y prueba abriendo New Festival y Edit" -ForegroundColor Cyan
-Write-Host "Festival de un festival cualquiera." -ForegroundColor Cyan
+Write-Host "Listo. Prueba un pago pendiente (segundo plazo / Split) con Stripe desde" -ForegroundColor Cyan
+Write-Host "el panel del usuario, y revisa el modal New/Edit Festival." -ForegroundColor Cyan
 Write-Host ""
