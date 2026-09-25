@@ -50,6 +50,11 @@ public class Registration : BaseEntity
 
     public string? PaymentReference { get; set; }
     public string? PaymentAuthCodes { get; set; }
+
+    // Nulo para inscripciones anteriores a esta funcionalidad -- como
+    // historicamente Redsys era la unica plataforma, null se trata como
+    // Redsys en todo el codigo que lo consulta (p.ej. al reembolsar).
+    public PaymentPlatform? PaymentPlatformUsed { get; set; }
     public DateTime? PaidAt { get; set; }
 
     public PaymentPlan PaymentPlan { get; set; } = PaymentPlan.FullOnline;

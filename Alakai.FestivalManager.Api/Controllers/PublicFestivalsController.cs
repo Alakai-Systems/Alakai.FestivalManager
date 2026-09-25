@@ -51,13 +51,23 @@ public class PublicFestivalsController : ControllerBase
             .FirstOrDefault();
 
         bool hasAccommodation = (festival.EnabledModules & FestivalModule.Accommodation) != 0;
+        bool allowFullOnline = (festival.EnabledPaymentPlans & EnabledPaymentPlan.FullOnline) != 0;
+        bool allowSplitFiftyFifty = (festival.EnabledPaymentPlans & EnabledPaymentPlan.SplitFiftyFifty) != 0;
+        bool allowDeferredTenDays = (festival.EnabledPaymentPlans & EnabledPaymentPlan.DeferredTenDays) != 0;
+        bool allowRedsysPayment = (festival.EnabledPaymentPlatforms & EnabledPaymentPlatform.Redsys) != 0;
+        bool allowStripePayment = (festival.EnabledPaymentPlatforms & EnabledPaymentPlatform.Stripe) != 0;
 
         return Ok(new
         {
             ActiveEditionId = active?.Id,
             HasAccommodation = hasAccommodation,
             TermsUrl = festival.TermsUrl,
-            FaviconUrl = festival.FaviconUrl
+            FaviconUrl = festival.FaviconUrl,
+            AllowFullOnline = allowFullOnline,
+            AllowSplitFiftyFifty = allowSplitFiftyFifty,
+            AllowDeferredTenDays = allowDeferredTenDays,
+            AllowRedsysPayment = allowRedsysPayment,
+            AllowStripePayment = allowStripePayment
         });
     }
 

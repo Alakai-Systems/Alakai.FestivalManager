@@ -314,24 +314,33 @@
                         <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:1.5rem;margin-bottom:1.5rem;">
                             <div class="text-sm font-semibold text-black" style="margin-bottom:1rem;">@T.Get("select_payment")</div>
                             <div style="display:flex;flex-direction:column;gap:0.875rem;">
-                                <label class="flex items-start gap-3 cursor-pointer">
-                                    <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="FullOnline"
-                                           checked="@(SelectedPlan == "FullOnline")"
-                                           @onchange="@(e => { SelectedPlan = "FullOnline"; })" />
-                                    <span class="text-sm">@T.Get("total_now")</span>
-                                </label>
-                                <label class="flex items-start gap-3 cursor-pointer">
-                                    <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="SplitFiftyFifty"
-                                           checked="@(SelectedPlan == "SplitFiftyFifty")"
-                                           @onchange="@(e => { SelectedPlan = "SplitFiftyFifty"; })" />
-                                    <span class="text-sm">@T.Get("payment_split")</span>
-                                </label>
-                                <label class="flex items-start gap-3 cursor-pointer">
-                                    <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="DeferredTenDays"
-                                           checked="@(SelectedPlan == "DeferredTenDays")"
-                                           @onchange="@(e => { SelectedPlan = "DeferredTenDays"; })" />
-                                    <span class="text-sm">@T.Get("total_deferred")</span>
-                                </label>
+                                @if (AllowFullOnline)
+                                {
+                                    <label class="flex items-start gap-3 cursor-pointer">
+                                        <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="FullOnline"
+                                               checked="@(SelectedPlan == "FullOnline")"
+                                               @onchange="@(e => { SelectedPlan = "FullOnline"; })" />
+                                        <span class="text-sm">@T.Get("total_now")</span>
+                                    </label>
+                                }
+                                @if (AllowSplitFiftyFifty)
+                                {
+                                    <label class="flex items-start gap-3 cursor-pointer">
+                                        <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="SplitFiftyFifty"
+                                               checked="@(SelectedPlan == "SplitFiftyFifty")"
+                                               @onchange="@(e => { SelectedPlan = "SplitFiftyFifty"; })" />
+                                        <span class="text-sm">@T.Get("payment_split")</span>
+                                    </label>
+                                }
+                                @if (AllowDeferredTenDays)
+                                {
+                                    <label class="flex items-start gap-3 cursor-pointer">
+                                        <input type="radio" class="form-radio" style="margin-top:2px;" name="plan" value="DeferredTenDays"
+                                               checked="@(SelectedPlan == "DeferredTenDays")"
+                                               @onchange="@(e => { SelectedPlan = "DeferredTenDays"; })" />
+                                        <span class="text-sm">@T.Get("total_deferred")</span>
+                                    </label>
+                                }
                             </div>
                             <!-- Price summary -->
                             @if (BasePrice > 0)
@@ -346,6 +355,27 @@
                                 </div>
                             }
                         </div>
+                        @if (AllowRedsysPayment && AllowStripePayment)
+                        {
+                            <!-- STEP 7b: Payment platform (solo si hay mas de una activa para este festival) -->
+                            <div style="border-top:1px solid rgba(0,0,0,0.08);padding-top:1rem;margin-bottom:1.5rem;">
+                                <div class="text-sm font-semibold text-black" style="margin-bottom:0.75rem;">@T.Get("select_payment_platform")</div>
+                                <div style="display:flex;gap:1.5rem;">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" class="form-radio" name="platform" value="Redsys"
+                                               checked="@(SelectedPaymentPlatform == "Redsys")"
+                                               @onchange="@(e => { SelectedPaymentPlatform = "Redsys"; })" />
+                                        <span class="text-sm">Redsys</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" class="form-radio" name="platform" value="Stripe"
+                                               checked="@(SelectedPaymentPlatform == "Stripe")"
+                                               @onchange="@(e => { SelectedPaymentPlatform = "Stripe"; })" />
+                                        <span class="text-sm">Stripe</span>
+                                    </label>
+                                </div>
+                            </div>
+                        }
                         <!-- Error banner -->
                         @if (!string.IsNullOrWhiteSpace(SubmitError))
                         {
@@ -392,6 +422,12 @@
     private string? FooterHtml;
 
     private bool HasAccommodation;
+    private bool AllowFullOnline = true;
+    private bool AllowSplitFiftyFifty = true;
+    private bool AllowDeferredTenDays = true;
+    private bool AllowRedsysPayment = true;
+    private bool AllowStripePayment;
+    private string SelectedPaymentPlatform = "Redsys";
     private string? TermsUrl;
     // Grouped passes for the optgroup selector
     private List<KeyValuePair<string?, List<PublicPassTypeDto>>> PassesByBuilding = [];
@@ -513,39 +549,16 @@
             }
             Form.EditionId = festivalResponse.ActiveEditionId.Value;
             HasAccommodation = festivalResponse.HasAccommodation;
-
-            try
+            AllowFullOnline = festivalResponse.AllowFullOnline;
+            AllowSplitFiftyFifty = festivalResponse.AllowSplitFiftyFifty;
+            AllowDeferredTenDays = festivalResponse.AllowDeferredTenDays;
+            if (!AllowFullOnline)
             {
-                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
-                HeaderHtml = layout?.HeaderHtml;
-                FooterHtml = layout?.FooterHtml;
+                SelectedPlan = AllowSplitFiftyFifty ? "SplitFiftyFifty" : AllowDeferredTenDays ? "DeferredTenDays" : "FullOnline";
             }
-            catch
-            {
-                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
-            }
-
-            try
-            {
-                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
-                HeaderHtml = layout?.HeaderHtml;
-                FooterHtml = layout?.FooterHtml;
-            }
-            catch
-            {
-                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
-            }
-
-            try
-            {
-                PublicEmailLayoutDto? layout = await PublicApi.GetEmailLayoutAsync(festivalResponse.ActiveEditionId.Value);
-                HeaderHtml = layout?.HeaderHtml;
-                FooterHtml = layout?.FooterHtml;
-            }
-            catch
-            {
-                // Sin header/footer configurado para esta edicion - el formulario sigue funcionando sin ellos.
-            }
+            AllowRedsysPayment = festivalResponse.AllowRedsysPayment;
+            AllowStripePayment = festivalResponse.AllowStripePayment;
+            SelectedPaymentPlatform = AllowRedsysPayment ? "Redsys" : "Stripe";
 
             try
             {
@@ -789,6 +802,12 @@
                 UrlOk = $"{baseUrl}/register/{Slug}{langSegment}?payment=ok",
                 UrlKo = $"{baseUrl}/register/{Slug}{langSegment}?payment=ko"
             };
+            if (SelectedPaymentPlatform == "Stripe")
+            {
+                StripeCheckoutSessionDto stripeForm = await PaymentApiClient.CreateStripeSessionAsync(payReq);
+                Navigation.NavigateTo(stripeForm.Url, forceLoad: true);
+                return;
+            }
             RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(payReq);
             await JsRuntime.InvokeVoidAsync("redsysSubmit",
                 form.Url, form.SignatureVersion, form.MerchantParameters, form.Signature);

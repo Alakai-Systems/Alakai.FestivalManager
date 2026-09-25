@@ -126,6 +126,7 @@
   "register_with_partner": "Are you registering with a partner?",
   "select_pass": "Select your pass",
   "select_payment": "Select payment type",
+  "select_payment_platform": "Select payment method",
   "submit": "Register",
   "terms": "Terms & Conditions",
   "total_deferred": "Total amount due within 10 days of receiving the confirmation email",

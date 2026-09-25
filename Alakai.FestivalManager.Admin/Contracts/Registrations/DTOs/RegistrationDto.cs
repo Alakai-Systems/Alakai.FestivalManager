@@ -31,6 +31,7 @@ public class RegistrationDto
     public decimal FinalPrice { get; set; }
     public string? PaymentReference { get; set; }
     public string? PaymentAuthCodes { get; set; }
+    public PaymentPlatform? PaymentPlatformUsed { get; set; }
     public string Language { get; set; } = "en";
     public DateTime? PaidAt { get; set; }
 

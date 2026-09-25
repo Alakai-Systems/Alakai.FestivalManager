@@ -19,6 +19,12 @@ public class PaymentsController : ControllerBase
         return Ok(await _paymentService.CreatePaymentSessionAsync(command, command.UrlOk, command.UrlKo, cancellationToken));
     }
 
+    [HttpPost("stripe/session")]
+    public async Task<IActionResult> CreateStripeSession([FromBody] CreatePaymentSessionCommand command, CancellationToken cancellationToken)
+    {
+        return Ok(await _paymentService.CreateStripeCheckoutSessionAsync(command, command.UrlOk, command.UrlKo, cancellationToken));
+    }
+
     [HttpPost("redsys/confirm-return")]
     public async Task<IActionResult> ConfirmReturn([FromBody] ConfirmRedsysReturnCommand command, CancellationToken cancellationToken)
     {
@@ -50,6 +56,20 @@ public class PaymentsController : ControllerBase
         await _paymentService.ProcessRedsysNotificationAsync(merchantParameters, signature, cancellationToken);
 
         // Redsys only requires an HTTP 200 acknowledgment.
+        return Ok();
+    }
+
+    [AllowAnonymous]
+    [HttpPost("stripe/webhook")]
+    public async Task<IActionResult> StripeWebhook(CancellationToken cancellationToken)
+    {
+        using StreamReader reader = new(Request.Body);
+        string payload = await reader.ReadToEndAsync(cancellationToken);
+        string signatureHeader = Request.Headers["Stripe-Signature"].ToString();
+
+        await _paymentService.ProcessStripeWebhookAsync(payload, signatureHeader, cancellationToken);
+
+        // Stripe solo necesita un 200 de vuelta.
         return Ok();
     }
 }

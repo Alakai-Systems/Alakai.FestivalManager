@@ -10,6 +10,13 @@ public class UpsertFestivalCredentialsRequest
     public string RedsysMerchantName { get; set; } = string.Empty;
     public string? RedsysPaymentUrl { get; set; }
     public string Currency { get; set; } = "EUR";
+    public string? StripePublishableKey { get; set; }
+
+    /// <summary>Vacio = conservar la clave ya guardada.</summary>
+    public string? StripeSecretKey { get; set; }
+
+    /// <summary>Vacio = conservar el secreto ya guardado.</summary>
+    public string? StripeWebhookSecret { get; set; }
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; } = 587;
     public string EmailUsername { get; set; } = string.Empty;

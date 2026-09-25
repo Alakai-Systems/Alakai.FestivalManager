@@ -22,6 +22,19 @@ public class PaymentApiClient
         return response.Data;
     }
 
+    public async Task<StripeCheckoutSessionDto> CreateStripeSessionAsync(CreatePaymentSessionRequest request, CancellationToken cancellationToken = default)
+    {
+        HttpResponseMessage httpResponse = await _httpClient.PostAsJsonAsync("api/payments/stripe/session", request, cancellationToken);
+        ApiResponse<StripeCheckoutSessionDto>? response = await httpResponse.Content.ReadFromJsonAsync<ApiResponse<StripeCheckoutSessionDto>>(cancellationToken);
+
+        if (response?.Success is not true || response.Data is null)
+        {
+            throw new ApiClientException(response?.Errors is { Count: > 0 } ? response.Errors[0] : "Could not start the payment.", response?.Errors);
+        }
+
+        return response.Data;
+    }
+
     public async Task<bool> ProcessReturnAsync(string merchantParameters, CancellationToken cancellationToken = default)
     {
         ProcessRedsysReturnRequest request = new() { MerchantParameters = merchantParameters };

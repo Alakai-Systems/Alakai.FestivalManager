@@ -126,6 +126,7 @@
   "register_with_partner": "Vous inscrivez-vous avec un partenaire ?",
   "select_pass": "Choisissez votre pass",
   "select_payment": "Choisissez votre mode de paiement",
+  "select_payment_platform": "Choisissez votre moyen de paiement",
   "submit": "S’inscrire",
   "terms": "Conditions générales",
   "total_deferred": "Montant total à payer dans les 10 jours suivant la confirmation",

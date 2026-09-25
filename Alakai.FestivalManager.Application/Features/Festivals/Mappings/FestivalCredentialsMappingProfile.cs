@@ -6,7 +6,9 @@ public class FestivalCredentialsMappingProfile : Profile
     {
         CreateMap<FestivalCredentials, FestivalCredentialsDto>()
             .ForMember(dest => dest.HasRedsysSecretKey, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.RedsysSecretKey)))
-            .ForMember(dest => dest.HasEmailPassword, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.EmailPassword)));
+            .ForMember(dest => dest.HasEmailPassword, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.EmailPassword)))
+            .ForMember(dest => dest.HasStripeSecretKey, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.StripeSecretKey)))
+            .ForMember(dest => dest.HasStripeWebhookSecret, opt => opt.MapFrom(src => !string.IsNullOrEmpty(src.StripeWebhookSecret)));
 
         CreateMap<UpsertFestivalCredentialsRequest, UpsertFestivalCredentialsCommand>();
     }

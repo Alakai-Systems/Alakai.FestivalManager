@@ -7,4 +7,6 @@ public interface IPaymentService
     Task<bool> ProcessRedsysNotificationAsync(string merchantParameters, string signature, CancellationToken cancellationToken = default);
     Task<bool> ProcessRedsysReturnAsync(string merchantParameters, CancellationToken cancellationToken = default);
     Task<ApiResponse<bool>> RefundRegistrationAsync(RefundRegistrationCommand command, CancellationToken cancellationToken = default);
+    Task<ApiResponse<StripeCheckoutSessionDto>> CreateStripeCheckoutSessionAsync(CreatePaymentSessionCommand command, string? urlOk, string? urlKo, CancellationToken cancellationToken = default);
+    Task<bool> ProcessStripeWebhookAsync(string payload, string signatureHeader, CancellationToken cancellationToken = default);
 }

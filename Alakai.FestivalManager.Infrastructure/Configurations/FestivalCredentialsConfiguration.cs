@@ -61,6 +61,15 @@ public class FestivalCredentialsConfiguration : IEntityTypeConfiguration<Festiva
             .HasMaxLength(3)
             .HasDefaultValue("EUR");
 
+        builder.Property(fc => fc.StripePublishableKey)
+            .HasMaxLength(200);
+
+        builder.Property(fc => fc.StripeSecretKey)
+            .HasMaxLength(200);
+
+        builder.Property(fc => fc.StripeWebhookSecret)
+            .HasMaxLength(200);
+
         builder.HasOne(fc => fc.Festival)
             .WithOne(f => f.Credentials)
             .HasForeignKey<FestivalCredentials>(fc => fc.FestivalId)

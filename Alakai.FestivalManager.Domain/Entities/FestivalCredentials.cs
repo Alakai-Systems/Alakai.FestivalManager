@@ -22,6 +22,11 @@ public class FestivalCredentials : BaseEntity
     /// <summary>Divisa en la que este festival cobra (codigo ISO alpha: EUR, USD, CAD...). Se traduce al codigo numerico que pide Redsys en RedsysGateway.</summary>
     public string Currency { get; set; } = "EUR";
 
+    // Stripe (opcional -- vacio/null = Stripe no configurado para este festival)
+    public string? StripePublishableKey { get; set; }
+    public string? StripeSecretKey { get; set; }
+    public string? StripeWebhookSecret { get; set; }
+
     // Email (SMTP)
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; } = 587;

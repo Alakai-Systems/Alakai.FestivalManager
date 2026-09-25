@@ -7,6 +7,7 @@ public class PaymentServiceTests
     private readonly Mock<IEmailNotificationService> _emailService = new();
     private readonly Mock<ITicketService> _ticketService = new();
     private readonly Mock<ILogger<PaymentService>> _logger = new();
+    private readonly Mock<IStripeGateway> _stripeGateway = new();
     private readonly PaymentService _sut;
 
     public PaymentServiceTests()
@@ -16,7 +17,8 @@ public class PaymentServiceTests
             _redsysGateway.Object,
             _emailService.Object,
             _ticketService.Object,
-            _logger.Object);
+            _logger.Object,
+            _stripeGateway.Object);
     }
 
     // ── CreatePaymentSessionAsync ─────────────────────────────────────────────

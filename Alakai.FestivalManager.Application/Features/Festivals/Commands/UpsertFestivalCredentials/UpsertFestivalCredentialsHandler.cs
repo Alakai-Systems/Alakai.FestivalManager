@@ -31,6 +31,7 @@ public class UpsertFestivalCredentialsHandler
         credentials.RedsysMerchantName = command.RedsysMerchantName;
         credentials.RedsysPaymentUrl = command.RedsysPaymentUrl;
         credentials.Currency = command.Currency;
+        credentials.StripePublishableKey = command.StripePublishableKey;
         credentials.EmailHost = command.EmailHost;
         credentials.EmailPort = command.EmailPort;
         credentials.EmailUsername = command.EmailUsername;
@@ -47,6 +48,16 @@ public class UpsertFestivalCredentialsHandler
         if (!string.IsNullOrWhiteSpace(command.EmailPassword))
         {
             credentials.EmailPassword = command.EmailPassword;
+        }
+
+        if (!string.IsNullOrWhiteSpace(command.StripeSecretKey))
+        {
+            credentials.StripeSecretKey = command.StripeSecretKey;
+        }
+
+        if (!string.IsNullOrWhiteSpace(command.StripeWebhookSecret))
+        {
+            credentials.StripeWebhookSecret = command.StripeWebhookSecret;
         }
 
         if (isNew)

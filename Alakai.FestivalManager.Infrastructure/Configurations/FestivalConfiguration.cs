@@ -48,14 +48,13 @@ public class FestivalConfiguration : IEntityTypeConfiguration<Festival>
         builder.Property(f => f.CustomDomain)
             .HasMaxLength(255);
 
-        builder.Property(f => f.CustomDomain)
-            .HasMaxLength(255);
+        builder.Property(f => f.EnabledPaymentPlans)
+            .IsRequired()
+            .HasDefaultValue(EnabledPaymentPlan.FullOnline | EnabledPaymentPlan.SplitFiftyFifty | EnabledPaymentPlan.DeferredTenDays);
 
-        builder.Property(f => f.CustomDomain)
-            .HasMaxLength(255);
-
-        builder.Property(f => f.CustomDomain)
-            .HasMaxLength(255);
+        builder.Property(f => f.EnabledPaymentPlatforms)
+            .IsRequired()
+            .HasDefaultValue(EnabledPaymentPlatform.Redsys);
     }
 }
 

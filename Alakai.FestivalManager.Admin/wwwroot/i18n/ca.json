@@ -22,6 +22,7 @@
   "partner_email": "Email de la teva parella",
   "group_code": "Nom del grup / codi de descompte",
   "select_payment": "Selecciona el tipus de pagament",
+  "select_payment_platform": "Selecciona el metode de pagament",
   "payment_split": "Pagament dividit: paga el 50% ara i el 50% restant en 30 dies",
   "price": "Preu:",
   "total_now": "Import total a pagar en línia ara",

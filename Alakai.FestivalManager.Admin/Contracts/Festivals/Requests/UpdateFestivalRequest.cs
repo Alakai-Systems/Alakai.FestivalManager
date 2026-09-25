@@ -13,4 +13,6 @@ public class UpdateFestivalRequest
     public string? CustomDomain { get; set; }
     public bool IsActive { get; set; }
     public int EnabledModules { get; set; }
+    public int EnabledPaymentPlans { get; set; }
+    public int EnabledPaymentPlatforms { get; set; }
 }

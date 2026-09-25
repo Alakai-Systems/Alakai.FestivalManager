@@ -4,6 +4,7 @@ using Alakai.FestivalManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    partial class FestivalManagerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925094712_AddStripeIntegration")]
+    partial class AddStripeIntegration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -873,14 +876,10 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("EnabledPaymentPlans")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(7);
+                        .HasColumnType("int");
 
                     b.Property<int>("EnabledPaymentPlatforms")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
+                        .HasColumnType("int");
 
                     b.Property<string>("FaviconUrl")
                         .HasMaxLength(500)
@@ -1951,9 +1950,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int>("PaymentPlan")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaymentPlatformUsed")
                         .HasColumnType("int");
 
                     b.Property<string>("PaymentReference")

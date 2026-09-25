@@ -13,6 +13,9 @@ public class FestivalCredentialsDto
     public string RedsysMerchantName { get; set; } = string.Empty;
     public string? RedsysPaymentUrl { get; set; }
     public string Currency { get; set; } = "EUR";
+    public string? StripePublishableKey { get; set; }
+    public bool HasStripeSecretKey { get; set; }
+    public bool HasStripeWebhookSecret { get; set; }
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; }
     public string EmailUsername { get; set; } = string.Empty;

@@ -317,14 +317,23 @@
                 </div>
                 @if (PaymentStatus != "Paid")
                 {
-                    <button type="button" disabled="@IsStartingPayment" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="PayNowAsync">
-                        @if (IsStartingPayment) { @T.Get("loading") }
-                        else if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid") {
-
-                            @T.Get("up_pay_remaining")
+                    <div class="flex items-center gap-3">
+                        @if (Dashboard?.Registration?.AllowRedsysPayment == true && Dashboard?.Registration?.AllowStripePayment == true)
+                        {
+                            <select class="form-select" style="width:auto;" @bind="SelectedPaymentPlatform">
+                                <option value="Redsys">Redsys</option>
+                                <option value="Stripe">Stripe</option>
+                            </select>
                         }
-                        else { @T.Get("up_pay_now") }
-                    </button>
+                        <button type="button" disabled="@IsStartingPayment" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85]" @onclick="PayNowAsync">
+                            @if (IsStartingPayment) { @T.Get("loading") }
+                            else if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid") {
+
+                                @T.Get("up_pay_remaining")
+                            }
+                            else { @T.Get("up_pay_now") }
+                        </button>
+                    </div>
                 }
             </div>
 
@@ -2020,6 +2029,8 @@
 
     private bool PaymentBannerIsError { get; set; }
 
+    private string SelectedPaymentPlatform = "Redsys";
+
     private async Task PayNowAsync()
     {
         if (Dashboard?.Registration is null)
@@ -2046,17 +2057,26 @@
             decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
             decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
             CreatePaymentSessionRequest request = new() { RegistrationId = Dashboard.Registration.Id, AmountOverride = amountOverride };
-            RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(request);
 
-            await JsRuntime.InvokeVoidAsync("redsysSubmit", form.Url, form.SignatureVersion, form.MerchantParameters, form.Signature);
+            if (SelectedPaymentPlatform == "Stripe")
+            {
+                StripeCheckoutSessionDto stripeForm = await PaymentApiClient.CreateStripeSessionAsync(request);
+                await JsRuntime.InvokeVoidAsync("open", stripeForm.Url, "_blank");
+            }
+            else
+            {
+                RedsysPaymentFormDto form = await PaymentApiClient.CreateSessionAsync(request);
+                await JsRuntime.InvokeVoidAsync("redsysSubmit", form.Url, form.SignatureVersion, form.MerchantParameters, form.Signature);
+            }
 
             IsStartingPayment = false;
             ShowPaymentBanner(T.Get("up_payment_new_tab"), isError: false);
 
-            // El pago se abre en una pestana NUEVA (redsysSubmit usa target=_blank);
-            // esta pestana (la que ya tenias abierta) no se entera sola de que se
-            // pago. Mientras esa pestana de pago sigue abierta, sondeamos el estado
-            // de la inscripcion para refrescar esta pestana en cuanto cambie.
+            // El pago se abre en una pestana NUEVA (tanto redsysSubmit como el "open"
+            // de Stripe usan una pestana nueva); esta pestana (la que ya tenias
+            // abierta) no se entera sola de que se pago. Mientras esa pestana de pago
+            // sigue abierta, sondeamos el estado de la inscripcion para refrescar
+            // esta pestana en cuanto cambie.
             StartPaymentPolling();
         }
         catch (Exception ex)

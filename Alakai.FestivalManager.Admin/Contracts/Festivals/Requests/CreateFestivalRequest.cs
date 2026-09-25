@@ -12,4 +12,6 @@ public class CreateFestivalRequest
     public string? FaviconUrl { get; set; }
     public string? CustomDomain { get; set; }
     public int EnabledModules { get; set; } = 1;
+    public int EnabledPaymentPlans { get; set; } = 7;
+    public int EnabledPaymentPlatforms { get; set; } = 1;
 }

@@ -110,11 +110,45 @@ public enum FestivalModule
     Meals = 8
 }
 
+// Distinto de PaymentPlan (el plan elegido por cada inscripcion, valores 1/2/3
+// ya grabados en produccion). Este es la mascara de que planes puede elegir
+// quien se registra en un festival.
+[Flags]
+public enum EnabledPaymentPlan
+{
+    None = 0,
+    FullOnline = 1,
+    SplitFiftyFifty = 2,
+    DeferredTenDays = 4
+}
+
+// Mirror local de Domain.Enums.EnabledPaymentPlatform (el proyecto Admin no
+// referencia Domain/Application directamente).
+[Flags]
+public enum EnabledPaymentPlatform
+{
+    None = 0,
+    Redsys = 1,
+    Stripe = 2,
+    PayPal = 4
+}
+
 public enum PaymentPlan
 {
     FullOnline = 1,
     SplitFiftyFifty = 2,
     DeferredTenDays = 3
+}
+
+// Distinto de EnabledPaymentPlatform (la mascara de plataformas habilitadas
+// en el festival). Este es el medio de pago realmente usado en cada
+// inscripcion; mirror local de Domain.Enums.PaymentPlatform (el proyecto
+// Admin no referencia Domain/Application directamente).
+public enum PaymentPlatform
+{
+    Redsys = 1,
+    Stripe = 2,
+    PayPal = 3
 }
 
 public enum ProductionPersonCategory

@@ -21,4 +21,6 @@ public class UserPanelRegistrationDto
     public decimal RefundedAmount { get; set; }
     public DateTime? PaymentDueAt { get; set; }
     public string Language { get; set; } = "en";
+    public bool AllowRedsysPayment { get; set; } = true;
+    public bool AllowStripePayment { get; set; }
 }

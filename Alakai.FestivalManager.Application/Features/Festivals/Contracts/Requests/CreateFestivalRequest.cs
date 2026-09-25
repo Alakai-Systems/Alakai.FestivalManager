@@ -14,4 +14,7 @@ public class CreateFestivalRequest
     public string? FaviconUrl { get; set; }
     public string? CustomDomain { get; set; }
     public FestivalModule EnabledModules { get; set; } = FestivalModule.Competitions;
+    public EnabledPaymentPlan EnabledPaymentPlans { get; set; } =
+        EnabledPaymentPlan.FullOnline | EnabledPaymentPlan.SplitFiftyFifty | EnabledPaymentPlan.DeferredTenDays;
+    public EnabledPaymentPlatform EnabledPaymentPlatforms { get; set; } = EnabledPaymentPlatform.Redsys;
 }

@@ -180,8 +180,8 @@
                     <input class="form-input" placeholder="Google Analytics Property ID" @bind="createRequest.GoogleAnalyticsPropertyId" />
                     <textarea class="form-input md:col-span-2" placeholder="Description" rows="3" @bind="createRequest.Description"></textarea>
 
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules</label>
+                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Modules</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="CreateHasAccommodation" />
@@ -194,6 +194,38 @@
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="CreateHasMeals" />
                                 Meals
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowFullOnline" />
+                                Pay 100% now
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowSplitFiftyFifty" />
+                                Split 50/50
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowDeferredTenDays" />
+                                Deferred (10 days)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowRedsysPlatform" />
+                                Redsys (bank)
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="CreateAllowStripePlatform" />
+                                Stripe
                             </label>
                         </div>
                     </div>
@@ -273,8 +305,8 @@
                         <textarea class="form-input" placeholder="Description" rows="3" @bind="updateRequest.Description"></textarea>
                     </div>
 
-                    <div class="md:col-span-2">
-                        <label class="block mb-2 text-sm text-black/60 dark:text-white/60">Modules</label>
+                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Modules</label>
                         <div class="flex flex-wrap gap-4">
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="UpdateHasAccommodation" />
@@ -287,6 +319,38 @@
                             <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
                                 <input type="checkbox" @bind="UpdateHasMeals" />
                                 Meals
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Plans</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateAllowFullOnline" />
+                                Pay 100% now
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateAllowSplitFiftyFifty" />
+                                Split 50/50
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateAllowDeferredTenDays" />
+                                Deferred (10 days)
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="p-4 space-y-2 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                        <label class="block text-sm font-medium text-black/70 dark:text-white/70">Payment Platforms</label>
+                        <div class="flex flex-wrap gap-4">
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateAllowRedsysPlatform" />
+                                Redsys (bank)
+                            </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="UpdateAllowStripePlatform" />
+                                Stripe
                             </label>
                         </div>
                     </div>
@@ -346,7 +410,7 @@
                     </button>
                 </div>
 
-                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-2">
+                <div class="grid grid-cols-1 gap-6 p-5 md:grid-cols-2">
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
                         <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
@@ -358,46 +422,67 @@
                     }
                     else
                     {
-                        <div class="space-y-4">
-                            <p class="text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Redsys</p>
+                        <div class="space-y-6">
+                            <div class="space-y-4">
+                                <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Redsys</p>
 
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
-                                <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
+                                    <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
+                                    <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
+                                    <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Payment URL (test o produccion)</label>
+                                    <input class="form-input" placeholder="https://sis.redsys.es/sis/realizarPago" @bind="credentialsRequest.RedsysPaymentUrl" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
+                                    <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
+                                </div>
+
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Currency</label>
+                                    <select class="form-select" @bind="credentialsRequest.Currency">
+                                        <option value="EUR">EUR (€)</option>
+                                        <option value="USD">USD ($)</option>
+                                        <option value="CAD">CAD (CA$)</option>
+                                    </select>
+                                </div>
                             </div>
 
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
-                                <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
-                            </div>
+                            <div class="space-y-4">
+                                <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Stripe</p>
 
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
-                                <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
-                            </div>
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Publishable Key</label>
+                                    <input class="form-input" placeholder="pk_test_..." @bind="credentialsRequest.StripePublishableKey" />
+                                </div>
 
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Payment URL (test o produccion)</label>
-                                <input class="form-input" placeholder="https://sis.redsys.es/sis/realizarPago" @bind="credentialsRequest.RedsysPaymentUrl" />
-                            </div>
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
+                                    <input type="password" class="form-input" placeholder="@(hasStripeSecretKey ? "Already configured - leave blank to keep" : "sk_test_...")" @bind="credentialsRequest.StripeSecretKey" />
+                                </div>
 
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
-                                <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
-                            </div>
-
-                            <div>
-                                <label class="block text-sm text-black/60 dark:text-white/60">Currency</label>
-                                <select class="form-select" @bind="credentialsRequest.Currency">
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="CAD">CAD (CA$)</option>
-                                </select>
+                                <div>
+                                    <label class="block text-sm text-black/60 dark:text-white/60">Webhook Secret</label>
+                                    <input type="password" class="form-input" placeholder="@(hasStripeWebhookSecret ? "Already configured - leave blank to keep" : "whsec_...")" @bind="credentialsRequest.StripeWebhookSecret" />
+                                </div>
                             </div>
                         </div>
 
                         <div class="space-y-4">
-                            <p class="text-xs font-semibold tracking-wide uppercase text-black/40 dark:text-white/40">Email (SMTP)</p>
+                            <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Email (SMTP)</p>
 
                             <div>
                                 <label class="block text-sm text-black/60 dark:text-white/60">Host</label>
@@ -428,12 +513,12 @@
                                 <label class="block text-sm text-black/60 dark:text-white/60">From Name</label>
                                 <input class="form-input" placeholder="Festival Name" @bind="credentialsRequest.EmailFromName" />
                             </div>
-                        </div>
 
-                        <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white md:col-span-2">
-                            <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
-                            Use SSL/TLS
-                        </label>
+                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
+                                <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
+                                Use SSL/TLS
+                            </label>
+                        </div>
                     }
                 </div>
 
@@ -490,6 +575,66 @@
         get => (createRequest.EnabledModules & (int)FestivalModule.Meals) != 0;
         set => createRequest.EnabledModules = value ? createRequest.EnabledModules | (int)FestivalModule.Meals : createRequest.EnabledModules & ~(int)FestivalModule.Meals;
     }
+
+    private bool UpdateAllowFullOnline
+    {
+        get => (updateRequest.EnabledPaymentPlans & (int)EnabledPaymentPlan.FullOnline) != 0;
+        set => updateRequest.EnabledPaymentPlans = value ? updateRequest.EnabledPaymentPlans | (int)EnabledPaymentPlan.FullOnline : updateRequest.EnabledPaymentPlans & ~(int)EnabledPaymentPlan.FullOnline;
+    }
+
+    private bool UpdateAllowSplitFiftyFifty
+    {
+        get => (updateRequest.EnabledPaymentPlans & (int)EnabledPaymentPlan.SplitFiftyFifty) != 0;
+        set => updateRequest.EnabledPaymentPlans = value ? updateRequest.EnabledPaymentPlans | (int)EnabledPaymentPlan.SplitFiftyFifty : updateRequest.EnabledPaymentPlans & ~(int)EnabledPaymentPlan.SplitFiftyFifty;
+    }
+
+    private bool UpdateAllowDeferredTenDays
+    {
+        get => (updateRequest.EnabledPaymentPlans & (int)EnabledPaymentPlan.DeferredTenDays) != 0;
+        set => updateRequest.EnabledPaymentPlans = value ? updateRequest.EnabledPaymentPlans | (int)EnabledPaymentPlan.DeferredTenDays : updateRequest.EnabledPaymentPlans & ~(int)EnabledPaymentPlan.DeferredTenDays;
+    }
+
+    private bool CreateAllowFullOnline
+    {
+        get => (createRequest.EnabledPaymentPlans & (int)EnabledPaymentPlan.FullOnline) != 0;
+        set => createRequest.EnabledPaymentPlans = value ? createRequest.EnabledPaymentPlans | (int)EnabledPaymentPlan.FullOnline : createRequest.EnabledPaymentPlans & ~(int)EnabledPaymentPlan.FullOnline;
+    }
+
+    private bool CreateAllowSplitFiftyFifty
+    {
+        get => (createRequest.EnabledPaymentPlans & (int)EnabledPaymentPlan.SplitFiftyFifty) != 0;
+        set => createRequest.EnabledPaymentPlans = value ? createRequest.EnabledPaymentPlans | (int)EnabledPaymentPlan.SplitFiftyFifty : createRequest.EnabledPaymentPlans & ~(int)EnabledPaymentPlan.SplitFiftyFifty;
+    }
+
+    private bool CreateAllowDeferredTenDays
+    {
+        get => (createRequest.EnabledPaymentPlans & (int)EnabledPaymentPlan.DeferredTenDays) != 0;
+        set => createRequest.EnabledPaymentPlans = value ? createRequest.EnabledPaymentPlans | (int)EnabledPaymentPlan.DeferredTenDays : createRequest.EnabledPaymentPlans & ~(int)EnabledPaymentPlan.DeferredTenDays;
+    }
+
+    private bool UpdateAllowRedsysPlatform
+    {
+        get => (updateRequest.EnabledPaymentPlatforms & (int)EnabledPaymentPlatform.Redsys) != 0;
+        set => updateRequest.EnabledPaymentPlatforms = value ? updateRequest.EnabledPaymentPlatforms | (int)EnabledPaymentPlatform.Redsys : updateRequest.EnabledPaymentPlatforms & ~(int)EnabledPaymentPlatform.Redsys;
+    }
+
+    private bool UpdateAllowStripePlatform
+    {
+        get => (updateRequest.EnabledPaymentPlatforms & (int)EnabledPaymentPlatform.Stripe) != 0;
+        set => updateRequest.EnabledPaymentPlatforms = value ? updateRequest.EnabledPaymentPlatforms | (int)EnabledPaymentPlatform.Stripe : updateRequest.EnabledPaymentPlatforms & ~(int)EnabledPaymentPlatform.Stripe;
+    }
+
+    private bool CreateAllowRedsysPlatform
+    {
+        get => (createRequest.EnabledPaymentPlatforms & (int)EnabledPaymentPlatform.Redsys) != 0;
+        set => createRequest.EnabledPaymentPlatforms = value ? createRequest.EnabledPaymentPlatforms | (int)EnabledPaymentPlatform.Redsys : createRequest.EnabledPaymentPlatforms & ~(int)EnabledPaymentPlatform.Redsys;
+    }
+
+    private bool CreateAllowStripePlatform
+    {
+        get => (createRequest.EnabledPaymentPlatforms & (int)EnabledPaymentPlatform.Stripe) != 0;
+        set => createRequest.EnabledPaymentPlatforms = value ? createRequest.EnabledPaymentPlatforms | (int)EnabledPaymentPlatform.Stripe : createRequest.EnabledPaymentPlatforms & ~(int)EnabledPaymentPlatform.Stripe;
+    }
     private IReadOnlyList<FestivalDto> allFestivals = [];
     private FestivalDto? selectedFestival;
     private CreateFestivalRequest createRequest = new();
@@ -509,6 +654,8 @@
     private bool isLoadingCredentials;
     private bool hasRedsysSecretKey;
     private bool hasEmailPassword;
+    private bool hasStripeSecretKey;
+    private bool hasStripeWebhookSecret;
     private FestivalDto? selectedFestivalForCredentials;
     private UpsertFestivalCredentialsRequest credentialsRequest = new();
 
@@ -682,7 +829,9 @@
             FaviconUrl = festival.FaviconUrl,
             CustomDomain = festival.CustomDomain,
             IsActive = festival.IsActive,
-            EnabledModules = festival.EnabledModules
+            EnabledModules = festival.EnabledModules,
+            EnabledPaymentPlans = festival.EnabledPaymentPlans,
+            EnabledPaymentPlatforms = festival.EnabledPaymentPlatforms
         };
         showEditModal = true;
     }
@@ -714,6 +863,8 @@
         credentialsRequest = new UpsertFestivalCredentialsRequest();
         hasRedsysSecretKey = false;
         hasEmailPassword = false;
+        hasStripeSecretKey = false;
+        hasStripeWebhookSecret = false;
 
         try
         {
@@ -726,6 +877,7 @@
                 credentialsRequest.RedsysMerchantName = existing.RedsysMerchantName;
                 credentialsRequest.RedsysPaymentUrl = existing.RedsysPaymentUrl;
                 credentialsRequest.Currency = string.IsNullOrWhiteSpace(existing.Currency) ? "EUR" : existing.Currency;
+                credentialsRequest.StripePublishableKey = existing.StripePublishableKey;
                 credentialsRequest.EmailHost = existing.EmailHost;
                 credentialsRequest.EmailPort = existing.EmailPort;
                 credentialsRequest.EmailUsername = existing.EmailUsername;
@@ -734,6 +886,8 @@
                 credentialsRequest.EmailUseSSL = existing.EmailUseSSL;
                 hasRedsysSecretKey = existing.HasRedsysSecretKey;
                 hasEmailPassword = existing.HasEmailPassword;
+                hasStripeSecretKey = existing.HasStripeSecretKey;
+                hasStripeWebhookSecret = existing.HasStripeWebhookSecret;
             }
         }
         catch (ApiClientException ex)

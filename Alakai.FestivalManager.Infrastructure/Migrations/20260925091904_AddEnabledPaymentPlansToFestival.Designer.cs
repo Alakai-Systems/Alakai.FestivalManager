@@ -4,6 +4,7 @@ using Alakai.FestivalManager.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace Alakai.FestivalManager.Infrastructure.Migrations
 {
     [DbContext(typeof(FestivalManagerDbContext))]
-    partial class FestivalManagerDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260925091904_AddEnabledPaymentPlansToFestival")]
+    partial class AddEnabledPaymentPlansToFestival
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -873,14 +876,7 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasColumnType("int");
 
                     b.Property<int>("EnabledPaymentPlans")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(7);
-
-                    b.Property<int>("EnabledPaymentPlatforms")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int")
-                        .HasDefaultValue(1);
+                        .HasColumnType("int");
 
                     b.Property<string>("FaviconUrl")
                         .HasMaxLength(500)
@@ -999,18 +995,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(10)
                         .HasColumnType("nvarchar(10)");
-
-                    b.Property<string>("StripePublishableKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("StripeSecretKey")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<string>("StripeWebhookSecret")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -1951,9 +1935,6 @@ namespace Alakai.FestivalManager.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<int>("PaymentPlan")
-                        .HasColumnType("int");
-
-                    b.Property<int?>("PaymentPlatformUsed")
                         .HasColumnType("int");
 
                     b.Property<string>("PaymentReference")

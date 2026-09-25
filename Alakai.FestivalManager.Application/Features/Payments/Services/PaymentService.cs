@@ -9,15 +9,18 @@ public class PaymentService : IPaymentService
     private readonly IEmailNotificationService _emailNotificationService;
     private readonly ITicketService _ticketService;
     private readonly ILogger<PaymentService> _logger;
+    private readonly IStripeGateway _stripeGateway;
 
     public PaymentService(IRegistrationRepository registrationRepository, IRedsysGateway redsysGateway,
-        IEmailNotificationService emailNotificationService, ITicketService ticketService, ILogger<PaymentService> logger)
+        IEmailNotificationService emailNotificationService, ITicketService ticketService, ILogger<PaymentService> logger,
+        IStripeGateway stripeGateway)
     {
         _registrationRepository = registrationRepository;
         _redsysGateway = redsysGateway;
         _emailNotificationService = emailNotificationService;
         _ticketService = ticketService;
         _logger = logger;
+        _stripeGateway = stripeGateway;
     }
 
     public async Task<ApiResponse<RedsysPaymentFormDto>> CreatePaymentSessionAsync(CreatePaymentSessionCommand command, CancellationToken cancellationToken = default)
@@ -110,6 +113,8 @@ public class PaymentService : IPaymentService
                         ? entry
                         : registration.PaymentAuthCodes + "|" + entry;
                 }
+
+                registration.PaymentPlatformUsed = PaymentPlatform.Redsys;
 
                 if (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.AmountPaid == 0m)
                 {
@@ -240,6 +245,8 @@ public class PaymentService : IPaymentService
                     : registration.PaymentAuthCodes + "|" + entry;
             }
 
+            registration.PaymentPlatformUsed = PaymentPlatform.Redsys;
+
             _logger.LogInformation("Redsys payment approved. Order {Order}, auth code {AuthCode}.", notification.Order, notification.AuthorisationCode);
         }
         else
@@ -295,17 +302,21 @@ public class PaymentService : IPaymentService
             return new ApiResponse<bool> { Success = false, Data = false, Errors = [$"The refund amount exceeds the amount available to refund ({refundable:0.00})."], Message = "Refund failed" };
         }
 
-        // El Order que confirmo el cobro en Redsys, tal y como se guardo en PaymentAuthCodes
-        // ("order:authcode", varias entradas separadas por "|" si hubo mas de un cobro,
-        // p.ej. en un plan de pago dividido). Se reembolsa contra el ultimo cobro confirmado.
-        string? order = registration.PaymentAuthCodes?
+        // "order:identificador" del ultimo cobro confirmado, tal y como se guardo en
+        // PaymentAuthCodes (varias entradas separadas por "|" si hubo mas de un cobro,
+        // p.ej. en un plan de pago dividido). Para Redsys el identificador es el
+        // AuthorisationCode (no se usa para reembolsar, solo se reembolsa contra el
+        // Order); para Stripe el identificador ES el PaymentIntentId que hace falta
+        // para reembolsar.
+        string? lastEntry = registration.PaymentAuthCodes?
             .Split('|', StringSplitOptions.RemoveEmptyEntries)
-            .LastOrDefault()?
-            .Split(':')[0];
+            .LastOrDefault();
+        string? order = lastEntry?.Split(':')[0];
+        string? identifier = lastEntry is not null && lastEntry.Contains(':') ? lastEntry.Split(':')[1] : null;
 
         if (string.IsNullOrWhiteSpace(order))
         {
-            return new ApiResponse<bool> { Success = false, Data = false, Errors = ["No Redsys payment is on record for this registration."], Message = "Refund failed" };
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = ["No payment is on record for this registration."], Message = "Refund failed" };
         }
 
         FestivalCredentials? credentials = registration.Edition?.Festival?.Credentials;
@@ -317,19 +328,47 @@ public class PaymentService : IPaymentService
 
         long amountInCents = (long)Math.Round(command.Amount * 100m, MidpointRounding.AwayFromZero);
 
-        RedsysRefundResultDto result = await _redsysGateway.SendRefundAsync(credentials, order, amountInCents, cancellationToken);
+        // Nulo (inscripciones anteriores a esta funcionalidad) se trata como Redsys,
+        // que era la unica plataforma que existia hasta ahora.
+        PaymentPlatform platform = registration.PaymentPlatformUsed ?? PaymentPlatform.Redsys;
 
-        if (!result.Success)
+        bool refundSuccess;
+        string refundMessage;
+        string platformLabel;
+
+        if (platform == PaymentPlatform.Stripe)
         {
-            _logger.LogWarning("Redsys refund rejected for registration {RegistrationId}, order {Order}: {Message}", registration.Id, order, result.Message);
+            platformLabel = "Stripe";
 
-            return new ApiResponse<bool> { Success = false, Data = false, Errors = [result.Message], Message = "Refund failed" };
+            if (string.IsNullOrWhiteSpace(identifier))
+            {
+                return new ApiResponse<bool> { Success = false, Data = false, Errors = ["No Stripe payment intent is on record for this registration."], Message = "Refund failed" };
+            }
+
+            StripeRefundResultDto stripeResult = await _stripeGateway.SendRefundAsync(credentials, identifier, amountInCents, cancellationToken);
+            refundSuccess = stripeResult.Success;
+            refundMessage = stripeResult.Message;
+        }
+        else
+        {
+            platformLabel = "Redsys";
+
+            RedsysRefundResultDto redsysResult = await _redsysGateway.SendRefundAsync(credentials, order, amountInCents, cancellationToken);
+            refundSuccess = redsysResult.Success;
+            refundMessage = redsysResult.Message;
+        }
+
+        if (!refundSuccess)
+        {
+            _logger.LogWarning("{Platform} refund rejected for registration {RegistrationId}, order {Order}: {Message}", platformLabel, registration.Id, order, refundMessage);
+
+            return new ApiResponse<bool> { Success = false, Data = false, Errors = [refundMessage], Message = "Refund failed" };
         }
 
         registration.RefundedAmount = alreadyRefunded + command.Amount;
         registration.PaymentStatus = registration.RefundedAmount >= registration.AmountPaid ? PaymentStatus.Refunded : PaymentStatus.PartiallyPaid;
 
-        string note = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC] Reembolso de {command.Amount:0.00} via Redsys (order {order})." +
+        string note = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC] Reembolso de {command.Amount:0.00} via {platformLabel} (order {order})." +
             (string.IsNullOrWhiteSpace(command.Reason) ? string.Empty : $" Motivo: {command.Reason}");
         registration.InternalNotes = string.IsNullOrWhiteSpace(registration.InternalNotes)
             ? note
@@ -339,8 +378,178 @@ public class PaymentService : IPaymentService
         _registrationRepository.Update(registration);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Redsys refund confirmed for registration {RegistrationId}, order {Order}, amount {Amount} cents.", registration.Id, order, amountInCents);
+        _logger.LogInformation("{Platform} refund confirmed for registration {RegistrationId}, order {Order}, amount {Amount} cents.", platformLabel, registration.Id, order, amountInCents);
 
         return new ApiResponse<bool> { Success = true, Data = true, Errors = [], Message = "Refund processed" };
+    }
+
+    // ── Stripe ──────────────────────────────────────────────────────────────
+    // Checkout alojado (Stripe redirige el ya mismo a su propia pagina de pago,
+    // sin necesidad de firmar un formulario como con Redsys). El mismo Order que
+    // usa Redsys se manda como ClientReferenceId, para poder recuperar la
+    // inscripcion en el webhook sin ambiguedad.
+
+    public async Task<ApiResponse<StripeCheckoutSessionDto>> CreateStripeCheckoutSessionAsync(CreatePaymentSessionCommand command, string? urlOk, string? urlKo, CancellationToken cancellationToken = default)
+    {
+        Registration? registration = await _registrationRepository.GetByIdAsync(command.RegistrationId, cancellationToken);
+
+        if (registration is null)
+        {
+            return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["Registration not found."], Message = "Payment session failed" };
+        }
+
+        if (registration.PaymentStatus == PaymentStatus.Paid)
+        {
+            return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["This registration is already paid."], Message = "Payment session failed" };
+        }
+
+        if (registration.FinalPrice <= 0)
+        {
+            return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["There is no pending amount to pay."], Message = "Payment session failed" };
+        }
+
+        FestivalCredentials? credentials = registration.Edition?.Festival?.Credentials;
+
+        if (credentials is null || string.IsNullOrWhiteSpace(credentials.StripeSecretKey))
+        {
+            return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["Stripe is not configured for this festival."], Message = "Payment session failed" };
+        }
+
+        string order = DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString() + Random.Shared.Next(10, 100).ToString();
+        long amountInCents = command.AmountOverride.HasValue
+            ? (long)Math.Round(command.AmountOverride.Value * 100m, MidpointRounding.AwayFromZero)
+            : (long)Math.Round(registration.FinalPrice * 100m, MidpointRounding.AwayFromZero);
+
+        if (amountInCents <= 0)
+        {
+            return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["There is no pending amount to pay."], Message = "Payment session failed" };
+        }
+
+        string effectiveUrlOk = urlOk ?? command.UrlOk ?? string.Empty;
+        string effectiveUrlKo = urlKo ?? command.UrlKo ?? string.Empty;
+
+        if (string.IsNullOrWhiteSpace(effectiveUrlOk) || string.IsNullOrWhiteSpace(effectiveUrlKo))
+        {
+            return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["Missing return URLs for the Stripe checkout session."], Message = "Payment session failed" };
+        }
+
+        registration.PaymentStatus = PaymentStatus.Pending;
+        registration.PaymentReference = order;
+        registration.SetUpdated();
+
+        _registrationRepository.Update(registration);
+        await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        StripeCheckoutSessionDto session = await _stripeGateway.CreateCheckoutSessionAsync(
+            credentials, order, amountInCents, "Festival registration", effectiveUrlOk, effectiveUrlKo, cancellationToken);
+
+        _logger.LogInformation("Stripe payment session created. Order {Order}, registration {RegistrationId}, amount {Amount} cents.", order, registration.Id, amountInCents);
+
+        return new ApiResponse<StripeCheckoutSessionDto> { Success = true, Data = session, Errors = [], Message = "Payment session created" };
+    }
+
+    public async Task<bool> ProcessStripeWebhookAsync(string payload, string signatureHeader, CancellationToken cancellationToken = default)
+    {
+        string? order = _stripeGateway.PeekOrder(payload);
+
+        if (order is null)
+        {
+            _logger.LogWarning("Stripe webhook rejected: could not read the order from the payload.");
+
+            return false;
+        }
+
+        Registration? registration = await _registrationRepository.GetByPaymentReferenceAsync(order, cancellationToken);
+
+        if (registration is null)
+        {
+            _logger.LogWarning("Stripe webhook for unknown order {Order}.", order);
+
+            return false;
+        }
+
+        FestivalCredentials? credentials = registration.Edition?.Festival?.Credentials;
+
+        if (credentials is null)
+        {
+            _logger.LogWarning("Stripe webhook for order {Order} has no festival credentials configured.", order);
+
+            return false;
+        }
+
+        StripeNotificationDto? notification = _stripeGateway.VerifyAndParseEvent(credentials, payload, signatureHeader);
+
+        if (notification is null)
+        {
+            _logger.LogWarning("Stripe webhook rejected: invalid signature, payload, or not a completed checkout session.");
+
+            return false;
+        }
+
+        if (registration.PaymentStatus == PaymentStatus.Paid)
+        {
+            return true;
+        }
+
+        bool becameFullyPaid = false;
+
+        if (notification.IsApproved)
+        {
+            if (registration.PaymentPlan == PaymentPlan.SplitFiftyFifty && registration.AmountPaid == 0m)
+            {
+                decimal paid = Math.Round(registration.FinalPrice * 0.5m, 2, MidpointRounding.AwayFromZero);
+                registration.PaymentStatus = PaymentStatus.PartiallyPaid;
+                registration.AmountPaid = paid;
+            }
+            else
+            {
+                registration.PaymentStatus = PaymentStatus.Paid;
+                registration.PaidAt = DateTime.UtcNow;
+                registration.AmountPaid = registration.FinalPrice;
+                registration.Status = RegistrationStatus.Confirmed;
+                becameFullyPaid = true;
+            }
+
+            if (!string.IsNullOrEmpty(notification.PaymentIntentId))
+            {
+                string entry = $"{notification.Order}:{notification.PaymentIntentId}";
+                registration.PaymentAuthCodes = string.IsNullOrEmpty(registration.PaymentAuthCodes)
+                    ? entry
+                    : registration.PaymentAuthCodes + "|" + entry;
+            }
+
+            registration.PaymentPlatformUsed = PaymentPlatform.Stripe;
+
+            _logger.LogInformation("Stripe payment approved. Order {Order}, payment intent {PaymentIntentId}.", notification.Order, notification.PaymentIntentId);
+        }
+        else
+        {
+            registration.PaymentStatus = PaymentStatus.Failed;
+            _logger.LogInformation("Stripe payment not approved. Order {Order}.", notification.Order);
+        }
+
+        registration.SetUpdated();
+        _registrationRepository.Update(registration);
+        await _registrationRepository.SaveChangesAsync(cancellationToken);
+
+        if (becameFullyPaid)
+        {
+            try
+            {
+                await _ticketService.EnsureTicketGeneratedAsync(registration.Id, cancellationToken);
+            }
+            catch (Exception ticketEx)
+            {
+                _logger.LogWarning(ticketEx, "Could not generate the ticket for registration {RegistrationId}; the payment confirmation email will still be sent.", registration.Id);
+            }
+        }
+
+        if (notification.IsApproved)
+        {
+            await _emailNotificationService.CreateAndSendEmailAsync(
+                EmailTemplateKey.PaymentConfirmed, registration.Id, cancellationToken);
+        }
+
+        return true;
     }
 }

@@ -16,4 +16,6 @@ public class UpdateFestivalCommand
     public string? CustomDomain { get; set; }
     public bool IsActive { get; set; }
     public FestivalModule EnabledModules { get; set; }
+    public EnabledPaymentPlan EnabledPaymentPlans { get; set; }
+    public EnabledPaymentPlatform EnabledPaymentPlatforms { get; set; }
 }

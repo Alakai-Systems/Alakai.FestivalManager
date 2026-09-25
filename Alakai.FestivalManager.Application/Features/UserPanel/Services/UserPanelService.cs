@@ -85,6 +85,10 @@ public class UserPanelService : IUserPanelService
 
         IReadOnlyList<CompetitionCapacity> competitionCapacities = await _competitionCapacityRepository.GetByCompetitionIdsAsync(competitionIds, cancellationToken);
 
+        EnabledPaymentPlatform enabledPaymentPlatforms = registration.Edition?.Festival?.EnabledPaymentPlatforms ?? EnabledPaymentPlatform.Redsys;
+        bool allowRedsysPayment = (enabledPaymentPlatforms & EnabledPaymentPlatform.Redsys) != 0;
+        bool allowStripePayment = (enabledPaymentPlatforms & EnabledPaymentPlatform.Stripe) != 0;
+
         UserPanelDashboardDto dashboard = new()
         {
             User = new UserPanelUserDto
@@ -116,7 +120,9 @@ public class UserPanelService : IUserPanelService
                 PaymentPlan = registration.PaymentPlan.ToString(),
                 AmountPaid = registration.AmountPaid,
                 RefundedAmount = registration.RefundedAmount,
-                PaymentDueAt = registration.PaymentDueAt
+                PaymentDueAt = registration.PaymentDueAt,
+                AllowRedsysPayment = allowRedsysPayment,
+                AllowStripePayment = allowStripePayment
             },
             Competitions = competitionEntries.Select(c => new CompetitionEntryDto
             {

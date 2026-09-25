@@ -8,6 +8,9 @@ public class UpsertFestivalCredentialsRequest
     public string RedsysMerchantName { get; set; } = string.Empty;
     public string? RedsysPaymentUrl { get; set; }
     public string Currency { get; set; } = "EUR";
+    public string? StripePublishableKey { get; set; }
+    public string? StripeSecretKey { get; set; }
+    public string? StripeWebhookSecret { get; set; }
     public string EmailHost { get; set; } = string.Empty;
     public int EmailPort { get; set; }
     public string EmailUsername { get; set; } = string.Empty;
