@@ -375,7 +375,15 @@ public class PaymentService : IPaymentService
         }
 
         registration.RefundedAmount = alreadyRefunded + command.Amount;
-        registration.PaymentStatus = registration.RefundedAmount >= registration.AmountPaid ? PaymentStatus.Refunded : PaymentStatus.PartiallyPaid;
+
+        // Un reembolso NO debe reabrir el registro para volver a cobrar: es dinero
+        // que se devuelve a proposito, no una deuda pendiente. Por eso ya NO se toca
+        // PaymentStatus aqui -- se deja tal cual estaba antes del reembolso:
+        //   - Si estaba "Paid" (pago completo, o un Split ya completado), se queda
+        //     "Paid": no aparece nada pendiente ni el boton de pago.
+        //   - Si estaba "PartiallyPaid" (Split con solo el primer 50% pagado), se
+        //     queda "PartiallyPaid": el segundo 50% sigue pendiente de pago, se
+        //     reembolse o no ese primer tramo -- es un tramo aparte.
 
         string note = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC] Reembolso de {command.Amount:0.00} via {platformLabel} (order {order})." +
             (string.IsNullOrWhiteSpace(command.Reason) ? string.Empty : $" Motivo: {command.Reason}");

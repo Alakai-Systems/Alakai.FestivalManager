@@ -365,16 +365,16 @@
                     @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
                     {
                         <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") @CurrencySymbol @T.Get("up_paid")</MudText>
-                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
-                        @if (Dashboard.Registration.RefundedAmount > 0)
-                        {
-                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
-                        }
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
                     }
                     else
                     {
                         <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
                         <MudText Class="text-warning">@PaymentStatus</MudText>
+                    }
+                    @if (Dashboard?.Registration?.RefundedAmount > 0)
+                    {
+                        <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
                     }
                 </div>
             </div>
@@ -1904,26 +1904,24 @@
         get
         {
             if (FinalPrice <= 0) return null;
-            if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+
+            decimal refunded = Dashboard?.Registration?.RefundedAmount ?? 0;
+
+            // Un reembolso no reabre lo pendiente (ver PayNowAsync mas abajo): si el
+            // registro ya estaba "Paid" (o un Split ya completado), reembolsar no debe
+            // volver a pedir ese dinero. Solo un Split con el primer 50% pagado
+            // (PaymentStatus "PartiallyPaid") tiene de verdad un segundo tramo
+            // pendiente, y eso no cambia si se reembolsa el primer tramo o no.
+            string suffix = Dashboard?.Registration?.PaymentStatus == "PartiallyPaid"
+                ? $"{Dashboard.Registration.AmountPaid:0.00} {CurrencySymbol} paid · {(FinalPrice - Dashboard.Registration.AmountPaid):0.00} {CurrencySymbol} pending"
+                : $"{FinalPrice:0.00} {CurrencySymbol}";
+
+            if (refunded > 0)
             {
-                decimal paid = Dashboard.Registration.AmountPaid;
-                decimal refunded = Dashboard.Registration.RefundedAmount;
-
-                // AmountPaid nunca baja al reembolsar (se guarda aparte en
-                // RefundedAmount, ver PayNowAsync mas abajo para el porque), asi
-                // que lo pendiente real es FinalPrice - paid + refunded. Sin el
-                // +refunded esta card se quedaba con el pendiente de antes del
-                // reembolso.
-                string suffix = $"{paid:0.00} {CurrencySymbol} paid · {(FinalPrice - paid + refunded):0.00} {CurrencySymbol} pending";
-
-                if (refunded > 0)
-                {
-                    suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
-                }
-
-                return suffix;
+                suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
             }
-            return $"{FinalPrice:0.00} {CurrencySymbol}";
+
+            return suffix;
         }
     }
 
@@ -2070,13 +2068,14 @@
             // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
             // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
             // completo o el primer tramo de un Split se cobraban sin comision.
-            // AmountPaid nunca se reduce al hacer un reembolso (Fix-RedsysRefunds.ps1 lo
-            // guarda aparte en RefundedAmount a proposito, para no perder el historico de
-            // lo cobrado). Por eso lo pendiente de verdad es FinalPrice menos lo que
-            // TODAVIA se retiene (AmountPaid - RefundedAmount), o lo que es lo mismo:
-            // FinalPrice - AmountPaid + RefundedAmount. Sin el +RefundedAmount, tras un
-            // reembolso esto da 0 y ese 0 es justo lo que se manda a Redsys.
-            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
+            // AmountPaid nunca se reduce al hacer un reembolso (se guarda aparte en
+            // RefundedAmount, para no perder el historico de lo cobrado), pero un
+            // reembolso NO debe volver a cobrarse: si ya estaba todo pagado (o un
+            // Split ya completado), esta pantalla ni siquiera muestra el boton de pago
+            // tras el reembolso. A este calculo solo se llega en el unico caso
+            // legitimo que sigue pendiente: el segundo tramo de un Split cuyo primer
+            // 50% ya se pago (se haya reembolsado ese primer tramo o no).
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
 
             // Igual que en el formulario publico (Register.razor): con Stripe se
             // aproxima su tarifa real (1.5% + 0.25e por transaccion, tarifa UE) en

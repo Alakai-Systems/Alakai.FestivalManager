@@ -1,28 +1,40 @@
 <#
-    Fix-PaymentSettingsCurrencyPlacement.ps1
+    Fix-RefundDoesNotReopenPending.ps1
     -----------------------------------------------
 
-    Requiere Fix-DynamicCurrency.ps1 ya aplicado (y, por tanto, tambien todo
-    lo anterior: Fix-PaymentSettings3Columns.ps1, Fix-StripeFee.ps1, etc.).
+    Cambia el comportamiento de los reembolsos: un reembolso ya NO reabre
+    el registro para volver a cobrar. Hasta ahora, al reembolsar (parcial o
+    totalmente), el backend forzaba PaymentStatus a "Refunded" o
+    "PartiallyPaid" segun el caso, lo que hacia reaparecer un importe
+    "pendiente" y el boton de pago en el panel de usuario -- justo lo
+    contrario de lo que se pretende al devolver dinero.
 
-    Corrige el sitio y tamano de la card de Currency en el modal "Payment
-    Settings" tal y como se pidio:
+    Con este cambio, el reembolso deja PaymentStatus tal cual estaba antes:
 
-      - Primera fila vuelve a ser Redsys, Stripe, Email (en ese orden,
-        como estaba antes) -- Currency ya no va delante de Redsys.
-      - Currency pasa a su propia fila, DEBAJO de las 3 columnas, ocupando
-        solo el ancho de las dos columnas de pago (Redsys + Stripe), no el
-        de Email.
-      - Al estar sola en su propia fila del grid, la card ya no se estira
-        a la altura de sus vecinas -- el alto es solo el del selector.
+      - Si el registro ya estaba "Paid" (pago completo, o un plan Split ya
+        completado), se queda "Paid": nada pendiente, sin boton de pago,
+        aunque se reembolse parcial o totalmente.
+      - Si estaba "PartiallyPaid" (plan Split con solo el primer 50%
+        pagado), se queda "PartiallyPaid": el segundo 50% sigue pendiente
+        de pago exactamente igual, se reembolse o no ese primer tramo --
+        es un tramo aparte, no depende del reembolso.
 
-    Verificado contra los archivos reales del repo, con Fix-DynamicCurrency.ps1
-    (y todo lo anterior) ya aplicado. Anchors unicos, balance de llaves/
-    parentesis limpio, diff revisado.
+    Esto revierte el "+RefundedAmount" que se sumaba antes al calculo de
+    "pendiente" en 3 sitios del panel de usuario (la seccion de pago, la
+    mini-card del dashboard, y el importe real que se manda a la pasarela
+    al pulsar "Pay Remaining"), que era lo que reabria el pendiente tras un
+    reembolso. El aviso de "X reembolsado" se mantiene (informativo) y
+    ahora se muestra siempre que haya algo reembolsado, este el registro
+    pagado del todo o no.
+
+    Verificado contra los archivos reales del repo, con todo lo anterior
+    (incluyendo Fix-DynamicCurrency.ps1 y Fix-PaymentSettingsCurrencyPlacement.ps1)
+    ya aplicado. Anchors unicos, balance de llaves/parentesis limpio, diff
+    revisado.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-PaymentSettingsCurrencyPlacement.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-RefundDoesNotReopenPending.ps1
 
     Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
     local difiere de lo esperado, no escribe nada y lista el problema.
@@ -183,60 +195,157 @@ function Invoke-CreateOperation {
     Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor: quita la card de Currency de arriba (delante de Redsys) -- vuelve a dejar Redsys como primera columna
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor: quita la card de Currency de arriba (delante de Redsys) -- vuelve a dejar Redsys como primera columna' `
+# 1. Alakai.FestivalManager.Application/Features/Payments/Services/PaymentService.cs -- PaymentService.cs: el reembolso ya no cambia PaymentStatus -- no reabre el registro para volver a cobrar
+Add-PatchOperation -Path 'Alakai.FestivalManager.Application/Features/Payments/Services/PaymentService.cs' `
+    -Description 'PaymentService.cs: el reembolso ya no cambia PaymentStatus -- no reabre el registro para volver a cobrar' `
     -Anchor @'
-                        <div class="p-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-3">
-                            <div class="max-w-xs">
-                                <label class="block text-sm text-black/60 dark:text-white/60">Currency (applies to Redsys &amp; Stripe)</label>
-                                <select class="form-select" @bind="credentialsRequest.Currency">
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="CAD">CAD (CA$)</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="p-4 space-y-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5">
-                            <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Redsys</p>
+        registration.RefundedAmount = alreadyRefunded + command.Amount;
+        registration.PaymentStatus = registration.RefundedAmount >= registration.AmountPaid ? PaymentStatus.Refunded : PaymentStatus.PartiallyPaid;
 '@ `
     -Replacement @'
-                        <div class="p-4 space-y-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5">
-                            <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Redsys</p>
+        registration.RefundedAmount = alreadyRefunded + command.Amount;
+
+        // Un reembolso NO debe reabrir el registro para volver a cobrar: es dinero
+        // que se devuelve a proposito, no una deuda pendiente. Por eso ya NO se toca
+        // PaymentStatus aqui -- se deja tal cual estaba antes del reembolso:
+        //   - Si estaba "Paid" (pago completo, o un Split ya completado), se queda
+        //     "Paid": no aparece nada pendiente ni el boton de pago.
+        //   - Si estaba "PartiallyPaid" (Split con solo el primer 50% pagado), se
+        //     queda "PartiallyPaid": el segundo 50% sigue pendiente de pago, se
+        //     reembolse o no ese primer tramo -- es un tramo aparte.
 '@
 
-# 2. Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor -- Festivals.razor: anade la card de Currency al final, debajo de Redsys/Stripe/Email, ocupando solo 2 columnas (el ancho de Redsys+Stripe)
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Festivals.razor' `
-    -Description 'Festivals.razor: anade la card de Currency al final, debajo de Redsys/Stripe/Email, ocupando solo 2 columnas (el ancho de Redsys+Stripe)' `
+# 2. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: la seccion de pago ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre (pagado o no)
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
+    -Description 'UserPanel.razor: la seccion de pago ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre (pagado o no)' `
     -Anchor @'
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
-                                Use SSL/TLS
-                            </label>
-                        </div>
+                <div class="text-right">
+                    @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+                    {
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") @CurrencySymbol @T.Get("up_paid")</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
+                        @if (Dashboard.Registration.RefundedAmount > 0)
+                        {
+                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
+                        }
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
+                        <MudText Class="text-warning">@PaymentStatus</MudText>
                     }
                 </div>
 '@ `
     -Replacement @'
-                            <label class="inline-flex items-center gap-2 text-sm text-black dark:text-white">
-                                <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
-                                Use SSL/TLS
-                            </label>
-                        </div>
-
-                        <div class="p-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
-                            <div class="max-w-xs">
-                                <label class="block text-sm text-black/60 dark:text-white/60">Currency (applies to Redsys &amp; Stripe)</label>
-                                <select class="form-select" @bind="credentialsRequest.Currency">
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="CAD">CAD (CA$)</option>
-                                </select>
-                            </div>
-                        </div>
+                <div class="text-right">
+                    @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+                    {
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") @CurrencySymbol @T.Get("up_paid")</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
+                    }
+                    else
+                    {
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
+                        <MudText Class="text-warning">@PaymentStatus</MudText>
+                    }
+                    @if (Dashboard?.Registration?.RefundedAmount > 0)
+                    {
+                        <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
                     }
                 </div>
+'@
+
+# 3. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: mini-card del dashboard ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
+    -Description 'UserPanel.razor: mini-card del dashboard ya no suma RefundedAmount al pendiente; el aviso de reembolso se muestra siempre' `
+    -Anchor @'
+    private string? PaymentCardSuffix
+    {
+        get
+        {
+            if (FinalPrice <= 0) return null;
+            if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
+            {
+                decimal paid = Dashboard.Registration.AmountPaid;
+                decimal refunded = Dashboard.Registration.RefundedAmount;
+
+                // AmountPaid nunca baja al reembolsar (se guarda aparte en
+                // RefundedAmount, ver PayNowAsync mas abajo para el porque), asi
+                // que lo pendiente real es FinalPrice - paid + refunded. Sin el
+                // +refunded esta card se quedaba con el pendiente de antes del
+                // reembolso.
+                string suffix = $"{paid:0.00} {CurrencySymbol} paid · {(FinalPrice - paid + refunded):0.00} {CurrencySymbol} pending";
+
+                if (refunded > 0)
+                {
+                    suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
+                }
+
+                return suffix;
+            }
+            return $"{FinalPrice:0.00} {CurrencySymbol}";
+        }
+    }
+'@ `
+    -Replacement @'
+    private string? PaymentCardSuffix
+    {
+        get
+        {
+            if (FinalPrice <= 0) return null;
+
+            decimal refunded = Dashboard?.Registration?.RefundedAmount ?? 0;
+
+            // Un reembolso no reabre lo pendiente (ver PayNowAsync mas abajo): si el
+            // registro ya estaba "Paid" (o un Split ya completado), reembolsar no debe
+            // volver a pedir ese dinero. Solo un Split con el primer 50% pagado
+            // (PaymentStatus "PartiallyPaid") tiene de verdad un segundo tramo
+            // pendiente, y eso no cambia si se reembolsa el primer tramo o no.
+            string suffix = Dashboard?.Registration?.PaymentStatus == "PartiallyPaid"
+                ? $"{Dashboard.Registration.AmountPaid:0.00} {CurrencySymbol} paid · {(FinalPrice - Dashboard.Registration.AmountPaid):0.00} {CurrencySymbol} pending"
+                : $"{FinalPrice:0.00} {CurrencySymbol}";
+
+            if (refunded > 0)
+            {
+                suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
+            }
+
+            return suffix;
+        }
+    }
+'@
+
+# 4. Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor -- UserPanel.razor: PayNowAsync ya no suma RefundedAmount al importe a cobrar -- un reembolso no vuelve a cobrarse
+Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/UserPanelDashboard/UserPanel.razor' `
+    -Description 'UserPanel.razor: PayNowAsync ya no suma RefundedAmount al importe a cobrar -- un reembolso no vuelve a cobrarse' `
+    -Anchor @'
+            // Igual que en el formulario publico (Register.razor): el 1% de comision
+            // se aplica SIEMPRE sobre lo que se cobra ahora, sea el importe completo
+            // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
+            // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
+            // completo o el primer tramo de un Split se cobraban sin comision.
+            // AmountPaid nunca se reduce al hacer un reembolso (Fix-RedsysRefunds.ps1 lo
+            // guarda aparte en RefundedAmount a proposito, para no perder el historico de
+            // lo cobrado). Por eso lo pendiente de verdad es FinalPrice menos lo que
+            // TODAVIA se retiene (AmountPaid - RefundedAmount), o lo que es lo mismo:
+            // FinalPrice - AmountPaid + RefundedAmount. Sin el +RefundedAmount, tras un
+            // reembolso esto da 0 y ese 0 es justo lo que se manda a Redsys.
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
+'@ `
+    -Replacement @'
+            // Igual que en el formulario publico (Register.razor): el 1% de comision
+            // se aplica SIEMPRE sobre lo que se cobra ahora, sea el importe completo
+            // o solo el tramo pendiente (si ya se pago una parte). Antes solo se
+            // aplicaba cuando PaymentStatus era "PartiallyPaid", asi que el pago
+            // completo o el primer tramo de un Split se cobraban sin comision.
+            // AmountPaid nunca se reduce al hacer un reembolso (se guarda aparte en
+            // RefundedAmount, para no perder el historico de lo cobrado), pero un
+            // reembolso NO debe volver a cobrarse: si ya estaba todo pagado (o un
+            // Split ya completado), esta pantalla ni siquiera muestra el boton de pago
+            // tras el reembolso. A este calculo solo se llega en el unico caso
+            // legitimo que sigue pendiente: el segundo tramo de un Split cuyo primer
+            // 50% ya se pago (se haya reembolsado ese primer tramo o no).
+            decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid;
 '@
 
 
@@ -278,7 +387,8 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. Abre Payment Settings: primera fila Redsys / Stripe / Email," -ForegroundColor Cyan
-Write-Host "y debajo, ocupando el ancho de Redsys+Stripe, una card corta con" -ForegroundColor Cyan
-Write-Host "solo el selector de Currency." -ForegroundColor Cyan
+Write-Host "Listo. Prueba: reembolsa (parcial o total) un registro ya pagado del" -ForegroundColor Cyan
+Write-Host "todo -- no debe quedar nada pendiente ni aparecer el boton de pago." -ForegroundColor Cyan
+Write-Host "Y en un Split con solo el primer 50% pagado, reembolsa ese primer" -ForegroundColor Cyan
+Write-Host "tramo -- el segundo 50% debe seguir pendiente igual que antes." -ForegroundColor Cyan
 Write-Host ""
