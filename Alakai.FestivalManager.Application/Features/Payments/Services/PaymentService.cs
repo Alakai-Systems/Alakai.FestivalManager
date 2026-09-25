@@ -311,19 +311,28 @@ public class PaymentService : IPaymentService
             return new ApiResponse<bool> { Success = false, Data = false, Errors = [$"The refund amount exceeds the amount available to refund ({refundable:0.00})."], Message = "Refund failed" };
         }
 
-        // "order:identificador" del ultimo cobro confirmado, tal y como se guardo en
-        // PaymentAuthCodes (varias entradas separadas por "|" si hubo mas de un cobro,
-        // p.ej. en un plan de pago dividido). Para Redsys el identificador es el
-        // AuthorisationCode (no se usa para reembolsar, solo se reembolsa contra el
-        // Order); para Stripe el identificador ES el PaymentIntentId que hace falta
-        // para reembolsar.
-        string? lastEntry = registration.PaymentAuthCodes?
+        // Todas las entradas "order:identificador" guardadas en PaymentAuthCodes, en el
+        // orden en que se cobraron (puede haber mas de una, p.ej. en un plan de pago
+        // dividido en dos cobros). Para Redsys el identificador es el AuthorisationCode
+        // (no se usa para reembolsar, solo se reembolsa contra el Order); para Stripe el
+        // identificador ES el PaymentIntentId que hace falta para reembolsar.
+        //
+        // Antes esto solo miraba la ULTIMA entrada, asi que un reembolso que no cupiera
+        // en el cobro mas reciente fallaba aunque la inscripcion, en conjunto, tuviera
+        // saldo de sobra repartido entre varios cobros. Ahora se recorren todas: si el
+        // importe pedido no cabe en un cobro (porque ya se reembolso parte de el, o
+        // porque el cobro es mas pequeno que lo pedido), se sigue con el siguiente hasta
+        // completar el importe o agotar los cobros disponibles.
+        List<(string Order, string? Identifier)> paymentEntries = (registration.PaymentAuthCodes ?? string.Empty)
             .Split('|', StringSplitOptions.RemoveEmptyEntries)
-            .LastOrDefault();
-        string? order = lastEntry?.Split(':')[0];
-        string? identifier = lastEntry is not null && lastEntry.Contains(':') ? lastEntry.Split(':')[1] : null;
+            .Select(entry =>
+            {
+                string[] parts = entry.Split(':');
+                return (Order: parts[0], Identifier: parts.Length > 1 ? parts[1] : (string?)null);
+            })
+            .ToList();
 
-        if (string.IsNullOrWhiteSpace(order))
+        if (paymentEntries.Count == 0)
         {
             return new ApiResponse<bool> { Success = false, Data = false, Errors = ["No payment is on record for this registration."], Message = "Refund failed" };
         }
@@ -344,37 +353,113 @@ public class PaymentService : IPaymentService
         bool refundSuccess;
         string refundMessage;
         string platformLabel;
+        decimal actuallyRefundedNow;
+        List<string> touchedPayments = [];
 
         if (platform == PaymentPlatform.Stripe)
         {
             platformLabel = "Stripe";
 
-            if (string.IsNullOrWhiteSpace(identifier))
+            List<(string Order, string? Identifier)> stripeEntries = paymentEntries
+                .Where(entry => !string.IsNullOrWhiteSpace(entry.Identifier))
+                .ToList();
+
+            if (stripeEntries.Count == 0)
             {
                 return new ApiResponse<bool> { Success = false, Data = false, Errors = ["No Stripe payment intent is on record for this registration."], Message = "Refund failed" };
             }
 
-            StripeRefundResultDto stripeResult = await _stripeGateway.SendRefundAsync(credentials, identifier, amountInCents, cancellationToken);
-            refundSuccess = stripeResult.Success;
-            refundMessage = stripeResult.Message;
+            long remainingCents = amountInCents;
+            List<string> failureMessages = [];
+
+            foreach ((string order, string? identifier) in stripeEntries)
+            {
+                if (remainingCents <= 0)
+                {
+                    break;
+                }
+
+                long refundableHereCents;
+
+                try
+                {
+                    refundableHereCents = await _stripeGateway.GetRefundableAmountInCentsAsync(credentials, identifier!, cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Could not read the refundable amount for Stripe payment intent {PaymentIntentId} (registration {RegistrationId}).", identifier, registration.Id);
+                    failureMessages.Add($"No se pudo consultar Stripe para {order}: {ex.Message}");
+                    continue;
+                }
+
+                long amountHereCents = Math.Min(remainingCents, refundableHereCents);
+
+                if (amountHereCents <= 0)
+                {
+                    continue;
+                }
+
+                StripeRefundResultDto stripeResult = await _stripeGateway.SendRefundAsync(credentials, identifier!, amountHereCents, cancellationToken);
+
+                if (!stripeResult.Success)
+                {
+                    _logger.LogWarning("Stripe refund rejected for registration {RegistrationId}, payment intent {PaymentIntentId}: {Message}", registration.Id, identifier, stripeResult.Message);
+                    failureMessages.Add(stripeResult.Message);
+                    continue;
+                }
+
+                remainingCents -= amountHereCents;
+                touchedPayments.Add($"{amountHereCents / 100m:0.00} contra {order}");
+            }
+
+            actuallyRefundedNow = touchedPayments.Count == 0
+                ? 0
+                : (amountInCents - remainingCents) / 100m;
+
+            refundSuccess = actuallyRefundedNow > 0;
+            refundMessage = !refundSuccess
+                ? (failureMessages.Count > 0 ? string.Join(" ", failureMessages) : "No queda importe reembolsable en los pagos de Stripe registrados para esta inscripcion.")
+                : remainingCents > 0
+                    ? $"Reembolsados {actuallyRefundedNow:0.00} de los {command.Amount:0.00} solicitados (no quedaba mas disponible en los pagos registrados)."
+                    : "Reembolso confirmado por Stripe.";
         }
         else
         {
             platformLabel = "Redsys";
 
-            RedsysRefundResultDto redsysResult = await _redsysGateway.SendRefundAsync(credentials, order, amountInCents, cancellationToken);
-            refundSuccess = redsysResult.Success;
-            refundMessage = redsysResult.Message;
+            string? lastError = null;
+
+            foreach ((string order, string? _) in paymentEntries)
+            {
+                RedsysRefundResultDto redsysResult = await _redsysGateway.SendRefundAsync(credentials, order, amountInCents, cancellationToken);
+
+                if (redsysResult.Success)
+                {
+                    touchedPayments.Add($"{command.Amount:0.00} contra {order}");
+                    lastError = null;
+                    break;
+                }
+
+                lastError = redsysResult.Message;
+            }
+
+            actuallyRefundedNow = touchedPayments.Count > 0 ? command.Amount : 0;
+            refundSuccess = actuallyRefundedNow > 0;
+            refundMessage = refundSuccess
+                ? "Reembolso confirmado por Redsys."
+                : (paymentEntries.Count > 1
+                    ? $"Redsys rechazo el reembolso contra los {paymentEntries.Count} pagos registrados. Ultimo motivo: {lastError}"
+                    : lastError ?? "Redsys rejected the refund.");
         }
 
         if (!refundSuccess)
         {
-            _logger.LogWarning("{Platform} refund rejected for registration {RegistrationId}, order {Order}: {Message}", platformLabel, registration.Id, order, refundMessage);
+            _logger.LogWarning("{Platform} refund rejected for registration {RegistrationId}: {Message}", platformLabel, registration.Id, refundMessage);
 
             return new ApiResponse<bool> { Success = false, Data = false, Errors = [refundMessage], Message = "Refund failed" };
         }
 
-        registration.RefundedAmount = alreadyRefunded + command.Amount;
+        registration.RefundedAmount = alreadyRefunded + actuallyRefundedNow;
 
         // Un reembolso NO debe reabrir el registro para volver a cobrar: es dinero
         // que se devuelve a proposito, no una deuda pendiente. Por eso ya NO se toca
@@ -385,8 +470,9 @@ public class PaymentService : IPaymentService
         //     queda "PartiallyPaid": el segundo 50% sigue pendiente de pago, se
         //     reembolse o no ese primer tramo -- es un tramo aparte.
 
-        string note = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC] Reembolso de {command.Amount:0.00} via {platformLabel} (order {order})." +
-            (string.IsNullOrWhiteSpace(command.Reason) ? string.Empty : $" Motivo: {command.Reason}");
+        string note = $"[{DateTime.UtcNow:yyyy-MM-dd HH:mm} UTC] Reembolso de {actuallyRefundedNow:0.00} via {platformLabel}: {string.Join(", ", touchedPayments)}." +
+            (string.IsNullOrWhiteSpace(command.Reason) ? string.Empty : $" Motivo: {command.Reason}") +
+            (actuallyRefundedNow < command.Amount ? $" ATENCION: solo se pudo reembolsar {actuallyRefundedNow:0.00} de los {command.Amount:0.00} solicitados -- revisar manualmente el resto." : string.Empty);
         registration.InternalNotes = string.IsNullOrWhiteSpace(registration.InternalNotes)
             ? note
             : registration.InternalNotes + "\n" + note;
@@ -395,9 +481,9 @@ public class PaymentService : IPaymentService
         _registrationRepository.Update(registration);
         await _registrationRepository.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("{Platform} refund confirmed for registration {RegistrationId}, order {Order}, amount {Amount} cents.", platformLabel, registration.Id, order, amountInCents);
+        _logger.LogInformation("{Platform} refund confirmed for registration {RegistrationId}, amount {Amount} cents: {Details}.", platformLabel, registration.Id, (long)Math.Round(actuallyRefundedNow * 100m, MidpointRounding.AwayFromZero), string.Join(", ", touchedPayments));
 
-        return new ApiResponse<bool> { Success = true, Data = true, Errors = [], Message = "Refund processed" };
+        return new ApiResponse<bool> { Success = true, Data = true, Errors = [], Message = refundMessage };
     }
 
     // ── Stripe ──────────────────────────────────────────────────────────────

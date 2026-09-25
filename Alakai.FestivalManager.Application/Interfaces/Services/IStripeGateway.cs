@@ -13,4 +13,7 @@ public interface IStripeGateway
 
     /// <summary>Reembolsa (total o parcialmente) un PaymentIntent ya cobrado.</summary>
     Task<StripeRefundResultDto> SendRefundAsync(FestivalCredentials credentials, string paymentIntentId, long amountInCents, CancellationToken cancellationToken = default);
+
+    /// <summary>Cuanto le queda reembolsable (en centimos) al cargo de un PaymentIntent ya cobrado -- para poder repartir un reembolso entre varios cobros de una misma inscripcion sin que Stripe rechace el conjunto.</summary>
+    Task<long> GetRefundableAmountInCentsAsync(FestivalCredentials credentials, string paymentIntentId, CancellationToken cancellationToken = default);
 }

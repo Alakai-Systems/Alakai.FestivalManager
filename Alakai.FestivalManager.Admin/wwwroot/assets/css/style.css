@@ -62,3 +62,28 @@
 .mud-button-label{
     display:contents;
 }
+
+/* Editor de plantillas de email (Radzen HTML Editor): los iconos de la barra
+   de herramientas no siguen el modo oscuro propio de la app -- Radzen tiene
+   su propio sistema de temas (ThemeService), independiente del atributo
+   data-mode que usa el resto de la UI, y no llega a activarse aqui. Se
+   fuerza el color igual que el resto de overrides de esta hoja. No toca el
+   area de contenido editable, que debe quedarse en blanco: es la vista
+   previa de como se vera el email. */
+[data-mode="dark"] .rz-html-editor-toolbar {
+    color: rgb(255 255 255 / 0.8);
+}
+
+[data-mode="dark"] .rz-html-editor-toolbar .rz-button,
+[data-mode="dark"] .rz-html-editor-toolbar .rzi,
+[data-mode="dark"] .rz-html-editor-toolbar .rz-dropdown,
+[data-mode="dark"] .rz-html-editor-toolbar .rz-dropdown-trigger,
+[data-mode="dark"] .rz-html-editor-toolbar svg {
+    color: rgb(255 255 255 / 0.8) !important;
+    fill: rgb(255 255 255 / 0.8) !important;
+}
+
+[data-mode="dark"] .rz-html-editor-toolbar .rz-button:hover,
+[data-mode="dark"] .rz-html-editor-toolbar .rz-button.rz-state-active {
+    background-color: rgb(255 255 255 / 0.1) !important;
+}

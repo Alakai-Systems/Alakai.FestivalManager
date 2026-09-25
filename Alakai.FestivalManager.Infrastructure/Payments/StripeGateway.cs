@@ -139,4 +139,30 @@ public class StripeGateway : IStripeGateway
             };
         }
     }
+
+    /// <summary>
+    /// Cuanto le queda reembolsable (en centimos) al cargo de un PaymentIntent ya cobrado.
+    /// Necesario para repartir un reembolso entre varios cobros de una misma inscripcion
+    /// (p.ej. un plan de pago dividido en dos cargos de Stripe): sin esto, un reembolso
+    /// que pida mas de lo que le queda a UN cargo concreto lo rechaza Stripe entero,
+    /// aunque la inscripcion en conjunto tenga saldo suficiente repartido entre varios.
+    /// </summary>
+    public async Task<long> GetRefundableAmountInCentsAsync(FestivalCredentials credentials, string paymentIntentId, CancellationToken cancellationToken = default)
+    {
+        RequestOptions requestOptions = new() { ApiKey = credentials.StripeSecretKey };
+        PaymentIntentService service = new();
+        PaymentIntentGetOptions options = new() { Expand = ["latest_charge"] };
+
+        PaymentIntent paymentIntent = await service.GetAsync(paymentIntentId, options, requestOptions, cancellationToken);
+        Charge? charge = paymentIntent.LatestCharge;
+
+        if (charge is null)
+        {
+            return 0;
+        }
+
+        long refundable = charge.Amount - charge.AmountRefunded;
+
+        return refundable > 0 ? refundable : 0;
+    }
 }

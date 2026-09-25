@@ -178,14 +178,17 @@
                         <tr class="border-b border-black/10 dark:border-darkborder">
                             <td class="px-4 py-3">Invoice PDFs</td>
                             <td class="px-4 py-3 text-right">
-                                <div class="inline-flex gap-2">
-                                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs")" @onclick="DownloadInvoicesZipAsync">
-                                        <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs" ? "Downloading..." : "Download")
-                                    </button>
-                                    <button type="button" class="btn border border-black/10 dark:border-darkborder disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="OpenBulkCreateInvoicesModal">
-                                        <i class="ri-file-add-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")
-                                    </button>
-                                </div>
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs")" @onclick="DownloadInvoicesZipAsync">
+                                    <i class="ri-download-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs" ? "Downloading..." : "Download")
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b border-black/10 dark:border-darkborder">
+                            <td class="px-4 py-3">Generate Invoices</td>
+                            <td class="px-4 py-3 text-right">
+                                <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="OpenBulkCreateInvoicesModal">
+                                    <i class="ri-file-add-line ltr:mr-1 rtl:ml-1"></i>@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")
+                                </button>
                             </td>
                         </tr>
                         <tr class="border-b border-black/10 dark:border-darkborder">
@@ -223,7 +226,7 @@
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[420px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="px-5 py-4">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Generate Invoices</h3>
                     <p class="mt-2 text-sm text-black/60 dark:text-white/60">
