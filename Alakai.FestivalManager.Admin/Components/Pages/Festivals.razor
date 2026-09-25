@@ -422,17 +422,6 @@
                     }
                     else
                     {
-                        <div class="p-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-3">
-                            <div class="max-w-xs">
-                                <label class="block text-sm text-black/60 dark:text-white/60">Currency (applies to Redsys &amp; Stripe)</label>
-                                <select class="form-select" @bind="credentialsRequest.Currency">
-                                    <option value="EUR">EUR (€)</option>
-                                    <option value="USD">USD ($)</option>
-                                    <option value="CAD">CAD (CA$)</option>
-                                </select>
-                            </div>
-                        </div>
-
                         <div class="p-4 space-y-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5">
                             <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Redsys</p>
 
@@ -518,6 +507,17 @@
                                 <input type="checkbox" @bind="credentialsRequest.EmailUseSSL" />
                                 Use SSL/TLS
                             </label>
+                        </div>
+
+                        <div class="p-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-2">
+                            <div class="max-w-xs">
+                                <label class="block text-sm text-black/60 dark:text-white/60">Currency (applies to Redsys &amp; Stripe)</label>
+                                <select class="form-select" @bind="credentialsRequest.Currency">
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="CAD">CAD (CA$)</option>
+                                </select>
+                            </div>
                         </div>
                     }
                 </div>
