@@ -74,7 +74,7 @@ public class PublicRegistrationApiClient
     }
 }
 
-public record PublicFestivalSlugDto(Guid? ActiveEditionId, bool HasAccommodation, string? TermsUrl, string? FaviconUrl, bool AllowFullOnline = true, bool AllowSplitFiftyFifty = true, bool AllowDeferredTenDays = true, bool AllowRedsysPayment = true, bool AllowStripePayment = false);
+public record PublicFestivalSlugDto(Guid? ActiveEditionId, bool HasAccommodation, string? TermsUrl, string? FaviconUrl, bool AllowFullOnline = true, bool AllowSplitFiftyFifty = true, bool AllowDeferredTenDays = true, bool AllowRedsysPayment = true, bool AllowStripePayment = false, string Currency = "EUR");
 
 public record PublicFestivalBrandingDto(string Name, string? FaviconUrl, string? LogoUrl);
 

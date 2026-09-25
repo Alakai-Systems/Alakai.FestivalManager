@@ -16,4 +16,5 @@ public class FestivalDto
     public int EnabledModules { get; set; }
     public int EnabledPaymentPlans { get; set; }
     public int EnabledPaymentPlatforms { get; set; }
+    public string Currency { get; set; } = "EUR";
 }

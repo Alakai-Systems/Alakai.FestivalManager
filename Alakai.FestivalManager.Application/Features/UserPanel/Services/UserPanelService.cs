@@ -88,6 +88,8 @@ public class UserPanelService : IUserPanelService
         EnabledPaymentPlatform enabledPaymentPlatforms = registration.Edition?.Festival?.EnabledPaymentPlatforms ?? EnabledPaymentPlatform.Redsys;
         bool allowRedsysPayment = (enabledPaymentPlatforms & EnabledPaymentPlatform.Redsys) != 0;
         bool allowStripePayment = (enabledPaymentPlatforms & EnabledPaymentPlatform.Stripe) != 0;
+        string currency = registration.Edition?.Festival?.Credentials?.Currency;
+        currency = string.IsNullOrWhiteSpace(currency) ? "EUR" : currency;
 
         UserPanelDashboardDto dashboard = new()
         {
@@ -122,7 +124,8 @@ public class UserPanelService : IUserPanelService
                 RefundedAmount = registration.RefundedAmount,
                 PaymentDueAt = registration.PaymentDueAt,
                 AllowRedsysPayment = allowRedsysPayment,
-                AllowStripePayment = allowStripePayment
+                AllowStripePayment = allowStripePayment,
+                Currency = currency
             },
             Competitions = competitionEntries.Select(c => new CompetitionEntryDto
             {

@@ -402,7 +402,7 @@
 {
     <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
         <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-full max-w-lg overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
+            <div class="relative w-full max-w-4xl overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
                 <div class="flex items-center justify-between px-5 py-3 border-b border-black/10 dark:border-darkborder">
                     <h3 class="text-lg font-semibold text-black dark:text-white">Payment Settings — @selectedFestivalForCredentials.Name</h3>
                     <button type="button" class="text-black/50 hover:text-black dark:text-white/60" @onclick="CloseModals">
@@ -410,78 +410,78 @@
                     </button>
                 </div>
 
-                <div class="grid grid-cols-1 gap-6 p-5 md:grid-cols-2">
+                <div class="grid grid-cols-1 gap-4 p-5 md:grid-cols-3">
                     @if (!string.IsNullOrWhiteSpace(modalErrorMessage))
                     {
-                        <div class="p-3 text-sm rounded md:col-span-2 bg-danger/10 text-danger">@modalErrorMessage</div>
+                        <div class="p-3 text-sm rounded md:col-span-3 bg-danger/10 text-danger">@modalErrorMessage</div>
                     }
 
                     @if (isLoadingCredentials)
                     {
-                        <p class="text-sm md:col-span-2 text-black/50 dark:text-white/60">Loading payment settings...</p>
+                        <p class="text-sm md:col-span-3 text-black/50 dark:text-white/60">Loading payment settings...</p>
                     }
                     else
                     {
-                        <div class="space-y-6">
-                            <div class="space-y-4">
-                                <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Redsys</p>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
-                                    <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
-                                    <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
-                                    <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Payment URL (test o produccion)</label>
-                                    <input class="form-input" placeholder="https://sis.redsys.es/sis/realizarPago" @bind="credentialsRequest.RedsysPaymentUrl" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
-                                    <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Currency</label>
-                                    <select class="form-select" @bind="credentialsRequest.Currency">
-                                        <option value="EUR">EUR (€)</option>
-                                        <option value="USD">USD ($)</option>
-                                        <option value="CAD">CAD (CA$)</option>
-                                    </select>
-                                </div>
-                            </div>
-
-                            <div class="space-y-4">
-                                <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Stripe</p>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Publishable Key</label>
-                                    <input class="form-input" placeholder="pk_test_..." @bind="credentialsRequest.StripePublishableKey" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
-                                    <input type="password" class="form-input" placeholder="@(hasStripeSecretKey ? "Already configured - leave blank to keep" : "sk_test_...")" @bind="credentialsRequest.StripeSecretKey" />
-                                </div>
-
-                                <div>
-                                    <label class="block text-sm text-black/60 dark:text-white/60">Webhook Secret</label>
-                                    <input type="password" class="form-input" placeholder="@(hasStripeWebhookSecret ? "Already configured - leave blank to keep" : "whsec_...")" @bind="credentialsRequest.StripeWebhookSecret" />
-                                </div>
+                        <div class="p-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5 md:col-span-3">
+                            <div class="max-w-xs">
+                                <label class="block text-sm text-black/60 dark:text-white/60">Currency (applies to Redsys &amp; Stripe)</label>
+                                <select class="form-select" @bind="credentialsRequest.Currency">
+                                    <option value="EUR">EUR (€)</option>
+                                    <option value="USD">USD ($)</option>
+                                    <option value="CAD">CAD (CA$)</option>
+                                </select>
                             </div>
                         </div>
 
-                        <div class="space-y-4">
+                        <div class="p-4 space-y-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5">
+                            <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Redsys</p>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Merchant Code</label>
+                                <input class="form-input" placeholder="Merchant Code" @bind="credentialsRequest.RedsysMerchantCode" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Terminal</label>
+                                <input class="form-input" placeholder="Terminal" @bind="credentialsRequest.RedsysTerminal" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Merchant Name</label>
+                                <input class="form-input" placeholder="Merchant Name" @bind="credentialsRequest.RedsysMerchantName" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Payment URL (test o produccion)</label>
+                                <input class="form-input" placeholder="https://sis.redsys.es/sis/realizarPago" @bind="credentialsRequest.RedsysPaymentUrl" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
+                                <input type="password" class="form-input" placeholder="@(hasRedsysSecretKey ? "Already configured - leave blank to keep" : "Secret Key")" @bind="credentialsRequest.RedsysSecretKey" />
+                            </div>
+                        </div>
+
+                        <div class="p-4 space-y-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5">
+                            <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Stripe</p>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Publishable Key</label>
+                                <input class="form-input" placeholder="pk_test_..." @bind="credentialsRequest.StripePublishableKey" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Secret Key</label>
+                                <input type="password" class="form-input" placeholder="@(hasStripeSecretKey ? "Already configured - leave blank to keep" : "sk_test_...")" @bind="credentialsRequest.StripeSecretKey" />
+                            </div>
+
+                            <div>
+                                <label class="block text-sm text-black/60 dark:text-white/60">Webhook Secret</label>
+                                <input type="password" class="form-input" placeholder="@(hasStripeWebhookSecret ? "Already configured - leave blank to keep" : "whsec_...")" @bind="credentialsRequest.StripeWebhookSecret" />
+                            </div>
+                        </div>
+
+                        <div class="p-4 space-y-4 rounded-lg border border-black/10 dark:border-darkborder bg-black/[0.02] dark:bg-white/5">
                             <p class="text-xs font-semibold tracking-wide uppercase text-black dark:text-white">Email (SMTP)</p>
 
                             <div>

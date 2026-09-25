@@ -59,7 +59,16 @@ public class PaymentService : IPaymentService
             return new ApiResponse<RedsysPaymentFormDto> { Success = false, Data = null, Errors = ["There is no pending amount to pay."], Message = "Payment session failed" };
         }
 
-        registration.PaymentStatus = PaymentStatus.Pending;
+        // Si ya estaba "PartiallyPaid" (primer tramo de un Split ya pagado), se
+        // queda asi mientras se genera el formulario del segundo tramo -- antes
+        // esto se sobreescribia a "Pending" con solo abrir el formulario, y si
+        // el usuario lo cerraba sin pagar, el panel pasaba a mostrar el 100%
+        // como pendiente aunque el primer tramo ya estuviera cobrado.
+        if (registration.PaymentStatus != PaymentStatus.PartiallyPaid)
+        {
+            registration.PaymentStatus = PaymentStatus.Pending;
+        }
+
         registration.PaymentReference = order;
         registration.SetUpdated();
 
@@ -433,7 +442,15 @@ public class PaymentService : IPaymentService
             return new ApiResponse<StripeCheckoutSessionDto> { Success = false, Data = null, Errors = ["Missing return URLs for the Stripe checkout session."], Message = "Payment session failed" };
         }
 
-        registration.PaymentStatus = PaymentStatus.Pending;
+        // Mismo caso que en Redsys (ver CreatePaymentSessionAsync mas arriba): si
+        // ya estaba "PartiallyPaid", se queda asi al generar la sesion de Stripe
+        // para el tramo restante, en vez de sobreescribirse a "Pending" con solo
+        // abrir el checkout.
+        if (registration.PaymentStatus != PaymentStatus.PartiallyPaid)
+        {
+            registration.PaymentStatus = PaymentStatus.Pending;
+        }
+
         registration.PaymentReference = order;
         registration.SetUpdated();
 

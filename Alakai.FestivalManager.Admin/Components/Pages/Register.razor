@@ -133,7 +133,7 @@
                                         <span>@lvl.Name @(lvl.IsFull ? " – Full" : "")</span>
                                         @if (SelectedLevelIds.Contains(lvl.Id))
                                         {
-                                            <span class="text-muted text-xs">@lvl.Price.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€</span>
+                                            <span class="text-muted text-xs">@lvl.Price.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)@CurrencySymbol</span>
                                         }
                                     </label>
                                 }
@@ -284,7 +284,7 @@
                                         @if (DiscountInfo.Applied)
                                         {
                                             <div class="mt-1 text-sm font-medium" style="color:#16a34a;">
-                                                ✓ @T.Get("reg_discount_applied") (-@DiscountInfo.DiscountAmount.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€)
+                                                ✓ @T.Get("reg_discount_applied") (-@DiscountInfo.DiscountAmount.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)@CurrencySymbol)
                                             </div>
                                         }
                                         else if (DiscountInfo.PendingThreshold)
@@ -346,12 +346,12 @@
                             @if (BasePrice > 0)
                             {
                                 <div style="margin-top:1.25rem;border-radius:0.5rem;background:rgba(0,0,0,0.03);padding:1.25rem;text-align:center;">
-                                    <div class="text-sm text-muted">@T.Get("price") <span class="font-semibold text-black">@BasePrice.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
+                                    <div class="text-sm text-muted">@T.Get("price") <span class="font-semibold text-black">@BasePrice.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)@CurrencySymbol</span></div>
                                     @if (SelectedPlan == "SplitFiftyFifty")
                                     {
-                                        <div class="text-sm text-muted mt-1">@T.Get("pay_now") <span class="font-semibold text-black">@AmountNow.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)€</span></div>
+                                        <div class="text-sm text-muted mt-1">@T.Get("pay_now") <span class="font-semibold text-black">@AmountNow.ToString("N0", System.Globalization.CultureInfo.InvariantCulture)@CurrencySymbol</span></div>
                                     }
-                                    <div class="text-xs text-muted mt-1">+ @ManagementFee.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)€ @T.Get("reg_management_fee") (@(SelectedPlan == "SplitFiftyFifty" ? T.Get("reg_of_50") : T.Get("reg_of_total"))).</div>
+                                    <div class="text-xs text-muted mt-1">+ @ManagementFee.ToString("N2", System.Globalization.CultureInfo.InvariantCulture)@CurrencySymbol @T.Get("reg_management_fee") (@(SelectedPlan == "SplitFiftyFifty" ? T.Get("reg_of_50") : T.Get("reg_of_total"))).</div>
                                 </div>
                             }
                         </div>
@@ -493,7 +493,19 @@
     private decimal BasePrice => DiscountInfo?.Applied is true
         ? DiscountInfo.FinalPrice
         : PreDiscountAmount;
-    private decimal ManagementFee => Math.Round(AmountNow * 0.01m, 2, MidpointRounding.AwayFromZero);
+    // Antes un 1% plano para cualquier pasarela. Ahora refleja lo que cuesta
+    // cada una: con Stripe se aproxima su tarifa real (1.5% + 0.25e por
+    // transaccion, tarifa UE), con Redsys se mantiene el 1% de siempre. Al
+    // ser una propiedad calculada, este cambio se propaga solo al resumen en
+    // pantalla, a Form.FinalPrice/ManagementFee al crear la inscripcion, y al
+    // importe que se manda a la pasarela al lanzar el pago.
+    private decimal ManagementFee => SelectedPaymentPlatform == "Stripe"
+        ? Math.Round(AmountNow * 0.015m + 0.25m, 2, MidpointRounding.AwayFromZero)
+        : Math.Round(AmountNow * 0.01m, 2, MidpointRounding.AwayFromZero);
+
+    // "€" fijo sustituido por esto en todo el formulario -- refleja la divisa
+    // configurada para este festival en Payment Settings (EUR/USD/CAD).
+    private string CurrencySymbol => CurrencyHelper.Symbol(festivalResponse?.Currency);
     private decimal AmountNow => SelectedPlan switch
     {
         "SplitFiftyFifty" => Math.Round(BasePrice * 0.5m, 2, MidpointRounding.AwayFromZero),

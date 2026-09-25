@@ -304,7 +304,7 @@
 
                 <div class="p-4 rounded bg-light/20 dark:bg-white/5">
                     <MudText Class="text-muted dark:text-darkmuted">@T.Get("up_final_price")</MudText>
-                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
+                    <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
                 </div>
             </div>
         </div>
@@ -364,16 +364,16 @@
                 <div class="text-right">
                     @if (Dashboard?.Registration?.PaymentStatus == "PartiallyPaid")
                     {
-                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") € @T.Get("up_paid")</MudText>
-                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) € @T.Get("up_pending")</MudText>
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@Dashboard.Registration.AmountPaid.ToString("0.00") @CurrencySymbol @T.Get("up_paid")</MudText>
+                        <MudText Class="text-warning">@((FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount).ToString("0.00")) @CurrencySymbol @T.Get("up_pending")</MudText>
                         @if (Dashboard.Registration.RefundedAmount > 0)
                         {
-                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") € refunded</MudText>
+                            <MudText Class="text-xs text-danger">@Dashboard.Registration.RefundedAmount.ToString("0.00") @CurrencySymbol refunded</MudText>
                         }
                     }
                     else
                     {
-                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") €</MudText>
+                        <MudText Typo="Typo.h5" Class="text-lg font-bold dark:text-white">@FinalPrice.ToString("0.00") @CurrencySymbol</MudText>
                         <MudText Class="text-warning">@PaymentStatus</MudText>
                     }
                 </div>
@@ -417,7 +417,7 @@
                                 <tr class="border-b border-black/10 dark:border-darkborder">
                                     <td class="px-4 py-3">@invoice.Number</td>
                                     <td class="px-4 py-3">@invoice.Date.ToString("dd/MM/yyyy")</td>
-                                    <td class="px-4 py-3">@invoice.Amount.ToString("0.00") €</td>
+                                    <td class="px-4 py-3">@invoice.Amount.ToString("0.00") @CurrencySymbol</td>
                                     <td class="px-4 py-3 text-right">
                                         <a href="@invoice.PdfUrl" target="_blank" class="text-black dark:text-white/80">
                                             <i class="ri-download-line text-lg"></i>
@@ -1888,6 +1888,10 @@
     private string DiscountCode => Dashboard?.Registration?.DiscountCodeValue ?? "-";
     private decimal FinalPrice => Dashboard?.Registration?.FinalPrice ?? 0;
 
+    // "€" fijo sustituido por esto en todo el panel -- refleja la divisa
+    // configurada para este festival en Payment Settings (EUR/USD/CAD).
+    private string CurrencySymbol => CurrencyHelper.Symbol(Dashboard?.Registration?.Currency);
+
     private IReadOnlyList<CompetitionEntryDto> Competitions => Dashboard?.Competitions ?? [];
     private IReadOnlyList<UserPanelInvoiceDto> Invoices => Dashboard?.Invoices ?? [];
     private IReadOnlyList<CompetitionDto> AvailableCompetitions => Dashboard?.AvailableCompetitions ?? [];
@@ -1910,16 +1914,16 @@
                 // que lo pendiente real es FinalPrice - paid + refunded. Sin el
                 // +refunded esta card se quedaba con el pendiente de antes del
                 // reembolso.
-                string suffix = $"{paid:0.00} € paid · {(FinalPrice - paid + refunded):0.00} € pending";
+                string suffix = $"{paid:0.00} {CurrencySymbol} paid · {(FinalPrice - paid + refunded):0.00} {CurrencySymbol} pending";
 
                 if (refunded > 0)
                 {
-                    suffix += $" · {refunded:0.00} € refunded";
+                    suffix += $" · {refunded:0.00} {CurrencySymbol} refunded";
                 }
 
                 return suffix;
             }
-            return $"{FinalPrice:0.00} €";
+            return $"{FinalPrice:0.00} {CurrencySymbol}";
         }
     }
 
@@ -1943,7 +1947,7 @@
         {
             UserPanelInvoiceDto? latest = Invoices.OrderByDescending(i => i.Date).FirstOrDefault();
 
-            return latest is null ? null : $"Last invoice {latest.Amount:0.00} €";
+            return latest is null ? null : $"Last invoice {latest.Amount:0.00} {CurrencySymbol}";
         }
     }
 
@@ -2073,7 +2077,13 @@
             // FinalPrice - AmountPaid + RefundedAmount. Sin el +RefundedAmount, tras un
             // reembolso esto da 0 y ese 0 es justo lo que se manda a Redsys.
             decimal remaining = Dashboard.Registration.FinalPrice - Dashboard.Registration.AmountPaid + Dashboard.Registration.RefundedAmount;
-            decimal amountOverride = Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
+
+            // Igual que en el formulario publico (Register.razor): con Stripe se
+            // aproxima su tarifa real (1.5% + 0.25e por transaccion, tarifa UE) en
+            // vez del 1% plano que se usaba antes para cualquier pasarela.
+            decimal amountOverride = SelectedPaymentPlatform == "Stripe"
+                ? Math.Round(remaining * 1.015m + 0.25m, 2, MidpointRounding.AwayFromZero)
+                : Math.Round(remaining * 1.01m, 2, MidpointRounding.AwayFromZero);
 
             // Redsys tenia un fallback en appsettings si no se mandaban UrlOk/UrlKo,
             // pero Stripe no lo tiene -- sin esto, Stripe respondia "Missing return

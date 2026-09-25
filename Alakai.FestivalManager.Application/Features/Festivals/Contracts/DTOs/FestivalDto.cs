@@ -18,4 +18,7 @@ public class FestivalDto
     public FestivalModule EnabledModules { get; set; }
     public EnabledPaymentPlan EnabledPaymentPlans { get; set; }
     public EnabledPaymentPlatform EnabledPaymentPlatforms { get; set; }
+
+    /// <summary>Solo la divisa (EUR/USD/CAD) -- nunca las claves de FestivalCredentials.</summary>
+    public string Currency { get; set; } = "EUR";
 }

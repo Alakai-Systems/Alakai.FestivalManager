@@ -23,4 +23,5 @@ public class UserPanelRegistrationDto
     public string Language { get; set; } = "en";
     public bool AllowRedsysPayment { get; set; } = true;
     public bool AllowStripePayment { get; set; }
+    public string Currency { get; set; } = "EUR";
 }

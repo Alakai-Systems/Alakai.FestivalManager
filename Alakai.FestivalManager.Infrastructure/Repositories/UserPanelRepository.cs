@@ -20,7 +20,7 @@ public class UserPanelRepository : IUserPanelRepository
         IQueryable<Registration> baseQuery = _context.Registrations
             .Include(r => r.PassType)
             .Include(r => r.Level)
-            .Include(r => r.Edition).ThenInclude(e => e.Festival)
+            .Include(r => r.Edition).ThenInclude(e => e.Festival).ThenInclude(f => f.Credentials)
             .Where(r => r.UserId == userId && r.IsActive);
 
         if (!string.IsNullOrWhiteSpace(domain))

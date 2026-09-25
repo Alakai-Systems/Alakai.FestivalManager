@@ -1,4 +1,4 @@
-﻿@page "/buses"
+@page "/buses"
 @using Alakai.FestivalManager.Admin.Contracts.PassTypes.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Buses.DTOs
 @using Alakai.FestivalManager.Admin.Contracts.Buses.Requests
@@ -87,7 +87,7 @@
                                 <td class="px-3 py-3">@bus.DepartureTime.ToString("dd/MM/yyyy HH:mm")</td>
                                 <td class="px-3 py-3"><a href="@GetMapsUrl(bus.PickupLocation)" target="_blank" class="text-purple hover:underline">@bus.PickupLocation</a></td>
                                 <td class="px-3 py-3"><a href="@GetMapsUrl(bus.DestinationLocation)" target="_blank" class="text-purple hover:underline">@bus.DestinationLocation</a></td>
-                                <td class="px-3 py-3">@(bus.Price > 0 ? bus.Price.ToString("0.00") + " €" : "-")</td>
+                                <td class="px-3 py-3">@(bus.Price > 0 ? bus.Price.ToString("0.00") + " " + CurrencySymbol : "-")</td>
                                 <td class="px-3 py-3">@bus.OccupiedCount / @bus.Capacity</td>
                                 <td class="px-3 py-3"><span class="@GetStatusClass(bus.IsActive)">@(bus.IsActive ? "Active" : "Inactive")</span></td>
                                 <td class="px-3 py-3">
@@ -247,6 +247,11 @@
 
     private List<EditionDto> editionsForSelectedFestival =>
         editions.Where(e => e.FestivalId == selectedFestivalId).OrderByDescending(e => e.Year).ToList();
+
+    // "€" fijo sustituido por esto en toda la pagina -- refleja la divisa del
+    // festival seleccionado arriba (EUR por defecto si no hay ninguno
+    // seleccionado todavia).
+    private string CurrencySymbol => CurrencyHelper.Symbol(festivals.FirstOrDefault(f => f.Id == selectedFestivalId)?.Currency);
 
     protected override async Task OnInitializedAsync()
     {

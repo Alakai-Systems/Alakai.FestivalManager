@@ -13,6 +13,7 @@ public class FestivalRepository : IFestivalRepository
     {
         return await _context.Festivals
             .AsNoTracking()
+            .Include(f => f.Credentials)
             .OrderBy(f => f.Name)
             .ToListAsync(cancellationToken);
     }
@@ -27,6 +28,7 @@ public class FestivalRepository : IFestivalRepository
     {
         return await _context.Festivals
             .AsNoTracking()
+            .Include(f => f.Credentials)
             .FirstOrDefaultAsync(f => f.Slug == slug, cancellationToken);
     }
 

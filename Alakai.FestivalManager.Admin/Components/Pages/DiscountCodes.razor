@@ -102,7 +102,7 @@
                                 <td class="px-4 py-3 font-medium">@item.Code</td>
                                 <td class="px-4 py-3">@item.Name</td>
                                 <td class="px-4 py-3">@item.DiscountType</td>
-                                <td class="px-4 py-3">@FormatDiscountValue(item)</td>
+                                <td class="px-4 py-3">@FormatDiscountValue(item, CurrencySymbol)</td>
                                 <td class="px-4 py-3">@FormatActivation(item)</td>
                                 <td class="px-4 py-3">@item.CurrentUses</td>
                                 <td class="px-4 py-3"><span class="@GetStatusClass(item.IsActive)">@(item.IsActive ? "Active" : "Inactive")</span></td>
@@ -254,6 +254,12 @@
     private string searchText = string.Empty;
     private string festivalFilter = string.Empty;
     private string editionFilter = string.Empty;
+
+    // "€" fijo sustituido por esto en toda la pagina -- refleja la divisa del
+    // festival seleccionado en el filtro de arriba (EUR por defecto si no hay
+    // ninguno seleccionado todavia).
+    private string CurrencySymbol =>
+        CurrencyHelper.Symbol(Guid.TryParse(festivalFilter, out Guid fid) ? festivals.FirstOrDefault(f => f.Id == fid)?.Currency : null);
 
     private List<EditionDto> EditionsForSelectedFestival =>
         string.IsNullOrWhiteSpace(festivalFilter) || !Guid.TryParse(festivalFilter, out Guid fid)
@@ -599,9 +605,9 @@
         }
     }
 
-    private static string FormatDiscountValue(DiscountCodeDto code)
+    private static string FormatDiscountValue(DiscountCodeDto code, string currencySymbol)
     {
-        return code.DiscountType == DiscountType.Percentage ? $"{code.DiscountValue:0.##}%" : $"{code.DiscountValue:0.##} €";
+        return code.DiscountType == DiscountType.Percentage ? $"{code.DiscountValue:0.##}%" : $"{code.DiscountValue:0.##} {currencySymbol}";
     }
 
     private static string FormatActivation(DiscountCodeDto code)

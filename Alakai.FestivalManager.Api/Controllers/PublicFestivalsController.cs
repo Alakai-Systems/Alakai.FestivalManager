@@ -57,6 +57,9 @@ public class PublicFestivalsController : ControllerBase
         bool allowRedsysPayment = (festival.EnabledPaymentPlatforms & EnabledPaymentPlatform.Redsys) != 0;
         bool allowStripePayment = (festival.EnabledPaymentPlatforms & EnabledPaymentPlatform.Stripe) != 0;
 
+        string currency = festival.Credentials?.Currency;
+        currency = string.IsNullOrWhiteSpace(currency) ? "EUR" : currency;
+
         return Ok(new
         {
             ActiveEditionId = active?.Id,
@@ -67,7 +70,8 @@ public class PublicFestivalsController : ControllerBase
             AllowSplitFiftyFifty = allowSplitFiftyFifty,
             AllowDeferredTenDays = allowDeferredTenDays,
             AllowRedsysPayment = allowRedsysPayment,
-            AllowStripePayment = allowStripePayment
+            AllowStripePayment = allowStripePayment,
+            Currency = currency
         });
     }
 
