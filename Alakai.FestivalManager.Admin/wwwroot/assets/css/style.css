@@ -63,6 +63,22 @@
     display:contents;
 }
 
+/* Editor de plantillas de email: el area de texto editable (donde escribes
+   el cuerpo del email) se queda tambien en negro en modo oscuro, para que
+   se vea lo que escribes -- deja de previsualizar el email tal cual se
+   veria sobre fondo blanco real, pero es lo que se ha pedido: prioridad a
+   poder ver lo que escribes. */
+[data-mode="dark"] .rz-html-editor-content {
+    background-color: rgb(31 31 31) !important;
+    color: rgb(255 255 255 / 0.8) !important;
+}
+
+[data-mode="dark"] .rz-html-editor-content[contenteditable="true"],
+[data-mode="dark"] .rz-html-editor-content [contenteditable="true"] {
+    background-color: rgb(31 31 31) !important;
+    color: rgb(255 255 255 / 0.8) !important;
+}
+
 /* Ancho fijo para el modal de confirmacion "Generate Invoices" en Reports,
    como CSS normal en vez de la clase de Tailwind w-[92vw] md:w-[380px] --
    esa clase, por lo que sea, no esta surtiendo efecto en tu build (se ha

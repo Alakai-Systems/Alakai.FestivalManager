@@ -1,44 +1,37 @@
 <#
-    Fix-GenerateInvoicesModalWidth.ps1
+    Fix-EmailEditorContentDarkMode.ps1
     -----------------------------------------------
 
-    El modal "Generate Invoices" seguia saliendo a pantalla completa
-    despues de reiniciar el server -- asi que no era un tema de cache ni
-    de build sin recompilar. El .razor ya tenia bien puesto
-    w-[92vw] md:w-[380px] (igual que el resto de modales de confirmacion),
-    pero esa clase de Tailwind no esta surtiendo efecto por lo que sea en
-    tu build.
-
-    En vez de seguir investigando por que esa clase concreta de Tailwind
-    no compila (que puede llevar varias rondas mas), este script rodea el
-    problema: mete el mismo ancho responsive como CSS normal, en
-    style.css, con su propio nombre de clase (.confirm-modal-380) --
-    CSS normal no depende de que Tailwind genere nada nuevo, asi que
-    funciona seguro.
+    El area donde escribes el cuerpo del email (dentro del editor de
+    plantillas) se quedaba en blanco a proposito en modo oscuro -- la idea
+    original era que sirviera de vista previa fiel de como se ve un email
+    real (fondo blanco). Pero en la practica no se ve lo que escribes ahi
+    en modo oscuro, asi que este script cambia el criterio: el area de
+    texto tambien pasa a fondo oscuro, con el mismo tono que el resto de
+    paneles.
 
     Que trae:
 
-      - style.css: nueva clase .confirm-modal-380 (92vw por debajo de
-        768px, 380px a partir de ahi -- el mismo comportamiento que
-        w-[92vw] md:w-[380px], escrito a mano).
-      - Reports.razor: el modal de "Generate Invoices" usa esa clase en
-        vez de las utilidades de Tailwind que no estaban funcionando.
+      - style.css: nueva regla para .rz-html-editor-content (el area
+        editable del editor de Radzen) -- fondo y texto oscuro/claro en
+        modo oscuro, igual que ya se hizo con la barra de herramientas.
 
-    Si con esto el modal ya sale a 380px, es señal de que hay algo en tu
-    build de Tailwind que no esta recogiendo esa clase concreta (quiza
-    valdria la pena mirarlo con calma en algun momento, pero ya no es
-    urgente). Si te encuentras el mismo problema en otro sitio, dimelo y
-    aplicamos el mismo truco ahi.
+    Ten en cuenta: al hacer esto, el editor deja de mostrarte el email tal
+    cual se veria de verdad (sobre blanco) mientras estas en modo oscuro.
+    Si mas adelante quieres recuperar esa vista previa fiel (por ejemplo
+    con un boton para alternar "modo previsualizacion"), dimelo y lo
+    montamos aparte -- por ahora prioriza poder ver lo que escribes, que es
+    lo que has pedido.
 
-    Verificado: anchor de Reports.razor es el bloque COMPLETO que me
-    pegaste tu mismo, tal cual, asi que deberia encajar exacto. Balance de
-    llaves/parentesis limpio en los dos archivos.
+    Verificado: mismo anchor estable que los scripts anteriores de
+    style.css (no depende de que se haya aplicado ningun otro primero).
+    Balance de llaves limpio.
 
     Uso:
         cd Alakai.FestivalManager          # raiz del repo (donde esta el .sln)
-        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-GenerateInvoicesModalWidth.ps1
+        pwsh -NoProfile -ExecutionPolicy Bypass -File .\Fix-EmailEditorContentDarkMode.ps1
 
-    Idempotente y todo-o-nada: si algun anchor no encaja porque algun archivo
+    Idempotente y todo-o-nada: si el anchor no encaja porque el archivo
     local difiere de lo esperado, no escribe nada y lista el problema.
 #>
 
@@ -197,9 +190,9 @@ function Invoke-CreateOperation {
     Write-Host "  + created: $($Op.Path) -- $($Op.Description)" -ForegroundColor Green
 }
 
-# 1. Alakai.FestivalManager.Admin/wwwroot/assets/css/style.css -- style.css: clase .confirm-modal-380 con CSS normal (no clase de Tailwind) para forzar el ancho del modal de Generate Invoices
+# 1. Alakai.FestivalManager.Admin/wwwroot/assets/css/style.css -- style.css: el area editable del editor de plantillas de email tambien pasa a fondo oscuro en modo oscuro (antes se dejaba en blanco a proposito, pero no se veia el texto al escribir)
 Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/wwwroot/assets/css/style.css' `
-    -Description 'style.css: clase .confirm-modal-380 con CSS normal (no clase de Tailwind) para forzar el ancho del modal de Generate Invoices' `
+    -Description 'style.css: el area editable del editor de plantillas de email tambien pasa a fondo oscuro en modo oscuro (antes se dejaba en blanco a proposito, pero no se veia el texto al escribir)' `
     -Anchor @'
 .mud-button-label{
     display:contents;
@@ -210,67 +203,20 @@ Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/wwwroot/assets/css/style.
     display:contents;
 }
 
-/* Ancho fijo para el modal de confirmacion "Generate Invoices" en Reports,
-   como CSS normal en vez de la clase de Tailwind w-[92vw] md:w-[380px] --
-   esa clase, por lo que sea, no esta surtiendo efecto en tu build (se ha
-   comprobado que el codigo del .razor ya la lleva bien puesta, y sigue
-   saliendo el modal a pantalla completa incluso tras reiniciar el server).
-   Esto no depende de que Tailwind compile nada nuevo: es CSS normal, en el
-   mismo fichero que ya se sirve siempre. */
-.confirm-modal-380 {
-    width: 92vw;
+/* Editor de plantillas de email: el area de texto editable (donde escribes
+   el cuerpo del email) se queda tambien en negro en modo oscuro, para que
+   se vea lo que escribes -- deja de previsualizar el email tal cual se
+   veria sobre fondo blanco real, pero es lo que se ha pedido: prioridad a
+   poder ver lo que escribes. */
+[data-mode="dark"] .rz-html-editor-content {
+    background-color: rgb(31 31 31) !important;
+    color: rgb(255 255 255 / 0.8) !important;
 }
 
-@media (min-width: 768px) {
-    .confirm-modal-380 {
-        width: 380px;
-    }
-}
-'@
-
-# 2. Alakai.FestivalManager.Admin/Components/Pages/Reports.razor -- Reports.razor: el modal de Generate Invoices usa la clase .confirm-modal-380 (CSS normal) en vez de la utilidad de Tailwind, que no esta surtiendo efecto
-Add-PatchOperation -Path 'Alakai.FestivalManager.Admin/Components/Pages/Reports.razor' `
-    -Description 'Reports.razor: el modal de Generate Invoices usa la clase .confirm-modal-380 (CSS normal) en vez de la utilidad de Tailwind, que no esta surtiendo efecto' `
-    -Anchor @'
-@if (showBulkCreateInvoicesModal)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative w-[92vw] md:w-[380px] overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Generate Invoices</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">
-                        This generates an invoice for every paid registration in this edition that doesn't have one yet, using the data already on file for each attendee (name, document, city, country -- no fiscal address, since the registration form never asks for one). This is for internal accounting, not fiscal invoices for attendees. It can only be done once per registration: it won't recreate invoices that already exist. Continue?
-                    </p>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="CloseBulkCreateInvoicesModal">Cancel</button>
-                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="ConfirmBulkCreateInvoicesAsync">@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")</button>
-                </div>
-            </div>
-        </div>
-    </div>
-}
-'@ `
-    -Replacement @'
-@if (showBulkCreateInvoicesModal)
-{
-    <div class="fixed inset-0 bg-black/60 z-[999] overflow-y-auto">
-        <div class="flex items-start justify-center min-h-screen px-4 py-10">
-            <div class="relative confirm-modal-380 overflow-hidden bg-white border rounded-lg shadow-3xl border-black/10 dark:bg-darklight dark:border-darkborder">
-                <div class="px-5 py-4">
-                    <h3 class="text-lg font-semibold text-black dark:text-white">Generate Invoices</h3>
-                    <p class="mt-2 text-sm text-black/60 dark:text-white/60">
-                        This generates an invoice for every paid registration in this edition that doesn't have one yet, using the data already on file for each attendee (name, document, city, country -- no fiscal address, since the registration form never asks for one). This is for internal accounting, not fiscal invoices for attendees. It can only be done once per registration: it won't recreate invoices that already exist. Continue?
-                    </p>
-                </div>
-                <div class="flex justify-end gap-3 px-5 py-4 border-t border-black/10 dark:border-darkborder">
-                    <button type="button" class="btn border border-black/10" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="CloseBulkCreateInvoicesModal">Cancel</button>
-                    <button type="button" class="btn bg-purple border-purple text-white hover:bg-purple/[0.85] hover:border-purple/[0.85] disabled:opacity-50" disabled="@(downloadingReport == "invoice-pdfs-generate")" @onclick="ConfirmBulkCreateInvoicesAsync">@(downloadingReport == "invoice-pdfs-generate" ? "Generating..." : "Generate & Download")</button>
-                </div>
-            </div>
-        </div>
-    </div>
+[data-mode="dark"] .rz-html-editor-content[contenteditable="true"],
+[data-mode="dark"] .rz-html-editor-content [contenteditable="true"] {
+    background-color: rgb(31 31 31) !important;
+    color: rgb(255 255 255 / 0.8) !important;
 }
 '@
 
@@ -313,6 +259,6 @@ foreach ($op in $script:Plan) {
 }
 
 Write-Host ""
-Write-Host "Listo. Refresco fuerte del navegador (Ctrl+Shift+R) y prueba el modal" -ForegroundColor Cyan
-Write-Host "de Generate Invoices en Reports." -ForegroundColor Cyan
+Write-Host "Listo. Refresco fuerte (Ctrl+Shift+R) y prueba a escribir en el editor" -ForegroundColor Cyan
+Write-Host "de plantillas de email en modo oscuro." -ForegroundColor Cyan
 Write-Host ""
