@@ -63,14 +63,40 @@
     display:contents;
 }
 
+/* Ancho fijo para el modal de confirmacion "Generate Invoices" en Reports,
+   como CSS normal en vez de la clase de Tailwind w-[92vw] md:w-[380px] --
+   esa clase, por lo que sea, no esta surtiendo efecto en tu build (se ha
+   comprobado que el codigo del .razor ya la lleva bien puesta, y sigue
+   saliendo el modal a pantalla completa incluso tras reiniciar el server).
+   Esto no depende de que Tailwind compile nada nuevo: es CSS normal, en el
+   mismo fichero que ya se sirve siempre. */
+.confirm-modal-380 {
+    width: 92vw;
+}
+
+@media (min-width: 768px) {
+    .confirm-modal-380 {
+        width: 380px;
+    }
+}
+
 /* Editor de plantillas de email (Radzen HTML Editor): los iconos de la barra
    de herramientas no siguen el modo oscuro propio de la app -- Radzen tiene
    su propio sistema de temas (ThemeService), independiente del atributo
    data-mode que usa el resto de la UI, y no llega a activarse aqui. Se
    fuerza el color igual que el resto de overrides de esta hoja. No toca el
    area de contenido editable, que debe quedarse en blanco: es la vista
-   previa de como se vera el email. */
+   previa de como se vera el email.
+
+   Lo que fallaba en el intento anterior: el fondo de la barra (background-
+   color) NO se hereda en CSS como el color de texto -- forzar los iconos a
+   blanco sin tocar el fondo los dejaba blancos sobre el fondo claro propio
+   de Radzen, que nunca cambia con data-mode porque Radzen no sabe nada de
+   ese atributo. Ahora se fuerza tambien el fondo de la barra, con el mismo
+   oscuro que usan el resto de tarjetas/paneles en modo oscuro. */
 [data-mode="dark"] .rz-html-editor-toolbar {
+    background-color: rgb(31 31 31) !important;
+    border-color: rgb(52 51 49) !important;
     color: rgb(255 255 255 / 0.8);
 }
 
